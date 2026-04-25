@@ -1,0 +1,71 @@
+name: Release On Version Bump
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - system.json
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Detect version change
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_version="$(node -p "require('./system.json').version")"
+          current_tag="v${current_version}"
+
+          if git cat-file -e "${{ github.event.before }}:system.json" 2>/dev/null; then
+            previous_version="$(git show "${{ github.event.before }}:system.json" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")"
+          else
+            previous_version=""
+          fi
+
+          if [[ -n "${previous_version}" && "${previous_version}" == "${current_version}" ]]; then
+            echo "release_required=false" >> "$GITHUB_OUTPUT"
+            echo "version=${current_version}" >> "$GITHUB_OUTPUT"
+            echo "tag=${current_tag}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git rev-parse "${current_tag}" >/dev/null 2>&1; then
+            echo "Tag ${current_tag} already exists; skipping release creation."
+            echo "release_required=false" >> "$GITHUB_OUTPUT"
+            echo "version=${current_version}" >> "$GITHUB_OUTPUT"
+            echo "tag=${current_tag}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "release_required=true" >> "$GITHUB_OUTPUT"
+          echo "version=${current_version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${current_tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Build dist artifacts
+        if: steps.version.outputs.release_required == 'true'
+        run: bash scripts/release.sh
+
+      - name: Create GitHub release
+        if: steps.version.outputs.release_required == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          files: |
+            dist/*
