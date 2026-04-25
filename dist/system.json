@@ -2,10 +2,10 @@
     "id": "turn-of-the-century",
     "title": "Turn of the Century",
     "description": "A pulp horror roleplaying game set in the turn of the 19th century.",
-    "version": "0.0.2",
+    "version": "0.0.4",
     "compatibility": {
         "minimum": 12,
-        "verified": 12
+        "verified": 14
     },
     "authors": [
         {
