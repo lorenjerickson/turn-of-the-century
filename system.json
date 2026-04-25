@@ -25,22 +25,30 @@
         {
             "name": "monsters",
             "label": "Monsters",
-            "type": "Actor"
+            "type": "Actor",
+            "path": "packs/monsters",
+            "system": "turn-of-the-century"
         },
         {
             "name": "heroes",
             "label": "Heroes",
-            "type": "Actor"
+            "type": "Actor",
+            "path": "packs/heroes",
+            "system": "turn-of-the-century"
         },
         {
             "name": "villains",
             "label": "Villains",
-            "type": "Actor"
+            "type": "Actor",
+            "path": "packs/villains",
+            "system": "turn-of-the-century"
         },
         {
             "name": "pawns",
             "label": "Pawns",
-            "type": "Actor"
+            "type": "Actor",
+            "path": "packs/pawns",
+            "system": "turn-of-the-century"
         },
         {
             "name": "starter-actors",
@@ -52,52 +60,72 @@
         {
             "name": "professions",
             "label": "Professions",
-            "type": "Item"
+            "type": "Item",
+            "path": "packs/professions",
+            "system": "turn-of-the-century"
         },
         {
             "name": "ethnicities",
             "label": "Ethnicities",
-            "type": "Item"
+            "type": "Item",
+            "path": "packs/ethnicities",
+            "system": "turn-of-the-century"
         },
         {
             "name": "skills",
             "label": "Skills",
-            "type": "Item"
+            "type": "Item",
+            "path": "packs/skills",
+            "system": "turn-of-the-century"
         },
         {
             "name": "talents",
             "label": "Talents",
-            "type": "Item"
+            "type": "Item",
+            "path": "packs/talents",
+            "system": "turn-of-the-century"
         },
         {
             "name": "quirks",
             "label": "Quirks",
-            "type": "Item"
+            "type": "Item",
+            "path": "packs/quirks",
+            "system": "turn-of-the-century"
         },
         {
             "name": "armor",
             "label": "Armor",
-            "type": "Item"
+            "type": "Item",
+            "path": "packs/armor",
+            "system": "turn-of-the-century"
         },
         {
             "name": "weapons",
             "label": "Weapons",
-            "type": "Item"
+            "type": "Item",
+            "path": "packs/weapons",
+            "system": "turn-of-the-century"
         },
         {
             "name": "consumables",
             "label": "Consumables",
-            "type": "Item"
+            "type": "Item",
+            "path": "packs/consumables",
+            "system": "turn-of-the-century"
         },
         {
             "name": "effects",
             "label": "Effects",
-            "type": "Item"
+            "type": "Item",
+            "path": "packs/effects",
+            "system": "turn-of-the-century"
         },
         {
             "name": "equipment",
             "label": "Equipment",
-            "type": "Item"
+            "type": "Item",
+            "path": "packs/equipment",
+            "system": "turn-of-the-century"
         },
         {
             "name": "starter-items",
