@@ -1,0 +1,84 @@
+You are a master game designer with intimate knowledge of the Foundry VTT platform. You are creating a new game system for use on this platform that is set in the turn of the century. It describes a world that is rich in gothic horror and steampunk elements, but is grounded in real historical events of the period. Need to create the necessary data models, and other configuration required to believably implement this world in foundry vtt. 
+
+--- 
+
+create a data model that represents a quirk that can be associated with a player- or non-player character either through a specific ethnicity or feat. A quirk grants a combination of bonuses and penalties to a given ability or attribute. For example, the "skeaky" quirk might grant a +1 bonus to steath checks, but -1 penalty to intimidation. The "pack mule" quirk might grant bonus carrying capacity, but will slow movement by 10ft when the player is encumbered. A quirk bonus or penalty can be applied to any of the following: attributes, abilities, speed, encumbrance, weapon or armor proficiency. 
+
+save the resulting quirk model in module/models/quirk.mjs.
+
+---
+
+create a new data model that describes the enthicity of a player character or non-player character. Ethnicity determines initial languages spoken, and may grant specific quirks. Choices for ethnicities should be limited to national identities that were common in the turn of the century.
+
+save the resulting ethnicity model in module/models/ethnicity.mjs.
+
+---
+
+create a new data model that describes professions that a player or non-player character might choose. Professions are defined a progression from unskilled to expert level proficiency. Professions also allow for specialization at certain levels. For example, an artisan might progress from an apprentice blacksmith to a master blacksmith. A profession is associated with a set of skills that the character must use in order to gain experience to progress through levels of expertise. Specialization allows a foot soldier to become a rifleman, then a sniper, then an assassin. Each profession will have at least four levels of expertise and four levels of specialization. A profession may also grant quirks.
+
+save the resulting profession model in module/models/profession.mjs.
+
+---
+
+define a new model that describes various kinds of weapons that might be used in this world. Each weapon has a name, description, classification, required proficiencies, damage type, handedness (main, offhand, two-handed, etc.) and weight. Weapons may require ammunition. Weapons may have attribute requirements (e.g., strength, etc.). Weapons have a quality and rarity rating.  
+
+save the resulting weapon model in module/models/weapon.mjs.
+
+While we're at this update the armor data model to include a quality and rarity rating as well.
+
+---
+
+create a new data model to represent consumable items such as food, drink, medicine, bandages, etc. Each consumable should define the specific effect it provides when consumed. For example, certain kinds of medicine can cure fever, relieve pain, etc. Bandages might restore hit points by some formula. 
+
+save the resulting consumable model in module/models/consumable.mjs.
+
+---
+
+create a new data model that describes effects that may afflict a player, non-player character, or monster. Effects can effect senses, movement, cognition, defense, etc. Effects can be either beneficial or detrimental. Each effect should have a name, description, duration, and specific mechanical impact on the character's attributes, abilities, or actions. For example, a "poisoned" effect might reduce the character's strength and constitution by 2 for a duration of 1 hour, while a "blessed" effect might grant a +1 bonus to all saving throws for 10 minutes.
+
+save the resulting effect model in module/models/effect.mjs.
+
+--- 
+
+create a new data model that descrbes items that can be found in the world, such as tools, trinkets, or other miscellaneous objects. Each item should have a name, description, weight, and any specific mechanical effects it may have when used or interacted with. For example, a "lockpick set" might allow a character to attempt to pick locks with a certain skill check, while a "magnifying glass" might grant a bonus to perception checks when examining small details.
+
+save the resulting item model in module/models/item.mjs.
+
+--- 
+
+udpate all data models to accommodate artwork for each entity. Each model should include a field for an image URL that can be used to display the entity's artwork in the Foundry VTT interface. This will allow players and game masters to visually represent their characters, items, and other entities in the game world, enhancing immersion and engagement.
+
+---
+
+Update the actor data models to also accommodate a token image URL. This will allow for a separate image to be used for the character's token on the game map, which can be different from the character's portrait or artwork. The token image should be designed to fit within the standard token size used in Foundry VTT, and should clearly represent the character's appearance and identity in a way that is easily recognizable during gameplay.
+
+---
+
+create a sample TurnOfTheCenturyItem document implementation based on the associated data model 
+
+---
+
+create a generic sheet to represent an item based on the associated model
+
+---
+
+
+# TODO
+
+Recommended Next Steps
+
+Build document classes first. Implement TurnOfTheCenturyActor and TurnOfTheCenturyItem in module/documents.mjs, then register them in turn-of-the-century.mjs. This is where we should calculate ability modifiers, skill totals, armor class, encumbrance, equipped weapon state, passive senses, and derived movement.
+
+Create a small rules engine for modifiers. Normalize quirk effects, item effects, consumable effects, and condition/effect impacts into one shared modifier format. Then actor preparation can aggregate them into final attributes. This will prevent every item type from needing custom one-off math.
+
+Add basic sheets. Start with one actor sheet and one generic item sheet that can render/edit all current data. They do not need to be beautiful yet; they need to make the system usable and expose all fields safely.
+
+Implement core rolls. Add ability checks, saving throws, skill checks, attack rolls, damage rolls, healing rolls, and sanity checks. Once rolls exist, weapons, consumables, and effects become testable.
+
+Implement inventory and equipment behavior. Add methods like equipItem, unequipItem, moveToPack, readyWeapon, consumeAmmunition, and applyArmorClass. This is central to your slot-based design.
+
+Add seed compendiums. Create a minimal playable set: 6-10 weapons, 6 armor pieces, 8 consumables, 8 quirks, 6 professions, 8 ethnicities, 10 effects, and 3 actors. This will reveal model weaknesses faster than more abstract schema work.
+
+Add migrations and versioning discipline. Before much content exists, add a migration scaffold keyed to system version. That will save pain as field names change.
+
+Improve manifest polish. Add folder-backed packs if you intend to ship compendium content, add compatibility updates for your target Foundry version, and fill localization strings.

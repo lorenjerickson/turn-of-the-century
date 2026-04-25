@@ -1,0 +1,14 @@
+{
+    "TOTC.Item.Caption": "Caption",
+    "TOTC.Item.Credit": "Credit",
+    "TOTC.Item.Description": "Description",
+    "TOTC.Item.DisplayName": "Display Name",
+    "TOTC.Item.InvalidJson": "Invalid JSON in {path}.",
+    "TOTC.Item.NoSystemFields": "This item has no system fields to display.",
+    "TOTC.Item.Portrait": "Artwork",
+    "TOTC.Item.Type": "Type",
+    "TOTC.Item.Use": "Use",
+    "TOTC.Item.UseUnavailable": "This item cannot currently be used.",
+    "TOTC.Sheet.Details": "Details",
+    "TOTC.Sheet.SystemData": "System Data"
+}

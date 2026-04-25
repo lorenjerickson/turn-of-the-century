@@ -1,0 +1,66 @@
+<form class="{{cssClass}} totc-item-sheet" autocomplete="off">
+    <header class="sheet-header">
+        <img class="profile-img" src="{{artworkImage}}" data-edit="img" title="{{item.name}}" height="96" width="96" />
+        <section class="header-fields">
+            <h1 class="charname">
+                <input name="name" type="text" value="{{item.name}}" placeholder="Name" />
+            </h1>
+            <div class="item-subtitle">
+                <span>{{localize "TOTC.Item.Type"}}: {{item.type}}</span>
+                <span>{{localize "TOTC.Item.DisplayName"}}: {{displayName}}</span>
+            </div>
+            <div class="item-actions">
+                <button type="button" data-action="use-item">
+                    {{localize "TOTC.Item.Use"}}
+                </button>
+            </div>
+        </section>
+    </header>
+
+    <nav class="sheet-tabs tabs" data-group="primary">
+        <a class="item" data-tab="details">{{localize "TOTC.Sheet.Details"}}</a>
+        <a class="item" data-tab="system">{{localize "TOTC.Sheet.SystemData"}}</a>
+    </nav>
+
+    <section class="sheet-body">
+        <div class="tab details" data-group="primary" data-tab="details">
+            <div class="form-group">
+                <label>{{localize "TOTC.Item.Portrait"}}</label>
+                <input name="system.artwork.image" type="text" value="{{system.artwork.image}}" placeholder="Image URL or path" />
+            </div>
+            <div class="form-group">
+                <label>{{localize "TOTC.Item.Caption"}}</label>
+                <input name="system.artwork.caption" type="text" value="{{system.artwork.caption}}" />
+            </div>
+            <div class="form-group">
+                <label>{{localize "TOTC.Item.Credit"}}</label>
+                <input name="system.artwork.credit" type="text" value="{{system.artwork.credit}}" />
+            </div>
+            <div class="form-group stacked">
+                <label>{{localize "TOTC.Item.Description"}}</label>
+                {{editor system.description target="system.description" button=true owner=owner editable=editable}}
+            </div>
+        </div>
+
+        <div class="tab system" data-group="primary" data-tab="system">
+            {{#if hasSystemFields}}
+                <div class="totc-field-grid">
+                    {{#each systemFields as |field|}}
+                        <div class="form-group totc-field-row">
+                            <label title="{{field.path}}">{{field.path}}</label>
+                            {{#if field.isCheckbox}}
+                                <input name="{{field.path}}" type="checkbox" {{checked field.value}} />
+                            {{else if field.isJson}}
+                                <textarea name="_json.{{field.path}}" rows="5">{{field.value}}</textarea>
+                            {{else}}
+                                <input name="{{field.path}}" type="text" value="{{field.value}}" />
+                            {{/if}}
+                        </div>
+                    {{/each}}
+                </div>
+            {{else}}
+                <p class="notes">{{localize "TOTC.Item.NoSystemFields"}}</p>
+            {{/if}}
+        </div>
+    </section>
+</form>

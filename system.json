@@ -1,0 +1,206 @@
+{
+    "id": "turn-of-the-century",
+    "title": "Turn of the Century",
+    "description": "A pulp horror roleplaying game set in 1900.",
+    "version": "1.0.0",
+    "compatibility": {
+        "minimum": 12,
+        "verified": 12
+    },
+    "authors": [
+        {
+            "name": "Loren Erickson",
+            "url": "https://github.com/lorenjerickson/turn-of-the-century",
+            "email": "[EMAIL_ADDRESS]",
+            "discord": "GrouchyReaper"
+        }
+    ],
+    "esmodules": [
+        "turn-of-the-century.mjs"
+    ],
+    "styles": [
+        "styles/system-styles.css"
+    ],
+    "packs": [
+        {
+            "name": "monsters",
+            "label": "Monsters",
+            "type": "Actor"
+        },
+        {
+            "name": "heroes",
+            "label": "Heroes",
+            "type": "Actor"
+        },
+        {
+            "name": "villains",
+            "label": "Villains",
+            "type": "Actor"
+        },
+        {
+            "name": "pawns",
+            "label": "Pawns",
+            "type": "Actor"
+        },
+        {
+            "name": "starter-actors",
+            "label": "Starter Library: Actors",
+            "type": "Actor",
+            "path": "packs/starter-actors",
+            "system": "turn-of-the-century"
+        },
+        {
+            "name": "professions",
+            "label": "Professions",
+            "type": "Item"
+        },
+        {
+            "name": "ethnicities",
+            "label": "Ethnicities",
+            "type": "Item"
+        },
+        {
+            "name": "skills",
+            "label": "Skills",
+            "type": "Item"
+        },
+        {
+            "name": "talents",
+            "label": "Talents",
+            "type": "Item"
+        },
+        {
+            "name": "quirks",
+            "label": "Quirks",
+            "type": "Item"
+        },
+        {
+            "name": "armor",
+            "label": "Armor",
+            "type": "Item"
+        },
+        {
+            "name": "weapons",
+            "label": "Weapons",
+            "type": "Item"
+        },
+        {
+            "name": "consumables",
+            "label": "Consumables",
+            "type": "Item"
+        },
+        {
+            "name": "effects",
+            "label": "Effects",
+            "type": "Item"
+        },
+        {
+            "name": "equipment",
+            "label": "Equipment",
+            "type": "Item"
+        },
+        {
+            "name": "starter-items",
+            "label": "Starter Library: Items",
+            "type": "Item",
+            "path": "packs/starter-items",
+            "system": "turn-of-the-century"
+        }
+    ],
+    "languages": [
+        {
+            "lang": "en",
+            "name": "English",
+            "path": "lang/en.json"
+        }
+    ],
+    "documentTypes": {
+        "Actor": {
+            "hero": {
+                "htmlFields": [
+                    "biography",
+                    "notes"
+                ]
+            },
+            "villain": {
+                "htmlFields": [
+                    "biography",
+                    "notes"
+                ]
+            },
+            "pawn": {
+                "htmlFields": [
+                    "biography",
+                    "notes"
+                ]
+            }
+        },
+        "Item": {
+            "armor": {
+                "htmlFields": [
+                    "description",
+                    "prerequisites.notes"
+                ]
+            },
+            "consumable": {
+                "htmlFields": [
+                    "description"
+                ]
+            },
+            "effect": {
+                "htmlFields": [
+                    "description",
+                    "source.notes"
+                ]
+            },
+            "equipment": {
+                "htmlFields": [
+                    "description"
+                ]
+            },
+            "ethnicity": {
+                "htmlFields": [
+                    "description",
+                    "culturalNotes.diaspora",
+                    "culturalNotes.periodContext"
+                ]
+            },
+            "item": {
+                "htmlFields": [
+                    "description"
+                ]
+            },
+            "profession": {
+                "htmlFields": [
+                    "description",
+                    "advancementNotes"
+                ]
+            },
+            "skill": {},
+            "talent": {},
+            "quirk": {
+                "htmlFields": [
+                    "description",
+                    "notes"
+                ]
+            },
+            "weapon": {
+                "htmlFields": [
+                    "description",
+                    "prerequisites.notes"
+                ]
+            }
+        }
+    },
+    "socket": true,
+    "initiative": "1d20",
+    "grid": {
+        "distance": 10,
+        "units": "ft"
+    },
+    "primaryTokenAttribute": "resources.health",
+    "secondaryTokenAttribute": "resources.grit",
+    "url": "https://github.com/lorenjerickson/turn-of-the-century",
+    "manifest": "https://github.com/lorenjerickson/turn-of-the-century/releases/latest/download/system.json",
+    "download": "https://github.com/lorenjerickson/turn-of-the-century/releases/latest/download/turn-of-the-century.zip"
+}

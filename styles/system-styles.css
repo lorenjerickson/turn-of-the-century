@@ -1,0 +1,69 @@
+.turn-of-the-century.sheet.item .sheet-header {
+    align-items: flex-start;
+    display: flex;
+    gap: 12px;
+}
+
+.turn-of-the-century.sheet.item .profile-img {
+    border: 1px solid #6f604c;
+    object-fit: cover;
+}
+
+.turn-of-the-century.sheet.item .header-fields {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.turn-of-the-century.sheet.item .charname input {
+    font-size: 1.5rem;
+    height: 34px;
+}
+
+.turn-of-the-century.sheet.item .item-subtitle {
+    color: #5f574c;
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    gap: 10px;
+}
+
+.turn-of-the-century.sheet.item .item-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.turn-of-the-century.sheet.item .sheet-tabs {
+    margin: 10px 0;
+}
+
+.turn-of-the-century.sheet.item .sheet-body {
+    min-height: 0;
+}
+
+.turn-of-the-century.sheet.item .form-group.stacked {
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+}
+
+.turn-of-the-century.sheet.item .totc-field-grid {
+    display: grid;
+    gap: 8px;
+}
+
+.turn-of-the-century.sheet.item .totc-field-row {
+    align-items: flex-start;
+}
+
+.turn-of-the-century.sheet.item .totc-field-row label {
+    flex: 0 0 210px;
+    overflow-wrap: anywhere;
+}
+
+.turn-of-the-century.sheet.item .totc-field-row textarea {
+    font-family: monospace;
+    min-height: 90px;
+    resize: vertical;
+}
