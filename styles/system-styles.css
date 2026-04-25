@@ -67,3 +67,59 @@
     min-height: 90px;
     resize: vertical;
 }
+
+.turn-of-the-century.sheet.actor .sheet-header {
+    align-items: flex-start;
+    display: flex;
+    gap: 12px;
+}
+
+.turn-of-the-century.sheet.actor .profile-img {
+    border: 1px solid #6f604c;
+    object-fit: cover;
+}
+
+.turn-of-the-century.sheet.actor .header-fields {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.turn-of-the-century.sheet.actor .charname input {
+    font-size: 1.6rem;
+    height: 36px;
+}
+
+.turn-of-the-century.sheet.actor .actor-subtitle {
+    color: #5f574c;
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    gap: 10px;
+}
+
+.turn-of-the-century.sheet.actor .sheet-tabs {
+    margin: 10px 0;
+}
+
+.turn-of-the-century.sheet.actor .sheet-body {
+    min-height: 0;
+}
+
+.turn-of-the-century.sheet.actor .form-group.stacked {
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+}
+
+.turn-of-the-century .totc-two-column {
+    column-gap: 10px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 6px;
+}
+
+.turn-of-the-century .totc-two-column .form-group {
+    margin: 0;
+}

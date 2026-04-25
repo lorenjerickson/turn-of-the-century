@@ -1,0 +1,108 @@
+<form class="{{cssClass}} totc-actor-sheet" autocomplete="off">
+    <header class="sheet-header">
+        <img class="profile-img" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" height="104" width="104" />
+        <section class="header-fields">
+            <h1 class="charname">
+                <input name="name" type="text" value="{{actor.name}}" placeholder="Name" />
+            </h1>
+            <div class="actor-subtitle">
+                <span>{{localize "TOTC.Actor.Type"}}: {{actor.type}}</span>
+                <span>{{localize "TOTC.Actor.Category"}}: {{system.classification.category}}</span>
+                <span>{{localize "TOTC.Actor.Level"}}: {{system.progression.level}}</span>
+            </div>
+        </section>
+    </header>
+
+    <nav class="sheet-tabs tabs" data-group="primary">
+        <a class="item" data-tab="details">{{localize "TOTC.Sheet.Details"}}</a>
+        <a class="item" data-tab="identity">{{localize "TOTC.Actor.Identity"}}</a>
+        <a class="item" data-tab="pawn">{{localize "TOTC.Actor.TypeDetails"}}</a>
+    </nav>
+
+    <section class="sheet-body">
+        <div class="tab details" data-group="primary" data-tab="details">
+            <div class="totc-two-column">
+                <div class="form-group">
+                    <label>{{localize "TOTC.Actor.Profession"}}</label>
+                    <input name="system.classification.profession" type="text" value="{{system.classification.profession}}" />
+                </div>
+                <div class="form-group">
+                    <label>{{localize "TOTC.Actor.Origin"}}</label>
+                    <input name="system.classification.origin" type="text" value="{{system.classification.origin}}" />
+                </div>
+                <div class="form-group">
+                    <label>{{localize "TOTC.Actor.Faction"}}</label>
+                    <input name="system.profile.faction" type="text" value="{{system.profile.faction}}" />
+                </div>
+                <div class="form-group">
+                    <label>{{localize "TOTC.Actor.Role"}}</label>
+                    <input name="system.profile.role" type="text" value="{{system.profile.role}}" />
+                </div>
+            </div>
+            <div class="form-group stacked">
+                <label>{{localize "TOTC.Actor.ProfileSummary"}}</label>
+                <textarea name="system.profile.summary" rows="3">{{system.profile.summary}}</textarea>
+            </div>
+            <div class="form-group stacked">
+                <label>{{localize "TOTC.Actor.Tags"}}</label>
+                <input name="_array.system.profile.tags" type="text" value="{{profileTags}}" placeholder="minion, city-watch, factory" />
+            </div>
+            <div class="form-group stacked">
+                <label>{{localize "TOTC.Actor.Biography"}}</label>
+                {{editor system.biography target="system.biography" button=true owner=owner editable=editable}}
+            </div>
+            <div class="form-group stacked">
+                <label>{{localize "TOTC.Actor.Notes"}}</label>
+                {{editor system.notes target="system.notes" button=true owner=owner editable=editable}}
+            </div>
+        </div>
+
+        <div class="tab identity" data-group="primary" data-tab="identity">
+            <div class="totc-two-column">
+                <div class="form-group">
+                    <label>{{localize "TOTC.Actor.Species"}}</label>
+                    <input name="system.classification.species" type="text" value="{{system.classification.species}}" />
+                </div>
+                <div class="form-group">
+                    <label>{{localize "TOTC.Actor.Ancestry"}}</label>
+                    <input name="system.classification.ancestry" type="text" value="{{system.classification.ancestry}}" />
+                </div>
+                <div class="form-group">
+                    <label>{{localize "TOTC.Actor.Size"}}</label>
+                    <select name="system.classification.size">
+                        <option value="tiny" {{#if (eq system.classification.size "tiny")}}selected{{/if}}>{{localize "TOTC.Actor.SizeTiny"}}</option>
+                        <option value="sm" {{#if (eq system.classification.size "sm")}}selected{{/if}}>{{localize "TOTC.Actor.SizeSmall"}}</option>
+                        <option value="med" {{#if (eq system.classification.size "med")}}selected{{/if}}>{{localize "TOTC.Actor.SizeMedium"}}</option>
+                        <option value="lg" {{#if (eq system.classification.size "lg")}}selected{{/if}}>{{localize "TOTC.Actor.SizeLarge"}}</option>
+                        <option value="huge" {{#if (eq system.classification.size "huge")}}selected{{/if}}>{{localize "TOTC.Actor.SizeHuge"}}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>{{localize "TOTC.Actor.Level"}}</label>
+                    <input name="system.progression.level" type="number" value="{{system.progression.level}}" min="0" step="1" />
+                </div>
+            </div>
+        </div>
+
+        <div class="tab pawn" data-group="primary" data-tab="pawn">
+            <div class="totc-two-column">
+                <div class="form-group">
+                    <label>{{localize "TOTC.Actor.Pawn.Role"}}</label>
+                    <input name="system.pawn.role" type="text" value="{{system.pawn.role}}" />
+                </div>
+                <div class="form-group">
+                    <label>{{localize "TOTC.Actor.Pawn.Threat"}}</label>
+                    <input name="system.pawn.threat" type="number" value="{{system.pawn.threat}}" min="0" max="10" step="1" />
+                </div>
+                <div class="form-group">
+                    <label>{{localize "TOTC.Actor.Pawn.Disposition"}}</label>
+                    <input name="system.pawn.disposition" type="text" value="{{system.pawn.disposition}}" />
+                </div>
+                <div class="form-group">
+                    <label>{{localize "TOTC.Actor.Pawn.Squad"}}</label>
+                    <input name="system.pawn.squad" type="text" value="{{system.pawn.squad}}" />
+                </div>
+            </div>
+        </div>
+    </section>
+</form>

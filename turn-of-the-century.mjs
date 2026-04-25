@@ -19,10 +19,39 @@ import {
     createTotcSampleContent,
     publishTotcSampleCompendiums
 } from "./module/sample-content.mjs";
-import { TurnOfTheCenturyItem } from "./module/documents.mjs";
+import { TOTC_WORLD_SCHEMA_VERSION, migrateTotcActorProfiles, runTotcMigrations } from "./module/migrations.mjs";
+import { TurnOfTheCenturyActor, TurnOfTheCenturyItem } from "./module/documents.mjs";
+import {
+    TurnOfTheCenturyHeroSheet,
+    TurnOfTheCenturyPawnSheet,
+    TurnOfTheCenturyVillainSheet
+} from "./module/sheets/actor-sheet.mjs";
 import { TurnOfTheCenturyItemSheet } from "./module/sheets/item-sheet.mjs";
 
 const STARTER_CONTENT_SEEDED_SETTING = "starterContentSeeded";
+const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
+
+async function maybeRunAutomatedMigrations() {
+    if (!game?.ready || !game.user?.isGM) return;
+
+    const currentVersion = game.settings.get("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING);
+    if ((Number(currentVersion) || 0) >= TOTC_WORLD_SCHEMA_VERSION) return;
+
+    try {
+        const result = await runTotcMigrations({
+            currentVersion,
+            migrateActorProfiles: migrateTotcActorProfiles,
+            notify: true
+        });
+
+        await game.settings.set("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING, result.toVersion);
+    } catch (error) {
+        console.error("[turn-of-the-century] Failed to run automated migrations.", error);
+        ui.notifications?.error(
+            "Turn of the Century failed to run world migrations. Run `await game.turnOfTheCentury.migrations.run()` as a GM after checking console errors."
+        );
+    }
+}
 
 async function maybeSeedStarterCompendiums() {
     if (!game?.ready || !game.user?.isGM) return;
@@ -60,7 +89,25 @@ async function maybeSeedStarterCompendiums() {
 Hooks.once("init", () => {
     CONFIG.Actor.dataModels ??= {};
     CONFIG.Item.dataModels ??= {};
+    CONFIG.Actor.documentClass = TurnOfTheCenturyActor;
     CONFIG.Item.documentClass = TurnOfTheCenturyItem;
+
+    CONFIG.Actor.compendiumIndexFields = Array.from(
+        new Set([
+            ...(CONFIG.Actor.compendiumIndexFields ?? []),
+            "system.classification.category",
+            "system.classification.profession",
+            "system.classification.origin",
+            "system.profile.role",
+            "system.profile.faction",
+            "system.profile.summary",
+            "system.progression.level",
+            "system.hero.archetype",
+            "system.villain.scheme",
+            "system.pawn.role",
+            "system.pawn.threat"
+        ])
+    );
 
     Object.assign(CONFIG.Actor.dataModels, {
         hero: HeroDataModel,
@@ -88,6 +135,23 @@ Hooks.once("init", () => {
         label: "Turn of the Century Item Sheet"
     });
 
+    Actors.unregisterSheet("core", ActorSheet);
+    Actors.registerSheet("turn-of-the-century", TurnOfTheCenturyHeroSheet, {
+        types: ["hero"],
+        makeDefault: true,
+        label: "Turn of the Century Hero Sheet"
+    });
+    Actors.registerSheet("turn-of-the-century", TurnOfTheCenturyVillainSheet, {
+        types: ["villain"],
+        makeDefault: true,
+        label: "Turn of the Century Villain Sheet"
+    });
+    Actors.registerSheet("turn-of-the-century", TurnOfTheCenturyPawnSheet, {
+        types: ["pawn"],
+        makeDefault: true,
+        label: "Turn of the Century Pawn Sheet"
+    });
+
     game.settings.register("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING, {
         name: "Starter content seeded",
         hint: "Internal setting to avoid re-importing starter compendium content repeatedly.",
@@ -95,6 +159,15 @@ Hooks.once("init", () => {
         config: false,
         type: Boolean,
         default: false
+    });
+
+    game.settings.register("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING, {
+        name: "World schema version",
+        hint: "Internal setting for one-time world data migrations.",
+        scope: "world",
+        config: false,
+        type: Number,
+        default: 0
     });
 });
 
@@ -108,6 +181,19 @@ Hooks.once("ready", () => {
         create: createTotcSampleContent,
         publishToCompendiums: publishTotcSampleCompendiums
     };
+    game.turnOfTheCentury.migrations = {
+        migrateActorProfiles: migrateTotcActorProfiles,
+        run: async () => {
+            const result = await runTotcMigrations({
+                currentVersion: game.settings.get("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING),
+                migrateActorProfiles: migrateTotcActorProfiles,
+                notify: true
+            });
+            await game.settings.set("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING, result.toVersion);
+            return result;
+        }
+    };
 
+    void maybeRunAutomatedMigrations();
     void maybeSeedStarterCompendiums();
 });

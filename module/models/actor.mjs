@@ -116,6 +116,15 @@ function createTokenArtworkField() {
     });
 }
 
+function createProfileField() {
+    return new SchemaField({
+        role: new StringField({ required: true, blank: true, initial: "" }),
+        faction: new StringField({ required: true, blank: true, initial: "" }),
+        summary: new StringField({ required: true, blank: true, initial: "" }),
+        tags: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] })
+    });
+}
+
 function createSlotField({ label, capacity, allowed }) {
     return new SchemaField({
         label: new StringField({ required: true, blank: false, initial: label }),
@@ -153,6 +162,7 @@ class CreatureActorDataModel extends foundry.abstract.TypeDataModel {
         return {
             artwork: createArtworkField(),
             tokenArtwork: createTokenArtworkField(),
+            profile: createProfileField(),
             biography: new HTMLField({ required: true, blank: true }),
             notes: new HTMLField({ required: true, blank: true }),
             classification: createClassificationField("npc"),
@@ -215,7 +225,19 @@ export class HeroDataModel extends CreatureActorDataModel {
     static defineSchema() {
         return {
             ...super.defineSchema(),
-            classification: createClassificationField("character")
+            classification: createClassificationField("character"),
+            progression: new SchemaField({
+                level: new NumberField({ required: true, integer: true, min: 1, max: 20, initial: 1 }),
+                proficiencyBonus: new NumberField({ required: true, integer: true, min: 1, max: 10, initial: 2 }),
+                challenge: new StringField({ required: true, blank: true, initial: "" }),
+                experience: new NumberField({ required: true, integer: true, min: 0, initial: 0 })
+            }),
+            hero: new SchemaField({
+                archetype: new StringField({ required: true, blank: true, initial: "" }),
+                rank: new StringField({ required: true, blank: true, initial: "" }),
+                renown: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+                bonds: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] })
+            })
         };
     }
 }
@@ -224,7 +246,13 @@ export class VillainDataModel extends CreatureActorDataModel {
     static defineSchema() {
         return {
             ...super.defineSchema(),
-            classification: createClassificationField("npc")
+            classification: createClassificationField("npc"),
+            villain: new SchemaField({
+                scheme: new StringField({ required: true, blank: true, initial: "" }),
+                threatTier: new NumberField({ required: true, integer: true, min: 0, max: 10, initial: 1 }),
+                notoriety: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+                lieutenants: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] })
+            })
         };
     }
 }
@@ -233,7 +261,19 @@ export class PawnDataModel extends CreatureActorDataModel {
     static defineSchema() {
         return {
             ...super.defineSchema(),
-            classification: createClassificationField("monster")
+            classification: createClassificationField("monster"),
+            progression: new SchemaField({
+                level: new NumberField({ required: true, integer: true, min: 0, max: 10, initial: 0 }),
+                proficiencyBonus: new NumberField({ required: true, integer: true, min: 0, max: 6, initial: 1 }),
+                challenge: new StringField({ required: true, blank: true, initial: "" }),
+                experience: new NumberField({ required: true, integer: true, min: 0, initial: 0 })
+            }),
+            pawn: new SchemaField({
+                role: new StringField({ required: true, blank: true, initial: "" }),
+                threat: new NumberField({ required: true, integer: true, min: 0, max: 10, initial: 1 }),
+                disposition: new StringField({ required: true, blank: true, initial: "neutral" }),
+                squad: new StringField({ required: true, blank: true, initial: "" })
+            })
         };
     }
 }

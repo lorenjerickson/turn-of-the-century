@@ -77,6 +77,12 @@ function createBaseActorSystem() {
             scale: 1,
             notes: "Default token"
         },
+        profile: {
+            role: "",
+            faction: "",
+            summary: "",
+            tags: []
+        },
         biography: html("A figure of some consequence in the smoke-stained avenues of the modern city."),
         notes: html("Starter actor profile for immediate play."),
         classification: {
@@ -92,6 +98,24 @@ function createBaseActorSystem() {
             proficiencyBonus: 2,
             challenge: "",
             experience: 0
+        },
+        hero: {
+            archetype: "",
+            rank: "",
+            renown: 0,
+            bonds: []
+        },
+        villain: {
+            scheme: "",
+            threatTier: 1,
+            notoriety: 0,
+            lieutenants: []
+        },
+        pawn: {
+            role: "",
+            threat: 1,
+            disposition: "neutral",
+            squad: ""
         },
         movement: {
             walk: 30,
