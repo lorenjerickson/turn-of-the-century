@@ -1659,23 +1659,37 @@ function maybeDeepClone(data) {
     return clone(data);
 }
 
+async function withPackUnlocked(pack, fn) {
+    const wasLocked = pack.locked;
+    if (wasLocked) await pack.configure({ locked: false });
+    try {
+        return await fn();
+    } finally {
+        if (wasLocked) await pack.configure({ locked: true });
+    }
+}
+
 async function clearCompendiumPack(pack) {
     await pack.getIndex();
     const ids = pack.index.map((entry) => entry._id).filter(Boolean);
     if (!ids.length) return 0;
 
-    await pack.documentClass.deleteDocuments(ids, { pack: pack.collection });
-    return ids.length;
+    return withPackUnlocked(pack, async () => {
+        await pack.documentClass.deleteDocuments(ids, { pack: pack.collection });
+        return ids.length;
+    });
 }
 
 async function importIntoCompendium(pack, entries) {
     let imported = 0;
 
-    for (const entry of entries) {
-        const temporaryDocument = await pack.documentClass.create(maybeDeepClone(entry), { temporary: true });
-        await pack.importDocument(temporaryDocument);
-        imported += 1;
-    }
+    await withPackUnlocked(pack, async () => {
+        for (const entry of entries) {
+            const temporaryDocument = await pack.documentClass.create(maybeDeepClone(entry), { temporary: true });
+            await pack.importDocument(temporaryDocument);
+            imported += 1;
+        }
+    });
 
     return imported;
 }
