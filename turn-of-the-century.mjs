@@ -31,6 +31,10 @@ import { TurnOfTheCenturyItemSheet } from "./module/sheets/item-sheet.mjs";
 const STARTER_CONTENT_SEEDED_SETTING = "starterContentSeeded";
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
 
+function getIndexCount(pack) {
+    return pack.index?.size ?? pack.index?.length ?? 0;
+}
+
 async function maybeRunAutomatedMigrations() {
     if (!game?.ready || !game.user?.isGM) return;
 
@@ -56,28 +60,38 @@ async function maybeRunAutomatedMigrations() {
 async function maybeSeedStarterCompendiums() {
     if (!game?.ready || !game.user?.isGM) return;
 
-    const isSeeded = game.settings.get("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING);
-    if (isSeeded) return;
-
     const systemId = game.system?.id;
     const actorPack = game.packs.get(`${systemId}.${TOTC_SAMPLE_COMPENDIUMS.actors}`);
     const itemPack = game.packs.get(`${systemId}.${TOTC_SAMPLE_COMPENDIUMS.items}`);
     if (!actorPack || !itemPack) return;
 
+    const isSeeded = game.settings.get("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING);
+
     await actorPack.getIndex();
     await itemPack.getIndex();
 
-    const actorCount = actorPack.index?.size ?? actorPack.index?.length ?? 0;
-    const itemCount = itemPack.index?.size ?? itemPack.index?.length ?? 0;
-    if (actorCount > 0 || itemCount > 0) {
+    const actorCount = getIndexCount(actorPack);
+    const itemCount = getIndexCount(itemPack);
+    const expectedActorCount = TOTC_SAMPLE_LIBRARY_STATS.actors.total;
+    const expectedItemCount = TOTC_SAMPLE_LIBRARY_STATS.items.total;
+
+    const isSynced = actorCount === expectedActorCount && itemCount === expectedItemCount;
+    if (isSeeded && isSynced) return;
+
+    if (isSynced) {
         await game.settings.set("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING, true);
         return;
     }
 
     try {
-        await publishTotcSampleCompendiums({ overwrite: false });
+        const overwrite = actorCount > 0 || itemCount > 0;
+        await publishTotcSampleCompendiums({ overwrite });
         await game.settings.set("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING, true);
-        ui.notifications?.info("Turn of the Century starter compendiums were populated for this world.");
+        ui.notifications?.info(
+            overwrite
+                ? "Turn of the Century starter compendiums were refreshed to match the current starter library."
+                : "Turn of the Century starter compendiums were populated for this world."
+        );
     } catch (error) {
         console.error("[turn-of-the-century] Failed to auto-populate starter compendiums.", error);
         ui.notifications?.warn(
