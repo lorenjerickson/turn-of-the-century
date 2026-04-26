@@ -140,6 +140,27 @@ function extractEquipmentSlotUpdates(updateData) {
     }
 }
 
+function findEmptyEquipmentSlot(actor, item) {
+    const slotData = actor.system?.inventory?.equipment ?? {};
+    for (const [slotKey, slotInfo] of Object.entries(slotData)) {
+        if (!isSlotCompatible(item, slotKey, slotInfo)) continue;
+        const currentItems = slotInfo?.itemIds ?? [];
+        if (currentItems.length < (slotInfo?.capacity ?? 0)) {
+            return { slotKey, slotInfo, index: currentItems.length };
+        }
+    }
+    return null;
+}
+
+async function assignItemToSlot(actor, itemId, slotKey, index) {
+    const currentItems = actor.system?.inventory?.equipment?.[slotKey]?.itemIds ?? [];
+    const updated = [...currentItems];
+    updated[index] = itemId;
+    return actor.update({
+        [`system.inventory.equipment.${slotKey}.itemIds`]: updated
+    });
+}
+
 export class TurnOfTheCenturyActorSheet extends ActorSheet {
     static templatePath = "systems/turn-of-the-century/templates/actors/hero-sheet.hbs";
 
@@ -164,6 +185,19 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
 
         context.system = systemSource;
         context.equipmentSlots = buildEquipmentSlots(this.actor, systemSource);
+        
+        const packItemIds = systemSource.inventory?.pack?.itemIds ?? [];
+        context.packItems = packItemIds
+            .map((itemId) => this.actor.items.get(itemId))
+            .filter(Boolean)
+            .map((item) => ({
+                id: item.id,
+                name: item.name,
+                type: item.type,
+                img: item.img,
+                data: item.toObject()
+            }));
+        
         context.profileTags = toArrayInput(systemSource.profile?.tags);
         context.heroBonds = toArrayInput(systemSource.hero?.bonds);
         context.villainLieutenants = toArrayInput(systemSource.villain?.lieutenants);
@@ -192,6 +226,69 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
         }
 
         return this.object.update(updateData);
+    }
+
+    async _onDrop(event) {
+        event.preventDefault();
+
+        let dropData;
+        try {
+            const dataString = event.dataTransfer?.getData("text/plain") ?? "";
+            dropData = JSON.parse(dataString);
+        } catch (error) {
+            console.warn("[turn-of-the-century] Invalid drop data.", error);
+            return;
+        }
+
+        if (dropData.type !== "Item") {
+            return super._onDrop(event);
+        }
+
+        let item;
+        if (dropData.uuid) {
+            item = await fromUuid(dropData.uuid);
+        } else if (dropData.id && dropData.data) {
+            item = dropData.data;
+        }
+
+        if (!item) {
+            console.warn("[turn-of-the-century] Could not resolve dropped item.", dropData);
+            return;
+        }
+
+        const itemData = item instanceof Item ? item.toObject() : item;
+        const createdItems = await this.actor.createEmbeddedDocuments("Item", [itemData]);
+
+        if (!createdItems?.length) {
+            console.warn("[turn-of-the-century] Failed to create item on actor.");
+            return;
+        }
+
+        const createdItem = createdItems[0];
+        const slotAssignment = findEmptyEquipmentSlot(this.actor, createdItem);
+
+        if (slotAssignment) {
+            await assignItemToSlot(this.actor, createdItem.id, slotAssignment.slotKey, slotAssignment.index);
+        } else {
+            const packItems = this.actor.system?.inventory?.pack?.itemIds ?? [];
+            if (!packItems.includes(createdItem.id)) {
+                await this.actor.update({
+                    "system.inventory.pack.itemIds": [...packItems, createdItem.id]
+                });
+            }
+        }
+    }
+
+    activateListeners(html) {
+        super.activateListeners(html);
+
+        html.find(".totc-pack-item__delete").on("click", (event) => {
+            event.preventDefault();
+            const itemId = event.currentTarget.dataset.itemId;
+            if (itemId) {
+                this.actor.deleteEmbeddedDocuments("Item", [itemId]);
+            }
+        });
     }
 }
 

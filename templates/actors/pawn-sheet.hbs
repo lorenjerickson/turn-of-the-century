@@ -127,6 +127,27 @@
                         {{/each}}
                     </div>
                 </section>
+                <section class="totc-pack-section">
+                    <h2>{{localize "TOTC.Actor.Pack"}}</h2>
+                    {{#if packItems.length}}
+                        <div class="totc-pack-items">
+                            {{#each packItems as |item|}}
+                                <div class="totc-pack-item" draggable="true" data-item-id="{{item.id}}">
+                                    <img class="totc-pack-item__img" src="{{item.img}}" alt="{{item.name}}" />
+                                    <div class="totc-pack-item__details">
+                                        <span class="totc-pack-item__name">{{item.name}}</span>
+                                        <span class="totc-pack-item__type">{{item.type}}</span>
+                                    </div>
+                                    <button class="totc-pack-item__delete" type="button" data-item-id="{{item.id}}" title="{{localize 'TOTC.Actor.Pack.Delete'}}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            {{/each}}
+                        </div>
+                    {{else}}
+                        <p class="totc-pack-empty">{{localize "TOTC.Actor.Pack.Empty"}}</p>
+                    {{/if}}
+                </section>
             </div>
 
             <div class="tab identity" data-group="primary" data-tab="identity">
