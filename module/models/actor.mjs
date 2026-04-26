@@ -33,11 +33,11 @@ export const TOTC_SKILL_CONFIG = {
 export const TOTC_EQUIPMENT_SLOTS = {
     head: { capacity: 1, allowed: ["armor", "equipment"] },
     neck: { capacity: 1, allowed: ["armor", "equipment"] },
-    torso: { capacity: 1, allowed: ["armor", "equipment"] },
+    torso: { capacity: 2, allowed: ["armor", "equipment", "item"] },
     hands: { capacity: 2, allowed: ["armor", "weapon", "tool", "equipment"] },
     legs: { capacity: 1, allowed: ["armor", "equipment"] },
     feet: { capacity: 1, allowed: ["armor", "equipment"] },
-    belt: { capacity: 4, allowed: ["weapon", "tool", "equipment", "consumable"] }
+    belt: { capacity: 4, allowed: ["weapon", "tool", "equipment", "consumable", "item"] }
 };
 
 export const TOTC_EQUIPMENT_SLOT_KEYS = Object.keys(TOTC_EQUIPMENT_SLOTS);
@@ -129,8 +129,14 @@ function createSlotField({ label, capacity, allowed }) {
     return new SchemaField({
         label: new StringField({ required: true, blank: false, initial: label }),
         capacity: new NumberField({ required: true, integer: true, min: 1, initial: capacity }),
+        quality: new StringField({
+            required: true,
+            blank: false,
+            choices: ["poor", "standard", "fine", "exceptional", "masterwork", "experimental"],
+            initial: "standard"
+        }),
         allowedTypes: new ArrayField(
-            new StringField({ required: true, blank: false, choices: ["armor", "consumable", "equipment", "tool", "weapon"] }),
+            new StringField({ required: true, blank: false, choices: ["armor", "consumable", "equipment", "item", "tool", "weapon"] }),
             { required: true, initial: () => [...allowed] }
         ),
         itemIds: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] })

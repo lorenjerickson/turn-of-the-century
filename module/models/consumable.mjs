@@ -1,3 +1,5 @@
+import { TOTC_EQUIPMENT_SLOT_KEYS } from "./actor.mjs";
+
 const {
     ArrayField,
     BooleanField,
@@ -81,6 +83,12 @@ export class ConsumableDataModel extends foundry.abstract.TypeDataModel {
                 blank: false,
                 choices: TOTC_CONSUMABLE_RARITIES,
                 initial: "common"
+            }),
+            slot: new StringField({
+                required: true,
+                blank: false,
+                choices: TOTC_EQUIPMENT_SLOT_KEYS,
+                initial: "belt"
             }),
             use: new SchemaField({
                 method: new StringField({

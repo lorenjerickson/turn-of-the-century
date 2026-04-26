@@ -13,6 +13,22 @@ function parseArrayInput(value) {
 }
 
 const EQUIPMENT_SLOT_FORM_PREFIX = "_slot.system.inventory.equipment.";
+const BELT_QUALITY_CAPACITY = {
+    poor: 2,
+    standard: 4,
+    fine: 5,
+    exceptional: 6,
+    masterwork: 7,
+    experimental: 8
+};
+const BELT_QUALITY_OPTIONS = [
+    { value: "poor", label: "Poor" },
+    { value: "standard", label: "Standard" },
+    { value: "fine", label: "Fine" },
+    { value: "exceptional", label: "Exceptional" },
+    { value: "masterwork", label: "Masterwork" },
+    { value: "experimental", label: "Experimental" }
+];
 
 function toPlainObject(value) {
     return value?.toObject?.() ?? foundry.utils.deepClone(value ?? {});
@@ -32,9 +48,14 @@ function formatTypeLabel(type) {
 
 function isSlotCompatible(item, slotKey, slot) {
     const allowedTypes = new Set(slot.allowedTypes ?? []);
+    const itemSlot = item.system?.slot;
+
+    if (itemSlot !== slotKey) {
+        return false;
+    }
 
     if (item.type === "armor") {
-        return allowedTypes.has("armor") && item.system?.slot === slotKey;
+        return allowedTypes.has("armor");
     }
 
     if (allowedTypes.has(item.type)) {
@@ -46,6 +67,18 @@ function isSlotCompatible(item, slotKey, slot) {
     }
 
     return false;
+}
+
+function getBeltCapacityFromQuality(quality, fallback = 4) {
+    return BELT_QUALITY_CAPACITY[quality] ?? fallback;
+}
+
+function getSlotCapacity(slotKey, slot) {
+    if (slotKey === "belt") {
+        return getBeltCapacityFromQuality(slot?.quality, Number(slot?.capacity ?? 4));
+    }
+
+    return Number(slot?.capacity ?? 0);
 }
 
 function buildEquipmentSlots(actor, systemSource) {
@@ -69,11 +102,14 @@ function buildEquipmentSlots(actor, systemSource) {
             return {
                 key: slotKey,
                 label: slot.label,
-                capacity: slot.capacity,
+                capacity: getSlotCapacity(slotKey, slot),
+                isBelt: slotKey === "belt",
+                quality: slot.quality ?? "standard",
+                qualityOptions: BELT_QUALITY_OPTIONS,
                 allowedTypes: [...(slot.allowedTypes ?? [])],
                 allowedSummary: (slot.allowedTypes ?? []).map((type) => formatTypeLabel(type)).join(", "),
                 hasOptions: compatibleItems.length > 0,
-                positions: Array.from({ length: slot.capacity }, (_, index) => {
+                positions: Array.from({ length: getSlotCapacity(slotKey, slot) }, (_, index) => {
                     const selectedItemId = selectedBySlot[slotKey][index] ?? "";
                     const blockedIds = new Set(
                         TOTC_EQUIPMENT_SLOT_KEYS.flatMap((otherSlotKey) => {
@@ -145,7 +181,7 @@ function findEmptyEquipmentSlot(actor, item) {
     for (const [slotKey, slotInfo] of Object.entries(slotData)) {
         if (!isSlotCompatible(item, slotKey, slotInfo)) continue;
         const currentItems = slotInfo?.itemIds ?? [];
-        if (currentItems.length < (slotInfo?.capacity ?? 0)) {
+        if (currentItems.length < getSlotCapacity(slotKey, slotInfo)) {
             return { slotKey, slotInfo, index: currentItems.length };
         }
     }
@@ -223,6 +259,16 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
         if (Object.hasOwn(updateData, "_array.system.villain.lieutenants")) {
             updateData["system.villain.lieutenants"] = parseArrayInput(updateData["_array.system.villain.lieutenants"]);
             delete updateData["_array.system.villain.lieutenants"];
+        }
+
+        const beltQuality = updateData["system.inventory.equipment.belt.quality"]
+            ?? this.actor.system?.inventory?.equipment?.belt?.quality
+            ?? "standard";
+        const beltCapacity = getBeltCapacityFromQuality(beltQuality);
+        updateData["system.inventory.equipment.belt.capacity"] = beltCapacity;
+
+        if (Array.isArray(updateData["system.inventory.equipment.belt.itemIds"])) {
+            updateData["system.inventory.equipment.belt.itemIds"] = updateData["system.inventory.equipment.belt.itemIds"].slice(0, beltCapacity);
         }
 
         return this.object.update(updateData);

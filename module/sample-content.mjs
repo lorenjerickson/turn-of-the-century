@@ -147,13 +147,13 @@ function createBaseActorSystem() {
         },
         inventory: {
             equipment: {
-                head: { label: "Head", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
-                neck: { label: "Neck", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
-                torso: { label: "Torso", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
-                hands: { label: "Hands", capacity: 2, allowedTypes: ["armor", "weapon", "tool", "equipment"], itemIds: [] },
-                legs: { label: "Legs", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
-                feet: { label: "Feet", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
-                belt: { label: "Belt", capacity: 4, allowedTypes: ["weapon", "tool", "equipment", "consumable"], itemIds: [] }
+                head: { label: "Head", capacity: 1, quality: "standard", allowedTypes: ["armor", "equipment"], itemIds: [] },
+                neck: { label: "Neck", capacity: 1, quality: "standard", allowedTypes: ["armor", "equipment"], itemIds: [] },
+                torso: { label: "Torso", capacity: 2, quality: "standard", allowedTypes: ["armor", "equipment", "item"], itemIds: [] },
+                hands: { label: "Hands", capacity: 2, quality: "standard", allowedTypes: ["armor", "weapon", "tool", "equipment"], itemIds: [] },
+                legs: { label: "Legs", capacity: 1, quality: "standard", allowedTypes: ["armor", "equipment"], itemIds: [] },
+                feet: { label: "Feet", capacity: 1, quality: "standard", allowedTypes: ["armor", "equipment"], itemIds: [] },
+                belt: { label: "Belt", capacity: 4, quality: "standard", allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"], itemIds: [] }
             },
             pack: { itemIds: [], capacity: 20, encumbrance: 0 },
             combat: { readyWeaponIds: [] }
@@ -192,6 +192,7 @@ function createBaseItemLikeSystem() {
         category: "miscellaneous",
         quality: "standard",
         rarity: "common",
+        slot: "belt",
         use: {
             actionCost: 1,
             requiresHands: true,
@@ -283,6 +284,7 @@ function createBaseWeaponSystem() {
         classification: "simpleMelee",
         quality: "standard",
         rarity: "common",
+        slot: "hands",
         damage: {
             formula: "1d6",
             type: "bludgeoning",
@@ -336,6 +338,7 @@ function createBaseConsumableSystem() {
         category: "medicine",
         quality: "standard",
         rarity: "common",
+        slot: "belt",
         use: {
             method: "administer",
             actionCost: 1,
@@ -525,6 +528,7 @@ const ACTOR_CONFIGS = [
                 insight: { ability: "wis", value: 2, bonus: 1, proficiency: 1, passive: 12 },
                 perception: { ability: "wis", value: 2, bonus: 1, proficiency: 1, passive: 12 }
             },
+            inventory: { equipment: { belt: { quality: "fine", capacity: 5 } } },
             traits: { languages: ["english", "french"] }
         }
     },
@@ -537,6 +541,7 @@ const ACTOR_CONFIGS = [
             abilities: { str: { value: 13, bonus: 1 }, con: { value: 12, bonus: 1 } },
             defenses: { armorClass: 12, initiative: 1 },
             skills: { athletics: { ability: "str", value: 2, bonus: 1, proficiency: 1, passive: 12 } },
+            inventory: { equipment: { belt: { quality: "poor", capacity: 2 } } },
             traits: { languages: ["english"] }
         }
     },
@@ -551,6 +556,7 @@ const ACTOR_CONFIGS = [
                 history: { ability: "int", value: 2, bonus: 1, proficiency: 1, passive: 12 },
                 persuasion: { ability: "cha", value: 2, bonus: 1, proficiency: 1, passive: 12 }
             },
+            inventory: { equipment: { belt: { quality: "exceptional", capacity: 6 } } },
             traits: { languages: ["english", "latin"] }
         }
     },
@@ -564,7 +570,8 @@ const ACTOR_CONFIGS = [
             skills: {
                 medicine: { ability: "wis", value: 3, bonus: 1, proficiency: 2, passive: 13 },
                 arcana: { ability: "int", value: 3, bonus: 2, proficiency: 1, passive: 13 }
-            }
+            },
+            inventory: { equipment: { belt: { quality: "masterwork", capacity: 7 } } }
         }
     },
     {
@@ -577,7 +584,8 @@ const ACTOR_CONFIGS = [
             skills: {
                 deception: { ability: "cha", value: 3, bonus: 2, proficiency: 1, passive: 13 },
                 persuasion: { ability: "cha", value: 3, bonus: 2, proficiency: 1, passive: 13 }
-            }
+            },
+            inventory: { equipment: { belt: { quality: "standard", capacity: 4 } } }
         }
     },
     {
@@ -590,7 +598,8 @@ const ACTOR_CONFIGS = [
             skills: {
                 intimidation: { ability: "cha", value: 2, bonus: 0, proficiency: 2, passive: 12 },
                 athletics: { ability: "str", value: 2, bonus: 1, proficiency: 1, passive: 12 }
-            }
+            },
+            inventory: { equipment: { belt: { quality: "experimental", capacity: 8 } } }
         }
     },
     {
@@ -626,6 +635,51 @@ const ACTOR_CONFIGS = [
             abilities: { str: { value: 8, bonus: -1 }, dex: { value: 14, bonus: 2 }, con: { value: 11, bonus: 0 } },
             defenses: { armorClass: 12, initiative: 2 },
             traits: { languages: [], immunities: ["charm"], resistances: ["slashing"], vulnerabilities: ["fire"] }
+        }
+    },
+    {
+        name: "Railway Lamp Runner",
+        type: "pawn",
+        system: {
+            biography: html("A depot runner who knows every catwalk, signal stair, and emergency hatch by feel."),
+            classification: { category: "npc", species: "Human", profession: "Railway Runner", origin: "Kingscross Freight Yard" },
+            abilities: { dex: { value: 12, bonus: 1 }, wis: { value: 11, bonus: 0 }, con: { value: 11, bonus: 0 } },
+            skills: {
+                athletics: { ability: "str", value: 1, bonus: 0, proficiency: 1, passive: 11 },
+                perception: { ability: "wis", value: 2, bonus: 0, proficiency: 1, passive: 12 }
+            },
+            inventory: { equipment: { belt: { quality: "poor", capacity: 2 } } },
+            traits: { languages: ["english"], immunities: [], resistances: [], vulnerabilities: [] }
+        }
+    },
+    {
+        name: "Tanglefoot Cutpurse",
+        type: "pawn",
+        system: {
+            biography: html("A nimble alley operative with hidden tools and an encyclopedic memory for routes."),
+            classification: { category: "npc", species: "Human", profession: "Cutpurse", origin: "Rookery Lanes" },
+            abilities: { dex: { value: 13, bonus: 1 }, cha: { value: 11, bonus: 0 }, int: { value: 11, bonus: 0 } },
+            skills: {
+                stealth: { ability: "dex", value: 3, bonus: 1, proficiency: 2, passive: 13 },
+                sleightOfHand: { ability: "dex", value: 2, bonus: 1, proficiency: 1, passive: 12 }
+            },
+            inventory: { equipment: { belt: { quality: "fine", capacity: 5 } } },
+            traits: { languages: ["english"], immunities: [], resistances: [], vulnerabilities: [] }
+        }
+    },
+    {
+        name: "Catacomb Survey Porter",
+        type: "pawn",
+        system: {
+            biography: html("A burdened guide carrying chalk, rope, and remedies through unstable underworks."),
+            classification: { category: "npc", species: "Human", profession: "Survey Porter", origin: "South Tunnel Ward" },
+            abilities: { str: { value: 12, bonus: 1 }, con: { value: 12, bonus: 1 }, wis: { value: 10, bonus: 0 } },
+            skills: {
+                athletics: { ability: "str", value: 2, bonus: 1, proficiency: 1, passive: 12 },
+                survival: { ability: "wis", value: 2, bonus: 0, proficiency: 2, passive: 12 }
+            },
+            inventory: { equipment: { belt: { quality: "exceptional", capacity: 6 } } },
+            traits: { languages: ["english"], immunities: [], resistances: [], vulnerabilities: [] }
         }
     }
 ];
@@ -958,6 +1012,44 @@ const CONSUMABLE_CONFIGS = [
                 { label: "Dependency Risk", type: "causeCondition", target: "withdrawal", formula: "", value: 1, condition: "on repeated use", notes: html("Repeated use may cause dependency.") }
             ],
             properties: { tags: ["analgesic", "surgical"], addictive: true, restricted: true }
+        }
+    },
+    {
+        name: "Nightwatch Tonic",
+        img: "icons/consumables/potions/potion-bottle-corked-cyan.webp",
+        system: {
+            commonName: "Nightwatch",
+            description: html("A bitter wakefulness tonic favored by watchmen and telegraph operators."),
+            category: "tonic",
+            slot: "belt",
+            use: { method: "drink" },
+            effects: [
+                { label: "Alert Eyes", type: "applyModifier", target: "skills.perception.value", formula: "", value: 1, condition: "for 1 scene", notes: html("Perception checks sharpen briefly.") }
+            ],
+            sideEffects: [
+                { label: "Jitter", type: "applyModifier", target: "skills.stealth.value", formula: "", value: -1, condition: "for 1 scene", notes: html("Fine stealth suffers from tremor.") }
+            ],
+            properties: { tags: ["stimulant", "watch"] }
+        }
+    },
+    {
+        name: "Aetheric Elixir",
+        img: "icons/consumables/potions/potion-jug-corked-purple.webp",
+        system: {
+            commonName: "Aetheric Elixir",
+            description: html("An iridescent draught rumored to steady the mind near uncanny phenomena."),
+            category: "drink",
+            slot: "belt",
+            quality: "exceptional",
+            rarity: "rare",
+            use: { method: "drink" },
+            effects: [
+                { label: "Calm Resolve", type: "applyModifier", target: "abilities.san.value", formula: "", value: 1, condition: "for 1 scene", notes: html("A brief buffer against psychic strain.") }
+            ],
+            sideEffects: [
+                { label: "Afterglow", type: "causeCondition", target: "lightheaded", formula: "", value: 1, condition: "for 10 minutes", notes: html("Vision wavers after the effect fades.") }
+            ],
+            properties: { tags: ["elixir", "occult"], experimental: true }
         }
     }
 ];
@@ -1351,6 +1443,7 @@ const EQUIPMENT_CONFIGS = [
             commonName: "Investigator Kit",
             description: html("Casebook, lens, gloves, and envelopes for deliberate scene work."),
             category: "tool",
+            slot: "belt",
             use: { skillCheck: { skill: "investigation", difficulty: 10, purpose: html("Aids structured scene examination.") } },
             effects: [{ label: "Documented Scene", targetType: "skill", target: "investigation", operation: "add", value: 1, formula: "", condition: "kit present", notes: html("Bonus to scene analysis.") }],
             physical: { weight: 3, bulk: 1, quantity: 1, unit: "kit" },
@@ -1365,6 +1458,7 @@ const EQUIPMENT_CONFIGS = [
             commonName: "Telegraph Tap",
             description: html("A foldable tapping set for line diagnostics and coded dispatches."),
             category: "apparatus",
+            slot: "belt",
             quality: "fine",
             use: { skillCheck: { skill: "history", difficulty: 12, purpose: html("Decode or send brief line traffic.") } },
             physical: { weight: 2, bulk: 1, quantity: 1, unit: "set" },
@@ -1379,6 +1473,7 @@ const EQUIPMENT_CONFIGS = [
             commonName: "Locksmith Tools",
             description: html("Fine picks, torsion bars, and graphite cloth for stubborn wards."),
             category: "tool",
+            slot: "belt",
             use: { skillCheck: { skill: "sleightOfHand", difficulty: 12, purpose: html("Manipulate locks and catches.") } },
             physical: { weight: 1, bulk: 0, quantity: 1, unit: "roll" },
             value: { price: 5, currency: "pounds" },
@@ -1392,6 +1487,7 @@ const EQUIPMENT_CONFIGS = [
             commonName: "Transit",
             description: html("Tripod optics for line-of-sight measurement and distance estimation."),
             category: "instrument",
+            slot: "hands",
             use: { skillCheck: { skill: "nature", difficulty: 11, purpose: html("Chart terrain and establish bearings.") } },
             physical: { weight: 5, bulk: 2, quantity: 1, unit: "instrument" },
             value: { price: 15, currency: "pounds" },
@@ -1405,6 +1501,7 @@ const EQUIPMENT_CONFIGS = [
             commonName: "Marking Chalk",
             description: html("Compressed white chalk for notation on stone, iron, and timber."),
             category: "miscellaneous",
+            slot: "belt",
             use: { actionCost: 0, requiresHands: true, consumedOnUse: true, skillCheck: { skill: "arcana", difficulty: 10, required: false, purpose: html("Mark warning sigils and directional signs.") } },
             physical: { weight: 0.2, bulk: 0, quantity: 6, unit: "stick" },
             value: { price: 1, currency: "pounds" },
@@ -1418,10 +1515,54 @@ const EQUIPMENT_CONFIGS = [
             commonName: "Lantern",
             description: html("A shuttered lamp with mirrored housing for low-glare examinations."),
             category: "apparatus",
+            slot: "hands",
             use: { skillCheck: { skill: "perception", difficulty: 9, required: false, purpose: html("Illuminate close details without flooding a room.") } },
             physical: { weight: 2, bulk: 1, quantity: 1, unit: "lantern" },
             value: { price: 4, currency: "pounds" },
             properties: { tags: ["light", "forensic"], fragile: true }
+        }
+    },
+    {
+        name: "Coiled Hemp Rope",
+        img: "icons/sundries/survival/rope-coiled-brown.webp",
+        system: {
+            commonName: "Hemp Rope",
+            description: html("A compact thirty-foot coil with brass clips for harnessing and descent."),
+            category: "tool",
+            slot: "belt",
+            use: { skillCheck: { skill: "athletics", difficulty: 10, purpose: html("Secure climbs and controlled descents.") } },
+            physical: { weight: 3, bulk: 1, quantity: 1, unit: "coil" },
+            value: { price: 2, currency: "pounds" },
+            properties: { tags: ["climbing", "utility"] }
+        }
+    },
+    {
+        name: "Folding Pry Hook",
+        img: "icons/tools/hand/crowbar-steel.webp",
+        system: {
+            commonName: "Pry Hook",
+            description: html("A short folding lever for crates, stuck hatches, and iron hasps."),
+            category: "tool",
+            slot: "belt",
+            use: { skillCheck: { skill: "athletics", difficulty: 11, purpose: html("Force simple barriers and jammed catches.") } },
+            physical: { weight: 1.2, bulk: 0, quantity: 1, unit: "tool" },
+            value: { price: 3, currency: "pounds" },
+            properties: { tags: ["breach", "utility"], concealable: true }
+        }
+    },
+    {
+        name: "Pocket Tool Roll",
+        img: "icons/tools/hand/hammer-and-nail.webp",
+        system: {
+            commonName: "Tool Roll",
+            description: html("Needles, wire, and a miniature spanner for field adjustments."),
+            category: "tool",
+            slot: "belt",
+            quality: "fine",
+            use: { skillCheck: { skill: "investigation", difficulty: 10, purpose: html("Perform hasty repairs on delicate gear.") } },
+            physical: { weight: 0.8, bulk: 0, quantity: 1, unit: "roll" },
+            value: { price: 4, currency: "pounds" },
+            properties: { tags: ["repair", "utility"], concealable: true }
         }
     }
 ];
@@ -1434,6 +1575,7 @@ const ITEM_CONFIGS = [
             commonName: "Pocket Cipher Book",
             description: html("Wax-sealed pages indexed by private shorthand and witness initials."),
             category: "document",
+            slot: "belt",
             quality: "fine",
             rarity: "uncommon",
             use: { skillCheck: { skill: "history", difficulty: 11, purpose: html("Recover old links across current investigations.") } },
@@ -1449,6 +1591,7 @@ const ITEM_CONFIGS = [
             commonName: "Signal Whistle",
             description: html("A sharp whistle carrying over rain, steam, and station noise."),
             category: "instrument",
+            slot: "neck",
             use: { actionCost: 0, requiresHands: true, consumedOnUse: false, skillCheck: { skill: "performance", difficulty: 8, required: false, purpose: html("Signal allies over short distances.") } },
             physical: { weight: 0.1, bulk: 0, quantity: 1, unit: "whistle" },
             properties: { tags: ["signal"], concealable: true }
@@ -1461,6 +1604,7 @@ const ITEM_CONFIGS = [
             commonName: "Satchel",
             description: html("A partitioned leather satchel for transcripts, sketches, and sealed evidence."),
             category: "container",
+            slot: "belt",
             use: { actionCost: 1, requiresHands: true, consumedOnUse: false, skillCheck: { skill: "investigation", difficulty: 8, required: false, purpose: html("Retrieve stored evidence quickly.") } },
             physical: { weight: 1.8, bulk: 1, quantity: 1, unit: "satchel" },
             value: { price: 3, currency: "pounds" },
@@ -1474,6 +1618,7 @@ const ITEM_CONFIGS = [
             commonName: "Protective Cloak",
             description: html("A waxed black cloak that sheds rain and light chimney soot."),
             category: "clothing",
+            slot: "torso",
             use: { actionCost: 0, requiresHands: false, consumedOnUse: false, skillCheck: { skill: "survival", difficulty: 9, required: false, purpose: html("Reduce exposure in foul weather.") } },
             physical: { weight: 2, bulk: 1, quantity: 1, unit: "cloak" },
             value: { price: 2, currency: "pounds" },
@@ -1487,6 +1632,7 @@ const ITEM_CONFIGS = [
             commonName: "Reliquary",
             description: html("A small silver case containing a relic, prayer slip, and lock of hair."),
             category: "trinket",
+            slot: "neck",
             quality: "exceptional",
             rarity: "rare",
             use: { actionCost: 0, requiresHands: true, consumedOnUse: false, skillCheck: { skill: "religion", difficulty: 12, required: false, purpose: html("Calm panic during uncanny encounters.") } },
@@ -1502,10 +1648,39 @@ const ITEM_CONFIGS = [
             commonName: "Broadsheets",
             description: html("Folded circulars from engineering societies and scandalous lecture halls."),
             category: "document",
+            slot: "belt",
             use: { skillCheck: { skill: "history", difficulty: 10, purpose: html("Identify current theories and rival schools.") } },
             physical: { weight: 0.4, bulk: 0, quantity: 12, unit: "sheet" },
             value: { price: 1, currency: "pounds" },
             properties: { tags: ["academic", "press"], fragile: true }
+        }
+    },
+    {
+        name: "Unlit Tallow Torch",
+        img: "icons/sundries/lights/torch-brown.webp",
+        system: {
+            commonName: "Torch",
+            description: html("A resin-wrapped tallow torch carried unlit until needed in tunnels or basements."),
+            category: "apparatus",
+            slot: "belt",
+            use: { actionCost: 1, requiresHands: true, consumedOnUse: false, skillCheck: { skill: "survival", difficulty: 8, required: false, purpose: html("Provide emergency light in dark spaces.") } },
+            physical: { weight: 0.6, bulk: 0, quantity: 1, unit: "torch" },
+            value: { price: 1, currency: "pounds" },
+            properties: { tags: ["light", "utility"] }
+        }
+    },
+    {
+        name: "Brass Oil Flask",
+        img: "icons/consumables/potions/bottle-round-corked-yellow.webp",
+        system: {
+            commonName: "Oil Flask",
+            description: html("A stoppered brass flask of lamp oil for torches, lanterns, and burners."),
+            category: "container",
+            slot: "belt",
+            use: { actionCost: 1, requiresHands: true, consumedOnUse: true, skillCheck: { skill: "investigation", difficulty: 8, required: false, purpose: html("Refuel light sources and lubricate mechanisms.") } },
+            physical: { weight: 0.5, bulk: 0, quantity: 1, unit: "flask" },
+            value: { price: 1, currency: "pounds" },
+            properties: { tags: ["fuel", "utility"], concealable: true }
         }
     }
 ];
@@ -1626,8 +1801,6 @@ const TALENT_CONFIGS = [
     }
 ];
 
-export const TOTC_SAMPLE_ACTORS = ACTOR_CONFIGS.map(createActorEntry);
-
 export const TOTC_SAMPLE_ITEMS = [
     ...ARMOR_CONFIGS.map(createArmorEntry),
     ...WEAPON_CONFIGS.map(createWeaponEntry),
@@ -1641,6 +1814,240 @@ export const TOTC_SAMPLE_ITEMS = [
     ...SKILL_ITEM_CONFIGS.map((entry) => createItemLikeEntry("skill", entry)),
     ...TALENT_CONFIGS.map((entry) => createItemLikeEntry("talent", entry))
 ];
+
+const STARTER_ACTOR_LOADOUTS = {
+    "Inspector Eleanor Thorne": {
+        equipped: [
+            { type: "weapon", name: "Service Revolver", slot: "hands", position: 1 },
+            { type: "armor", name: "Mourning Silk Vest", slot: "torso", position: 1 },
+            { type: "equipment", name: "Field Investigator Kit", slot: "belt", position: 1 },
+            { type: "item", name: "Unlit Tallow Torch", slot: "belt", position: 2 },
+            { type: "consumable", name: "Galvanic Stimulant", slot: "belt", position: 3 },
+            { type: "equipment", name: "Coiled Hemp Rope", slot: "belt", position: 4 },
+            { type: "item", name: "Cipher Notebook", slot: "belt", position: 5 }
+        ],
+        pack: [
+            { type: "consumable", name: "Field Bandage Roll" },
+            { type: "item", name: "Brass Oil Flask" }
+        ]
+    },
+    "Sergeant Amos Pike": {
+        equipped: [
+            { type: "weapon", name: "Trench Truncheon", slot: "hands", position: 1 },
+            { type: "armor", name: "Dockside Leather Jerkin", slot: "torso", position: 1 },
+            { type: "armor", name: "Asylum Keeper Helm", slot: "head", position: 1 },
+            { type: "equipment", name: "Locksmith Roll", slot: "belt", position: 1 },
+            { type: "consumable", name: "Smelling Vial", slot: "belt", position: 2 }
+        ],
+        pack: [
+            { type: "equipment", name: "Folding Pry Hook" }
+        ]
+    },
+    "Lady Miriam Foxe": {
+        equipped: [
+            { type: "weapon", name: "Clockmaker's Stiletto", slot: "hands", position: 1 },
+            { type: "armor", name: "Mourning Silk Vest", slot: "torso", position: 1 },
+            { type: "item", name: "Lecture Broadsheet Bundle", slot: "belt", position: 1 },
+            { type: "consumable", name: "Noctilucent Salts", slot: "belt", position: 2 },
+            { type: "item", name: "Brass Oil Flask", slot: "belt", position: 3 },
+            { type: "equipment", name: "Ritual Chalk Cylinder", slot: "belt", position: 4 },
+            { type: "equipment", name: "Pocket Tool Roll", slot: "belt", position: 5 },
+            { type: "consumable", name: "Aetheric Elixir", slot: "belt", position: 6 }
+        ],
+        pack: [
+            { type: "item", name: "Pocket Reliquary" },
+            { type: "item", name: "Unlit Tallow Torch" }
+        ]
+    },
+    "Doctor Mordecai Vale": {
+        equipped: [
+            { type: "weapon", name: "Galvanic Prod", slot: "hands", position: 1 },
+            { type: "armor", name: "Pneumatic Bracer Rig", slot: "hands", position: 2 },
+            { type: "consumable", name: "Combat Morphia", slot: "belt", position: 1 },
+            { type: "equipment", name: "Portable Telegraph Tap", slot: "belt", position: 2 },
+            { type: "consumable", name: "Antitoxin Ampoule", slot: "belt", position: 3 },
+            { type: "consumable", name: "Nightwatch Tonic", slot: "belt", position: 4 },
+            { type: "equipment", name: "Folding Pry Hook", slot: "belt", position: 5 },
+            { type: "item", name: "Brass Oil Flask", slot: "belt", position: 6 },
+            { type: "consumable", name: "Aetheric Elixir", slot: "belt", position: 7 }
+        ],
+        pack: [
+            { type: "equipment", name: "Coiled Hemp Rope" }
+        ]
+    },
+    "Magistrate Harlan Crowthorne": {
+        equipped: [
+            { type: "weapon", name: "Service Revolver", slot: "hands", position: 1 },
+            { type: "armor", name: "Mourning Silk Vest", slot: "torso", position: 1 },
+            { type: "item", name: "Cipher Notebook", slot: "belt", position: 1 },
+            { type: "item", name: "Brass Oil Flask", slot: "belt", position: 2 },
+            { type: "consumable", name: "Field Bandage Roll", slot: "belt", position: 3 },
+            { type: "item", name: "Unlit Tallow Torch", slot: "belt", position: 4 }
+        ],
+        pack: [
+            { type: "item", name: "Pocket Reliquary" },
+            { type: "equipment", name: "Mortuary Lantern" }
+        ]
+    },
+    "Foreman Silas Grigg": {
+        equipped: [
+            { type: "weapon", name: "Factory Cleaver", slot: "hands", position: 1 },
+            { type: "armor", name: "Boiler-Forged Cuirass", slot: "torso", position: 1 },
+            { type: "consumable", name: "Galvanic Stimulant", slot: "belt", position: 1 },
+            { type: "equipment", name: "Folding Pry Hook", slot: "belt", position: 2 },
+            { type: "equipment", name: "Coiled Hemp Rope", slot: "belt", position: 3 },
+            { type: "item", name: "Unlit Tallow Torch", slot: "belt", position: 4 },
+            { type: "equipment", name: "Field Investigator Kit", slot: "belt", position: 5 },
+            { type: "consumable", name: "Nightwatch Tonic", slot: "belt", position: 6 },
+            { type: "item", name: "Brass Oil Flask", slot: "belt", position: 7 },
+            { type: "equipment", name: "Pocket Tool Roll", slot: "belt", position: 8 }
+        ],
+        pack: [
+            { type: "equipment", name: "Surveyor's Transit" }
+        ]
+    },
+    "Railway Lamp Runner": {
+        equipped: [
+            { type: "item", name: "Unlit Tallow Torch", slot: "belt", position: 1 },
+            { type: "consumable", name: "Smelling Vial", slot: "belt", position: 2 }
+        ],
+        pack: [
+            { type: "item", name: "Brass Oil Flask" }
+        ]
+    },
+    "Tanglefoot Cutpurse": {
+        equipped: [
+            { type: "weapon", name: "Clockmaker's Stiletto", slot: "hands", position: 1 },
+            { type: "equipment", name: "Locksmith Roll", slot: "belt", position: 1 },
+            { type: "equipment", name: "Pocket Tool Roll", slot: "belt", position: 2 },
+            { type: "item", name: "Cipher Notebook", slot: "belt", position: 3 },
+            { type: "item", name: "Brass Oil Flask", slot: "belt", position: 4 },
+            { type: "consumable", name: "Nightwatch Tonic", slot: "belt", position: 5 }
+        ],
+        pack: [
+            { type: "equipment", name: "Folding Pry Hook" }
+        ]
+    },
+    "Catacomb Survey Porter": {
+        equipped: [
+            { type: "weapon", name: "Trench Truncheon", slot: "hands", position: 1 },
+            { type: "equipment", name: "Coiled Hemp Rope", slot: "belt", position: 1 },
+            { type: "equipment", name: "Ritual Chalk Cylinder", slot: "belt", position: 2 },
+            { type: "item", name: "Unlit Tallow Torch", slot: "belt", position: 3 },
+            { type: "consumable", name: "Field Bandage Roll", slot: "belt", position: 4 },
+            { type: "consumable", name: "Antitoxin Ampoule", slot: "belt", position: 5 },
+            { type: "item", name: "Brass Oil Flask", slot: "belt", position: 6 }
+        ],
+        pack: [
+            { type: "equipment", name: "Surveyor's Transit" }
+        ]
+    }
+};
+
+function toStarterItemKey(type, name) {
+    return `${type}:${name}`;
+}
+
+function createStarterItemId(actorIndex, itemIndex) {
+    const actorPart = actorIndex.toString(36).padStart(2, "0");
+    const itemPart = itemIndex.toString(36).padStart(12, "0");
+    return `ld${actorPart}${itemPart}`;
+}
+
+function isLoadoutSlotCompatible(itemData, slotKey, slotData) {
+    const allowedTypes = new Set(slotData?.allowedTypes ?? []);
+    if (itemData.system?.slot !== slotKey) {
+        return false;
+    }
+
+    if (itemData.type === "armor") {
+        return allowedTypes.has("armor");
+    }
+
+    if (allowedTypes.has(itemData.type)) {
+        return true;
+    }
+
+    const category = itemData.system?.category ?? "";
+    if (allowedTypes.has("tool") && (itemData.type === "equipment" || itemData.type === "item") && category === "tool") {
+        return true;
+    }
+
+    return false;
+}
+
+function buildActorsWithLoadouts() {
+    const starterItemLibrary = new Map(
+        TOTC_SAMPLE_ITEMS.map((item) => [toStarterItemKey(item.type, item.name), maybeDeepClone(item)])
+    );
+
+    return ACTOR_CONFIGS.map((config, actorIndex) => {
+        const actorEntry = createActorEntry(config);
+        const loadout = STARTER_ACTOR_LOADOUTS[actorEntry.name];
+        if (!loadout) return actorEntry;
+
+        const actorWithLoadout = maybeDeepClone(actorEntry);
+        const embeddedItems = [];
+        const packItemIds = [];
+        let embeddedItemIndex = 0;
+
+        const addEmbeddedItem = (reference) => {
+            const key = toStarterItemKey(reference.type, reference.name);
+            const sourceItem = starterItemLibrary.get(key);
+            if (!sourceItem) {
+                console.warn(`[turn-of-the-century] Missing starter item for ${actorWithLoadout.name}: ${key}`);
+                return null;
+            }
+
+            const embedded = maybeDeepClone(sourceItem);
+            embedded._id = createStarterItemId(actorIndex, embeddedItemIndex);
+            embeddedItemIndex += 1;
+            embeddedItems.push(embedded);
+            return embedded;
+        };
+
+        for (const equippedItem of loadout.equipped ?? []) {
+            const embedded = addEmbeddedItem(equippedItem);
+            if (!embedded) continue;
+
+            const slotData = actorWithLoadout.system?.inventory?.equipment?.[equippedItem.slot];
+            const capacity = Number(slotData?.capacity ?? 0);
+            if (!slotData || capacity < 1 || !isLoadoutSlotCompatible(embedded, equippedItem.slot, slotData)) {
+                packItemIds.push(embedded._id);
+                continue;
+            }
+
+            const itemIds = Array.isArray(slotData.itemIds) ? [...slotData.itemIds] : [];
+            const requestedIndex = Math.max(Number(equippedItem.position ?? 1) - 1, 0);
+            const boundedIndex = Math.min(requestedIndex, capacity - 1);
+
+            if (!itemIds[boundedIndex]) {
+                itemIds[boundedIndex] = embedded._id;
+            } else {
+                const firstOpenIndex = Array.from({ length: capacity }, (_, index) => index).find((index) => !itemIds[index]);
+                if (firstOpenIndex === undefined) {
+                    packItemIds.push(embedded._id);
+                    continue;
+                }
+                itemIds[firstOpenIndex] = embedded._id;
+            }
+
+            slotData.itemIds = itemIds.filter(Boolean).slice(0, capacity);
+        }
+
+        for (const packItem of loadout.pack ?? []) {
+            const embedded = addEmbeddedItem(packItem);
+            if (!embedded) continue;
+            packItemIds.push(embedded._id);
+        }
+
+        actorWithLoadout.items = embeddedItems;
+        actorWithLoadout.system.inventory.pack.itemIds = packItemIds;
+        return actorWithLoadout;
+    });
+}
+
+export const TOTC_SAMPLE_ACTORS = buildActorsWithLoadouts();
 
 export const TOTC_SAMPLE_LIBRARY_STATS = {
     actors: {

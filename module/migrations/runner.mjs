@@ -1,13 +1,17 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 1;
+export const TOTC_WORLD_SCHEMA_VERSION = 2;
 
 export async function runTotcMigrations({
     currentVersion = 0,
     migrateActorProfiles,
+    migrateEquipmentSlots,
     notify = true
 } = {}) {
     if (!game?.ready) throw new Error("Game is not ready yet.");
     if (typeof migrateActorProfiles !== "function") {
         throw new Error("runTotcMigrations requires a migrateActorProfiles function.");
+    }
+    if (typeof migrateEquipmentSlots !== "function") {
+        throw new Error("runTotcMigrations requires a migrateEquipmentSlots function.");
     }
 
     let appliedVersion = Number(currentVersion) || 0;
@@ -28,9 +32,29 @@ export async function runTotcMigrations({
         appliedVersion = 1;
     }
 
+    if (appliedVersion < 2) {
+        const report = await migrateEquipmentSlots({
+            dryRun: false,
+            notify: false
+        });
+
+        appliedSteps.push({
+            version: 2,
+            key: "equipment-slots",
+            report
+        });
+        appliedVersion = 2;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
-            .map((step) => `${step.key}: ${step.report.worldActorsUpdated} world actors updated`)
+            .map((step) => {
+                if (step.key === "equipment-slots") {
+                    return `${step.key}: ${step.report.actorsUpdated} actors and ${step.report.itemsUpdated} items updated`;
+                }
+
+                return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;
+            })
             .join(", ");
         ui.notifications?.info(`Turn of the Century migrations applied (v${appliedVersion}): ${summary}.`);
     }

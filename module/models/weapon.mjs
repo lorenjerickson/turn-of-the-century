@@ -1,4 +1,4 @@
-import { TOTC_ABILITY_KEYS } from "./actor.mjs";
+import { TOTC_ABILITY_KEYS, TOTC_EQUIPMENT_SLOT_KEYS } from "./actor.mjs";
 
 const {
     ArrayField,
@@ -92,6 +92,12 @@ export class WeaponDataModel extends foundry.abstract.TypeDataModel {
                 blank: false,
                 choices: TOTC_ITEM_RARITIES,
                 initial: "common"
+            }),
+            slot: new StringField({
+                required: true,
+                blank: false,
+                choices: TOTC_EQUIPMENT_SLOT_KEYS,
+                initial: "hands"
             }),
             damage: new SchemaField({
                 formula: new StringField({ required: true, blank: false, initial: "1d4" }),

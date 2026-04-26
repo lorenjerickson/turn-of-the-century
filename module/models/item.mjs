@@ -1,4 +1,4 @@
-import { TOTC_SKILL_CONFIG } from "./actor.mjs";
+import { TOTC_EQUIPMENT_SLOT_KEYS, TOTC_SKILL_CONFIG } from "./actor.mjs";
 
 const {
     ArrayField,
@@ -84,6 +84,12 @@ export class ItemDataModel extends foundry.abstract.TypeDataModel {
                 blank: false,
                 choices: TOTC_ITEM_RARITIES,
                 initial: "common"
+            }),
+            slot: new StringField({
+                required: true,
+                blank: false,
+                choices: TOTC_EQUIPMENT_SLOT_KEYS,
+                initial: "belt"
             }),
             use: new SchemaField({
                 actionCost: new NumberField({ required: true, min: 0, initial: 1 }),

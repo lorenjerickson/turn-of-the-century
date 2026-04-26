@@ -5,6 +5,8 @@
     "TOTC.Actor.Challenge": "Challenge",
     "TOTC.Actor.Equipment": "Equipment",
     "TOTC.Actor.Equipment.Allowed": "Allowed",
+    "TOTC.Actor.Equipment.BeltQuality": "Belt Quality",
+    "TOTC.Actor.Equipment.Capacity": "Capacity",
     "TOTC.Actor.Equipment.Empty": "No compatible inventory items.",
     "TOTC.Actor.Equipment.None": "None",
     "TOTC.Actor.Pack": "Pack",

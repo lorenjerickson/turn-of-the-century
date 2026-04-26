@@ -245,6 +245,23 @@
     gap: 6px;
 }
 
+.turn-of-the-century.sheet.actor .totc-equipment-slot__quality {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    margin-bottom: 6px;
+}
+
+.turn-of-the-century.sheet.actor .totc-equipment-slot__quality label {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.turn-of-the-century.sheet.actor .totc-equipment-slot__quality select {
+    flex: 0 0 170px;
+}
+
 .turn-of-the-century.sheet.actor .totc-equipment-slot__position {
     align-items: stretch;
     display: flex;

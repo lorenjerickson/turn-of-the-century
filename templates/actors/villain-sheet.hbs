@@ -105,6 +105,17 @@
                                     <span class="totc-equipment-slot__label">{{slot.label}}</span>
                                     <span class="totc-equipment-slot__meta">{{localize "TOTC.Actor.Equipment.Allowed"}}: {{slot.allowedSummary}}</span>
                                 </div>
+                                {{#if slot.isBelt}}
+                                    <div class="totc-equipment-slot__quality">
+                                        <label>{{localize "TOTC.Actor.Equipment.BeltQuality"}}</label>
+                                        <select name="system.inventory.equipment.belt.quality">
+                                            {{#each slot.qualityOptions as |qualityOption|}}
+                                                <option value="{{qualityOption.value}}" {{#if (eq qualityOption.value slot.quality)}}selected{{/if}}>{{qualityOption.label}}</option>
+                                            {{/each}}
+                                        </select>
+                                        <span class="totc-equipment-slot__meta">{{localize "TOTC.Actor.Equipment.Capacity"}}: {{slot.capacity}}</span>
+                                    </div>
+                                {{/if}}
                                 <div class="totc-equipment-slot__positions">
                                     {{#each slot.positions as |position|}}
                                         <label class="totc-equipment-slot__position">
