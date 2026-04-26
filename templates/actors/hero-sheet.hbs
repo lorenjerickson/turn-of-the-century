@@ -96,6 +96,37 @@
                     <label>{{localize "TOTC.Actor.Notes"}}</label>
                     {{editor system.notes target="system.notes" button=true owner=owner editable=editable}}
                 </div>
+                <section class="totc-equipment-section">
+                    <h2>{{localize "TOTC.Actor.Equipment"}}</h2>
+                    <div class="totc-equipment-grid">
+                        {{#each equipmentSlots as |slot|}}
+                            <div class="totc-equipment-slot">
+                                <div class="totc-equipment-slot__header">
+                                    <span class="totc-equipment-slot__label">{{slot.label}}</span>
+                                    <span class="totc-equipment-slot__meta">{{localize "TOTC.Actor.Equipment.Allowed"}}: {{slot.allowedSummary}}</span>
+                                </div>
+                                <div class="totc-equipment-slot__positions">
+                                    {{#each slot.positions as |position|}}
+                                        <label class="totc-equipment-slot__position">
+                                            {{#if (gt slot.capacity 1)}}
+                                                <span>{{position.label}}</span>
+                                            {{/if}}
+                                            <select name="{{position.fieldName}}">
+                                                <option value="">{{localize "TOTC.Actor.Equipment.None"}}</option>
+                                                {{#each position.options as |option|}}
+                                                    <option value="{{option.id}}" {{#if (eq option.id position.selectedItemId)}}selected{{/if}} {{#if option.disabled}}disabled{{/if}}>{{option.name}} ({{option.type}})</option>
+                                                {{/each}}
+                                            </select>
+                                        </label>
+                                    {{/each}}
+                                </div>
+                                {{#unless slot.hasOptions}}
+                                    <p class="totc-equipment-slot__empty">{{localize "TOTC.Actor.Equipment.Empty"}}</p>
+                                {{/unless}}
+                            </div>
+                        {{/each}}
+                    </div>
+                </section>
             </div>
 
             <div class="tab identity" data-group="primary" data-tab="identity">
