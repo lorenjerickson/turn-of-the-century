@@ -30,6 +30,8 @@
     "TOTC.Actor.ProfileSummary": "Profile Summary",
     "TOTC.Actor.Profession": "Profession",
     "TOTC.Actor.Role": "Role",
+    "TOTC.Actor.Inventory.None": "No unassigned inventory items.",
+    "TOTC.Actor.Inventory.Unassigned": "Unassigned Inventory",
     "TOTC.Actor.Size": "Size",
     "TOTC.Actor.SizeHuge": "Huge",
     "TOTC.Actor.SizeLarge": "Large",
@@ -71,6 +73,7 @@
     "TOTC.Item.Use": "Use",
     "TOTC.Item.UseUnavailable": "This item cannot currently be used.",
     "TOTC.Sheet.Details": "Details",
+    "TOTC.Sheet.Inventory": "Inventory",
     "TOTC.Sheet.Profile": "Profile",
     "TOTC.Sheet.SystemData": "System Data"
 }

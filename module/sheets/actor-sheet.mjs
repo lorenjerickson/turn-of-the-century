@@ -12,6 +12,10 @@ function parseArrayInput(value) {
         .filter(Boolean);
 }
 
+function toArray(value) {
+    return Array.isArray(value) ? value : [];
+}
+
 const EQUIPMENT_SLOT_FORM_PREFIX = "_slot.system.inventory.equipment.";
 const BELT_QUALITY_CAPACITY = {
     poor: 2,
@@ -127,6 +131,7 @@ function buildEquipmentSlots(actor, systemSource) {
                         label: `${slot.label} ${index + 1}`,
                         fieldName: `${EQUIPMENT_SLOT_FORM_PREFIX}${slotKey}.${index}`,
                         selectedItemId,
+                        selectedItemName: compatibleItems.find((item) => item.id === selectedItemId)?.name ?? "",
                         options: compatibleItems.map((item) => ({
                             id: item.id,
                             name: item.name,
@@ -137,6 +142,57 @@ function buildEquipmentSlots(actor, systemSource) {
                 })
             };
         });
+}
+
+function buildInventorySummary(actor, systemSource) {
+    const equipment = systemSource.inventory?.equipment ?? {};
+    const equippedBySlot = TOTC_EQUIPMENT_SLOT_KEYS
+        .filter((slotKey) => equipment[slotKey])
+        .map((slotKey) => {
+            const slot = equipment[slotKey];
+            const equippedItems = toArray(slot.itemIds)
+                .map((itemId) => actor.items.get(itemId))
+                .filter(Boolean)
+                .map((item) => ({
+                    id: item.id,
+                    name: item.name,
+                    type: formatTypeLabel(item.type),
+                    img: item.img
+                }));
+
+            return {
+                key: slotKey,
+                label: slot.label,
+                equippedItems
+            };
+        });
+
+    const equippedIds = new Set(equippedBySlot.flatMap((slot) => slot.equippedItems.map((item) => item.id)));
+    const packIds = new Set(toArray(systemSource.inventory?.pack?.itemIds));
+
+    const packItems = [];
+    const otherItems = [];
+    for (const item of actor.items.contents) {
+        const summary = {
+            id: item.id,
+            name: item.name,
+            type: formatTypeLabel(item.type),
+            img: item.img
+        };
+
+        if (equippedIds.has(item.id)) continue;
+        if (packIds.has(item.id)) {
+            packItems.push(summary);
+        } else {
+            otherItems.push(summary);
+        }
+    }
+
+    return {
+        equippedBySlot,
+        packItems,
+        otherItems
+    };
 }
 
 function extractEquipmentSlotUpdates(updateData) {
@@ -221,6 +277,7 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
 
         context.system = systemSource;
         context.equipmentSlots = buildEquipmentSlots(this.actor, systemSource);
+        context.inventorySummary = buildInventorySummary(this.actor, systemSource);
         
         const packItemIds = systemSource.inventory?.pack?.itemIds ?? [];
         context.packItems = packItemIds

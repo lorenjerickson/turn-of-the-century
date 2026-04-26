@@ -365,6 +365,59 @@
     margin: 0;
 }
 
+.turn-of-the-century.sheet.actor .totc-inventory-group {
+    margin-top: 14px;
+}
+
+.turn-of-the-century.sheet.actor .totc-inventory-group h2 {
+    border-bottom: 1px solid #b7a993;
+    font-size: 1rem;
+    margin: 0 0 8px;
+    padding-bottom: 4px;
+}
+
+.turn-of-the-century.sheet.actor .totc-inventory-slots {
+    display: grid;
+    gap: 8px;
+}
+
+.turn-of-the-century.sheet.actor .totc-inventory-slot {
+    background: rgba(111, 96, 76, 0.08);
+    border: 1px solid #b7a993;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.turn-of-the-century.sheet.actor .totc-inventory-slot__label {
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.turn-of-the-century.sheet.actor .totc-inventory-items {
+    display: grid;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.turn-of-the-century.sheet.actor .totc-inventory-item {
+    align-items: center;
+    background: rgba(111, 96, 76, 0.08);
+    border: 1px solid #b7a993;
+    border-radius: 6px;
+    display: flex;
+    gap: 8px;
+    padding: 6px;
+}
+
+.turn-of-the-century.sheet.actor .totc-inventory-item img {
+    border-radius: 4px;
+    height: 28px;
+    object-fit: cover;
+    width: 28px;
+}
+
 @media (max-width: 900px) {
     .turn-of-the-century.sheet.actor .sheet-body--sidebar {
         flex-direction: column;
