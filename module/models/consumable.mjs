@@ -60,6 +60,18 @@ function createConsumableEffectField() {
     });
 }
 
+function createActionVariantField({ defaultId = "consumeItem", defaultLabel = "Consume Item", defaultApCost = 1 } = {}) {
+    return new SchemaField({
+        id: new StringField({ required: true, blank: false, initial: defaultId }),
+        label: new StringField({ required: true, blank: false, initial: defaultLabel }),
+        type: new StringField({ required: true, blank: false, initial: "consumable" }),
+        apCost: new NumberField({ required: true, integer: true, min: 1, initial: defaultApCost }),
+        requiresToHit: new BooleanField({ required: true, initial: false }),
+        toHitBonus: new NumberField({ required: true, integer: true, initial: 0 }),
+        notes: new HTMLField({ required: true, blank: true })
+    });
+}
+
 export class ConsumableDataModel extends foundry.abstract.TypeDataModel {
     static defineSchema() {
         return {
@@ -100,6 +112,24 @@ export class ConsumableDataModel extends foundry.abstract.TypeDataModel {
                 actionCost: new NumberField({ required: true, min: 0, initial: 1 }),
                 consumesCharge: new BooleanField({ required: true, initial: true }),
                 requiresHands: new BooleanField({ required: true, initial: true })
+            }),
+            actions: new SchemaField({
+                defaultActionId: new StringField({ required: true, blank: false, initial: "consumeItem" }),
+                variants: new ArrayField(
+                    createActionVariantField({ defaultId: "consumeItem", defaultLabel: "Consume Item", defaultApCost: 1 }),
+                    {
+                        required: true,
+                        initial: () => [{
+                            id: "consumeItem",
+                            label: "Consume Item",
+                            type: "consumable",
+                            apCost: 1,
+                            requiresToHit: false,
+                            toHitBonus: 0,
+                            notes: ""
+                        }]
+                    }
+                )
             }),
             quantity: new SchemaField({
                 value: new NumberField({ required: true, integer: true, min: 0, initial: 1 }),

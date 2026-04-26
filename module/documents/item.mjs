@@ -115,6 +115,25 @@ export class TurnOfTheCenturyItem extends Item {
         return true;
     }
 
+    get defaultActionId() {
+        return this.dataModel.actions?.defaultActionId ?? null;
+    }
+
+    get actionVariants() {
+        return Array.from(this.dataModel.actions?.variants ?? []);
+    }
+
+    getActionVariant(actionId = this.defaultActionId) {
+        if (!actionId) return this.actionVariants[0] ?? null;
+        return this.actionVariants.find((variant) => variant.id === actionId) ?? this.actionVariants[0] ?? null;
+    }
+
+    getActionPointCost(actionId = this.defaultActionId) {
+        const variant = this.getActionVariant(actionId);
+        if (variant) return Number(variant.apCost ?? this.dataModel.use?.actionCost ?? 1);
+        return Number(this.dataModel.use?.actionCost ?? 1);
+    }
+
     getRollData() {
         const rollData = super.getRollData?.() ?? {};
         rollData.item = {
@@ -200,6 +219,18 @@ export class TurnOfTheCenturyItem extends Item {
             item: this,
             effects: this.mechanicalEffects,
             sideEffects: this.sideEffects
+        };
+    }
+
+    async executeEncounterAction({ actor = this.actor, actionId, consume = true } = {}) {
+        const variant = this.getActionVariant(actionId);
+        const useResult = await this.use({ actor, consume });
+        if (!useResult.success) return useResult;
+
+        return {
+            ...useResult,
+            actionVariant: variant,
+            actionPointCost: this.getActionPointCost(actionId)
         };
     }
 }

@@ -61,6 +61,18 @@ function createMechanicalEffectField() {
     });
 }
 
+function createActionVariantField({ defaultId = "useItem", defaultLabel = "Use Item", defaultType = "utility", defaultApCost = 1 } = {}) {
+    return new SchemaField({
+        id: new StringField({ required: true, blank: false, initial: defaultId }),
+        label: new StringField({ required: true, blank: false, initial: defaultLabel }),
+        type: new StringField({ required: true, blank: false, initial: defaultType }),
+        apCost: new NumberField({ required: true, integer: true, min: 1, initial: defaultApCost }),
+        requiresToHit: new BooleanField({ required: true, initial: false }),
+        toHitBonus: new NumberField({ required: true, integer: true, initial: 0 }),
+        notes: new HTMLField({ required: true, blank: true })
+    });
+}
+
 export class ItemDataModel extends foundry.abstract.TypeDataModel {
     static defineSchema() {
         return {
@@ -96,6 +108,24 @@ export class ItemDataModel extends foundry.abstract.TypeDataModel {
                 requiresHands: new BooleanField({ required: true, initial: true }),
                 consumedOnUse: new BooleanField({ required: true, initial: false }),
                 skillCheck: createSkillCheckField()
+            }),
+            actions: new SchemaField({
+                defaultActionId: new StringField({ required: true, blank: false, initial: "useItem" }),
+                variants: new ArrayField(
+                    createActionVariantField({ defaultId: "useItem", defaultLabel: "Use Item", defaultType: "utility", defaultApCost: 1 }),
+                    {
+                        required: true,
+                        initial: () => [{
+                            id: "useItem",
+                            label: "Use Item",
+                            type: "utility",
+                            apCost: 1,
+                            requiresToHit: false,
+                            toHitBonus: 0,
+                            notes: ""
+                        }]
+                    }
+                )
             }),
             effects: new ArrayField(createMechanicalEffectField(), { required: true, initial: () => [] }),
             physical: new SchemaField({

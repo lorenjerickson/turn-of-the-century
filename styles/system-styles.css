@@ -418,6 +418,104 @@
     width: 28px;
 }
 
+.turn-of-the-century .totc-encounter-meta {
+    color: #5f574c;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    font-size: 0.8rem;
+}
+
+.turn-of-the-century .totc-encounter-plan-controls {
+    display: grid;
+    gap: 6px;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    margin-top: 8px;
+}
+
+.turn-of-the-century .totc-encounter-plan-controls button {
+    border: 1px solid #6f604c;
+    border-radius: 4px;
+    padding: 4px 6px;
+}
+
+.turn-of-the-century .totc-encounter-queue {
+    display: grid;
+    gap: 4px;
+    list-style: decimal;
+    margin: 8px 0 0 18px;
+}
+
+.turn-of-the-century .totc-encounter-queue li {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.turn-of-the-century .totc-encounter-queue button {
+    background: rgba(111, 96, 76, 0.2);
+    border: 1px solid #b7a993;
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+.turn-of-the-century .totc-encounter-warning {
+    background: rgba(169, 62, 23, 0.12);
+    border: 1px solid #a93e17;
+    border-radius: 6px;
+    color: #6a2915;
+    font-size: 0.85rem;
+    margin: 8px 0;
+    padding: 6px 8px;
+}
+
+.totc-combat-tracker .totc-combat-controls {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.totc-combat-tracker .totc-encounter-banner {
+    background: rgba(111, 96, 76, 0.1);
+    border: 1px solid #b7a993;
+    border-radius: 6px;
+    display: grid;
+    gap: 4px;
+    margin-bottom: 8px;
+    padding: 6px;
+}
+
+.totc-combat-tracker .totc-encounter-row {
+    align-items: stretch;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: 36px 1fr;
+}
+
+.totc-combat-tracker .token-image {
+    border-radius: 4px;
+    height: 36px;
+    width: 36px;
+}
+
+.totc-combat-tracker .token-name h4 {
+    margin: 0;
+}
+
+.totc-combat-tracker .totc-encounter-plan-controls {
+    grid-column: 1 / -1;
+}
+
+.totc-combat-tracker .totc-encounter-queue {
+    grid-column: 1 / -1;
+    margin-left: 20px;
+}
+
+.totc-encounter-replay-line {
+    margin: 0 0 4px;
+}
+
 @media (max-width: 900px) {
     .turn-of-the-century.sheet.actor .sheet-body--sidebar {
         flex-direction: column;

@@ -1,0 +1,88 @@
+<section class="combat-tracker totc-combat-tracker">
+    <header class="combat-tracker-header">
+        <h3>{{localize "COMBAT.Combat"}}</h3>
+        {{#if totcEncounter.controlsVisible}}
+            <div class="totc-combat-controls">
+                <button type="button" data-action="totc-init-round">{{localize "TOTC.Encounter.InitializeRound"}}</button>
+                <button type="button" data-action="totc-resolve-round">{{localize "TOTC.Encounter.ResolveRound"}}</button>
+            </div>
+        {{/if}}
+    </header>
+
+    {{#if totcEncounter.active}}
+        <div class="totc-encounter-banner">
+            <span>{{localize "TOTC.Encounter.Phase"}}: {{totcEncounter.phase}}</span>
+            <span>{{localize "TOTC.Encounter.ApBudget"}}: {{totcEncounter.apBudget}}</span>
+            <span>{{localize "TOTC.Encounter.PlanningElapsed"}}: {{totcEncounter.planningElapsedSeconds}}s</span>
+        </div>
+        {{#if totcEncounter.planningWarningActive}}
+            <div class="totc-encounter-warning">{{localize "TOTC.Encounter.PlanningWarning"}}</div>
+        {{/if}}
+    {{else}}
+        <div class="totc-encounter-banner">{{localize "TOTC.Encounter.NotInitialized"}}</div>
+    {{/if}}
+
+    <ol id="combat-tracker" class="directory-list">
+        {{#each turns as |turn|}}
+            <li class="combatant totc-encounter-row {{#if turn.active}}active{{/if}}" data-combatant-id="{{turn.id}}">
+                <img class="token-image" src="{{turn.img}}" alt="{{turn.name}}" />
+                <div class="token-name">
+                    <h4>{{turn.name}}</h4>
+                    <div class="totc-encounter-meta">
+                        <span>{{localize "TOTC.Encounter.SpentAp"}}: {{turn.encounter.spentAp}}</span>
+                        <span>{{localize "TOTC.Encounter.RemainingAp"}}: {{turn.encounter.remainingAp}}</span>
+                    </div>
+                </div>
+
+                {{#if turn.encounter.queue.length}}
+                    <ol class="totc-encounter-queue">
+                        {{#each turn.encounter.queue as |action actionIndex|}}
+                            <li>
+                                <span>{{action.label}} ({{action.apCost}} AP)</span>
+                                {{#if turn.canPlan}}
+                                    <button type="button" data-action="totc-remove-action" data-combatant-id="{{turn.id}}" data-action-index="{{actionIndex}}">{{localize "TOTC.Encounter.RemoveAction"}}</button>
+                                {{/if}}
+                            </li>
+                        {{/each}}
+                    </ol>
+                {{/if}}
+
+                {{#if turn.canPlan}}
+                    <div class="totc-encounter-plan-controls">
+                        <select class="totc-encounter-action-select">
+                            {{#each turn.encounter.availableActions as |action|}}
+                                <option
+                                    value="{{action.id}}"
+                                    data-id="{{action.id}}"
+                                    data-action-id="{{action.actionId}}"
+                                    data-type="{{action.type}}"
+                                    data-label="{{action.label}}"
+                                    data-ap-cost="{{action.apCost}}"
+                                    data-requires-to-hit="{{action.requiresToHit}}"
+                                    data-to-hit-bonus="{{action.toHitBonus}}"
+                                    data-item-id="{{action.itemId}}"
+                                    data-movement-feet="{{action.movementFeet}}"
+                                >{{action.label}} ({{action.apCost}} AP)</option>
+                            {{/each}}
+                        </select>
+                        <select class="totc-encounter-target-select">
+                            <option value="">{{localize "TOTC.Encounter.Target.None"}}</option>
+                            {{#each turn.encounter.targetOptions as |target|}}
+                                <option value="{{target.id}}">{{target.name}}</option>
+                            {{/each}}
+                        </select>
+                        <button type="button" data-action="totc-add-action" data-combatant-id="{{turn.id}}">{{localize "TOTC.Encounter.AddAction"}}</button>
+                        <button type="button" data-action="totc-clear-plan" data-combatant-id="{{turn.id}}">{{localize "TOTC.Encounter.ClearPlan"}}</button>
+                        <button type="button" data-action="totc-toggle-ready" data-combatant-id="{{turn.id}}" data-ready="{{turn.encounter.ready}}">
+                            {{#if turn.encounter.ready}}
+                                {{localize "TOTC.Encounter.Ready"}}
+                            {{else}}
+                                {{localize "TOTC.Encounter.MarkReady"}}
+                            {{/if}}
+                        </button>
+                    </div>
+                {{/if}}
+            </li>
+        {{/each}}
+    </ol>
+</section>

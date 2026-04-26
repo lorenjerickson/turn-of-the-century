@@ -204,6 +204,20 @@ function createBaseItemLikeSystem() {
                 purpose: html("Provides routine assistance at the Keeper's discretion.")
             }
         },
+        actions: {
+            defaultActionId: "useItem",
+            variants: [
+                {
+                    id: "useItem",
+                    label: "Use Item",
+                    type: "utility",
+                    apCost: 1,
+                    requiresToHit: false,
+                    toHitBonus: 0,
+                    notes: ""
+                }
+            ]
+        },
         effects: [],
         physical: {
             weight: 1,
@@ -292,6 +306,20 @@ function createBaseWeaponSystem() {
             bonus: 0
         },
         handedness: "oneHanded",
+        actions: {
+            defaultActionId: "weaponAttack",
+            variants: [
+                {
+                    id: "weaponAttack",
+                    label: "Attack",
+                    type: "attack",
+                    apCost: 2,
+                    requiresToHit: true,
+                    toHitBonus: 0,
+                    notes: ""
+                }
+            ]
+        },
         ammunition: {
             required: false,
             type: "",
@@ -344,6 +372,20 @@ function createBaseConsumableSystem() {
             actionCost: 1,
             consumesCharge: true,
             requiresHands: true
+        },
+        actions: {
+            defaultActionId: "consumeItem",
+            variants: [
+                {
+                    id: "consumeItem",
+                    label: "Consume Item",
+                    type: "consumable",
+                    apCost: 1,
+                    requiresToHit: false,
+                    toHitBonus: 0,
+                    notes: ""
+                }
+            ]
         },
         quantity: {
             value: 1,
@@ -770,6 +812,29 @@ const WEAPON_CONFIGS = [
             classification: "firearm",
             damage: { formula: "1d8", type: "ballistic" },
             handedness: "oneHanded",
+            actions: {
+                defaultActionId: "pistolAimedShot",
+                variants: [
+                    {
+                        id: "pistolQuickShot",
+                        label: "Quick Shot",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: -2,
+                        notes: "Fast draw and fire with reduced accuracy."
+                    },
+                    {
+                        id: "pistolAimedShot",
+                        label: "Aim and Fire",
+                        type: "attack",
+                        apCost: 3,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        notes: "Deliberate shot with full accuracy."
+                    }
+                ]
+            },
             ammunition: { required: true, type: "revolver-round", capacity: 6, loaded: 6, consumedPerAttack: 1 },
             prerequisites: {
                 abilityMinimums: { ...ABILITY_MINIMUMS_NONE, dex: 10 },
@@ -1042,7 +1107,21 @@ const CONSUMABLE_CONFIGS = [
             slot: "belt",
             quality: "exceptional",
             rarity: "rare",
-            use: { method: "drink" },
+            use: { method: "drink", actionCost: 2 },
+            actions: {
+                defaultActionId: "consumeBeltElixir",
+                variants: [
+                    {
+                        id: "consumeBeltElixir",
+                        label: "Consume Belt Elixir",
+                        type: "consumable",
+                        apCost: 2,
+                        requiresToHit: false,
+                        toHitBonus: 0,
+                        notes: "Retrieve from belt and consume under pressure."
+                    }
+                ]
+            },
             effects: [
                 { label: "Calm Resolve", type: "applyModifier", target: "abilities.san.value", formula: "", value: 1, condition: "for 1 scene", notes: html("A brief buffer against psychic strain.") }
             ],

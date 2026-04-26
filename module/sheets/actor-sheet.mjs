@@ -195,6 +195,33 @@ function buildInventorySummary(actor, systemSource) {
     };
 }
 
+function buildEncounterPlanner(actor) {
+    const combat = game.combat;
+    if (!combat || !combat.initializeEncounterRound) return null;
+
+    const combatant = combat.getCombatantByActor?.(actor.id)
+        ?? combat.combatants?.find((entry) => entry.actor?.id === actor.id)
+        ?? null;
+    if (!combatant) return null;
+
+    const combatantState = combat.getCombatantState?.(combatant.id) ?? null;
+    const queue = combat.getCombatantPlan?.(combatant.id) ?? [];
+
+    return {
+        combatId: combat.id,
+        combatantId: combatant.id,
+        phase: combat.phase ?? "planning",
+        apBudget: combat.apBudget ?? 6,
+        spentAp: Number(combatantState?.spentAp ?? 0),
+        remainingAp: Number(combat.getCombatantRemainingAp?.(combatant.id) ?? 0),
+        ready: Boolean(combatantState?.ready),
+        planningWarningActive: Boolean(combat.isPlanningWarningActive),
+        queue,
+        availableActions: combat.getAvailableActionsForCombatant?.(combatant.id) ?? [],
+        targetOptions: combat.getTargetOptionsForCombatant?.(combatant.id) ?? []
+    };
+}
+
 function extractEquipmentSlotUpdates(updateData) {
     const slotSelections = new Map();
 
@@ -278,6 +305,7 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
         context.system = systemSource;
         context.equipmentSlots = buildEquipmentSlots(this.actor, systemSource);
         context.inventorySummary = buildInventorySummary(this.actor, systemSource);
+        context.encounterPlanner = buildEncounterPlanner(this.actor);
         
         const packItemIds = systemSource.inventory?.pack?.itemIds ?? [];
         context.packItems = packItemIds
@@ -391,6 +419,73 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
             if (itemId) {
                 this.actor.deleteEmbeddedDocuments("Item", [itemId]);
             }
+        });
+
+        html.find("[data-action='totc-encounter-init-round']").on("click", async (event) => {
+            event.preventDefault();
+            if (!game.combat?.initializeEncounterRound) return;
+            await game.combat.initializeEncounterRound();
+            this.render(true);
+        });
+
+        html.find("[data-action='totc-encounter-toggle-ready']").on("click", async (event) => {
+            event.preventDefault();
+            const combatantId = event.currentTarget.dataset.combatantId;
+            const ready = event.currentTarget.dataset.ready === "true";
+            if (!combatantId || !game.combat?.setCombatantReady) return;
+
+            await game.combat.setCombatantReady(combatantId, !ready);
+            this.render(true);
+        });
+
+        html.find("[data-action='totc-encounter-add-action']").on("click", async (event) => {
+            event.preventDefault();
+
+            const combatantId = event.currentTarget.dataset.combatantId;
+            if (!combatantId || !game.combat?.addCombatantAction) return;
+
+            const row = event.currentTarget.closest(".totc-encounter-planner");
+            const actionSelect = row?.querySelector(".totc-encounter-action-select");
+            const targetSelect = row?.querySelector(".totc-encounter-target-select");
+            const selectedOption = actionSelect?.selectedOptions?.[0];
+            if (!selectedOption) return;
+
+            const actionData = {
+                id: selectedOption.dataset.id,
+                actionId: selectedOption.dataset.actionId,
+                type: selectedOption.dataset.type,
+                label: selectedOption.dataset.label,
+                apCost: Number(selectedOption.dataset.apCost || 1),
+                requiresToHit: selectedOption.dataset.requiresToHit === "true",
+                toHitBonus: Number(selectedOption.dataset.toHitBonus || 0),
+                movementFeet: Number(selectedOption.dataset.movementFeet || 0),
+                itemId: selectedOption.dataset.itemId || null,
+                targetId: targetSelect?.value || null
+            };
+
+            await game.combat.addCombatantAction(combatantId, actionData);
+            this.render(true);
+        });
+
+        html.find("[data-action='totc-encounter-remove-action']").on("click", async (event) => {
+            event.preventDefault();
+
+            const combatantId = event.currentTarget.dataset.combatantId;
+            const actionIndex = Number(event.currentTarget.dataset.actionIndex);
+            if (!combatantId || Number.isNaN(actionIndex) || !game.combat?.removeCombatantAction) return;
+
+            await game.combat.removeCombatantAction(combatantId, actionIndex);
+            this.render(true);
+        });
+
+        html.find("[data-action='totc-encounter-clear-plan']").on("click", async (event) => {
+            event.preventDefault();
+
+            const combatantId = event.currentTarget.dataset.combatantId;
+            if (!combatantId || !game.combat?.clearCombatantPlan) return;
+
+            await game.combat.clearCombatantPlan(combatantId);
+            this.render(true);
         });
     }
 }

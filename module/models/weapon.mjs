@@ -69,6 +69,18 @@ function createProficiencyRequirementField() {
     });
 }
 
+function createActionVariantField({ defaultId = "weaponAttack", defaultLabel = "Attack", defaultApCost = 2, defaultToHitBonus = 0 } = {}) {
+    return new SchemaField({
+        id: new StringField({ required: true, blank: false, initial: defaultId }),
+        label: new StringField({ required: true, blank: false, initial: defaultLabel }),
+        type: new StringField({ required: true, blank: false, initial: "attack" }),
+        apCost: new NumberField({ required: true, integer: true, min: 1, initial: defaultApCost }),
+        requiresToHit: new BooleanField({ required: true, initial: true }),
+        toHitBonus: new NumberField({ required: true, integer: true, initial: defaultToHitBonus }),
+        notes: new HTMLField({ required: true, blank: true })
+    });
+}
+
 export class WeaponDataModel extends foundry.abstract.TypeDataModel {
     static defineSchema() {
         return {
@@ -115,6 +127,24 @@ export class WeaponDataModel extends foundry.abstract.TypeDataModel {
                 blank: false,
                 choices: TOTC_WEAPON_HANDEDNESS,
                 initial: "oneHanded"
+            }),
+            actions: new SchemaField({
+                defaultActionId: new StringField({ required: true, blank: false, initial: "weaponAttack" }),
+                variants: new ArrayField(
+                    createActionVariantField({ defaultId: "weaponAttack", defaultLabel: "Attack", defaultApCost: 2, defaultToHitBonus: 0 }),
+                    {
+                        required: true,
+                        initial: () => [{
+                            id: "weaponAttack",
+                            label: "Attack",
+                            type: "attack",
+                            apCost: 2,
+                            requiresToHit: true,
+                            toHitBonus: 0,
+                            notes: ""
+                        }]
+                    }
+                )
             }),
             ammunition: new SchemaField({
                 required: new BooleanField({ required: true, initial: false }),

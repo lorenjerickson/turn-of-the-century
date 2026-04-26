@@ -19,17 +19,34 @@ import {
     createTotcSampleContent,
     publishTotcSampleCompendiums
 } from "./module/sample-content.mjs";
-import { TOTC_WORLD_SCHEMA_VERSION, migrateTotcActorProfiles, migrateTotcEquipmentSlots, runTotcMigrations } from "./module/migrations.mjs";
-import { TurnOfTheCenturyActor, TurnOfTheCenturyItem } from "./module/documents.mjs";
+import {
+    getActionPointBudget,
+    getBaseActionCatalog,
+    getMovementFeetPerAp,
+    getPlanningWarningSeconds
+} from "./module/encounters/action-catalog.mjs";
+import {
+    TOTC_WORLD_SCHEMA_VERSION,
+    migrateTotcActorProfiles,
+    migrateTotcEncounterActions,
+    migrateTotcEquipmentSlots,
+    runTotcMigrations
+} from "./module/migrations.mjs";
+import { TurnOfTheCenturyActor, TurnOfTheCenturyCombat, TurnOfTheCenturyItem } from "./module/documents.mjs";
 import {
     TurnOfTheCenturyHeroSheet,
     TurnOfTheCenturyPawnSheet,
     TurnOfTheCenturyVillainSheet
 } from "./module/sheets/actor-sheet.mjs";
+import { TurnOfTheCenturyCombatTracker } from "./module/sheets/combat-tracker.mjs";
 import { TurnOfTheCenturyItemSheet } from "./module/sheets/item-sheet.mjs";
 
 const STARTER_CONTENT_SEEDED_SETTING = "starterContentSeeded";
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
+const ENCOUNTER_AP_BUDGET_SETTING = "encounterActionPointBudget";
+const ENCOUNTER_MOVE_FEET_PER_AP_SETTING = "encounterMovementFeetPerAp";
+const ENCOUNTER_PLANNING_WARNING_SECONDS_SETTING = "encounterPlanningWarningSeconds";
+const ENCOUNTER_REPLAY_STYLE_SETTING = "encounterReplayNarrationStyle";
 
 function getIndexCount(pack) {
     return pack.index?.size ?? pack.index?.length ?? 0;
@@ -46,6 +63,7 @@ async function maybeRunAutomatedMigrations() {
             currentVersion,
             migrateActorProfiles: migrateTotcActorProfiles,
             migrateEquipmentSlots: migrateTotcEquipmentSlots,
+            migrateEncounterActions: migrateTotcEncounterActions,
             notify: true
         });
 
@@ -105,6 +123,8 @@ Hooks.once("init", () => {
     CONFIG.Actor.dataModels ??= {};
     CONFIG.Item.dataModels ??= {};
     CONFIG.Actor.documentClass = TurnOfTheCenturyActor;
+    CONFIG.Combat.documentClass = TurnOfTheCenturyCombat;
+    CONFIG.ui.combat = TurnOfTheCenturyCombatTracker;
     CONFIG.Item.documentClass = TurnOfTheCenturyItem;
 
     CONFIG.Actor.compendiumIndexFields = Array.from(
@@ -184,6 +204,46 @@ Hooks.once("init", () => {
         type: Number,
         default: 0
     });
+
+    game.settings.register("turn-of-the-century", ENCOUNTER_AP_BUDGET_SETTING, {
+        name: "Encounter AP budget",
+        hint: "Action points available per combatant each round during AP encounters.",
+        scope: "world",
+        config: false,
+        type: Number,
+        default: 6
+    });
+
+    game.settings.register("turn-of-the-century", ENCOUNTER_MOVE_FEET_PER_AP_SETTING, {
+        name: "Encounter movement feet per AP",
+        hint: "Distance in feet represented by one action point for movement actions.",
+        scope: "world",
+        config: false,
+        type: Number,
+        default: 10
+    });
+
+    game.settings.register("turn-of-the-century", ENCOUNTER_PLANNING_WARNING_SECONDS_SETTING, {
+        name: "Encounter planning warning seconds",
+        hint: "Soft warning threshold for round planning in AP encounters.",
+        scope: "world",
+        config: false,
+        type: Number,
+        default: 45
+    });
+
+    game.settings.register("turn-of-the-century", ENCOUNTER_REPLAY_STYLE_SETTING, {
+        name: "Encounter replay narration style",
+        hint: "Controls formatting style for GM-only AP replay narration output.",
+        scope: "world",
+        config: false,
+        type: String,
+        choices: {
+            concise: "Concise",
+            detailed: "Detailed"
+        },
+        default: "detailed"
+    });
 });
 
 Hooks.once("ready", () => {
@@ -199,15 +259,58 @@ Hooks.once("ready", () => {
     game.turnOfTheCentury.migrations = {
         migrateActorProfiles: migrateTotcActorProfiles,
         migrateEquipmentSlots: migrateTotcEquipmentSlots,
+        migrateEncounterActions: migrateTotcEncounterActions,
         run: async () => {
             const result = await runTotcMigrations({
                 currentVersion: game.settings.get("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING),
                 migrateActorProfiles: migrateTotcActorProfiles,
                 migrateEquipmentSlots: migrateTotcEquipmentSlots,
+                migrateEncounterActions: migrateTotcEncounterActions,
                 notify: true
             });
             await game.settings.set("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING, result.toVersion);
             return result;
+        }
+    };
+    game.turnOfTheCentury.encounters = {
+        getCatalog: () => getBaseActionCatalog(),
+        getSettings: () => ({
+            apBudget: getActionPointBudget(),
+            movementFeetPerAp: getMovementFeetPerAp(),
+            planningWarningSeconds: getPlanningWarningSeconds(),
+            replayStyle: game.settings.get("turn-of-the-century", ENCOUNTER_REPLAY_STYLE_SETTING)
+        }),
+        initializeRound: async (combat = game.combat) => {
+            if (!combat?.initializeEncounterRound) throw new Error("Active combat does not support AP encounter initialization.");
+            return combat.initializeEncounterRound();
+        },
+        setPlan: async ({ combat = game.combat, combatantId, actions }) => {
+            if (!combat?.setCombatantPlan) throw new Error("Active combat does not support AP planning.");
+            return combat.setCombatantPlan(combatantId, actions);
+        },
+        addAction: async ({ combat = game.combat, combatantId, action }) => {
+            if (!combat?.addCombatantAction) throw new Error("Active combat does not support AP action queue editing.");
+            return combat.addCombatantAction(combatantId, action);
+        },
+        removeAction: async ({ combat = game.combat, combatantId, index }) => {
+            if (!combat?.removeCombatantAction) throw new Error("Active combat does not support AP action removal.");
+            return combat.removeCombatantAction(combatantId, index);
+        },
+        clearPlan: async ({ combat = game.combat, combatantId }) => {
+            if (!combat?.clearCombatantPlan) throw new Error("Active combat does not support AP plan clearing.");
+            return combat.clearCombatantPlan(combatantId);
+        },
+        setReady: async ({ combat = game.combat, combatantId, ready }) => {
+            if (!combat?.setCombatantReady) throw new Error("Active combat does not support AP ready state updates.");
+            return combat.setCombatantReady(combatantId, ready);
+        },
+        resolveRound: async (combat = game.combat) => {
+            if (!combat?.resolveEncounterRound) throw new Error("Active combat does not support AP resolution.");
+            return combat.resolveEncounterRound();
+        },
+        setPhase: async ({ combat = game.combat, phase }) => {
+            if (!combat?.setEncounterPhase) throw new Error("Active combat does not support AP encounter phases.");
+            return combat.setEncounterPhase(phase);
         }
     };
 

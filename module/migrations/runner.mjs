@@ -1,9 +1,10 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 2;
+export const TOTC_WORLD_SCHEMA_VERSION = 3;
 
 export async function runTotcMigrations({
     currentVersion = 0,
     migrateActorProfiles,
     migrateEquipmentSlots,
+    migrateEncounterActions,
     notify = true
 } = {}) {
     if (!game?.ready) throw new Error("Game is not ready yet.");
@@ -12,6 +13,9 @@ export async function runTotcMigrations({
     }
     if (typeof migrateEquipmentSlots !== "function") {
         throw new Error("runTotcMigrations requires a migrateEquipmentSlots function.");
+    }
+    if (typeof migrateEncounterActions !== "function") {
+        throw new Error("runTotcMigrations requires a migrateEncounterActions function.");
     }
 
     let appliedVersion = Number(currentVersion) || 0;
@@ -46,11 +50,30 @@ export async function runTotcMigrations({
         appliedVersion = 2;
     }
 
+    if (appliedVersion < 3) {
+        const report = await migrateEncounterActions({
+            dryRun: false,
+            notify: false,
+            includeCompendiums: true
+        });
+
+        appliedSteps.push({
+            version: 3,
+            key: "encounter-actions",
+            report
+        });
+        appliedVersion = 3;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
                 if (step.key === "equipment-slots") {
                     return `${step.key}: ${step.report.actorsUpdated} actors and ${step.report.itemsUpdated} items updated`;
+                }
+
+                if (step.key === "encounter-actions") {
+                    return `${step.key}: ${step.report.itemsUpdated} items updated`;
                 }
 
                 return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;
