@@ -1,3 +1,8 @@
+---
+name: art-style
+description: Ensures that period-correct art styles are used when generating images, music, and video.  
+---
+
 # Art Style: Period-Authentic Image, Audio, and Video Assets
 
 ## Purpose

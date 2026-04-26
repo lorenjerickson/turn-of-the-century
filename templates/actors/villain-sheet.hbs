@@ -13,100 +13,142 @@
         </section>
     </header>
 
-    <nav class="sheet-tabs tabs" data-group="primary">
-        <a class="item" data-tab="details">{{localize "TOTC.Sheet.Details"}}</a>
-        <a class="item" data-tab="identity">{{localize "TOTC.Actor.Identity"}}</a>
-        <a class="item" data-tab="villain">{{localize "TOTC.Actor.TypeDetails"}}</a>
-    </nav>
+    <section class="sheet-body sheet-body--sidebar">
+        <aside class="sheet-sidebar">
+            <section class="totc-ability-scores">
+                <div class="totc-ability-score">
+                    <div class="totc-ability-score__value">{{system.abilities.str.value}}</div>
+                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortStr"}}</div>
+                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.str.bonus decimals=0 sign=true}}</div>
+                </div>
+                <div class="totc-ability-score">
+                    <div class="totc-ability-score__value">{{system.abilities.dex.value}}</div>
+                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortDex"}}</div>
+                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.dex.bonus decimals=0 sign=true}}</div>
+                </div>
+                <div class="totc-ability-score">
+                    <div class="totc-ability-score__value">{{system.abilities.con.value}}</div>
+                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortCon"}}</div>
+                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.con.bonus decimals=0 sign=true}}</div>
+                </div>
+                <div class="totc-ability-score">
+                    <div class="totc-ability-score__value">{{system.abilities.int.value}}</div>
+                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortInt"}}</div>
+                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.int.bonus decimals=0 sign=true}}</div>
+                </div>
+                <div class="totc-ability-score">
+                    <div class="totc-ability-score__value">{{system.abilities.wis.value}}</div>
+                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortWis"}}</div>
+                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.wis.bonus decimals=0 sign=true}}</div>
+                </div>
+                <div class="totc-ability-score">
+                    <div class="totc-ability-score__value">{{system.abilities.cha.value}}</div>
+                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortCha"}}</div>
+                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.cha.bonus decimals=0 sign=true}}</div>
+                </div>
+                <div class="totc-ability-score">
+                    <div class="totc-ability-score__value">{{system.abilities.san.value}}</div>
+                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortSan"}}</div>
+                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.san.bonus decimals=0 sign=true}}</div>
+                </div>
+            </section>
+        </aside>
 
-    <section class="sheet-body">
-        <div class="tab details" data-group="primary" data-tab="details">
-            <div class="totc-two-column">
-                <div class="form-group">
-                    <label>{{localize "TOTC.Actor.Profession"}}</label>
-                    <input name="system.classification.profession" type="text" value="{{system.classification.profession}}" />
-                </div>
-                <div class="form-group">
-                    <label>{{localize "TOTC.Actor.Origin"}}</label>
-                    <input name="system.classification.origin" type="text" value="{{system.classification.origin}}" />
-                </div>
-                <div class="form-group">
-                    <label>{{localize "TOTC.Actor.Faction"}}</label>
-                    <input name="system.profile.faction" type="text" value="{{system.profile.faction}}" />
-                </div>
-                <div class="form-group">
-                    <label>{{localize "TOTC.Actor.Role"}}</label>
-                    <input name="system.profile.role" type="text" value="{{system.profile.role}}" />
-                </div>
-            </div>
-            <div class="form-group stacked">
-                <label>{{localize "TOTC.Actor.ProfileSummary"}}</label>
-                <textarea name="system.profile.summary" rows="3">{{system.profile.summary}}</textarea>
-            </div>
-            <div class="form-group stacked">
-                <label>{{localize "TOTC.Actor.Tags"}}</label>
-                <input name="_array.system.profile.tags" type="text" value="{{profileTags}}" placeholder="mastermind, secret-society, industrial" />
-            </div>
-            <div class="form-group stacked">
-                <label>{{localize "TOTC.Actor.Biography"}}</label>
-                {{editor system.biography target="system.biography" button=true owner=owner editable=editable}}
-            </div>
-            <div class="form-group stacked">
-                <label>{{localize "TOTC.Actor.Notes"}}</label>
-                {{editor system.notes target="system.notes" button=true owner=owner editable=editable}}
-            </div>
-        </div>
+        <main class="sheet-main">
+            <nav class="sheet-tabs tabs" data-group="primary">
+                <a class="item" data-tab="profile">{{localize "TOTC.Sheet.Profile"}}</a>
+                <a class="item" data-tab="identity">{{localize "TOTC.Actor.Identity"}}</a>
+                <a class="item" data-tab="villain">{{localize "TOTC.Actor.TypeDetails"}}</a>
+            </nav>
 
-        <div class="tab identity" data-group="primary" data-tab="identity">
-            <div class="totc-two-column">
-                <div class="form-group">
-                    <label>{{localize "TOTC.Actor.Species"}}</label>
-                    <input name="system.classification.species" type="text" value="{{system.classification.species}}" />
+            <div class="tab profile" data-group="primary" data-tab="profile">
+                <div class="totc-two-column">
+                    <div class="form-group">
+                        <label>{{localize "TOTC.Actor.Profession"}}</label>
+                        <input name="system.classification.profession" type="text" value="{{system.classification.profession}}" />
+                    </div>
+                    <div class="form-group">
+                        <label>{{localize "TOTC.Actor.Origin"}}</label>
+                        <input name="system.classification.origin" type="text" value="{{system.classification.origin}}" />
+                    </div>
+                    <div class="form-group">
+                        <label>{{localize "TOTC.Actor.Faction"}}</label>
+                        <input name="system.profile.faction" type="text" value="{{system.profile.faction}}" />
+                    </div>
+                    <div class="form-group">
+                        <label>{{localize "TOTC.Actor.Role"}}</label>
+                        <input name="system.profile.role" type="text" value="{{system.profile.role}}" />
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>{{localize "TOTC.Actor.Ancestry"}}</label>
-                    <input name="system.classification.ancestry" type="text" value="{{system.classification.ancestry}}" />
+                <div class="form-group stacked">
+                    <label>{{localize "TOTC.Actor.ProfileSummary"}}</label>
+                    <textarea name="system.profile.summary" rows="3">{{system.profile.summary}}</textarea>
                 </div>
-                <div class="form-group">
-                    <label>{{localize "TOTC.Actor.Size"}}</label>
-                    <select name="system.classification.size">
-                        <option value="tiny" {{#if (eq system.classification.size "tiny")}}selected{{/if}}>{{localize "TOTC.Actor.SizeTiny"}}</option>
-                        <option value="sm" {{#if (eq system.classification.size "sm")}}selected{{/if}}>{{localize "TOTC.Actor.SizeSmall"}}</option>
-                        <option value="med" {{#if (eq system.classification.size "med")}}selected{{/if}}>{{localize "TOTC.Actor.SizeMedium"}}</option>
-                        <option value="lg" {{#if (eq system.classification.size "lg")}}selected{{/if}}>{{localize "TOTC.Actor.SizeLarge"}}</option>
-                        <option value="huge" {{#if (eq system.classification.size "huge")}}selected{{/if}}>{{localize "TOTC.Actor.SizeHuge"}}</option>
-                    </select>
+                <div class="form-group stacked">
+                    <label>{{localize "TOTC.Actor.Tags"}}</label>
+                    <input name="_array.system.profile.tags" type="text" value="{{profileTags}}" placeholder="mastermind, secret-society, industrial" />
                 </div>
-                <div class="form-group">
-                    <label>{{localize "TOTC.Actor.Challenge"}}</label>
-                    <input name="system.progression.challenge" type="text" value="{{system.progression.challenge}}" />
+                <div class="form-group stacked">
+                    <label>{{localize "TOTC.Actor.Biography"}}</label>
+                    {{editor system.biography target="system.biography" button=true owner=owner editable=editable}}
+                </div>
+                <div class="form-group stacked">
+                    <label>{{localize "TOTC.Actor.Notes"}}</label>
+                    {{editor system.notes target="system.notes" button=true owner=owner editable=editable}}
                 </div>
             </div>
-        </div>
 
-        <div class="tab villain" data-group="primary" data-tab="villain">
-            <div class="totc-two-column">
-                <div class="form-group">
-                    <label>{{localize "TOTC.Actor.Villain.Scheme"}}</label>
-                    <input name="system.villain.scheme" type="text" value="{{system.villain.scheme}}" />
-                </div>
-                <div class="form-group">
-                    <label>{{localize "TOTC.Actor.Villain.ThreatTier"}}</label>
-                    <input name="system.villain.threatTier" type="number" value="{{system.villain.threatTier}}" min="0" max="10" step="1" />
-                </div>
-                <div class="form-group">
-                    <label>{{localize "TOTC.Actor.Villain.Notoriety"}}</label>
-                    <input name="system.villain.notoriety" type="number" value="{{system.villain.notoriety}}" min="0" step="1" />
-                </div>
-                <div class="form-group">
-                    <label>{{localize "TOTC.Actor.ProficiencyBonus"}}</label>
-                    <input name="system.progression.proficiencyBonus" type="number" value="{{system.progression.proficiencyBonus}}" min="0" step="1" />
+            <div class="tab identity" data-group="primary" data-tab="identity">
+                <div class="totc-two-column">
+                    <div class="form-group">
+                        <label>{{localize "TOTC.Actor.Species"}}</label>
+                        <input name="system.classification.species" type="text" value="{{system.classification.species}}" />
+                    </div>
+                    <div class="form-group">
+                        <label>{{localize "TOTC.Actor.Ancestry"}}</label>
+                        <input name="system.classification.ancestry" type="text" value="{{system.classification.ancestry}}" />
+                    </div>
+                    <div class="form-group">
+                        <label>{{localize "TOTC.Actor.Size"}}</label>
+                        <select name="system.classification.size">
+                            <option value="tiny" {{#if (eq system.classification.size "tiny")}}selected{{/if}}>{{localize "TOTC.Actor.SizeTiny"}}</option>
+                            <option value="sm" {{#if (eq system.classification.size "sm")}}selected{{/if}}>{{localize "TOTC.Actor.SizeSmall"}}</option>
+                            <option value="med" {{#if (eq system.classification.size "med")}}selected{{/if}}>{{localize "TOTC.Actor.SizeMedium"}}</option>
+                            <option value="lg" {{#if (eq system.classification.size "lg")}}selected{{/if}}>{{localize "TOTC.Actor.SizeLarge"}}</option>
+                            <option value="huge" {{#if (eq system.classification.size "huge")}}selected{{/if}}>{{localize "TOTC.Actor.SizeHuge"}}</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>{{localize "TOTC.Actor.Challenge"}}</label>
+                        <input name="system.progression.challenge" type="text" value="{{system.progression.challenge}}" />
+                    </div>
                 </div>
             </div>
-            <div class="form-group stacked">
-                <label>{{localize "TOTC.Actor.Villain.Lieutenants"}}</label>
-                <input name="_array.system.villain.lieutenants" type="text" value="{{villainLieutenants}}" placeholder="Brass Knuckles Briggs, Widow Shaw" />
+
+            <div class="tab villain" data-group="primary" data-tab="villain">
+                <div class="totc-two-column">
+                    <div class="form-group">
+                        <label>{{localize "TOTC.Actor.Villain.Scheme"}}</label>
+                        <input name="system.villain.scheme" type="text" value="{{system.villain.scheme}}" />
+                    </div>
+                    <div class="form-group">
+                        <label>{{localize "TOTC.Actor.Villain.ThreatTier"}}</label>
+                        <input name="system.villain.threatTier" type="number" value="{{system.villain.threatTier}}" min="0" max="10" step="1" />
+                    </div>
+                    <div class="form-group">
+                        <label>{{localize "TOTC.Actor.Villain.Notoriety"}}</label>
+                        <input name="system.villain.notoriety" type="number" value="{{system.villain.notoriety}}" min="0" step="1" />
+                    </div>
+                    <div class="form-group">
+                        <label>{{localize "TOTC.Actor.ProficiencyBonus"}}</label>
+                        <input name="system.progression.proficiencyBonus" type="number" value="{{system.progression.proficiencyBonus}}" min="0" step="1" />
+                    </div>
+                </div>
+                <div class="form-group stacked">
+                    <label>{{localize "TOTC.Actor.Villain.Lieutenants"}}</label>
+                    <input name="_array.system.villain.lieutenants" type="text" value="{{villainLieutenants}}" placeholder="Brass Knuckles Briggs, Widow Shaw" />
+                </div>
             </div>
-        </div>
+        </main>
     </section>
 </form>

@@ -1,3 +1,8 @@
+---
+name: genetic-manipulation
+description: Constrains the description of creatures in this game system to be believable outcomes of genetic manipulation, mutation and other natural forms of evolution, rather than arcane or magical origins.
+---
+
 # Genetic Manipulation: Creature Design in a Science-Distorted Gothic World
 
 ## Purpose

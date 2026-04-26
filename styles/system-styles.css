@@ -104,7 +104,23 @@
 }
 
 .turn-of-the-century.sheet.actor .sheet-body {
+    display: flex;
+    gap: 12px;
     min-height: 0;
+}
+
+.turn-of-the-century.sheet.actor .sheet-body--sidebar {
+    flex-direction: row;
+}
+
+.turn-of-the-century.sheet.actor .sheet-sidebar {
+    flex: 0 0 140px;
+}
+
+.turn-of-the-century.sheet.actor .sheet-main {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
 }
 
 .turn-of-the-century.sheet.actor .form-group.stacked {
@@ -122,4 +138,94 @@
 
 .turn-of-the-century .totc-two-column .form-group {
     margin: 0;
+}
+
+/* Ability Score Sidebar */
+.turn-of-the-century.sheet.actor .totc-ability-scores {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.turn-of-the-century.sheet.actor .totc-ability-score {
+    align-items: center;
+    background: linear-gradient(135deg, #6f604c 0%, #8d7b62 100%);
+    border: 2px solid #3d3926;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    height: 100px;
+    justify-content: center;
+    position: relative;
+    width: 100px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.turn-of-the-century.sheet.actor .totc-ability-score__value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #ebe6dc;
+    line-height: 1;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.turn-of-the-century.sheet.actor .totc-ability-score__label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #d4cec4;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-top: 2px;
+}
+
+.turn-of-the-century.sheet.actor .totc-ability-score__modifier {
+    position: absolute;
+    bottom: -8px;
+    right: -8px;
+    background: #3d3926;
+    border: 1px solid #6f604c;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #ebe6dc;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.turn-of-the-century.sheet.actor .sheet-tabs {
+    margin: 0 0 12px 0;
+}
+
+@media (max-width: 900px) {
+    .turn-of-the-century.sheet.actor .sheet-body--sidebar {
+        flex-direction: column;
+    }
+
+    .turn-of-the-century.sheet.actor .sheet-sidebar {
+        flex: 0 0 auto;
+    }
+
+    .turn-of-the-century.sheet.actor .totc-ability-scores {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 10px;
+    }
+
+    .turn-of-the-century.sheet.actor .totc-ability-score {
+        height: 80px;
+        width: 80px;
+    }
+
+    .turn-of-the-century.sheet.actor .totc-ability-score__value {
+        font-size: 1.4rem;
+    }
+
+    .turn-of-the-century.sheet.actor .totc-ability-score__label {
+        font-size: 0.6rem;
+    }
 }

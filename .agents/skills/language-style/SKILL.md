@@ -1,3 +1,9 @@
+---
+name: language-style
+description: Ensures that generated text to be used in game is thematically consistent with the time period.
+---
+
+
 # Language Style: Gothic Horror + Steampunk at the Turn of the Century
 
 ## Purpose

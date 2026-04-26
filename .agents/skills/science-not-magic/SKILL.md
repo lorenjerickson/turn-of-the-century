@@ -1,3 +1,8 @@
+---
+name: science-not-magic
+description: Ensures that all advanced abilities, skills, talents, and quirks are grounded in scientific principles, albeit very advanced science.
+---
+
 # Science, Not Magic: Artifacts and Abilities in a Gothic-Steampunk World
 
 ## Purpose
