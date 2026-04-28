@@ -1,3 +1,5 @@
+import { createModifierEntryField } from "./modifier.mjs";
+
 const {
     ArrayField,
     HTMLField,
@@ -138,7 +140,8 @@ export class EthnicityDataModel extends foundry.abstract.TypeDataModel {
                 homeland: new StringField({ required: true, blank: true, initial: "" }),
                 diaspora: new HTMLField({ required: true, blank: true }),
                 periodContext: new HTMLField({ required: true, blank: true })
-            })
+            }),
+            modifiers: new ArrayField(createModifierEntryField(), { required: true, initial: () => [] })
         };
     }
 }

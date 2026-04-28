@@ -1,5 +1,6 @@
 export * from "./models/actor.mjs";
 export * from "./models/armor.mjs";
+export * from "./models/modifier.mjs";
 export * from "./models/consumable.mjs";
 export * from "./models/effect.mjs";
 export * from "./models/ethnicity.mjs";

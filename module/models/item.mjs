@@ -1,4 +1,5 @@
 import { TOTC_EQUIPMENT_SLOT_KEYS, TOTC_SKILL_CONFIG } from "./actor.mjs";
+import { createModifierEntryField } from "./modifier.mjs";
 
 const {
     ArrayField,
@@ -144,7 +145,8 @@ export class ItemDataModel extends foundry.abstract.TypeDataModel {
                 fragile: new BooleanField({ required: true, initial: false }),
                 experimental: new BooleanField({ required: true, initial: false }),
                 restricted: new BooleanField({ required: true, initial: false })
-            })
+            }),
+            modifiers: new ArrayField(createModifierEntryField(), { required: true, initial: () => [] })
         };
     }
 }

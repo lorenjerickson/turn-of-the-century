@@ -1,4 +1,5 @@
 import { TOTC_ABILITY_KEYS, TOTC_SKILL_CONFIG } from "./actor.mjs";
+import { createModifierEntryField } from "./modifier.mjs";
 
 const {
     ArrayField,
@@ -129,7 +130,8 @@ export class EffectDataModel extends foundry.abstract.TypeDataModel {
                 itemId: new StringField({ required: true, blank: true, initial: "" }),
                 actorId: new StringField({ required: true, blank: true, initial: "" }),
                 notes: new HTMLField({ required: true, blank: true })
-            })
+            }),
+            modifiers: new ArrayField(createModifierEntryField(), { required: true, initial: () => [] })
         };
     }
 }

@@ -1,3 +1,5 @@
+import { createActiveModifierEntryField } from "./modifier.mjs";
+
 const {
     ArrayField,
     BooleanField,
@@ -222,6 +224,10 @@ class CreatureActorDataModel extends foundry.abstract.TypeDataModel {
                 immunities: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] }),
                 resistances: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] }),
                 vulnerabilities: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] })
+            }),
+            modifiers: new SchemaField({
+                active: new ArrayField(createActiveModifierEntryField(), { required: true, initial: () => [] }),
+                suppressed: new ArrayField(createActiveModifierEntryField(), { required: true, initial: () => [] })
             })
         };
     }

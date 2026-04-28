@@ -2,6 +2,22 @@ function isPlainObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+/**
+ * Converts a dot-separated system field path into a human-readable label.
+ * E.g. "system.armorClass.increment" → "Armor Class › Increment"
+ */
+function formatFieldLabel(path) {
+    const cleaned = path.startsWith("system.") ? path.slice("system.".length) : path;
+    return cleaned
+        .split(".")
+        .map((segment) => segment
+            .replace(/([A-Z])/g, " $1")
+            .replace(/^./, (c) => c.toUpperCase())
+            .trim()
+        )
+        .join(" › ");
+}
+
 function formatValue(value) {
     if (value === undefined || value === null) return "";
     if (typeof value === "object") return JSON.stringify(value, null, 2);
@@ -15,7 +31,7 @@ function flattenSystemData(source, prefix = "system") {
         if (Array.isArray(value)) {
             return [{
                 path,
-                label: key,
+                label: formatFieldLabel(path),
                 type: "json",
                 value: formatValue(value),
                 isJson: true,
@@ -27,7 +43,7 @@ function flattenSystemData(source, prefix = "system") {
 
         return [{
             path,
-            label: key,
+            label: formatFieldLabel(path),
             type: typeof value === "boolean" ? "checkbox" : "text",
             value,
             isJson: false,

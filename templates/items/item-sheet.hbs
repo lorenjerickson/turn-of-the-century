@@ -47,7 +47,7 @@
                 <div class="totc-field-grid">
                     {{#each systemFields as |field|}}
                         <div class="form-group totc-field-row">
-                            <label title="{{field.path}}">{{field.path}}</label>
+                            <label title="{{field.path}}">{{field.label}}</label>
                             {{#if field.isCheckbox}}
                                 <input name="{{field.path}}" type="checkbox" {{checked field.value}} />
                             {{else if field.isJson}}

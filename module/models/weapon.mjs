@@ -1,4 +1,5 @@
 import { TOTC_ABILITY_KEYS, TOTC_EQUIPMENT_SLOT_KEYS } from "./actor.mjs";
+import { createModifierEntryField } from "./modifier.mjs";
 
 const {
     ArrayField,
@@ -171,7 +172,8 @@ export class WeaponDataModel extends foundry.abstract.TypeDataModel {
                 concealable: new BooleanField({ required: true, initial: false }),
                 noisy: new BooleanField({ required: true, initial: false }),
                 experimental: new BooleanField({ required: true, initial: false })
-            })
+            }),
+            modifiers: new ArrayField(createModifierEntryField(), { required: true, initial: () => [] })
         };
     }
 }
