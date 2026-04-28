@@ -29,6 +29,7 @@ import {
     TOTC_WORLD_SCHEMA_VERSION,
     migrateTotcActorProfiles,
     migrateTotcEncounterActions,
+    migrateTotcModifiers,
     migrateTotcEquipmentSlots,
     runTotcMigrations
 } from "./module/migrations.mjs";
@@ -64,6 +65,7 @@ async function maybeRunAutomatedMigrations() {
             migrateActorProfiles: migrateTotcActorProfiles,
             migrateEquipmentSlots: migrateTotcEquipmentSlots,
             migrateEncounterActions: migrateTotcEncounterActions,
+            migrateModifiers: migrateTotcModifiers,
             notify: true
         });
 
@@ -260,12 +262,14 @@ Hooks.once("ready", () => {
         migrateActorProfiles: migrateTotcActorProfiles,
         migrateEquipmentSlots: migrateTotcEquipmentSlots,
         migrateEncounterActions: migrateTotcEncounterActions,
+        migrateModifiers: migrateTotcModifiers,
         run: async () => {
             const result = await runTotcMigrations({
                 currentVersion: game.settings.get("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING),
                 migrateActorProfiles: migrateTotcActorProfiles,
                 migrateEquipmentSlots: migrateTotcEquipmentSlots,
                 migrateEncounterActions: migrateTotcEncounterActions,
+                migrateModifiers: migrateTotcModifiers,
                 notify: true
             });
             await game.settings.set("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING, result.toVersion);

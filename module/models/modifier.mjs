@@ -141,10 +141,10 @@ export const TOTC_MODIFIER_TEMPORAL_UNITS = ["minute", "hour", "day", "week", "m
 
 /**
  * Creates the schema for a single modifier entry.
- * @returns {SchemaField}
+ * @returns {Record<string, foundry.data.fields.DataField>}
  */
-export function createModifierEntryField() {
-    return new SchemaField({
+function createModifierEntrySchemaDefinition() {
+    return {
         label: new StringField({ required: true, blank: false, initial: "Modifier" }),
 
         // What scalar path this modifier affects (e.g. "defenses.armorClass")
@@ -191,7 +191,15 @@ export function createModifierEntryField() {
         condition: new StringField({ required: true, blank: true, initial: "" }),
 
         notes: new HTMLField({ required: true, blank: true })
-    });
+    };
+}
+
+/**
+ * Creates the schema for a single modifier entry.
+ * @returns {SchemaField}
+ */
+export function createModifierEntryField() {
+    return new SchemaField(createModifierEntrySchemaDefinition());
 }
 
 // ---------------------------------------------------------------------------
@@ -205,9 +213,9 @@ export function createModifierEntryField() {
  * @returns {SchemaField}
  */
 export function createActiveModifierEntryField() {
-    const base = createModifierEntryField();
+    const baseDefinition = createModifierEntrySchemaDefinition();
     return new SchemaField({
-        ...base.fields,
+        ...baseDefinition,
 
         // Source attribution
         sourceId: new StringField({ required: true, blank: true, initial: "" }),
