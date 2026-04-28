@@ -2170,12 +2170,26 @@ function maybeDeepClone(data) {
 }
 
 async function withPackUnlocked(pack, fn) {
-    const wasLocked = pack.locked;
-    if (wasLocked) await pack.configure({ locked: false });
+    const collection = pack.collection;
+    let activePack = pack;
+    const wasLocked = activePack.locked;
+
+    if (wasLocked) {
+        await activePack.configure({ locked: false });
+
+        // Re-acquire the pack so lock-sensitive methods use the updated instance.
+        activePack = game.packs.get(collection) ?? activePack;
+        if (activePack.locked) {
+            throw new Error(`Unable to unlock compendium \"${collection}\" for write operations.`);
+        }
+    }
+
     try {
-        return await fn();
+        return await fn(activePack);
     } finally {
-        if (wasLocked) await pack.configure({ locked: true });
+        if (wasLocked) {
+            await activePack.configure({ locked: true });
+        }
     }
 }
 
@@ -2184,8 +2198,8 @@ async function clearCompendiumPack(pack) {
     const ids = pack.index.map((entry) => entry._id).filter(Boolean);
     if (!ids.length) return 0;
 
-    return withPackUnlocked(pack, async () => {
-        await pack.documentClass.deleteDocuments(ids, { pack: pack.collection });
+    return withPackUnlocked(pack, async (activePack) => {
+        await activePack.documentClass.deleteDocuments(ids, { pack: activePack.collection });
         return ids.length;
     });
 }
@@ -2193,10 +2207,10 @@ async function clearCompendiumPack(pack) {
 async function importIntoCompendium(pack, entries) {
     let imported = 0;
 
-    await withPackUnlocked(pack, async () => {
+    await withPackUnlocked(pack, async (activePack) => {
         for (const entry of entries) {
-            const temporaryDocument = await pack.documentClass.create(maybeDeepClone(entry), { temporary: true });
-            await pack.importDocument(temporaryDocument);
+            const temporaryDocument = await activePack.documentClass.create(maybeDeepClone(entry), { temporary: true });
+            await activePack.importDocument(temporaryDocument);
             imported += 1;
         }
     });
