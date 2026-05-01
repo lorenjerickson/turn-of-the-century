@@ -334,7 +334,25 @@ function resolveEncounterCombatForActor(actor, tokenDocument = null) {
 
 function buildEncounterPlanner(actor, tokenDocument = null) {
     const { combat, combatant } = resolveEncounterCombatForActor(actor, tokenDocument);
-    if (!combat || !combatant) return null;
+    if (!combat || !combatant) {
+        console.debug("[turn-of-the-century] encounter planner unresolved", {
+            actorId: actor?.id,
+            actorName: actor?.name,
+            tokenId: tokenDocument?.id ?? tokenDocument?.document?.id ?? null,
+            viewedCombatId: ui.combat?.viewed?.id ?? null,
+            activeCombatId: game.combat?.id ?? null,
+            combatCount: game.combats?.contents?.length ?? 0
+        });
+        return null;
+    }
+
+    console.debug("[turn-of-the-century] encounter planner resolved", {
+        actorId: actor?.id,
+        actorName: actor?.name,
+        tokenId: tokenDocument?.id ?? tokenDocument?.document?.id ?? null,
+        combatId: combat.id,
+        combatantId: combatant.id
+    });
 
     const combatantState = combat.getCombatantState?.(combatant.id) ?? null;
     const queue = combat.getCombatantPlan?.(combatant.id) ?? [];

@@ -55,6 +55,23 @@ const ENCOUNTER_REPLAY_STYLE_SETTING = "encounterReplayNarrationStyle";
 let encounterPlanningWatchHandle = null;
 const initiativePromptKeys = new Set();
 
+function logEncounterLifecycle(eventName, payload = {}) {
+    const combat = payload.combat ?? payload.combatant?.combat ?? game.combat ?? null;
+    const combatId = combat?.id ?? "none";
+    const phase = combat?.phase ?? combat?.encounterState?.phase ?? "none";
+    const planningStartedAt = Number(combat?.encounterState?.planningStartedAt ?? 0);
+    const combatantCount = combat?.combatants?.size ?? combat?.combatants?.contents?.length ?? 0;
+
+    console.debug("[turn-of-the-century] encounter lifecycle", {
+        event: eventName,
+        combatId,
+        phase,
+        planningStartedAt,
+        combatantCount,
+        ...payload
+    });
+}
+
 function maybePromptInitiativeRolls(combat) {
     if (!combat?.hasInitiativeGateActive) return;
 
@@ -398,19 +415,43 @@ Hooks.once("ready", () => {
 });
 
 Hooks.on("updateCombat", (combat) => {
+    logEncounterLifecycle("updateCombat", { combat });
     maybePromptInitiativeRolls(combat);
     rerenderEncounterActorSheets(combat);
 });
 
 Hooks.on("createCombatant", (combatant) => {
+    logEncounterLifecycle("createCombatant", { combatantId: combatant?.id, combatant });
     rerenderEncounterActorSheets(combatant?.combat);
 });
 
 Hooks.on("deleteCombatant", (combatant) => {
+    logEncounterLifecycle("deleteCombatant", { combatantId: combatant?.id, combatant });
+    rerenderEncounterActorSheets(combatant?.combat);
+});
+
+Hooks.on("updateCombatant", (combatant, change) => {
+    logEncounterLifecycle("updateCombatant", {
+        combatantId: combatant?.id,
+        initiative: combatant?.initiative,
+        change,
+        combatant
+    });
     rerenderEncounterActorSheets(combatant?.combat);
 });
 
 Hooks.on("deleteCombat", (combat) => {
+    logEncounterLifecycle("deleteCombat", { combat });
+    rerenderEncounterActorSheets(combat);
+});
+
+Hooks.on("createCombat", (combat) => {
+    logEncounterLifecycle("createCombat", { combat });
+    rerenderEncounterActorSheets(combat);
+});
+
+Hooks.on("combatStart", (combat) => {
+    logEncounterLifecycle("combatStart", { combat });
     rerenderEncounterActorSheets(combat);
 });
 
