@@ -31,6 +31,7 @@ export const TOTC_NATIONAL_IDENTITIES = [
     "italian",
     "japanese",
     "korean",
+    "levantine",
     "mexican",
     "norwegian",
     "ottoman",
