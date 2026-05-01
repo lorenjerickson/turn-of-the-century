@@ -93,13 +93,6 @@ export class TurnOfTheCenturyCombatTracker extends CombatTracker {
             this.render();
         });
 
-        html.find("[data-action='totc-resolve-round']").on("click", async (event) => {
-            event.preventDefault();
-            if (!game.combat?.resolveEncounterRound) return;
-            await game.combat.resolveEncounterRound();
-            this.render();
-        });
-
         html.find("[data-action='totc-toggle-ready']").on("click", async (event) => {
             event.preventDefault();
             const combatantId = event.currentTarget.dataset.combatantId;

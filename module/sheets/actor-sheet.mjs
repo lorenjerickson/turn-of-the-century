@@ -205,6 +205,7 @@ function buildEncounterPlanner(actor) {
     if (!combat || !combat.initializeEncounterRound) return null;
 
     const combatant = combat.getCombatantByActor?.(actor.id)
+        ?? combat.combatants?.find((entry) => entry.actorId === actor.id)
         ?? combat.combatants?.find((entry) => entry.actor?.id === actor.id)
         ?? null;
     if (!combatant) return null;

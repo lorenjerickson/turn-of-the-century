@@ -51,6 +51,7 @@ const ENCOUNTER_MOVE_FEET_PER_AP_SETTING = "encounterMovementFeetPerAp";
 const ENCOUNTER_PLANNING_LIMIT_SECONDS_SETTING = "encounterPlanningLimitSeconds";
 const ENCOUNTER_PLANNING_WARNING_SECONDS_SETTING = "encounterPlanningWarningSeconds";
 const ENCOUNTER_REPLAY_STYLE_SETTING = "encounterReplayNarrationStyle";
+let encounterPlanningWatchHandle = null;
 
 function getIndexCount(pack) {
     return pack.index?.size ?? pack.index?.length ?? 0;
@@ -334,6 +335,31 @@ Hooks.once("ready", () => {
         }
     };
 
+    if (encounterPlanningWatchHandle) {
+        clearInterval(encounterPlanningWatchHandle);
+        encounterPlanningWatchHandle = null;
+    }
+
+    if (game.user?.isGM) {
+        encounterPlanningWatchHandle = setInterval(async () => {
+            const combat = game.combat;
+            if (!combat?.maybeAutoFinalizePlanning) return;
+            if ((combat.phase ?? "planning") !== "planning") return;
+
+            try {
+                await combat.maybeAutoFinalizePlanning();
+            } catch (error) {
+                console.warn("[turn-of-the-century] Failed to auto-finalize AP planning.", error);
+            }
+        }, 1000);
+    }
+
     void maybeRunAutomatedMigrations();
     void maybeSeedStarterCompendiums();
+});
+
+Hooks.once("shutdown", () => {
+    if (!encounterPlanningWatchHandle) return;
+    clearInterval(encounterPlanningWatchHandle);
+    encounterPlanningWatchHandle = null;
 });
