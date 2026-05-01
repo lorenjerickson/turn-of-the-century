@@ -563,7 +563,7 @@ const ACTOR_CONFIGS = [
         type: "hero",
         system: {
             biography: html("An exacting investigator whose notebooks are as feared in court as in criminal circles."),
-            classification: { category: "character", profession: "Inspector", origin: "London" },
+            classification: { category: "character", profession: "Urban Detective", origin: "London" },
             abilities: { int: { value: 13, bonus: 1 }, wis: { value: 12, bonus: 1 } },
             skills: {
                 investigation: { ability: "int", value: 3, bonus: 1, proficiency: 2, passive: 13 },
@@ -579,7 +579,7 @@ const ACTOR_CONFIGS = [
         type: "hero",
         system: {
             biography: html("A veteran constable who believes every alley remembers the men who bled there."),
-            classification: { category: "character", profession: "Constable", origin: "Manchester" },
+            classification: { category: "character", profession: "Railway Marshal", origin: "Manchester" },
             abilities: { str: { value: 13, bonus: 1 }, con: { value: 12, bonus: 1 } },
             defenses: { armorClass: 12, initiative: 1 },
             skills: { athletics: { ability: "str", value: 2, bonus: 1, proficiency: 1, passive: 12 } },
@@ -592,7 +592,7 @@ const ACTOR_CONFIGS = [
         type: "hero",
         system: {
             biography: html("A society patron with a private archive of forbidden correspondence and ruined pedigrees."),
-            classification: { category: "character", profession: "Antiquarian", origin: "Bath" },
+            classification: { category: "character", profession: "Occult Natural Philosopher", origin: "Bath" },
             abilities: { cha: { value: 13, bonus: 1 }, int: { value: 12, bonus: 1 } },
             skills: {
                 history: { ability: "int", value: 2, bonus: 1, proficiency: 1, passive: 12 },
@@ -607,7 +607,7 @@ const ACTOR_CONFIGS = [
         type: "villain",
         system: {
             biography: html("A surgeon of singular talent who maintains that conscience is merely an inherited superstition."),
-            classification: { category: "npc", profession: "Occult Surgeon", origin: "Leipzig" },
+            classification: { category: "npc", profession: "Field Surgeon", origin: "Leipzig" },
             abilities: { int: { value: 14, bonus: 2 }, san: { value: 12, bonus: 1 } },
             skills: {
                 medicine: { ability: "wis", value: 3, bonus: 1, proficiency: 2, passive: 13 },
@@ -621,7 +621,7 @@ const ACTOR_CONFIGS = [
         type: "villain",
         system: {
             biography: html("A polished jurist who shapes verdicts to protect investors in dubious industrial concerns."),
-            classification: { category: "npc", profession: "Magistrate", origin: "York" },
+            classification: { category: "npc", profession: "Underworld Liaison", origin: "York" },
             abilities: { cha: { value: 14, bonus: 2 }, wis: { value: 12, bonus: 1 } },
             skills: {
                 deception: { ability: "cha", value: 3, bonus: 2, proficiency: 1, passive: 13 },
@@ -635,7 +635,7 @@ const ACTOR_CONFIGS = [
         type: "villain",
         system: {
             biography: html("Master of a clandestine refinery where laborers vanish and invoices are always immaculate."),
-            classification: { category: "npc", profession: "Factory Foreman", origin: "Birmingham" },
+            classification: { category: "npc", profession: "Smokestack Mechanist", origin: "Birmingham" },
             abilities: { str: { value: 12, bonus: 1 }, con: { value: 13, bonus: 1 } },
             skills: {
                 intimidation: { ability: "cha", value: 2, bonus: 0, proficiency: 2, passive: 12 },
@@ -2306,6 +2306,12 @@ export async function publishTotcSampleCompendiums({
     if (!actorPack || !itemPack) {
         throw new Error(
             "Declared compendium packs were not found. Reload the world after updating system.json, then try again."
+        );
+    }
+
+    if (actorPack.metadata?.packageType === "system" || itemPack.metadata?.packageType === "system") {
+        throw new Error(
+            "Starter compendiums belong to the system package and are read-only at runtime. Publish starter content by updating pack source files during development, or target world compendiums instead."
         );
     }
 

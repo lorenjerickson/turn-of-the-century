@@ -1,8 +1,9 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 4;
+export const TOTC_WORLD_SCHEMA_VERSION = 5;
 
 export async function runTotcMigrations({
     currentVersion = 0,
     migrateActorProfiles,
+    migrateActorProfessions,
     migrateEquipmentSlots,
     migrateEncounterActions,
     migrateModifiers,
@@ -14,6 +15,9 @@ export async function runTotcMigrations({
     }
     if (typeof migrateEquipmentSlots !== "function") {
         throw new Error("runTotcMigrations requires a migrateEquipmentSlots function.");
+    }
+    if (typeof migrateActorProfessions !== "function") {
+        throw new Error("runTotcMigrations requires a migrateActorProfessions function.");
     }
     if (typeof migrateEncounterActions !== "function") {
         throw new Error("runTotcMigrations requires a migrateEncounterActions function.");
@@ -84,6 +88,21 @@ export async function runTotcMigrations({
         appliedVersion = 4;
     }
 
+    if (appliedVersion < 5) {
+        const report = await migrateActorProfessions({
+            dryRun: false,
+            notify: false,
+            includeCompendiums: false
+        });
+
+        appliedSteps.push({
+            version: 5,
+            key: "actor-professions",
+            report
+        });
+        appliedVersion = 5;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -97,6 +116,10 @@ export async function runTotcMigrations({
 
                 if (step.key === "modifiers") {
                     return `${step.key}: ${step.report.actorsUpdated} actors and ${step.report.itemsUpdated} items updated`;
+                }
+
+                if (step.key === "actor-professions") {
+                    return `${step.key}: ${step.report.actorsUpdated} actors updated`;
                 }
 
                 return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;

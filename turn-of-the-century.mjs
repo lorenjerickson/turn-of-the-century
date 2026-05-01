@@ -28,6 +28,7 @@ import {
 import {
     TOTC_WORLD_SCHEMA_VERSION,
     migrateTotcActorProfiles,
+    migrateTotcActorProfessions,
     migrateTotcEncounterActions,
     migrateTotcModifiers,
     migrateTotcEquipmentSlots,
@@ -63,6 +64,7 @@ async function maybeRunAutomatedMigrations() {
         const result = await runTotcMigrations({
             currentVersion,
             migrateActorProfiles: migrateTotcActorProfiles,
+            migrateActorProfessions: migrateTotcActorProfessions,
             migrateEquipmentSlots: migrateTotcEquipmentSlots,
             migrateEncounterActions: migrateTotcEncounterActions,
             migrateModifiers: migrateTotcModifiers,
@@ -85,6 +87,13 @@ async function maybeSeedStarterCompendiums() {
     const actorPack = game.packs.get(`${systemId}.${TOTC_SAMPLE_COMPENDIUMS.actors}`);
     const itemPack = game.packs.get(`${systemId}.${TOTC_SAMPLE_COMPENDIUMS.items}`);
     if (!actorPack || !itemPack) return;
+
+    // System packs are read-only at runtime in many deployments; avoid write attempts.
+    const immutableSystemPacks = actorPack.metadata?.packageType === "system" || itemPack.metadata?.packageType === "system";
+    if (immutableSystemPacks) {
+        await game.settings.set("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING, true);
+        return;
+    }
 
     const isSeeded = game.settings.get("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING);
 
@@ -260,6 +269,7 @@ Hooks.once("ready", () => {
     };
     game.turnOfTheCentury.migrations = {
         migrateActorProfiles: migrateTotcActorProfiles,
+        migrateActorProfessions: migrateTotcActorProfessions,
         migrateEquipmentSlots: migrateTotcEquipmentSlots,
         migrateEncounterActions: migrateTotcEncounterActions,
         migrateModifiers: migrateTotcModifiers,
@@ -267,6 +277,7 @@ Hooks.once("ready", () => {
             const result = await runTotcMigrations({
                 currentVersion: game.settings.get("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING),
                 migrateActorProfiles: migrateTotcActorProfiles,
+                migrateActorProfessions: migrateTotcActorProfessions,
                 migrateEquipmentSlots: migrateTotcEquipmentSlots,
                 migrateEncounterActions: migrateTotcEncounterActions,
                 migrateModifiers: migrateTotcModifiers,

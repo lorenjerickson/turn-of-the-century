@@ -222,6 +222,44 @@ function buildEncounterPlanner(actor) {
     };
 }
 
+function addProfessionOption(optionsByKey, value) {
+    const name = String(value ?? "").trim();
+    if (!name) return;
+
+    const key = name.toLowerCase();
+    if (!optionsByKey.has(key)) {
+        optionsByKey.set(key, name);
+    }
+}
+
+async function collectProfessionOptions(selectedProfession) {
+    const optionsByKey = new Map();
+
+    addProfessionOption(optionsByKey, selectedProfession);
+
+    for (const item of game.items?.contents ?? []) {
+        if (item.type !== "profession") continue;
+        addProfessionOption(optionsByKey, item.name);
+    }
+
+    const itemPacks = game.packs?.filter((pack) => pack.documentName === "Item") ?? [];
+    for (const pack of itemPacks) {
+        try {
+            const index = await pack.getIndex();
+            for (const entry of index ?? []) {
+                if (entry.type !== "profession") continue;
+                addProfessionOption(optionsByKey, entry.name);
+            }
+        } catch (error) {
+            console.warn(`[turn-of-the-century] Failed to read profession index from pack ${pack.collection}.`, error);
+        }
+    }
+
+    return [...optionsByKey.values()]
+        .sort((a, b) => a.localeCompare(b))
+        .map((name) => ({ value: name, label: name }));
+}
+
 function extractEquipmentSlotUpdates(updateData) {
     const slotSelections = new Map();
 
@@ -322,6 +360,7 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
         context.profileTags = toArrayInput(systemSource.profile?.tags);
         context.heroBonds = toArrayInput(systemSource.hero?.bonds);
         context.villainLieutenants = toArrayInput(systemSource.villain?.lieutenants);
+        context.professionOptions = await collectProfessionOptions(systemSource.classification?.profession);
 
         return context;
     }
