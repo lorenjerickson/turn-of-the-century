@@ -200,15 +200,37 @@ function buildInventorySummary(actor, systemSource) {
     };
 }
 
-function buildEncounterPlanner(actor) {
-    const combat = game.combat;
-    if (!combat || !combat.initializeEncounterRound) return null;
+function findCombatantForActor(combat, actor) {
+    if (!combat || !actor) return null;
 
-    const combatant = combat.getCombatantByActor?.(actor.id)
+    return combat.getCombatantByActor?.(actor.id)
         ?? combat.combatants?.find((entry) => entry.actorId === actor.id)
         ?? combat.combatants?.find((entry) => entry.actor?.id === actor.id)
+        ?? combat.combatants?.find((entry) => entry.token?.actorId === actor.id)
         ?? null;
-    if (!combatant) return null;
+}
+
+function resolveEncounterCombatForActor(actor) {
+    const candidates = [
+        ui.combat?.viewed,
+        game.combat,
+        ...(game.combats?.contents ?? [])
+    ].filter((combat, index, list) => combat && list.findIndex((entry) => entry.id === combat.id) === index);
+
+    for (const combat of candidates) {
+        if (!combat.initializeEncounterRound) continue;
+        const combatant = findCombatantForActor(combat, actor);
+        if (combatant) {
+            return { combat, combatant };
+        }
+    }
+
+    return { combat: null, combatant: null };
+}
+
+function buildEncounterPlanner(actor) {
+    const { combat, combatant } = resolveEncounterCombatForActor(actor);
+    if (!combat || !combatant) return null;
 
     const combatantState = combat.getCombatantState?.(combatant.id) ?? null;
     const queue = combat.getCombatantPlan?.(combatant.id) ?? [];
@@ -217,6 +239,8 @@ function buildEncounterPlanner(actor) {
     const combatants = combat.combatants?.contents ?? [];
     const committedCount = combatants.filter((entry) => Boolean(combat.getCombatantState?.(entry.id)?.ready)).length;
     const round = Number(combat.encounterState?.round ?? combat.round ?? 1);
+    const missingInitiative = combat.getMissingInitiativeCombatants?.() ?? [];
+    const initiativeReady = missingInitiative.length === 0;
 
     return {
         combatId: combat.id,
@@ -234,8 +258,11 @@ function buildEncounterPlanner(actor) {
         committedCount,
         combatantCount: combatants.length,
         ready: Boolean(combatantState?.ready),
-        canCommit: (combat.phase ?? "planning") === "planning" && !Boolean(combatantState?.ready),
-        canEditPlan: (combat.phase ?? "planning") === "planning" && !Boolean(combatantState?.ready),
+        initiativeReady,
+        missingInitiativeCount: missingInitiative.length,
+        canRollInitiative: Boolean(combat.canCurrentUserRollInitiative?.(combatant.id)),
+        canCommit: initiativeReady && (combat.phase ?? "planning") === "planning" && !Boolean(combatantState?.ready),
+        canEditPlan: initiativeReady && (combat.phase ?? "planning") === "planning" && !Boolean(combatantState?.ready),
         planningWarningActive: Boolean(combat.isPlanningWarningActive),
         queue,
         availableActions: combat.getAvailableActionsForCombatant?.(combatant.id) ?? [],
@@ -492,6 +519,17 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
             if (!combatantId || !game.combat?.setCombatantReady) return;
 
             await game.combat.setCombatantReady(combatantId, !ready);
+            this.render(true);
+        });
+
+        html.find("[data-action='totc-roll-initiative']").on("click", async (event) => {
+            event.preventDefault();
+            const combatId = event.currentTarget.dataset.combatId;
+            const combatantId = event.currentTarget.dataset.combatantId;
+            const combat = (combatId && game.combats?.get(combatId)) || game.combat;
+            if (!combatantId || !combat?.rollEncounterInitiative) return;
+
+            await combat.rollEncounterInitiative(combatantId);
             this.render(true);
         });
 

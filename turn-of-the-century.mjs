@@ -325,6 +325,14 @@ Hooks.once("ready", () => {
             if (!combat?.setCombatantReady) throw new Error("Active combat does not support AP ready state updates.");
             return combat.setCombatantReady(combatantId, ready);
         },
+        rollInitiative: async ({ combat = game.combat, combatantId }) => {
+            if (!combat?.rollEncounterInitiative) throw new Error("Active combat does not support participant initiative rolls.");
+            return combat.rollEncounterInitiative(combatantId);
+        },
+        rollAllMissingInitiatives: async (combat = game.combat) => {
+            if (!combat?.rollAllMissingInitiatives) throw new Error("Active combat does not support bulk initiative rolls.");
+            return combat.rollAllMissingInitiatives();
+        },
         resolveRound: async (combat = game.combat) => {
             if (!combat?.resolveEncounterRound) throw new Error("Active combat does not support AP resolution.");
             return combat.resolveEncounterRound();

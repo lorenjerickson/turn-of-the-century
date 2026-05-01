@@ -194,9 +194,16 @@
                             <span>{{localize "TOTC.Encounter.RemainingAp"}}: {{encounterPlanner.remainingAp}}</span>
                             <span>{{localize "TOTC.Encounter.CommitProgress"}}: {{encounterPlanner.committedCount}} / {{encounterPlanner.combatantCount}}</span>
                         </div>
+                        {{#unless encounterPlanner.initiativeReady}}
+                            <p class="totc-encounter-warning">{{localize "TOTC.Encounter.InitiativeRequired"}}</p>
+                            {{#if encounterPlanner.canRollInitiative}}
+                                <button type="button" data-action="totc-roll-initiative" data-combat-id="{{encounterPlanner.combatId}}" data-combatant-id="{{encounterPlanner.combatantId}}">{{localize "TOTC.Encounter.RollInitiative"}}</button>
+                            {{/if}}
+                        {{/unless}}
                         {{#if encounterPlanner.planningWarningActive}}
                             <p class="totc-encounter-warning">{{localize "TOTC.Encounter.PlanningWarning"}}</p>
                         {{/if}}
+                        {{#if encounterPlanner.initiativeReady}}
                         <div class="totc-encounter-dual-list">
                             <div class="totc-encounter-listbox">
                                 <h3>{{localize "TOTC.Encounter.AvailableActions"}}</h3>
@@ -270,6 +277,7 @@
                                 {{/if}}
                             </div>
                         </div>
+                        {{/if}}
                     {{else}}
                         <p class="totc-pack-empty">{{localize "TOTC.Encounter.NotInitialized"}}</p>
                     {{/if}}

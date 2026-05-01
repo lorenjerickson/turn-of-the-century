@@ -4,6 +4,9 @@
         {{#if totcEncounter.controlsVisible}}
             <div class="totc-combat-controls">
                 <button type="button" data-action="totc-init-round">{{localize "TOTC.Encounter.InitializeRound"}}</button>
+                {{#unless totcEncounter.initiativeReady}}
+                    <button type="button" data-action="totc-roll-all-initiative">{{localize "TOTC.Encounter.RollAllInitiative"}}</button>
+                {{/unless}}
             </div>
         {{/if}}
     </header>
@@ -18,6 +21,9 @@
         {{#if totcEncounter.planningWarningActive}}
             <div class="totc-encounter-warning">{{localize "TOTC.Encounter.PlanningWarning"}}</div>
         {{/if}}
+        {{#unless totcEncounter.initiativeReady}}
+            <div class="totc-encounter-warning">{{localize "TOTC.Encounter.InitiativeRequired"}}</div>
+        {{/unless}}
     {{else}}
         <div class="totc-encounter-banner">{{localize "TOTC.Encounter.NotInitialized"}}</div>
     {{/if}}
@@ -29,10 +35,17 @@
                 <div class="token-name">
                     <h4>{{turn.name}}</h4>
                     <div class="totc-encounter-meta">
+                        <span>{{localize "TOTC.Encounter.Initiative"}}: {{#if turn.encounter.missingInitiative}}-{{else}}{{turn.initiative}}{{/if}}</span>
                         <span>{{localize "TOTC.Encounter.SpentAp"}}: {{turn.encounter.spentAp}}</span>
                         <span>{{localize "TOTC.Encounter.RemainingAp"}}: {{turn.encounter.remainingAp}}</span>
                     </div>
                 </div>
+
+                {{#if turn.encounter.missingInitiative}}
+                    {{#if turn.encounter.canRollInitiative}}
+                        <button type="button" data-action="totc-roll-initiative" data-combatant-id="{{turn.id}}">{{localize "TOTC.Encounter.RollInitiative"}}</button>
+                    {{/if}}
+                {{/if}}
 
                 {{#if turn.encounter.queue.length}}
                     <ol class="totc-encounter-queue">

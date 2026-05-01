@@ -48,6 +48,11 @@ function toNumber(value, fallback = 0) {
     return Number.isFinite(number) ? number : fallback;
 }
 
+function hasInitiativeValue(value) {
+    const number = Number(value);
+    return Number.isFinite(number);
+}
+
 function clampActionData(action, index = 0) {
     const apMin = clampActionCost(action.apMin ?? action.apCost ?? 1);
     const apMax = Math.max(apMin, clampActionCost(action.apMax ?? action.apCost ?? apMin));
@@ -133,6 +138,20 @@ export class TurnOfTheCenturyCombat extends Combat {
         return Math.max(0, this.apBudget - this.getCombatantPlan(combatantId).reduce((sum, action) => sum + Number(action.apCost || 0), 0));
     }
 
+    getMissingInitiativeCombatants() {
+        return (this.combatants?.contents ?? []).filter((combatant) => !hasInitiativeValue(combatant.initiative));
+    }
+
+    get hasInitiativeGateActive() {
+        return this.getMissingInitiativeCombatants().length > 0;
+    }
+
+    canCurrentUserRollInitiative(combatantId) {
+        if (game.user?.isGM) return true;
+        const combatant = getCombatantFromId(this, combatantId);
+        return Boolean(combatant?.actor?.isOwner);
+    }
+
     #isCombatantOwnedByCurrentUser(combatantId) {
         if (game.user?.isGM) return true;
 
@@ -143,6 +162,11 @@ export class TurnOfTheCenturyCombat extends Combat {
     #requireGm(action) {
         if (game.user?.isGM) return;
         throw new Error(`Only the GM can ${action}.`);
+    }
+
+    #requireInitiativeReady() {
+        if (!this.hasInitiativeGateActive) return;
+        throw new Error("All encounter participants must roll initiative before planning can begin.");
     }
 
     #requirePlanningOpen(combatantId) {
@@ -158,6 +182,7 @@ export class TurnOfTheCenturyCombat extends Combat {
     }
 
     async maybeAutoFinalizePlanning() {
+        if (this.hasInitiativeGateActive) return false;
         if (this.phase !== "planning") return false;
 
         const combatants = this.combatants?.contents ?? [];
@@ -173,6 +198,7 @@ export class TurnOfTheCenturyCombat extends Combat {
     }
 
     async setCombatantReady(combatantId, ready) {
+        this.#requireInitiativeReady();
         if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
             throw new Error("You do not have permission to commit this combatant's plan.");
         }
@@ -194,6 +220,7 @@ export class TurnOfTheCenturyCombat extends Combat {
     }
 
     async addCombatantAction(combatantId, action) {
+        this.#requireInitiativeReady();
         if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
             throw new Error("You do not have permission to edit this combatant's plan.");
         }
@@ -204,6 +231,7 @@ export class TurnOfTheCenturyCombat extends Combat {
     }
 
     async removeCombatantAction(combatantId, index) {
+        this.#requireInitiativeReady();
         if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
             throw new Error("You do not have permission to edit this combatant's plan.");
         }
@@ -215,6 +243,7 @@ export class TurnOfTheCenturyCombat extends Combat {
     }
 
     async clearCombatantPlan(combatantId) {
+        this.#requireInitiativeReady();
         if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
             throw new Error("You do not have permission to edit this combatant's plan.");
         }
@@ -224,6 +253,7 @@ export class TurnOfTheCenturyCombat extends Combat {
     }
 
     async setCombatantActionApCost(combatantId, actionIndex, apCost) {
+        this.#requireInitiativeReady();
         if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
             throw new Error("You do not have permission to edit this combatant's plan.");
         }
@@ -362,7 +392,26 @@ export class TurnOfTheCenturyCombat extends Combat {
         });
     }
 
+    async rollEncounterInitiative(combatantId) {
+        if (!combatantId) throw new Error("Missing combatant ID for initiative roll.");
+        if (!this.canCurrentUserRollInitiative(combatantId)) {
+            throw new Error("You do not have permission to roll initiative for this combatant.");
+        }
+
+        await this.rollInitiative([combatantId]);
+        return getCombatantFromId(this, combatantId);
+    }
+
+    async rollAllMissingInitiatives() {
+        this.#requireGm("roll initiative for all participants");
+        const ids = this.getMissingInitiativeCombatants().map((combatant) => combatant.id);
+        if (!ids.length) return [];
+        await this.rollInitiative(ids);
+        return ids;
+    }
+
     async setCombatantPlan(combatantId, actions = []) {
+        this.#requireInitiativeReady();
         if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
             throw new Error("You do not have permission to edit this combatant's plan.");
         }
@@ -410,6 +459,7 @@ export class TurnOfTheCenturyCombat extends Combat {
 
     async resolveEncounterRound() {
         this.#requireGm("resolve encounter rounds");
+        this.#requireInitiativeReady();
 
         const initialState = this.encounterState;
         const perCombatant = foundry.utils.deepClone(initialState.perCombatant ?? {});
