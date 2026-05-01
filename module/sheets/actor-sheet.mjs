@@ -252,6 +252,28 @@ function findCombatantForActor(combat, actor, tokenDocument = null) {
         }
     }
 
+    for (const token of canvas?.tokens?.controlled ?? []) {
+        const tokenActor = token.actor;
+        const tokenActorId = tokenActor?.id;
+        const tokenBaseActorId = tokenActor?.baseActor?.id;
+
+        if (actorIds.has(tokenActorId) || actorIds.has(tokenBaseActorId)) {
+            tokenIds.add(token.id);
+            tokenIds.add(token.document?.id);
+        }
+    }
+
+    for (const token of canvas?.tokens?.placeables ?? []) {
+        const tokenActor = token.actor;
+        const tokenActorId = tokenActor?.id;
+        const tokenBaseActorId = tokenActor?.baseActor?.id;
+
+        if (actorIds.has(tokenActorId) || actorIds.has(tokenBaseActorId)) {
+            tokenIds.add(token.id);
+            tokenIds.add(token.document?.id);
+        }
+    }
+
     const byExplicitToken = (combat.combatants?.contents ?? []).filter(
         (entry) => explicitTokenIds.has(entry.tokenId) || explicitTokenIds.has(entry.token?.id)
     );
@@ -301,7 +323,6 @@ function resolveEncounterCombatForActor(actor, tokenDocument = null) {
     ].filter((combat, index, list) => combat && list.findIndex((entry) => entry.id === combat.id) === index);
 
     for (const combat of candidates) {
-        if (!combat.initializeEncounterRound) continue;
         const combatant = findCombatantForActor(combat, actor, tokenDocument);
         if (combatant) {
             return { combat, combatant };
