@@ -88,13 +88,6 @@ async function maybeSeedStarterCompendiums() {
     const itemPack = game.packs.get(`${systemId}.${TOTC_SAMPLE_COMPENDIUMS.items}`);
     if (!actorPack || !itemPack) return;
 
-    // System packs are read-only at runtime in many deployments; avoid write attempts.
-    const immutableSystemPacks = actorPack.metadata?.packageType === "system" || itemPack.metadata?.packageType === "system";
-    if (immutableSystemPacks) {
-        await game.settings.set("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING, true);
-        return;
-    }
-
     const isSeeded = game.settings.get("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING);
 
     await actorPack.getIndex();

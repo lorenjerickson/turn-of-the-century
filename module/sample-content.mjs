@@ -2309,12 +2309,6 @@ export async function publishTotcSampleCompendiums({
         );
     }
 
-    if (actorPack.metadata?.packageType === "system" || itemPack.metadata?.packageType === "system") {
-        throw new Error(
-            "Starter compendiums belong to the system package and are read-only at runtime. Publish starter content by updating pack source files during development, or target world compendiums instead."
-        );
-    }
-
     const actorTypeFilter = normalizeSet(actorTypes);
     const itemTypeFilter = normalizeSet(itemTypes);
 
