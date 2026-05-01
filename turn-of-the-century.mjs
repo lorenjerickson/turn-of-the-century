@@ -52,6 +52,25 @@ const ENCOUNTER_PLANNING_LIMIT_SECONDS_SETTING = "encounterPlanningLimitSeconds"
 const ENCOUNTER_PLANNING_WARNING_SECONDS_SETTING = "encounterPlanningWarningSeconds";
 const ENCOUNTER_REPLAY_STYLE_SETTING = "encounterReplayNarrationStyle";
 let encounterPlanningWatchHandle = null;
+const initiativePromptKeys = new Set();
+
+function maybePromptInitiativeRolls(combat) {
+    if (!combat?.hasInitiativeGateActive) return;
+
+    const planningStartedAt = Number(combat.encounterState?.planningStartedAt ?? 0);
+    if (!planningStartedAt) return;
+
+    const rollableCombatants = (combat.getMissingInitiativeCombatants?.() ?? [])
+        .filter((combatant) => combat.canCurrentUserRollInitiative?.(combatant.id));
+    if (!rollableCombatants.length) return;
+
+    const promptKey = `${game.user?.id}:${combat.id}:${planningStartedAt}`;
+    if (initiativePromptKeys.has(promptKey)) return;
+    initiativePromptKeys.add(promptKey);
+
+    const names = rollableCombatants.map((combatant) => combatant.name).join(", ");
+    ui.notifications?.info(game.i18n.format("TOTC.Encounter.InitiativePrompt", { names }));
+}
 
 function getIndexCount(pack) {
     return pack.index?.size ?? pack.index?.length ?? 0;
@@ -362,8 +381,14 @@ Hooks.once("ready", () => {
         }, 1000);
     }
 
+    maybePromptInitiativeRolls(game.combat);
+
     void maybeRunAutomatedMigrations();
     void maybeSeedStarterCompendiums();
+});
+
+Hooks.on("updateCombat", (combat) => {
+    maybePromptInitiativeRolls(combat);
 });
 
 Hooks.once("shutdown", () => {

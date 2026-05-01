@@ -203,10 +203,42 @@ function buildInventorySummary(actor, systemSource) {
 function findCombatantForActor(combat, actor) {
     if (!combat || !actor) return null;
 
+    const actorIds = new Set([
+        actor.id,
+        actor._id,
+        actor.actor?.id,
+        actor.baseActor?.id,
+        actor.parent?.id,
+        actor.prototypeToken?.actorId
+    ].filter(Boolean));
+    const actorUuids = new Set([
+        actor.uuid,
+        actor.baseActor?.uuid,
+        actor.actor?.uuid
+    ].filter(Boolean));
+    const tokenIds = new Set([
+        actor.token?.id,
+        actor.token?.document?.id,
+        actor.parent?.id
+    ].filter(Boolean));
+
+    if (typeof actor.getActiveTokens === "function") {
+        for (const token of actor.getActiveTokens() ?? []) {
+            tokenIds.add(token.id);
+            tokenIds.add(token.document?.id);
+        }
+    }
+
     return combat.getCombatantByActor?.(actor.id)
-        ?? combat.combatants?.find((entry) => entry.actorId === actor.id)
-        ?? combat.combatants?.find((entry) => entry.actor?.id === actor.id)
-        ?? combat.combatants?.find((entry) => entry.token?.actorId === actor.id)
+        ?? combat.getCombatantByActor?.(actor.baseActor?.id)
+        ?? combat.combatants?.find((entry) => actorIds.has(entry.actorId))
+        ?? combat.combatants?.find((entry) => actorIds.has(entry.actor?.id))
+        ?? combat.combatants?.find((entry) => actorIds.has(entry.token?.actorId))
+        ?? combat.combatants?.find((entry) => actorIds.has(entry.token?.actor?.id))
+        ?? combat.combatants?.find((entry) => actorUuids.has(entry.actor?.uuid))
+        ?? combat.combatants?.find((entry) => actorUuids.has(entry.token?.actor?.uuid))
+        ?? combat.combatants?.find((entry) => tokenIds.has(entry.tokenId))
+        ?? combat.combatants?.find((entry) => tokenIds.has(entry.token?.id))
         ?? null;
 }
 

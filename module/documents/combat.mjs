@@ -367,6 +367,8 @@ export class TurnOfTheCenturyCombat extends Combat {
 
         if (!TOTC_ENCOUNTER_PHASES.includes(phase)) phase = "planning";
 
+        await this.#resetInitiativeForEncounter();
+
         const perCombatant = Object.fromEntries(
             (this.combatants?.contents ?? []).map((combatant) => [
                 combatant.id,
@@ -390,6 +392,15 @@ export class TurnOfTheCenturyCombat extends Combat {
             planningStartedAt: Date.now(),
             round: this.round || 1
         });
+    }
+
+    async #resetInitiativeForEncounter() {
+        const updates = (this.combatants?.contents ?? [])
+            .filter((combatant) => hasInitiativeValue(combatant.initiative))
+            .map((combatant) => ({ _id: combatant.id, initiative: null }));
+
+        if (!updates.length) return;
+        await this.updateEmbeddedDocuments("Combatant", updates);
     }
 
     async rollEncounterInitiative(combatantId) {

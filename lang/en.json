@@ -75,6 +75,7 @@
     "TOTC.Encounter.Committed": "Committed",
     "TOTC.Encounter.InitializeRound": "Initialize Round",
     "TOTC.Encounter.Initiative": "Initiative",
+    "TOTC.Encounter.InitiativePrompt": "Roll initiative to begin planning: {names}",
     "TOTC.Encounter.InitiativeRequired": "Initiative rolls are required before action planning begins.",
     "TOTC.Encounter.MarkReady": "Mark Ready",
     "TOTC.Encounter.NoPlannedActions": "No planned actions yet.",
