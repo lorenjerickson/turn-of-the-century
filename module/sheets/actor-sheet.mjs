@@ -320,7 +320,9 @@ function resolveEncounterCombatForActor(actor, tokenDocument = null) {
         ui.combat?.viewed,
         game.combat,
         ...(game.combats?.contents ?? [])
-    ].filter((combat, index, list) => combat && list.findIndex((entry) => entry.id === combat.id) === index);
+    ]
+        .filter(Boolean)
+        .filter((combat, index, list) => list.findIndex((entry) => entry?.id === combat?.id) === index);
 
     for (const combat of candidates) {
         const combatant = findCombatantForActor(combat, actor, tokenDocument);

@@ -108,6 +108,7 @@ function rerenderEncounterActorSheets(combat) {
         const classes = app?.options?.classes ?? [];
         if (!Array.isArray(classes)) continue;
         if (!classes.includes("turn-of-the-century") || !classes.includes("actor")) continue;
+        if (!app?.rendered || typeof app.render !== "function") continue;
 
         const actorId = app.actor?.id;
         const tokenId = app.token?.id ?? app.token?.document?.id;
