@@ -3,6 +3,8 @@ import {
     TOTC_ENCOUNTER_PHASES,
     getActionPointBudget,
     getBaseActionCatalog,
+    getMovementFeetPerAp,
+    getPlanningLimitSeconds,
     getPlanningWarningSeconds
 } from "../encounters/action-catalog.mjs";
 
@@ -47,17 +49,25 @@ function toNumber(value, fallback = 0) {
 }
 
 function clampActionData(action, index = 0) {
+    const apMin = clampActionCost(action.apMin ?? action.apCost ?? 1);
+    const apMax = Math.max(apMin, clampActionCost(action.apMax ?? action.apCost ?? apMin));
+    const apCost = Math.max(apMin, Math.min(apMax, clampActionCost(action.apCost ?? apMin)));
+
     return {
         id: action.id || action.actionId || `action-${index + 1}`,
         actionId: action.actionId || action.id || null,
         type: String(action.type || "custom"),
         label: String(action.label || action.type || `Action ${index + 1}`),
-        apCost: clampActionCost(action.apCost ?? 1),
+        apCost,
+        apMin,
+        apMax,
+        variableAp: Boolean(action.variableAp && apMax > apMin),
         itemId: action.itemId || null,
         targetId: action.targetId || null,
         requiresToHit: Boolean(action.requiresToHit || action.type === "attack"),
         toHitBonus: Number(action.toHitBonus || 0),
-        movementFeet: Number(action.movementFeet || 0)
+        movementFeet: Number(action.movementFeet || 0),
+        movementFeetPerAp: Number(action.movementFeetPerAp || 0)
     };
 }
 
@@ -82,6 +92,10 @@ export class TurnOfTheCenturyCombat extends Combat {
         return Number(getPlanningWarningSeconds() || 45);
     }
 
+    get planningLimitSeconds() {
+        return Number(getPlanningLimitSeconds() || 60);
+    }
+
     get planningStartedAt() {
         return Number(this.encounterState.planningStartedAt ?? 0);
     }
@@ -89,6 +103,14 @@ export class TurnOfTheCenturyCombat extends Combat {
     get planningElapsedSeconds() {
         if (!this.planningStartedAt) return 0;
         return Math.max(0, Math.floor((Date.now() - this.planningStartedAt) / 1000));
+    }
+
+    get planningRemainingSeconds() {
+        return Math.max(0, this.planningLimitSeconds - this.planningElapsedSeconds);
+    }
+
+    get isPlanningExpired() {
+        return this.phase === "planning" && this.planningRemainingSeconds <= 0;
     }
 
     get isPlanningWarningActive() {
@@ -111,32 +133,123 @@ export class TurnOfTheCenturyCombat extends Combat {
         return Math.max(0, this.apBudget - this.getCombatantPlan(combatantId).reduce((sum, action) => sum + Number(action.apCost || 0), 0));
     }
 
+    #isCombatantOwnedByCurrentUser(combatantId) {
+        if (game.user?.isGM) return true;
+
+        const combatant = getCombatantFromId(this, combatantId);
+        return Boolean(combatant?.actor?.isOwner);
+    }
+
+    #requireGm(action) {
+        if (game.user?.isGM) return;
+        throw new Error(`Only the GM can ${action}.`);
+    }
+
+    #requirePlanningOpen(combatantId) {
+        if (this.phase !== "planning") {
+            throw new Error("Encounter planning is not currently open.");
+        }
+
+        const state = this.getCombatantState(combatantId);
+        if (!state) throw new Error(`Combatant ${combatantId} is not part of this encounter.`);
+        if (state.ready) {
+            throw new Error("Action plan is already committed for this round.");
+        }
+    }
+
+    async maybeAutoFinalizePlanning() {
+        if (this.phase !== "planning") return false;
+
+        const combatants = this.combatants?.contents ?? [];
+        if (!combatants.length) return false;
+
+        const allCommitted = combatants.every((combatant) => Boolean(this.getCombatantState(combatant.id)?.ready));
+        const expired = this.isPlanningExpired;
+        if (!allCommitted && !expired) return false;
+        if (!game.user?.isGM) return false;
+
+        await this.resolveEncounterRound();
+        return true;
+    }
+
     async setCombatantReady(combatantId, ready) {
+        if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
+            throw new Error("You do not have permission to commit this combatant's plan.");
+        }
+        this.#requirePlanningOpen(combatantId);
+
         const state = this.encounterState;
         const perCombatant = foundry.utils.deepClone(state.perCombatant ?? {});
         if (!perCombatant[combatantId]) throw new Error(`Combatant ${combatantId} is not part of this encounter.`);
 
         perCombatant[combatantId].ready = Boolean(ready);
+        perCombatant[combatantId].committedAt = ready ? Date.now() : 0;
 
         await this.setFlag("turn-of-the-century", "encounter", {
             ...state,
             perCombatant
         });
+
+        await this.maybeAutoFinalizePlanning();
     }
 
     async addCombatantAction(combatantId, action) {
+        if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
+            throw new Error("You do not have permission to edit this combatant's plan.");
+        }
+        this.#requirePlanningOpen(combatantId);
+
         const plan = this.getCombatantPlan(combatantId);
         await this.setCombatantPlan(combatantId, [...plan, action]);
     }
 
     async removeCombatantAction(combatantId, index) {
+        if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
+            throw new Error("You do not have permission to edit this combatant's plan.");
+        }
+        this.#requirePlanningOpen(combatantId);
+
         const plan = this.getCombatantPlan(combatantId);
         const next = plan.filter((_, currentIndex) => currentIndex !== Number(index));
         await this.setCombatantPlan(combatantId, next);
     }
 
     async clearCombatantPlan(combatantId) {
+        if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
+            throw new Error("You do not have permission to edit this combatant's plan.");
+        }
+        this.#requirePlanningOpen(combatantId);
+
         await this.setCombatantPlan(combatantId, []);
+    }
+
+    async setCombatantActionApCost(combatantId, actionIndex, apCost) {
+        if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
+            throw new Error("You do not have permission to edit this combatant's plan.");
+        }
+        this.#requirePlanningOpen(combatantId);
+
+        const index = Number(actionIndex);
+        if (!Number.isInteger(index) || index < 0) {
+            throw new Error(`Invalid action index: ${actionIndex}`);
+        }
+
+        const plan = this.getCombatantPlan(combatantId).map((action, currentIndex) => {
+            if (currentIndex !== index) return action;
+
+            const min = clampActionCost(action.apMin ?? action.apCost ?? 1);
+            const max = Math.max(min, clampActionCost(action.apMax ?? action.apCost ?? min));
+            const nextCost = Math.max(min, Math.min(max, clampActionCost(apCost)));
+            const movementFeetPerAp = Number(action.movementFeetPerAp || getMovementFeetPerAp() || 10);
+
+            return {
+                ...action,
+                apCost: nextCost,
+                movementFeet: action.type === "movement" ? movementFeetPerAp * nextCost : Number(action.movementFeet || 0)
+            };
+        });
+
+        await this.setCombatantPlan(combatantId, plan);
     }
 
     getAvailableActionsForCombatant(combatantId) {
@@ -144,14 +257,36 @@ export class TurnOfTheCenturyCombat extends Combat {
         if (!combatant?.actor) return [];
 
         const catalog = this.actionCatalog;
-        const movementAction = catalog.move10ft
+        const movementTemplate = catalog.move ?? catalog.move10ft;
+        const movementFeetPerAp = Number(getMovementFeetPerAp() || 10);
+        const movementAction = movementTemplate
             ? [{
-                id: catalog.move10ft.id,
-                actionId: catalog.move10ft.id,
-                type: catalog.move10ft.type,
-                label: game.i18n.localize("TOTC.Encounter.Action.Move10ft"),
-                apCost: Number(catalog.move10ft.apCost ?? 1),
-                movementFeet: Number(catalog.move10ft.movementFeet ?? 10),
+                id: movementTemplate.id,
+                actionId: movementTemplate.id,
+                type: movementTemplate.type,
+                label: game.i18n.localize("TOTC.Encounter.Action.Move"),
+                apCost: Number(movementTemplate.apCost ?? 1),
+                apMin: Number(movementTemplate.apMin ?? 1),
+                apMax: Number(movementTemplate.apMax ?? this.apBudget),
+                variableAp: Boolean(movementTemplate.variableAp),
+                movementFeet: Number((movementTemplate.apCost ?? 1) * movementFeetPerAp),
+                movementFeetPerAp,
+                requiresToHit: false,
+                toHitBonus: 0,
+                itemId: null
+            }]
+            : [];
+
+        const defendAction = catalog.defend
+            ? [{
+                id: catalog.defend.id,
+                actionId: catalog.defend.id,
+                type: catalog.defend.type,
+                label: game.i18n.localize("TOTC.Encounter.Action.Defend"),
+                apCost: Number(catalog.defend.apCost ?? 1),
+                apMin: Number(catalog.defend.apMin ?? 1),
+                apMax: Number(catalog.defend.apMax ?? this.apBudget),
+                variableAp: Boolean(catalog.defend.variableAp),
                 requiresToHit: false,
                 toHitBonus: 0,
                 itemId: null
@@ -165,14 +300,27 @@ export class TurnOfTheCenturyCombat extends Combat {
                 actionId: variant.id,
                 type: variant.type,
                 label: `${item.name}: ${variant.label}`,
-                apCost: Number(variant.apCost ?? 1),
+                apCost: item.type === "consumable" ? this.#getConsumableApCost(combatant.actor, item, variant) : Number(variant.apCost ?? 1),
+                apMin: Number(variant.apCost ?? 1),
+                apMax: Number(variant.apCost ?? 1),
+                variableAp: false,
                 requiresToHit: Boolean(variant.requiresToHit),
                 toHitBonus: Number(variant.toHitBonus ?? 0),
                 itemId: item.id
             }));
         });
 
-        return [...movementAction, ...itemActions];
+        return [...movementAction, ...defendAction, ...itemActions];
+    }
+
+    #getConsumableApCost(actor, item, variant) {
+        const beltIds = toArray(actor.system?.inventory?.equipment?.belt?.itemIds);
+        if (beltIds.includes(item.id)) return 1;
+
+        const packIds = toArray(actor.system?.inventory?.pack?.itemIds);
+        if (packIds.includes(item.id)) return 3;
+
+        return Number(variant.apCost ?? 1);
     }
 
     getTargetOptionsForCombatant(combatantId) {
@@ -185,6 +333,8 @@ export class TurnOfTheCenturyCombat extends Combat {
     }
 
     async initializeEncounterRound({ phase = "planning" } = {}) {
+        this.#requireGm("initialize encounter rounds");
+
         if (!TOTC_ENCOUNTER_PHASES.includes(phase)) phase = "planning";
 
         const perCombatant = Object.fromEntries(
@@ -213,6 +363,11 @@ export class TurnOfTheCenturyCombat extends Combat {
     }
 
     async setCombatantPlan(combatantId, actions = []) {
+        if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
+            throw new Error("You do not have permission to edit this combatant's plan.");
+        }
+        this.#requirePlanningOpen(combatantId);
+
         const state = this.encounterState;
         const perCombatant = foundry.utils.deepClone(state.perCombatant ?? {});
         const combatantState = perCombatant[combatantId];
@@ -232,7 +387,8 @@ export class TurnOfTheCenturyCombat extends Combat {
             plan: normalized,
             pointer: 0,
             progress: 0,
-            ready: true
+            ready: false,
+            committedAt: 0
         };
 
         await this.setFlag("turn-of-the-century", "encounter", {
@@ -243,6 +399,8 @@ export class TurnOfTheCenturyCombat extends Combat {
     }
 
     async setEncounterPhase(phase) {
+        this.#requireGm("change encounter phases");
+
         if (!TOTC_ENCOUNTER_PHASES.includes(phase)) throw new Error(`Unsupported encounter phase: ${phase}`);
         await this.setFlag("turn-of-the-century", "encounter", {
             ...this.encounterState,
@@ -251,6 +409,8 @@ export class TurnOfTheCenturyCombat extends Combat {
     }
 
     async resolveEncounterRound() {
+        this.#requireGm("resolve encounter rounds");
+
         const initialState = this.encounterState;
         const perCombatant = foundry.utils.deepClone(initialState.perCombatant ?? {});
         const timeline = [];
@@ -259,6 +419,7 @@ export class TurnOfTheCenturyCombat extends Combat {
         await this.setEncounterPhase("resolving");
 
         const orderedCombatants = sortByInitiativeDescending(this.combatants?.contents ?? []);
+        const movementFeetPerAp = Number(getMovementFeetPerAp() || 10);
         for (let tick = 1; tick <= this.apBudget; tick += 1) {
             for (const combatant of orderedCombatants) {
                 const state = perCombatant[combatant.id];
@@ -268,6 +429,16 @@ export class TurnOfTheCenturyCombat extends Combat {
                 if (!action) {
                     state.remainingAp = Math.max(0, state.remainingAp - 1);
                     state.spentAp += 1;
+                    timeline.push({
+                        tick,
+                        combatantId: combatant.id,
+                        combatantName: combatant.name,
+                        action: null,
+                        outcome: {
+                            result: "forfeit",
+                            detail: `${combatant.name} forfeits 1 AP with no planned action.`
+                        }
+                    });
                     continue;
                 }
 
@@ -275,16 +446,43 @@ export class TurnOfTheCenturyCombat extends Combat {
                 state.spentAp += 1;
                 state.progress += 1;
 
+                if (action.type === "movement") {
+                    const stepFeet = Number(action.movementFeetPerAp || movementFeetPerAp || 10);
+                    timeline.push({
+                        tick,
+                        combatantId: combatant.id,
+                        combatantName: combatant.name,
+                        action,
+                        outcome: {
+                            result: "movementStep",
+                            detail: `${combatant.name} moves ${stepFeet} ft.`
+                        }
+                    });
+                } else if (state.progress < action.apCost) {
+                    timeline.push({
+                        tick,
+                        combatantId: combatant.id,
+                        combatantName: combatant.name,
+                        action,
+                        outcome: {
+                            result: "progress",
+                            detail: `${combatant.name} continues ${action.label} (${state.progress}/${action.apCost} AP).`
+                        }
+                    });
+                }
+
                 if (state.progress < action.apCost) continue;
 
-                const outcome = await this.#resolveAction(combatant, action);
-                timeline.push({
-                    tick,
-                    combatantId: combatant.id,
-                    combatantName: combatant.name,
-                    action,
-                    outcome
-                });
+                if (action.type !== "movement") {
+                    const outcome = await this.#resolveAction(combatant, action);
+                    timeline.push({
+                        tick,
+                        combatantId: combatant.id,
+                        combatantName: combatant.name,
+                        action,
+                        outcome
+                    });
+                }
 
                 state.pointer += 1;
                 state.progress = 0;
@@ -295,6 +493,7 @@ export class TurnOfTheCenturyCombat extends Combat {
             ...this.encounterState,
             phase: "roundComplete",
             timeline,
+            planningStartedAt: 0,
             perCombatant
         });
 
@@ -325,6 +524,13 @@ export class TurnOfTheCenturyCombat extends Combat {
             return {
                 result: "moved",
                 detail: `${combatant.name} advances ${toNumber(action.movementFeet, 10)} ft.`
+            };
+        }
+
+        if (action.type === "defense") {
+            return {
+                result: "defended",
+                detail: `${combatant.name} braces defensively for ${Math.max(1, toNumber(action.apCost, 1))} AP.`
             };
         }
 

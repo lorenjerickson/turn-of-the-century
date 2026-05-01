@@ -23,6 +23,7 @@ import {
     getActionPointBudget,
     getBaseActionCatalog,
     getMovementFeetPerAp,
+    getPlanningLimitSeconds,
     getPlanningWarningSeconds
 } from "./module/encounters/action-catalog.mjs";
 import {
@@ -47,6 +48,7 @@ const STARTER_CONTENT_SEEDED_SETTING = "starterContentSeeded";
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
 const ENCOUNTER_AP_BUDGET_SETTING = "encounterActionPointBudget";
 const ENCOUNTER_MOVE_FEET_PER_AP_SETTING = "encounterMovementFeetPerAp";
+const ENCOUNTER_PLANNING_LIMIT_SECONDS_SETTING = "encounterPlanningLimitSeconds";
 const ENCOUNTER_PLANNING_WARNING_SECONDS_SETTING = "encounterPlanningWarningSeconds";
 const ENCOUNTER_REPLAY_STYLE_SETTING = "encounterReplayNarrationStyle";
 
@@ -236,6 +238,15 @@ Hooks.once("init", () => {
         default: 45
     });
 
+    game.settings.register("turn-of-the-century", ENCOUNTER_PLANNING_LIMIT_SECONDS_SETTING, {
+        name: "Encounter planning limit seconds",
+        hint: "Hard planning time limit before unresolved AP are forfeited for the round.",
+        scope: "world",
+        config: false,
+        type: Number,
+        default: 60
+    });
+
     game.settings.register("turn-of-the-century", ENCOUNTER_REPLAY_STYLE_SETTING, {
         name: "Encounter replay narration style",
         hint: "Controls formatting style for GM-only AP replay narration output.",
@@ -285,6 +296,7 @@ Hooks.once("ready", () => {
         getSettings: () => ({
             apBudget: getActionPointBudget(),
             movementFeetPerAp: getMovementFeetPerAp(),
+            planningLimitSeconds: getPlanningLimitSeconds(),
             planningWarningSeconds: getPlanningWarningSeconds(),
             replayStyle: game.settings.get("turn-of-the-century", ENCOUNTER_REPLAY_STYLE_SETTING)
         }),

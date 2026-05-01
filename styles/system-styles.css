@@ -426,11 +426,68 @@
     font-size: 0.8rem;
 }
 
+.turn-of-the-century .totc-encounter-header {
+    align-items: center;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    margin-bottom: 8px;
+}
+
+.turn-of-the-century .totc-encounter-header__round {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.turn-of-the-century .totc-encounter-meter-row {
+    align-items: center;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(170px, auto) 1fr auto;
+    margin: 8px 0;
+}
+
+.turn-of-the-century .totc-encounter-meter-row progress {
+    height: 12px;
+    width: 100%;
+}
+
+.turn-of-the-century .totc-encounter-dual-list {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    margin-top: 10px;
+}
+
+.turn-of-the-century .totc-encounter-listbox {
+    background: rgba(111, 96, 76, 0.08);
+    border: 1px solid #b7a993;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.turn-of-the-century .totc-encounter-listbox h3 {
+    border-bottom: 1px solid #cbbda8;
+    font-size: 0.92rem;
+    margin: 0 0 8px;
+    padding-bottom: 4px;
+}
+
+.turn-of-the-century .totc-encounter-listbox select {
+    width: 100%;
+}
+
 .turn-of-the-century .totc-encounter-plan-controls {
     display: grid;
     gap: 6px;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     margin-top: 8px;
+}
+
+.turn-of-the-century .totc-encounter-plan-controls label {
+    align-items: center;
+    display: flex;
+    gap: 6px;
 }
 
 .turn-of-the-century .totc-encounter-plan-controls button {
@@ -447,10 +504,23 @@
 }
 
 .turn-of-the-century .totc-encounter-queue li {
+    align-items: stretch;
+    display: grid;
+    gap: 6px;
+}
+
+.turn-of-the-century .totc-encounter-queue-row {
     align-items: center;
     display: flex;
     gap: 8px;
     justify-content: space-between;
+}
+
+.turn-of-the-century .totc-encounter-action-slider {
+    align-items: center;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: auto 1fr auto;
 }
 
 .turn-of-the-century .totc-encounter-queue button {

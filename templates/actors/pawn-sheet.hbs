@@ -58,6 +58,7 @@
             <nav class="sheet-tabs tabs" data-group="primary">
                 <a class="item" data-tab="profile">{{localize "TOTC.Sheet.Profile"}}</a>
                 <a class="item" data-tab="inventory">{{localize "TOTC.Sheet.Inventory"}}</a>
+                <a class="item" data-tab="encounter">{{localize "TOTC.Sheet.Encounter"}}</a>
                 <a class="item" data-tab="identity">{{localize "TOTC.Actor.Identity"}}</a>
                 <a class="item" data-tab="pawn">{{localize "TOTC.Actor.TypeDetails"}}</a>
             </nav>
@@ -106,65 +107,6 @@
             </div>
 
             <div class="tab inventory" data-group="primary" data-tab="inventory">
-                <section class="totc-inventory-group totc-encounter-planner">
-                    <h2>{{localize "TOTC.Encounter.Planner"}}</h2>
-                    {{#if encounterPlanner}}
-                        <div class="totc-encounter-meta">
-                            <span>{{localize "TOTC.Encounter.Phase"}}: {{encounterPlanner.phase}}</span>
-                            <span>{{localize "TOTC.Encounter.SpentAp"}}: {{encounterPlanner.spentAp}}</span>
-                            <span>{{localize "TOTC.Encounter.RemainingAp"}}: {{encounterPlanner.remainingAp}}</span>
-                        </div>
-                        {{#if encounterPlanner.planningWarningActive}}
-                            <p class="totc-encounter-warning">{{localize "TOTC.Encounter.PlanningWarning"}}</p>
-                        {{/if}}
-                        <div class="totc-encounter-plan-controls">
-                            <select class="totc-encounter-action-select">
-                                {{#each encounterPlanner.availableActions as |action|}}
-                                    <option
-                                        value="{{action.id}}"
-                                        data-id="{{action.id}}"
-                                        data-action-id="{{action.actionId}}"
-                                        data-type="{{action.type}}"
-                                        data-label="{{action.label}}"
-                                        data-ap-cost="{{action.apCost}}"
-                                        data-requires-to-hit="{{action.requiresToHit}}"
-                                        data-to-hit-bonus="{{action.toHitBonus}}"
-                                        data-item-id="{{action.itemId}}"
-                                        data-movement-feet="{{action.movementFeet}}"
-                                    >{{action.label}} ({{action.apCost}} AP)</option>
-                                {{/each}}
-                            </select>
-                            <select class="totc-encounter-target-select">
-                                <option value="">{{localize "TOTC.Encounter.Target.None"}}</option>
-                                {{#each encounterPlanner.targetOptions as |target|}}
-                                    <option value="{{target.id}}">{{target.name}}</option>
-                                {{/each}}
-                            </select>
-                            <button type="button" data-action="totc-encounter-add-action" data-combatant-id="{{encounterPlanner.combatantId}}">{{localize "TOTC.Encounter.AddAction"}}</button>
-                            <button type="button" data-action="totc-encounter-clear-plan" data-combatant-id="{{encounterPlanner.combatantId}}">{{localize "TOTC.Encounter.ClearPlan"}}</button>
-                            <button type="button" data-action="totc-encounter-toggle-ready" data-combatant-id="{{encounterPlanner.combatantId}}" data-ready="{{encounterPlanner.ready}}">
-                                {{#if encounterPlanner.ready}}
-                                    {{localize "TOTC.Encounter.Ready"}}
-                                {{else}}
-                                    {{localize "TOTC.Encounter.MarkReady"}}
-                                {{/if}}
-                            </button>
-                        </div>
-                        {{#if encounterPlanner.queue.length}}
-                            <ol class="totc-encounter-queue">
-                                {{#each encounterPlanner.queue as |action actionIndex|}}
-                                    <li>
-                                        <span>{{action.label}} ({{action.apCost}} AP)</span>
-                                        <button type="button" data-action="totc-encounter-remove-action" data-combatant-id="{{../encounterPlanner.combatantId}}" data-action-index="{{actionIndex}}">{{localize "TOTC.Encounter.RemoveAction"}}</button>
-                                    </li>
-                                {{/each}}
-                            </ol>
-                        {{/if}}
-                    {{else}}
-                        <button type="button" data-action="totc-encounter-init-round">{{localize "TOTC.Encounter.InitializeRound"}}</button>
-                    {{/if}}
-                </section>
-
                 <section class="totc-inventory-group">
                     <h2>{{localize "TOTC.Actor.Equipment.Label"}}</h2>
                     <div class="totc-inventory-slots">
@@ -217,6 +159,119 @@
                         </ul>
                     {{else}}
                         <p class="totc-equipment-slot__empty">{{localize "TOTC.Actor.Inventory.None"}}</p>
+                    {{/if}}
+                </section>
+            </div>
+
+            <div class="tab encounter" data-group="primary" data-tab="encounter">
+                <section class="totc-inventory-group totc-encounter-planner">
+                    <h2>{{localize "TOTC.Encounter.Planner"}}</h2>
+                    {{#if encounterPlanner}}
+                        <div class="totc-encounter-header">
+                            <div class="totc-encounter-header__round">{{localize "TOTC.Encounter.Round"}} {{encounterPlanner.round}}</div>
+                            <div class="totc-encounter-header__phase">{{localize "TOTC.Encounter.Phase"}}: {{encounterPlanner.phase}}</div>
+                            <div class="totc-encounter-header__timer">{{localize "TOTC.Encounter.PlanningRemaining"}}: {{encounterPlanner.planningRemainingSeconds}}s</div>
+                        </div>
+                        <div class="totc-encounter-meter-row">
+                            <label>{{localize "TOTC.Encounter.PlannedAp"}}: {{encounterPlanner.plannedAp}} / {{encounterPlanner.apBudget}}</label>
+                            <progress max="{{encounterPlanner.apBudget}}" value="{{encounterPlanner.plannedAp}}"></progress>
+                            <button
+                                type="button"
+                                data-action="totc-encounter-toggle-ready"
+                                data-combatant-id="{{encounterPlanner.combatantId}}"
+                                data-ready="{{encounterPlanner.ready}}"
+                                {{#unless encounterPlanner.canCommit}}disabled{{/unless}}
+                            >
+                                {{#if encounterPlanner.ready}}
+                                    {{localize "TOTC.Encounter.Committed"}}
+                                {{else}}
+                                    {{localize "TOTC.Encounter.CommitPlan"}}
+                                {{/if}}
+                            </button>
+                        </div>
+                        <div class="totc-encounter-meta">
+                            <span>{{localize "TOTC.Encounter.SpentAp"}}: {{encounterPlanner.spentAp}}</span>
+                            <span>{{localize "TOTC.Encounter.RemainingAp"}}: {{encounterPlanner.remainingAp}}</span>
+                            <span>{{localize "TOTC.Encounter.CommitProgress"}}: {{encounterPlanner.committedCount}} / {{encounterPlanner.combatantCount}}</span>
+                        </div>
+                        {{#if encounterPlanner.planningWarningActive}}
+                            <p class="totc-encounter-warning">{{localize "TOTC.Encounter.PlanningWarning"}}</p>
+                        {{/if}}
+                        <div class="totc-encounter-dual-list">
+                            <div class="totc-encounter-listbox">
+                                <h3>{{localize "TOTC.Encounter.AvailableActions"}}</h3>
+                                <select class="totc-encounter-action-select" size="8" {{#unless encounterPlanner.canEditPlan}}disabled{{/unless}}>
+                                    {{#each encounterPlanner.availableActions as |action|}}
+                                        <option
+                                            value="{{action.id}}"
+                                            data-id="{{action.id}}"
+                                            data-action-id="{{action.actionId}}"
+                                            data-type="{{action.type}}"
+                                            data-label="{{action.label}}"
+                                            data-ap-cost="{{action.apCost}}"
+                                            data-ap-min="{{action.apMin}}"
+                                            data-ap-max="{{action.apMax}}"
+                                            data-variable-ap="{{action.variableAp}}"
+                                            data-requires-to-hit="{{action.requiresToHit}}"
+                                            data-to-hit-bonus="{{action.toHitBonus}}"
+                                            data-item-id="{{action.itemId}}"
+                                            data-movement-feet="{{action.movementFeet}}"
+                                            data-movement-feet-per-ap="{{action.movementFeetPerAp}}"
+                                        >{{action.label}} ({{action.apCost}} AP)</option>
+                                    {{/each}}
+                                </select>
+                                <select class="totc-encounter-target-select" {{#unless encounterPlanner.canEditPlan}}disabled{{/unless}}>
+                                    <option value="">{{localize "TOTC.Encounter.Target.None"}}</option>
+                                    {{#each encounterPlanner.targetOptions as |target|}}
+                                        <option value="{{target.id}}">{{target.name}}</option>
+                                    {{/each}}
+                                </select>
+                                <div class="totc-encounter-plan-controls">
+                                    <label>
+                                        {{localize "TOTC.Encounter.ActionPoints"}}
+                                        <input class="totc-encounter-ap-input" type="number" value="1" min="1" max="6" step="1" disabled {{#unless encounterPlanner.canEditPlan}}disabled{{/unless}} />
+                                    </label>
+                                    <button type="button" data-action="totc-encounter-add-action" data-combatant-id="{{encounterPlanner.combatantId}}" {{#unless encounterPlanner.canEditPlan}}disabled{{/unless}}>{{localize "TOTC.Encounter.AddAction"}}</button>
+                                    <button type="button" data-action="totc-encounter-clear-plan" data-combatant-id="{{encounterPlanner.combatantId}}" {{#unless encounterPlanner.canEditPlan}}disabled{{/unless}}>{{localize "TOTC.Encounter.ClearPlan"}}</button>
+                                </div>
+                            </div>
+                            <div class="totc-encounter-listbox">
+                                <h3>{{localize "TOTC.Encounter.PlannedActions"}}</h3>
+                                {{#if encounterPlanner.queue.length}}
+                                    <ol class="totc-encounter-queue">
+                                        {{#each encounterPlanner.queue as |action actionIndex|}}
+                                            <li>
+                                                <div class="totc-encounter-queue-row">
+                                                    <span>{{action.label}} ({{action.apCost}} AP)</span>
+                                                    <button type="button" data-action="totc-encounter-remove-action" data-combatant-id="{{../encounterPlanner.combatantId}}" data-action-index="{{actionIndex}}" {{#unless ../encounterPlanner.canEditPlan}}disabled{{/unless}}>{{localize "TOTC.Encounter.RemoveAction"}}</button>
+                                                </div>
+                                                {{#if action.variableAp}}
+                                                    <label class="totc-encounter-action-slider">
+                                                        {{localize "TOTC.Encounter.ActionPoints"}}
+                                                        <input
+                                                            type="range"
+                                                            min="{{action.apMin}}"
+                                                            max="{{action.apMax}}"
+                                                            step="1"
+                                                            value="{{action.apCost}}"
+                                                            data-action="totc-encounter-set-ap"
+                                                            data-combatant-id="{{../encounterPlanner.combatantId}}"
+                                                            data-action-index="{{actionIndex}}"
+                                                            {{#unless ../encounterPlanner.canEditPlan}}disabled{{/unless}}
+                                                        />
+                                                        <span>{{action.apCost}}</span>
+                                                    </label>
+                                                {{/if}}
+                                            </li>
+                                        {{/each}}
+                                    </ol>
+                                {{else}}
+                                    <p class="totc-pack-empty">{{localize "TOTC.Encounter.NoPlannedActions"}}</p>
+                                {{/if}}
+                            </div>
+                        </div>
+                    {{else}}
+                        <p class="totc-pack-empty">{{localize "TOTC.Encounter.NotInitialized"}}</p>
                     {{/if}}
                 </section>
             </div>

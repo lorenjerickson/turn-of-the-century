@@ -4,7 +4,6 @@
         {{#if totcEncounter.controlsVisible}}
             <div class="totc-combat-controls">
                 <button type="button" data-action="totc-init-round">{{localize "TOTC.Encounter.InitializeRound"}}</button>
-                <button type="button" data-action="totc-resolve-round">{{localize "TOTC.Encounter.ResolveRound"}}</button>
             </div>
         {{/if}}
     </header>
@@ -14,6 +13,7 @@
             <span>{{localize "TOTC.Encounter.Phase"}}: {{totcEncounter.phase}}</span>
             <span>{{localize "TOTC.Encounter.ApBudget"}}: {{totcEncounter.apBudget}}</span>
             <span>{{localize "TOTC.Encounter.PlanningElapsed"}}: {{totcEncounter.planningElapsedSeconds}}s</span>
+            <span>{{localize "TOTC.Encounter.PlanningRemaining"}}: {{totcEncounter.planningRemainingSeconds}}s</span>
         </div>
         {{#if totcEncounter.planningWarningActive}}
             <div class="totc-encounter-warning">{{localize "TOTC.Encounter.PlanningWarning"}}</div>
@@ -58,10 +58,14 @@
                                     data-type="{{action.type}}"
                                     data-label="{{action.label}}"
                                     data-ap-cost="{{action.apCost}}"
+                                    data-ap-min="{{action.apMin}}"
+                                    data-ap-max="{{action.apMax}}"
+                                    data-variable-ap="{{action.variableAp}}"
                                     data-requires-to-hit="{{action.requiresToHit}}"
                                     data-to-hit-bonus="{{action.toHitBonus}}"
                                     data-item-id="{{action.itemId}}"
                                     data-movement-feet="{{action.movementFeet}}"
+                                    data-movement-feet-per-ap="{{action.movementFeetPerAp}}"
                                 >{{action.label}} ({{action.apCost}} AP)</option>
                             {{/each}}
                         </select>
@@ -71,6 +75,7 @@
                                 <option value="{{target.id}}">{{target.name}}</option>
                             {{/each}}
                         </select>
+                        <input class="totc-encounter-ap-input" type="number" value="1" min="1" max="6" step="1" />
                         <button type="button" data-action="totc-add-action" data-combatant-id="{{turn.id}}">{{localize "TOTC.Encounter.AddAction"}}</button>
                         <button type="button" data-action="totc-clear-plan" data-combatant-id="{{turn.id}}">{{localize "TOTC.Encounter.ClearPlan"}}</button>
                         <button type="button" data-action="totc-toggle-ready" data-combatant-id="{{turn.id}}" data-ready="{{turn.encounter.ready}}">

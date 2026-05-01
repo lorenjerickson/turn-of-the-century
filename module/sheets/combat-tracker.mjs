@@ -8,9 +8,13 @@ function readSelectedAction(selectElement) {
         type: selectedOption.dataset.type,
         label: selectedOption.dataset.label,
         apCost: Number(selectedOption.dataset.apCost || 1),
+        apMin: Number(selectedOption.dataset.apMin || selectedOption.dataset.apCost || 1),
+        apMax: Number(selectedOption.dataset.apMax || selectedOption.dataset.apCost || 1),
+        variableAp: selectedOption.dataset.variableAp === "true",
         requiresToHit: selectedOption.dataset.requiresToHit === "true",
         toHitBonus: Number(selectedOption.dataset.toHitBonus || 0),
         movementFeet: Number(selectedOption.dataset.movementFeet || 0),
+        movementFeetPerAp: Number(selectedOption.dataset.movementFeetPerAp || 0),
         itemId: selectedOption.dataset.itemId || null
     };
 }
@@ -32,8 +36,14 @@ export class TurnOfTheCenturyCombatTracker extends CombatTracker {
         }
 
         const encounterState = combat.encounterState ?? {};
-        const phase = combat.phase ?? encounterState.phase ?? "planning";
+        let phase = combat.phase ?? encounterState.phase ?? "planning";
+        if (game.user?.isGM && phase === "planning") {
+            await combat.maybeAutoFinalizePlanning?.();
+            phase = combat.phase ?? combat.encounterState?.phase ?? "planning";
+        }
         const planningElapsedSeconds = combat.planningElapsedSeconds ?? 0;
+        const planningLimitSeconds = combat.planningLimitSeconds ?? 60;
+        const planningRemainingSeconds = combat.planningRemainingSeconds ?? 0;
         const planningWarningSeconds = combat.planningWarningSeconds ?? 45;
 
         const turns = (context.turns ?? []).map((turn) => {
@@ -45,7 +55,7 @@ export class TurnOfTheCenturyCombatTracker extends CombatTracker {
 
             return {
                 ...turn,
-                canPlan: Boolean(game.user?.isGM || turn.owner),
+                canPlan: Boolean((game.user?.isGM || turn.owner) && phase === "planning" && !combatantState?.ready),
                 encounter: {
                     ready: Boolean(combatantState?.ready),
                     spentAp: Number(combatantState?.spentAp ?? 0),
@@ -63,6 +73,8 @@ export class TurnOfTheCenturyCombatTracker extends CombatTracker {
             phase,
             apBudget: combat.apBudget ?? 6,
             planningElapsedSeconds,
+            planningLimitSeconds,
+            planningRemainingSeconds,
             planningWarningSeconds,
             planningWarningActive: Boolean(combat.isPlanningWarningActive),
             controlsVisible: Boolean(game.user?.isGM)
@@ -110,6 +122,18 @@ export class TurnOfTheCenturyCombatTracker extends CombatTracker {
             const selectedAction = readSelectedAction(actionSelect);
             if (!selectedAction) return;
 
+            if (selectedAction.variableAp) {
+                const apInput = row?.querySelector(".totc-encounter-ap-input");
+                const selectedCost = Number(apInput?.value || selectedAction.apCost || 1);
+                const apMin = Math.max(1, Number(selectedAction.apMin || 1));
+                const apMax = Math.max(apMin, Number(selectedAction.apMax || apMin));
+                selectedAction.apCost = Math.max(apMin, Math.min(apMax, selectedCost));
+                if (selectedAction.type === "movement") {
+                    const feetPerAp = Number(selectedAction.movementFeetPerAp || 10);
+                    selectedAction.movementFeet = feetPerAp * selectedAction.apCost;
+                }
+            }
+
             selectedAction.targetId = targetSelect?.value || null;
             await game.combat.addCombatantAction(combatantId, selectedAction);
             this.render();
@@ -132,6 +156,28 @@ export class TurnOfTheCenturyCombatTracker extends CombatTracker {
 
             await game.combat.clearCombatantPlan(combatantId);
             this.render();
+        });
+
+        html.find(".totc-encounter-action-select").on("change", (event) => {
+            const select = event.currentTarget;
+            const row = select.closest(".totc-encounter-row");
+            const apInput = row?.querySelector(".totc-encounter-ap-input");
+            const selected = select.selectedOptions?.[0];
+            if (!apInput || !selected) return;
+
+            const variableAp = selected.dataset.variableAp === "true";
+            const apMin = Number(selected.dataset.apMin || selected.dataset.apCost || 1);
+            const apMax = Number(selected.dataset.apMax || selected.dataset.apCost || apMin);
+            const apCost = Number(selected.dataset.apCost || apMin || 1);
+
+            apInput.disabled = !variableAp;
+            apInput.min = String(Math.max(1, apMin));
+            apInput.max = String(Math.max(apMin, apMax));
+            apInput.value = String(Math.max(apMin, Math.min(apMax, apCost)));
+        });
+
+        html.find(".totc-encounter-action-select").each((_, select) => {
+            select.dispatchEvent(new Event("change"));
         });
     }
 }

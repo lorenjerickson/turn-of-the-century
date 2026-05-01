@@ -16,6 +16,11 @@ function toArray(value) {
     return Array.isArray(value) ? value : [];
 }
 
+function toNumber(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+}
+
 const EQUIPMENT_SLOT_FORM_PREFIX = "_slot.system.inventory.equipment.";
 const BELT_QUALITY_CAPACITY = {
     poor: 2,
@@ -206,15 +211,30 @@ function buildEncounterPlanner(actor) {
 
     const combatantState = combat.getCombatantState?.(combatant.id) ?? null;
     const queue = combat.getCombatantPlan?.(combatant.id) ?? [];
+    const apBudget = Number(combat.apBudget ?? 6);
+    const plannedAp = queue.reduce((sum, action) => sum + toNumber(action.apCost, 0), 0);
+    const combatants = combat.combatants?.contents ?? [];
+    const committedCount = combatants.filter((entry) => Boolean(combat.getCombatantState?.(entry.id)?.ready)).length;
+    const round = Number(combat.encounterState?.round ?? combat.round ?? 1);
 
     return {
         combatId: combat.id,
         combatantId: combatant.id,
         phase: combat.phase ?? "planning",
-        apBudget: combat.apBudget ?? 6,
+        round,
+        apBudget,
+        plannedAp,
+        apMeterPercent: apBudget > 0 ? Math.min(100, Math.round((plannedAp / apBudget) * 100)) : 0,
         spentAp: Number(combatantState?.spentAp ?? 0),
         remainingAp: Number(combat.getCombatantRemainingAp?.(combatant.id) ?? 0),
+        planningElapsedSeconds: Number(combat.planningElapsedSeconds ?? 0),
+        planningLimitSeconds: Number(combat.planningLimitSeconds ?? 60),
+        planningRemainingSeconds: Number(combat.planningRemainingSeconds ?? 0),
+        committedCount,
+        combatantCount: combatants.length,
         ready: Boolean(combatantState?.ready),
+        canCommit: (combat.phase ?? "planning") === "planning" && !Boolean(combatantState?.ready),
+        canEditPlan: (combat.phase ?? "planning") === "planning" && !Boolean(combatantState?.ready),
         planningWarningActive: Boolean(combat.isPlanningWarningActive),
         queue,
         availableActions: combat.getAvailableActionsForCombatant?.(combatant.id) ?? [],
@@ -327,7 +347,7 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
             width: 760,
             height: 760,
             resizable: true,
-            tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "details" }],
+            tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "profile" }],
             template: this.templatePath
         });
     }
@@ -339,6 +359,10 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
     async getData(options = {}) {
         const context = await super.getData(options);
         const systemSource = this.actor.system?.toObject?.() ?? foundry.utils.deepClone(this.actor.system ?? {});
+
+        if (game.user?.isGM && game.combat?.phase === "planning") {
+            await game.combat.maybeAutoFinalizePlanning?.();
+        }
 
         context.system = systemSource;
         context.equipmentSlots = buildEquipmentSlots(this.actor, systemSource);
@@ -460,13 +484,6 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
             }
         });
 
-        html.find("[data-action='totc-encounter-init-round']").on("click", async (event) => {
-            event.preventDefault();
-            if (!game.combat?.initializeEncounterRound) return;
-            await game.combat.initializeEncounterRound();
-            this.render(true);
-        });
-
         html.find("[data-action='totc-encounter-toggle-ready']").on("click", async (event) => {
             event.preventDefault();
             const combatantId = event.currentTarget.dataset.combatantId;
@@ -495,15 +512,65 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
                 type: selectedOption.dataset.type,
                 label: selectedOption.dataset.label,
                 apCost: Number(selectedOption.dataset.apCost || 1),
+                apMin: Number(selectedOption.dataset.apMin || selectedOption.dataset.apCost || 1),
+                apMax: Number(selectedOption.dataset.apMax || selectedOption.dataset.apCost || 1),
+                variableAp: selectedOption.dataset.variableAp === "true",
                 requiresToHit: selectedOption.dataset.requiresToHit === "true",
                 toHitBonus: Number(selectedOption.dataset.toHitBonus || 0),
                 movementFeet: Number(selectedOption.dataset.movementFeet || 0),
+                movementFeetPerAp: Number(selectedOption.dataset.movementFeetPerAp || 0),
                 itemId: selectedOption.dataset.itemId || null,
                 targetId: targetSelect?.value || null
             };
 
+            if (actionData.variableAp) {
+                const apInput = row?.querySelector(".totc-encounter-ap-input");
+                const selectedCost = Number(apInput?.value || actionData.apCost || actionData.apMin || 1);
+                const min = Math.max(1, Number(actionData.apMin || 1));
+                const max = Math.max(min, Number(actionData.apMax || min));
+                actionData.apCost = Math.max(min, Math.min(max, selectedCost));
+                if (actionData.type === "movement") {
+                    const feetPerAp = Number(actionData.movementFeetPerAp || 10);
+                    actionData.movementFeet = feetPerAp * actionData.apCost;
+                }
+            }
+
             await game.combat.addCombatantAction(combatantId, actionData);
             this.render(true);
+        });
+
+        html.find(".totc-encounter-action-select").on("change", (event) => {
+            const select = event.currentTarget;
+            const row = select.closest(".totc-encounter-planner");
+            const apInput = row?.querySelector(".totc-encounter-ap-input");
+            const selectedOption = select.selectedOptions?.[0];
+            if (!selectedOption || !apInput) return;
+
+            const variableAp = selectedOption.dataset.variableAp === "true";
+            const apMin = Number(selectedOption.dataset.apMin || selectedOption.dataset.apCost || 1);
+            const apMax = Number(selectedOption.dataset.apMax || selectedOption.dataset.apCost || apMin);
+            const apCost = Number(selectedOption.dataset.apCost || apMin || 1);
+
+            apInput.disabled = !variableAp;
+            apInput.min = String(Math.max(1, apMin));
+            apInput.max = String(Math.max(apInput.min, apMax));
+            apInput.value = String(Math.max(apMin, Math.min(apMax, apCost)));
+        });
+
+        html.find("[data-action='totc-encounter-set-ap']").on("change", async (event) => {
+            event.preventDefault();
+
+            const combatantId = event.currentTarget.dataset.combatantId;
+            const actionIndex = Number(event.currentTarget.dataset.actionIndex);
+            const apCost = Number(event.currentTarget.value || 1);
+            if (!combatantId || Number.isNaN(actionIndex) || Number.isNaN(apCost) || !game.combat?.setCombatantActionApCost) return;
+
+            await game.combat.setCombatantActionApCost(combatantId, actionIndex, apCost);
+            this.render(true);
+        });
+
+        html.find(".totc-encounter-action-select").each((_, select) => {
+            select.dispatchEvent(new Event("change"));
         });
 
         html.find("[data-action='totc-encounter-remove-action']").on("click", async (event) => {
