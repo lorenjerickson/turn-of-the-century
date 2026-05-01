@@ -57,6 +57,28 @@ export const TOTC_ACTION_CATALOG = {
         variableAp: false,
         requiresToHit: false,
         requiresSlot: "belt"
+    },
+    meleeAttack: {
+        id: "meleeAttack",
+        label: "Melee Attack",
+        type: "attack",
+        apCost: 1,
+        apMin: 1,
+        apMax: 1,
+        variableAp: false,
+        requiresToHit: false,
+        requiresSlot: "melee"
+    },
+    rangedAttack: {
+        id: "rangedAttack",
+        label: "Ranged Attack",
+        type: "attack",
+        apCost: 2,
+        apMin: 2,
+        apMax: 2,
+        variableAp: false,
+        requiresToHit: false,
+        requiresSlot: "ranged"
     }
 };
 

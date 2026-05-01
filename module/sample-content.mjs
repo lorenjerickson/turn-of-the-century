@@ -723,6 +723,135 @@ const ACTOR_CONFIGS = [
             inventory: { equipment: { belt: { quality: "exceptional", capacity: 6 } } },
             traits: { languages: ["english"], immunities: [], resistances: [], vulnerabilities: [] }
         }
+    },
+    {
+        name: "Captain Beatrice Holloway",
+        type: "hero",
+        system: {
+            biography: html("A former aerostat captain who now guides impossible expeditions through soot and storm."),
+            classification: { category: "character", profession: "Railway Marshal", origin: "Portsmouth" },
+            abilities: { dex: { value: 13, bonus: 1 }, wis: { value: 12, bonus: 1 } },
+            skills: {
+                perception: { ability: "wis", value: 3, bonus: 1, proficiency: 2, passive: 13 },
+                survival: { ability: "wis", value: 2, bonus: 1, proficiency: 1, passive: 12 }
+            },
+            inventory: { equipment: { belt: { quality: "fine", capacity: 5 } } },
+            traits: { languages: ["english", "german"] }
+        }
+    },
+    {
+        name: "Brother Lucien March",
+        type: "hero",
+        system: {
+            biography: html("A hospital chaplain and code-breaker who documents hauntings as if they were parish accounts."),
+            classification: { category: "character", profession: "Field Surgeon", origin: "Marseilles" },
+            abilities: { wis: { value: 13, bonus: 1 }, san: { value: 12, bonus: 1 } },
+            skills: {
+                medicine: { ability: "wis", value: 3, bonus: 1, proficiency: 2, passive: 13 },
+                insight: { ability: "wis", value: 2, bonus: 1, proficiency: 1, passive: 12 }
+            },
+            inventory: { equipment: { belt: { quality: "standard", capacity: 4 } } },
+            traits: { languages: ["english", "french", "latin"] }
+        }
+    },
+    {
+        name: "Ada Kingsley",
+        type: "hero",
+        system: {
+            biography: html("An investigative machinist who tests every lock, valve, and lie with equal patience."),
+            classification: { category: "character", profession: "Smokestack Mechanist", origin: "Leeds" },
+            abilities: { int: { value: 13, bonus: 1 }, dex: { value: 12, bonus: 1 } },
+            skills: {
+                investigation: { ability: "int", value: 3, bonus: 1, proficiency: 2, passive: 13 },
+                sleightOfHand: { ability: "dex", value: 2, bonus: 1, proficiency: 1, passive: 12 }
+            },
+            inventory: { equipment: { belt: { quality: "masterwork", capacity: 7 } } },
+            traits: { languages: ["english"] }
+        }
+    },
+    {
+        name: "Baron Ilya Soren",
+        type: "villain",
+        system: {
+            biography: html("A debt-ridden noble funding forbidden experiments through rail sabotage and insurance fraud."),
+            classification: { category: "npc", profession: "Underworld Liaison", origin: "Odessa" },
+            abilities: { cha: { value: 13, bonus: 1 }, int: { value: 12, bonus: 1 } },
+            skills: {
+                deception: { ability: "cha", value: 3, bonus: 1, proficiency: 2, passive: 13 },
+                history: { ability: "int", value: 2, bonus: 1, proficiency: 1, passive: 12 }
+            },
+            inventory: { equipment: { belt: { quality: "exceptional", capacity: 6 } } }
+        }
+    },
+    {
+        name: "Sister Beulah Crow",
+        type: "villain",
+        system: {
+            biography: html("A charity matron who turns orphan records into blackmail ledgers."),
+            classification: { category: "npc", profession: "Urban Detective", origin: "Glasgow" },
+            abilities: { wis: { value: 13, bonus: 1 }, cha: { value: 12, bonus: 1 } },
+            skills: {
+                insight: { ability: "wis", value: 3, bonus: 1, proficiency: 2, passive: 13 },
+                persuasion: { ability: "cha", value: 2, bonus: 1, proficiency: 1, passive: 12 }
+            },
+            inventory: { equipment: { belt: { quality: "fine", capacity: 5 } } }
+        }
+    },
+    {
+        name: "Superintendent Garrow Vane",
+        type: "villain",
+        system: {
+            biography: html("A police administrator who auctions case outcomes to industrial patrons."),
+            classification: { category: "npc", profession: "Railway Marshal", origin: "London" },
+            abilities: { str: { value: 12, bonus: 1 }, cha: { value: 12, bonus: 1 } },
+            skills: {
+                intimidation: { ability: "cha", value: 3, bonus: 1, proficiency: 2, passive: 13 },
+                athletics: { ability: "str", value: 2, bonus: 1, proficiency: 1, passive: 12 }
+            },
+            inventory: { equipment: { belt: { quality: "standard", capacity: 4 } } }
+        }
+    },
+    {
+        name: "Millhand Bruiser",
+        type: "pawn",
+        system: {
+            biography: html("A foundry enforcer with scarred knuckles and a short list of loyalties."),
+            classification: { category: "npc", species: "Human", profession: "Factory Guard", origin: "Birmingham" },
+            abilities: { str: { value: 13, bonus: 1 }, con: { value: 12, bonus: 1 } },
+            skills: {
+                athletics: { ability: "str", value: 2, bonus: 1, proficiency: 1, passive: 12 },
+                intimidation: { ability: "cha", value: 2, bonus: 0, proficiency: 2, passive: 12 }
+            },
+            inventory: { equipment: { belt: { quality: "standard", capacity: 4 } } },
+            traits: { languages: ["english"], immunities: [], resistances: [], vulnerabilities: [] }
+        }
+    },
+    {
+        name: "Telegraph Cabin Clerk",
+        type: "pawn",
+        system: {
+            biography: html("A night-shift line clerk who hears coded messages no court will admit."),
+            classification: { category: "npc", species: "Human", profession: "Signal Clerk", origin: "Liverpool" },
+            abilities: { int: { value: 12, bonus: 1 }, dex: { value: 11, bonus: 0 } },
+            skills: {
+                history: { ability: "int", value: 2, bonus: 1, proficiency: 1, passive: 12 },
+                perception: { ability: "wis", value: 2, bonus: 0, proficiency: 1, passive: 12 }
+            },
+            inventory: { equipment: { belt: { quality: "poor", capacity: 2 } } },
+            traits: { languages: ["english"], immunities: [], resistances: [], vulnerabilities: [] }
+        }
+    },
+    {
+        name: "Tunnel Ash Stalker",
+        type: "pawn",
+        system: {
+            biography: html("A lean predator that hunts by cinder-heat in disused furnace tunnels."),
+            classification: { category: "monster", species: "Mutated Beast", profession: "Stalker", origin: "Ash Tunnels" },
+            movement: { walk: 35, climb: 15, swim: 0, fly: 0 },
+            abilities: { str: { value: 11, bonus: 0 }, dex: { value: 14, bonus: 2 }, con: { value: 12, bonus: 1 } },
+            defenses: { armorClass: 13, initiative: 2 },
+            traits: { languages: [], immunities: [], resistances: ["fire"], vulnerabilities: ["cold"] }
+        }
     }
 ];
 
@@ -798,6 +927,58 @@ const ARMOR_CONFIGS = [
             armorClass: { increment: 1 },
             encumbrance: { weight: 4, bulk: 1, stealthPenalty: -1 },
             properties: { tags: ["helmet", "institutional"], noisy: true }
+        }
+    },
+    {
+        name: "Rail Gendarme Greatcoat",
+        system: {
+            description: html("A reinforced wool greatcoat lined with chain mesh at the chest."),
+            category: "medium",
+            armorClass: { increment: 2 },
+            encumbrance: { weight: 9, bulk: 2 },
+            properties: { tags: ["greatcoat", "rail"] }
+        }
+    },
+    {
+        name: "Canal Brigand Jack",
+        system: {
+            description: html("Layered leather and tarcloth favored by river gangs."),
+            category: "light",
+            armorClass: { increment: 1 },
+            encumbrance: { weight: 5, bulk: 1 },
+            properties: { tags: ["canal", "leather"] }
+        }
+    },
+    {
+        name: "Refinery Face Shield",
+        system: {
+            description: html("A hinged visor and throat guard for furnace operators."),
+            category: "heavy",
+            slot: "head",
+            armorClass: { increment: 2 },
+            encumbrance: { weight: 7, bulk: 2, stealthPenalty: -1 },
+            properties: { tags: ["refinery", "visor"], noisy: true }
+        }
+    },
+    {
+        name: "Courier's Padded Vest",
+        system: {
+            description: html("A quilted under-vest built to hide beneath formal wear."),
+            category: "clothing",
+            armorClass: { increment: 1 },
+            encumbrance: { weight: 2, bulk: 0 },
+            properties: { tags: ["padded", "concealed"], concealable: true }
+        }
+    },
+    {
+        name: "Dock Foreman's Plate Apron",
+        system: {
+            description: html("Segmented steel apron worn over work leathers in loading yards."),
+            category: "medium",
+            slot: "torso",
+            armorClass: { increment: 2 },
+            encumbrance: { weight: 10, bulk: 2, movementPenalty: -5 },
+            properties: { tags: ["dock", "industrial"], noisy: true }
         }
     }
 ];
@@ -949,6 +1130,66 @@ const WEAPON_CONFIGS = [
             ammunition: { required: false, type: "", capacity: 0, loaded: 0, consumedPerAttack: 0 },
             physical: { weight: 1, bulk: 0, range: { normal: 20, long: 60 } },
             properties: { tags: ["thrown", "pyrotechnic"], noisy: true }
+        }
+    },
+    {
+        name: "Foundry Hammer",
+        img: "icons/tools/hand/hammer-mallete-steel.webp",
+        system: {
+            commonName: "Foundry Hammer",
+            classification: "martialMelee",
+            damage: { formula: "1d8", type: "bludgeoning" },
+            physical: { weight: 5, bulk: 2, range: { normal: 5, long: 5 } },
+            properties: { tags: ["hammer", "industrial"] }
+        }
+    },
+    {
+        name: "Streetline Shotgun",
+        img: "icons/weapons/guns/gun-shotgun.webp",
+        system: {
+            commonName: "Shotgun",
+            classification: "firearm",
+            damage: { formula: "1d10", type: "ballistic" },
+            handedness: "twoHanded",
+            ammunition: { required: true, type: "shot-shell", capacity: 2, loaded: 2, consumedPerAttack: 1 },
+            physical: { weight: 6.5, bulk: 2, range: { normal: 30, long: 90 } },
+            properties: { tags: ["shotgun"], noisy: true }
+        }
+    },
+    {
+        name: "Dock Hook Pike",
+        img: "icons/weapons/polearms/halberd-simple.webp",
+        system: {
+            commonName: "Hook Pike",
+            classification: "martialMelee",
+            damage: { formula: "1d8", type: "piercing" },
+            handedness: "twoHanded",
+            physical: { weight: 5.5, bulk: 2, range: { normal: 10, long: 20 } },
+            properties: { tags: ["hook", "polearm"] }
+        }
+    },
+    {
+        name: "Clockwork Derringer",
+        img: "icons/weapons/guns/gun-pistol-doublebarrel.webp",
+        system: {
+            commonName: "Derringer",
+            classification: "firearm",
+            damage: { formula: "1d6", type: "ballistic" },
+            ammunition: { required: true, type: "pistol-round", capacity: 2, loaded: 2, consumedPerAttack: 1 },
+            physical: { weight: 1.2, bulk: 0, range: { normal: 20, long: 60 } },
+            properties: { tags: ["sidearm", "concealed"], concealable: true, noisy: true }
+        }
+    },
+    {
+        name: "Wire Garrote",
+        img: "icons/weapons/swords/sword-thin-grey.webp",
+        system: {
+            commonName: "Garrote",
+            classification: "improvised",
+            damage: { formula: "1d4", type: "slashing" },
+            handedness: "oneHanded",
+            physical: { weight: 0.3, bulk: 0, range: { normal: 5, long: 5 } },
+            properties: { tags: ["silent", "wire"], concealable: true }
         }
     }
 ];
@@ -1130,6 +1371,58 @@ const CONSUMABLE_CONFIGS = [
             ],
             properties: { tags: ["elixir", "occult"], experimental: true }
         }
+    },
+    {
+        name: "Coalbreaker Tonic",
+        system: {
+            commonName: "Coalbreaker",
+            category: "tonic",
+            use: { method: "drink" },
+            effects: [{ label: "Work Surge", type: "applyModifier", target: "abilities.str.value", formula: "", value: 1, condition: "for 1 scene", notes: html("Briefly boosts strength tasks.") }],
+            sideEffects: [{ label: "Crash", type: "applyModifier", target: "abilities.con.value", formula: "", value: -1, condition: "for 10 minutes", notes: html("Fatigue follows the boost.") }]
+        }
+    },
+    {
+        name: "Mercury Fever Drops",
+        system: {
+            commonName: "Fever Drops",
+            category: "medicine",
+            use: { method: "drink" },
+            effects: [{ label: "Reduce Fever", type: "relieveSymptom", target: "fever", formula: "", value: 1, condition: "", notes: html("Suppresses fever symptoms for one scene.") }],
+            properties: { tags: ["medical"] }
+        }
+    },
+    {
+        name: "Wound Stitch Kit",
+        system: {
+            commonName: "Stitch Kit",
+            category: "surgicalSupply",
+            use: { method: "administer" },
+            quantity: { value: 2, max: 2, unit: "use" },
+            effects: [{ label: "Close Wound", type: "restoreResource", target: "resources.health", formula: "1d4", value: 0, condition: "", notes: html("Stabilizes and restores minor health.") }],
+            properties: { tags: ["surgical", "field"] }
+        }
+    },
+    {
+        name: "Soot Filter Paste",
+        system: {
+            commonName: "Filter Paste",
+            category: "chemical",
+            use: { method: "apply" },
+            effects: [{ label: "Air Filter", type: "grantResistance", target: "environmental-smoke", formula: "", value: 1, condition: "for 1 scene", notes: html("Improves resilience to smoke.") }],
+            properties: { tags: ["respiratory", "industrial"] }
+        }
+    },
+    {
+        name: "Revival Ether",
+        system: {
+            commonName: "Revival Ether",
+            category: "drug",
+            use: { method: "inhale" },
+            effects: [{ label: "Snap Awake", type: "removePenalty", target: "stunned", formula: "", value: 1, condition: "", notes: html("Can clear brief incapacitation.") }],
+            sideEffects: [{ label: "Fogged Focus", type: "applyModifier", target: "skills.investigation.value", formula: "", value: -1, condition: "for 1 scene", notes: html("Sharp analysis suffers briefly.") }],
+            properties: { tags: ["ether", "stimulant"], restricted: true }
+        }
     }
 ];
 
@@ -1275,6 +1568,61 @@ const EFFECT_CONFIGS = [
             ],
             affectedKeys: { abilities: ["san"], skills: ["perception"], actions: [] }
         }
+    },
+    {
+        name: "Boiler Rattle Panic",
+        system: {
+            description: html("Violent pressure knocks in the pipes trigger a contagious fear response."),
+            disposition: "detrimental",
+            category: "morale",
+            duration: { value: 1, unit: "scene" },
+            impacts: [{ label: "Startled", targetType: "skill", target: "insight", path: "", operation: "add", value: -1, formula: "", condition: "near heavy machinery", notes: html("Judgment is disrupted by noise.") }],
+            affectedKeys: { abilities: [], skills: ["insight"], actions: [] }
+        }
+    },
+    {
+        name: "Sanitorium Composure",
+        system: {
+            description: html("Sedation and supervised rest create a fragile calm."),
+            disposition: "beneficial",
+            category: "medical",
+            duration: { value: 8, unit: "hour" },
+            impacts: [{ label: "Quiet Mind", targetType: "ability", target: "san", path: "", operation: "add", value: 1, formula: "", condition: "", notes: html("Improves sanity checks while active.") }],
+            affectedKeys: { abilities: ["san"], skills: [], actions: [] }
+        }
+    },
+    {
+        name: "Electrum Burn",
+        system: {
+            description: html("A pale electrical burn leaves muscles twitching and unsteady."),
+            disposition: "detrimental",
+            category: "chemical",
+            duration: { value: 20, unit: "minute" },
+            impacts: [{ label: "Shaky Grip", targetType: "skill", target: "sleightOfHand", path: "", operation: "add", value: -2, formula: "", condition: "", notes: html("Fine handwork is impaired.") }],
+            affectedKeys: { abilities: ["dex"], skills: ["sleightOfHand"], actions: [] }
+        }
+    },
+    {
+        name: "Crow-Footed Focus",
+        system: {
+            description: html("A practiced stance keeps footing stable in cramped streets."),
+            disposition: "beneficial",
+            category: "sensory",
+            duration: { value: 1, unit: "hour" },
+            impacts: [{ label: "Urban Balance", targetType: "skill", target: "acrobatics", path: "", operation: "add", value: 1, formula: "", condition: "in urban terrain", notes: html("Improves balance in cluttered environments.") }],
+            affectedKeys: { abilities: [], skills: ["acrobatics"], actions: [] }
+        }
+    },
+    {
+        name: "Steam-Lung Adaptation",
+        system: {
+            description: html("Repeated exposure grants short-term resilience to fumes."),
+            disposition: "mixed",
+            category: "physical",
+            duration: { value: 1, unit: "day" },
+            impacts: [{ label: "Fume Tolerance", targetType: "resource", target: "resources.grit", path: "", operation: "add", value: 1, formula: "", condition: "in polluted zones", notes: html("Improves grit under smog pressure.") }],
+            affectedKeys: { abilities: ["con"], skills: [], actions: [] }
+        }
     }
 ];
 
@@ -1375,6 +1723,66 @@ const ETHNICITY_CONFIGS = [
                 periodContext: html("They bring frontier habits into densely policed imperial cities.")
             }
         }
+    },
+    {
+        name: "Nordic Whaling Diaspora",
+        system: {
+            nationalIdentity: "norwegian",
+            languages: { primary: "norwegian", spoken: ["norwegian", "english"], literate: ["norwegian", "english"] },
+            culturalNotes: {
+                homeland: "North Sea coasts",
+                diaspora: html("Harbor crews move between whaling stations and steamship contracts."),
+                periodContext: html("Maritime labor traditions shape their tight mutual-aid circles.")
+            }
+        }
+    },
+    {
+        name: "Iberian Signal Corps",
+        system: {
+            nationalIdentity: "spanish",
+            languages: { primary: "spanish", spoken: ["spanish", "english"], literate: ["spanish", "english"] },
+            culturalNotes: {
+                homeland: "Madrid and Barcelona",
+                diaspora: html("Telegraph crews circulate between colonial and industrial ports."),
+                periodContext: html("Military signaling methods overlap with civilian rail communications.")
+            }
+        }
+    },
+    {
+        name: "Lowland Canal Families",
+        system: {
+            nationalIdentity: "dutch",
+            languages: { primary: "dutch", spoken: ["dutch", "english"], literate: ["dutch", "english"] },
+            culturalNotes: {
+                homeland: "Rotterdam and inland canals",
+                diaspora: html("Canal pilots and warehouse brokers settle in expanding dock districts."),
+                periodContext: html("Trade precision and guild contracts define status and trust.")
+            }
+        }
+    },
+    {
+        name: "Carpathian Mining Houses",
+        system: {
+            nationalIdentity: "hungarian",
+            languages: { primary: "hungarian", spoken: ["hungarian", "german"], literate: ["hungarian", "german"] },
+            culturalNotes: {
+                homeland: "Carpathian uplands",
+                diaspora: html("Mine engineers and furnace crews follow metallurgy contracts west."),
+                periodContext: html("Industrial migration strains old regional loyalties.")
+            }
+        }
+    },
+    {
+        name: "Levantine Print Guild",
+        system: {
+            nationalIdentity: "levantine",
+            languages: { primary: "arabic", spoken: ["arabic", "french", "english"], literate: ["arabic", "french"] },
+            culturalNotes: {
+                homeland: "Alexandria and Beirut",
+                diaspora: html("Printers and translators anchor multilingual news routes."),
+                periodContext: html("Press networks mediate both commerce and political agitation.")
+            }
+        }
     }
 ];
 
@@ -1444,6 +1852,46 @@ const PROFESSION_CONFIGS = [
             primarySkills: ["deception", "persuasion", "stealth"],
             specializations: [specializationPath("smuggling", "Smuggling Broker", "Runner -> Broker -> Controller -> Syndicate Partner")]
         }
+    },
+    {
+        name: "Factory Auditor",
+        system: {
+            category: "industrial",
+            primarySkills: ["investigation", "history", "insight"],
+            specializations: [specializationPath("compliance", "Compliance Examiner", "Clerk -> Examiner -> Chief Auditor -> Commissioner")]
+        }
+    },
+    {
+        name: "Signal Cryptographer",
+        system: {
+            category: "investigative",
+            primarySkills: ["history", "investigation", "arcana"],
+            specializations: [specializationPath("codework", "Codebreaker", "Decoder -> Analyst -> Senior Analyst -> Directorate")]
+        }
+    },
+    {
+        name: "Canal Inspector",
+        system: {
+            category: "professional",
+            primarySkills: ["nature", "survival", "athletics"],
+            specializations: [specializationPath("floodworks", "Floodworks Specialist", "Surveyor -> Inspector -> Senior Inspector -> Commissioner")]
+        }
+    },
+    {
+        name: "Asylum Custodian",
+        system: {
+            category: "medical",
+            primarySkills: ["insight", "medicine", "intimidation"],
+            specializations: [specializationPath("restraint", "Restraint Marshal", "Orderly -> Custodian -> Wing Chief -> Superintendent")]
+        }
+    },
+    {
+        name: "Arc Furnace Engineer",
+        system: {
+            category: "industrial",
+            primarySkills: ["arcana", "investigation", "athletics"],
+            specializations: [specializationPath("induction", "Induction Specialist", "Stoker -> Technician -> Furnace Master -> Chief Engineer")]
+        }
     }
 ];
 
@@ -1510,6 +1958,46 @@ const QUIRK_CONFIGS = [
             description: html("A habit of immediate note-taking preserves details others misremember."),
             source: { type: "feat", label: "Casebook Discipline" },
             effects: [{ label: "Recorded Details", targetType: "skill", target: "history", operation: "add", value: 1, path: "", condition: "when notes were taken in scene", appliesWhenEncumbered: false }]
+        }
+    },
+    {
+        name: "Smoke-Honed Eyes",
+        system: {
+            description: html("Can pick movement from haze where others see only soot."),
+            source: { type: "other", label: "Foundry Exposure" },
+            effects: [{ label: "Haze Sight", targetType: "skill", target: "perception", operation: "add", value: 1, path: "", condition: "in smoke", appliesWhenEncumbered: false }]
+        }
+    },
+    {
+        name: "Tunnel Step",
+        system: {
+            description: html("Footwork adapted for slick stone, rails, and maintenance ladders."),
+            source: { type: "profession", label: "Canal Inspector" },
+            effects: [{ label: "Sure Footing", targetType: "skill", target: "acrobatics", operation: "add", value: 1, path: "", condition: "in cramped terrain", appliesWhenEncumbered: true }]
+        }
+    },
+    {
+        name: "Cold Telegraph Nerves",
+        system: {
+            description: html("Keeps hands steady while decoding urgent or threatening dispatches."),
+            source: { type: "profession", label: "Signal Cryptographer" },
+            effects: [{ label: "Steady Decode", targetType: "skill", target: "history", operation: "add", value: 1, path: "", condition: "during codework", appliesWhenEncumbered: false }]
+        }
+    },
+    {
+        name: "Gallows Humor",
+        system: {
+            description: html("Dark wit that keeps panic from taking hold in grim company."),
+            source: { type: "other", label: "Field Experience" },
+            effects: [{ label: "Morale Lift", targetType: "skill", target: "persuasion", operation: "add", value: 1, path: "", condition: "under stress", appliesWhenEncumbered: false }]
+        }
+    },
+    {
+        name: "Iron Grip",
+        system: {
+            description: html("A crushing hold practiced in docks, mills, and prison yards."),
+            source: { type: "profession", label: "Railway Marshal" },
+            effects: [{ label: "Hold Fast", targetType: "skill", target: "athletics", operation: "add", value: 1, path: "", condition: "during grapples", appliesWhenEncumbered: true }]
         }
     }
 ];
@@ -1643,6 +2131,66 @@ const EQUIPMENT_CONFIGS = [
             value: { price: 4, currency: "pounds" },
             properties: { tags: ["repair", "utility"], concealable: true }
         }
+    },
+    {
+        name: "Rail Spike Wrench",
+        img: "icons/tools/hand/wrench-steel.webp",
+        system: {
+            commonName: "Spike Wrench",
+            category: "tool",
+            slot: "belt",
+            use: { skillCheck: { skill: "athletics", difficulty: 10, purpose: html("Adjust rail fasteners and braces.") } },
+            physical: { weight: 1.4, bulk: 0, quantity: 1, unit: "tool" },
+            properties: { tags: ["rail", "maintenance"] }
+        }
+    },
+    {
+        name: "Valve Key Set",
+        img: "icons/tools/hand/pliers-steel.webp",
+        system: {
+            commonName: "Valve Keys",
+            category: "tool",
+            slot: "belt",
+            use: { skillCheck: { skill: "investigation", difficulty: 11, purpose: html("Operate and test pressure valves.") } },
+            physical: { weight: 0.7, bulk: 0, quantity: 1, unit: "set" },
+            properties: { tags: ["pressure", "utility"], concealable: true }
+        }
+    },
+    {
+        name: "Pocket Sextant",
+        img: "icons/tools/navigation/compass-plain-blue.webp",
+        system: {
+            commonName: "Sextant",
+            category: "instrument",
+            slot: "belt",
+            use: { skillCheck: { skill: "nature", difficulty: 10, purpose: html("Estimate angle and direction in poor visibility.") } },
+            physical: { weight: 0.9, bulk: 0, quantity: 1, unit: "instrument" },
+            properties: { tags: ["navigation", "instrument"], fragile: true }
+        }
+    },
+    {
+        name: "Signal Mirror",
+        img: "icons/tools/navigation/sundial-brass.webp",
+        system: {
+            commonName: "Mirror",
+            category: "instrument",
+            slot: "belt",
+            use: { skillCheck: { skill: "performance", difficulty: 9, purpose: html("Send line-of-sight flashes and warnings.") } },
+            physical: { weight: 0.2, bulk: 0, quantity: 1, unit: "mirror" },
+            properties: { tags: ["signal", "optical"], concealable: true }
+        }
+    },
+    {
+        name: "Boiler Gauge Clamp",
+        img: "icons/tools/hand/clamp-steel.webp",
+        system: {
+            commonName: "Gauge Clamp",
+            category: "tool",
+            slot: "hands",
+            use: { skillCheck: { skill: "investigation", difficulty: 10, purpose: html("Stabilize and read fluctuating gauges.") } },
+            physical: { weight: 2.3, bulk: 1, quantity: 1, unit: "tool" },
+            properties: { tags: ["boiler", "inspection"] }
+        }
     }
 ];
 
@@ -1761,6 +2309,66 @@ const ITEM_CONFIGS = [
             value: { price: 1, currency: "pounds" },
             properties: { tags: ["fuel", "utility"], concealable: true }
         }
+    },
+    {
+        name: "Station Pass Ledger",
+        img: "icons/sundries/books/book-clasp-red.webp",
+        system: {
+            commonName: "Pass Ledger",
+            category: "document",
+            slot: "belt",
+            use: { skillCheck: { skill: "history", difficulty: 10, purpose: html("Verify routes, permits, and signatures.") } },
+            physical: { weight: 0.6, bulk: 0, quantity: 1, unit: "book" },
+            properties: { tags: ["records", "rail"] }
+        }
+    },
+    {
+        name: "Folded Street Atlas",
+        img: "icons/sundries/documents/map-folded-leather.webp",
+        system: {
+            commonName: "Street Atlas",
+            category: "document",
+            slot: "belt",
+            use: { skillCheck: { skill: "investigation", difficulty: 9, purpose: html("Trace routes and hidden alleys.") } },
+            physical: { weight: 0.3, bulk: 0, quantity: 1, unit: "atlas" },
+            properties: { tags: ["map", "urban"], concealable: true }
+        }
+    },
+    {
+        name: "Silver Prayer Token",
+        img: "icons/commodities/treasure/token-silver-blue.webp",
+        system: {
+            commonName: "Prayer Token",
+            category: "trinket",
+            slot: "neck",
+            use: { skillCheck: { skill: "religion", difficulty: 10, purpose: html("Steady morale in uncanny scenes.") } },
+            physical: { weight: 0.1, bulk: 0, quantity: 1, unit: "token" },
+            properties: { tags: ["ward", "token"], concealable: true }
+        }
+    },
+    {
+        name: "Signal Chalk Slate",
+        img: "icons/sundries/documents/scroll-plain-white.webp",
+        system: {
+            commonName: "Chalk Slate",
+            category: "instrument",
+            slot: "belt",
+            use: { skillCheck: { skill: "performance", difficulty: 8, purpose: html("Relay silent commands and coded marks.") } },
+            physical: { weight: 0.4, bulk: 0, quantity: 1, unit: "slate" },
+            properties: { tags: ["signal", "silent"] }
+        }
+    },
+    {
+        name: "Pocket Hourglass",
+        img: "icons/tools/time/hourglass-brown.webp",
+        system: {
+            commonName: "Hourglass",
+            category: "instrument",
+            slot: "belt",
+            use: { skillCheck: { skill: "insight", difficulty: 9, purpose: html("Track short intervals under pressure.") } },
+            physical: { weight: 0.2, bulk: 0, quantity: 1, unit: "glass" },
+            properties: { tags: ["timing", "forensic"], fragile: true }
+        }
     }
 ];
 
@@ -1815,6 +2423,61 @@ const SKILL_ITEM_CONFIGS = [
             physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
             value: { price: 0, currency: "pounds" },
             properties: { tags: ["skill", "research"] }
+        }
+    },
+    {
+        name: "Boiler Safety Drill",
+        img: "icons/tools/smithing/furnace-fire-orange.webp",
+        system: {
+            commonName: "Safety Drill",
+            category: "tool",
+            use: { requiresHands: false, skillCheck: { skill: "investigation", difficulty: 10, purpose: html("Identify imminent pressure hazards.") } },
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            properties: { tags: ["skill", "industrial"] }
+        }
+    },
+    {
+        name: "Canal Navigation",
+        img: "icons/environment/wilderness/river.webp",
+        system: {
+            commonName: "Canal Navigation",
+            category: "tool",
+            use: { requiresHands: false, skillCheck: { skill: "survival", difficulty: 10, purpose: html("Chart routes through locks and floodgates.") } },
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            properties: { tags: ["skill", "navigation"] }
+        }
+    },
+    {
+        name: "Forensic Photography",
+        img: "icons/tools/hand/camera-brass.webp",
+        system: {
+            commonName: "Forensic Photo",
+            category: "instrument",
+            use: { requiresHands: false, skillCheck: { skill: "investigation", difficulty: 11, purpose: html("Capture and preserve scene evidence.") } },
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            properties: { tags: ["skill", "forensic"] }
+        }
+    },
+    {
+        name: "Steamworks Negotiation",
+        img: "icons/skills/social/diplomacy-peace.webp",
+        system: {
+            commonName: "Labor Mediation",
+            category: "miscellaneous",
+            use: { requiresHands: false, skillCheck: { skill: "persuasion", difficulty: 11, purpose: html("Negotiate disputes among crews and foremen.") } },
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            properties: { tags: ["skill", "social"] }
+        }
+    },
+    {
+        name: "Subterranean Recon",
+        img: "icons/environment/underground/cave-entrance.webp",
+        system: {
+            commonName: "Tunnel Recon",
+            category: "tool",
+            use: { requiresHands: false, skillCheck: { skill: "perception", difficulty: 10, purpose: html("Read signs and threats in underground passages.") } },
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            properties: { tags: ["skill", "recon"] }
         }
     }
 ];
@@ -1876,6 +2539,66 @@ const TALENT_CONFIGS = [
             physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
             value: { price: 0, currency: "pounds" },
             properties: { tags: ["talent", "mobility"] }
+        }
+    },
+    {
+        name: "Furnace Rhythm",
+        img: "icons/magic/fire/flame-burning-furnace.webp",
+        system: {
+            commonName: "Furnace Rhythm",
+            category: "miscellaneous",
+            use: { actionCost: 0, requiresHands: false, skillCheck: { skill: "athletics", difficulty: 10, purpose: html("Maintain pace during exhausting labor or combat.") } },
+            effects: [{ label: "Work Tempo", targetType: "skill", target: "athletics", operation: "add", value: 1, formula: "", condition: "during sustained exertion", notes: html("Improves endurance checks.") }],
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            properties: { tags: ["talent", "industrial"] }
+        }
+    },
+    {
+        name: "Counter-Snare Reflex",
+        img: "icons/skills/movement/arrow-upward-yellow.webp",
+        system: {
+            commonName: "Counter-Snare",
+            category: "miscellaneous",
+            use: { actionCost: 0, requiresHands: false, skillCheck: { skill: "acrobatics", difficulty: 11, purpose: html("Avoid wires, hooks, and trip snares.") } },
+            effects: [{ label: "Trap Evasion", targetType: "skill", target: "acrobatics", operation: "add", value: 1, formula: "", condition: "against physical traps", notes: html("Improves evasive movement.") }],
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            properties: { tags: ["talent", "defense"] }
+        }
+    },
+    {
+        name: "Battlefield Triage",
+        img: "icons/skills/wounds/blood-drip-droplet-red.webp",
+        system: {
+            commonName: "Field Triage",
+            category: "miscellaneous",
+            use: { actionCost: 0, requiresHands: false, skillCheck: { skill: "medicine", difficulty: 11, purpose: html("Prioritize and stabilize multiple casualties.") } },
+            effects: [{ label: "Rapid Stabilize", targetType: "skill", target: "medicine", operation: "add", value: 1, formula: "", condition: "during active crisis", notes: html("Improves emergency care checks.") }],
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            properties: { tags: ["talent", "medical"] }
+        }
+    },
+    {
+        name: "Quiet Hands",
+        img: "icons/skills/melee/hand-grip-staff-brown.webp",
+        system: {
+            commonName: "Quiet Hands",
+            category: "miscellaneous",
+            use: { actionCost: 0, requiresHands: false, skillCheck: { skill: "sleightOfHand", difficulty: 10, purpose: html("Manipulate tools and locks silently.") } },
+            effects: [{ label: "Silent Work", targetType: "skill", target: "sleightOfHand", operation: "add", value: 1, formula: "", condition: "while concealed", notes: html("Improves covert manipulation.") }],
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            properties: { tags: ["talent", "covert"] }
+        }
+    },
+    {
+        name: "Last-Light Resolve",
+        img: "icons/magic/light/explosion-star-small-yellow.webp",
+        system: {
+            commonName: "Last-Light",
+            category: "miscellaneous",
+            use: { actionCost: 0, requiresHands: false, skillCheck: { skill: "insight", difficulty: 10, purpose: html("Remain focused as allies falter.") } },
+            effects: [{ label: "Steady Nerve", targetType: "ability", target: "san", operation: "add", value: 1, formula: "", condition: "when outnumbered", notes: html("Grants composure in dire scenes.") }],
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            properties: { tags: ["talent", "morale"] }
         }
     }
 ];
@@ -2150,8 +2873,44 @@ export const TOTC_SAMPLE_LIBRARY_STATS = {
 };
 
 export const TOTC_SAMPLE_COMPENDIUMS = {
+    monsters: "monsters",
+    heroes: "heroes",
+    villains: "villains",
+    pawns: "pawns",
+    professions: "professions",
+    ethnicities: "ethnicities",
+    skills: "skills",
+    talents: "talents",
+    quirks: "quirks",
+    armor: "armor",
+    weapons: "weapons",
+    consumables: "consumables",
+    effects: "effects",
+    equipment: "equipment",
     actors: "starter-actors",
     items: "starter-items"
+};
+
+const ACTOR_PACK_FILTERS = {
+    [TOTC_SAMPLE_COMPENDIUMS.monsters]: (entry) => entry.type === "pawn" && entry.system?.classification?.category === "monster",
+    [TOTC_SAMPLE_COMPENDIUMS.heroes]: (entry) => entry.type === "hero",
+    [TOTC_SAMPLE_COMPENDIUMS.villains]: (entry) => entry.type === "villain",
+    [TOTC_SAMPLE_COMPENDIUMS.pawns]: (entry) => entry.type === "pawn" && entry.system?.classification?.category !== "monster",
+    [TOTC_SAMPLE_COMPENDIUMS.actors]: () => true
+};
+
+const ITEM_PACK_FILTERS = {
+    [TOTC_SAMPLE_COMPENDIUMS.professions]: (entry) => entry.type === "profession",
+    [TOTC_SAMPLE_COMPENDIUMS.ethnicities]: (entry) => entry.type === "ethnicity",
+    [TOTC_SAMPLE_COMPENDIUMS.skills]: (entry) => entry.type === "skill",
+    [TOTC_SAMPLE_COMPENDIUMS.talents]: (entry) => entry.type === "talent",
+    [TOTC_SAMPLE_COMPENDIUMS.quirks]: (entry) => entry.type === "quirk",
+    [TOTC_SAMPLE_COMPENDIUMS.armor]: (entry) => entry.type === "armor",
+    [TOTC_SAMPLE_COMPENDIUMS.weapons]: (entry) => entry.type === "weapon",
+    [TOTC_SAMPLE_COMPENDIUMS.consumables]: (entry) => entry.type === "consumable",
+    [TOTC_SAMPLE_COMPENDIUMS.effects]: (entry) => entry.type === "effect",
+    [TOTC_SAMPLE_COMPENDIUMS.equipment]: (entry) => entry.type === "equipment" || entry.type === "item",
+    [TOTC_SAMPLE_COMPENDIUMS.items]: () => true
 };
 
 function normalizeSet(values) {
@@ -2216,6 +2975,25 @@ async function importIntoCompendium(pack, entries) {
     });
 
     return imported;
+}
+
+function listCompendiumPlans({ actorTypes = [], itemTypes = [] } = {}) {
+    const actorTypeFilter = normalizeSet(actorTypes);
+    const itemTypeFilter = normalizeSet(itemTypes);
+
+    const actorPlans = Object.entries(ACTOR_PACK_FILTERS).map(([packName, predicate]) => ({
+        packName,
+        documentType: "Actor",
+        entries: TOTC_SAMPLE_ACTORS.filter((entry) => shouldInclude(entry.type, actorTypeFilter) && predicate(entry))
+    }));
+
+    const itemPlans = Object.entries(ITEM_PACK_FILTERS).map(([packName, predicate]) => ({
+        packName,
+        documentType: "Item",
+        entries: TOTC_SAMPLE_ITEMS.filter((entry) => shouldInclude(entry.type, itemTypeFilter) && predicate(entry))
+    }));
+
+    return [...actorPlans, ...itemPlans].filter((plan) => plan.entries.length > 0);
 }
 
 export async function createTotcSampleContent({
@@ -2297,39 +3075,52 @@ export async function publishTotcSampleCompendiums({
     if (!game?.ready) throw new Error("Game is not ready yet.");
 
     const systemId = game.system?.id;
-    const actorPackName = TOTC_SAMPLE_COMPENDIUMS.actors;
-    const itemPackName = TOTC_SAMPLE_COMPENDIUMS.items;
+    const plans = listCompendiumPlans({ actorTypes, itemTypes });
+    const missingPacks = [];
+    const byPack = {};
 
-    const actorPack = game.packs.get(`${systemId}.${actorPackName}`);
-    const itemPack = game.packs.get(`${systemId}.${itemPackName}`);
+    let importedActors = 0;
+    let importedItems = 0;
+    let clearedActors = 0;
+    let clearedItems = 0;
 
-    if (!actorPack || !itemPack) {
+    for (const plan of plans) {
+        const pack = game.packs.get(`${systemId}.${plan.packName}`);
+        if (!pack) {
+            missingPacks.push(plan.packName);
+            continue;
+        }
+
+        let cleared = 0;
+        if (overwrite) {
+            cleared = await clearCompendiumPack(pack);
+        }
+        const imported = await importIntoCompendium(pack, plan.entries);
+
+        byPack[plan.packName] = {
+            collection: pack.collection,
+            documentType: plan.documentType,
+            imported,
+            cleared
+        };
+
+        if (plan.documentType === "Actor") {
+            importedActors += imported;
+            clearedActors += cleared;
+        } else {
+            importedItems += imported;
+            clearedItems += cleared;
+        }
+    }
+
+    if (missingPacks.length) {
         throw new Error(
-            "Declared compendium packs were not found. Reload the world after updating system.json, then try again."
+            `Declared compendium packs were not found: ${missingPacks.join(", ")}. Reload the world after updating system.json, then try again.`
         );
     }
 
-    const actorTypeFilter = normalizeSet(actorTypes);
-    const itemTypeFilter = normalizeSet(itemTypes);
-
-    const actorsToImport = TOTC_SAMPLE_ACTORS.filter((entry) => shouldInclude(entry.type, actorTypeFilter));
-    const itemsToImport = TOTC_SAMPLE_ITEMS.filter((entry) => shouldInclude(entry.type, itemTypeFilter));
-
-    let clearedActors = 0;
-    let clearedItems = 0;
-    if (overwrite) {
-        clearedActors = await clearCompendiumPack(actorPack);
-        clearedItems = await clearCompendiumPack(itemPack);
-    }
-
-    const importedActors = await importIntoCompendium(actorPack, actorsToImport);
-    const importedItems = await importIntoCompendium(itemPack, itemsToImport);
-
     return {
-        packCollections: {
-            actors: actorPack.collection,
-            items: itemPack.collection
-        },
+        byPack,
         importedActors,
         importedItems,
         totalImported: importedActors + importedItems,

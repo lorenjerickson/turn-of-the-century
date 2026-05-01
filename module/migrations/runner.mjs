@@ -1,4 +1,4 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 5;
+export const TOTC_WORLD_SCHEMA_VERSION = 7;
 
 export async function runTotcMigrations({
     currentVersion = 0,
@@ -7,6 +7,7 @@ export async function runTotcMigrations({
     migrateEquipmentSlots,
     migrateEncounterActions,
     migrateModifiers,
+    migrateStarterCompendiums,
     notify = true
 } = {}) {
     if (!game?.ready) throw new Error("Game is not ready yet.");
@@ -24,6 +25,9 @@ export async function runTotcMigrations({
     }
     if (typeof migrateModifiers !== "function") {
         throw new Error("runTotcMigrations requires a migrateModifiers function.");
+    }
+    if (typeof migrateStarterCompendiums !== "function") {
+        throw new Error("runTotcMigrations requires a migrateStarterCompendiums function.");
     }
 
     let appliedVersion = Number(currentVersion) || 0;
@@ -103,6 +107,34 @@ export async function runTotcMigrations({
         appliedVersion = 5;
     }
 
+    if (appliedVersion < 6) {
+        const report = await migrateStarterCompendiums({
+            overwrite: true,
+            notify: false
+        });
+
+        appliedSteps.push({
+            version: 6,
+            key: "starter-compendiums",
+            report
+        });
+        appliedVersion = 6;
+    }
+
+    if (appliedVersion < 7) {
+        const report = await migrateStarterCompendiums({
+            overwrite: true,
+            notify: false
+        });
+
+        appliedSteps.push({
+            version: 7,
+            key: "starter-compendiums-refresh",
+            report
+        });
+        appliedVersion = 7;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -120,6 +152,14 @@ export async function runTotcMigrations({
 
                 if (step.key === "actor-professions") {
                     return `${step.key}: ${step.report.actorsUpdated} actors updated`;
+                }
+
+                if (step.key === "starter-compendiums") {
+                    return `${step.key}: ${step.report.totalImported} documents imported`;
+                }
+
+                if (step.key === "starter-compendiums-refresh") {
+                    return `${step.key}: ${step.report.totalImported} documents imported`;
                 }
 
                 return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;
