@@ -73,6 +73,38 @@ function maybePromptInitiativeRolls(combat) {
     ui.notifications?.info(game.i18n.format("TOTC.Encounter.InitiativePrompt", { names }));
 }
 
+function rerenderEncounterActorSheets(combat) {
+    if (!combat) return;
+
+    const combatActorIds = new Set(
+        (combat.combatants?.contents ?? [])
+            .map((combatant) => combatant.actor?.id ?? combatant.actorId)
+            .filter(Boolean)
+    );
+    const combatTokenIds = new Set(
+        (combat.combatants?.contents ?? [])
+            .map((combatant) => combatant.tokenId ?? combatant.token?.id)
+            .filter(Boolean)
+    );
+
+    for (const app of Object.values(ui.windows ?? {})) {
+        const classes = app?.options?.classes ?? [];
+        if (!Array.isArray(classes)) continue;
+        if (!classes.includes("turn-of-the-century") || !classes.includes("actor")) continue;
+
+        const actorId = app.actor?.id;
+        const tokenId = app.token?.id ?? app.token?.document?.id;
+        const shouldRender = Boolean(
+            (actorId && combatActorIds.has(actorId))
+            || (tokenId && combatTokenIds.has(tokenId))
+        );
+
+        if (shouldRender) {
+            app.render(false);
+        }
+    }
+}
+
 function getIndexCount(pack) {
     return pack.index?.size ?? pack.index?.length ?? 0;
 }
@@ -367,6 +399,19 @@ Hooks.once("ready", () => {
 
 Hooks.on("updateCombat", (combat) => {
     maybePromptInitiativeRolls(combat);
+    rerenderEncounterActorSheets(combat);
+});
+
+Hooks.on("createCombatant", (combatant) => {
+    rerenderEncounterActorSheets(combatant?.combat);
+});
+
+Hooks.on("deleteCombatant", (combatant) => {
+    rerenderEncounterActorSheets(combatant?.combat);
+});
+
+Hooks.on("deleteCombat", (combat) => {
+    rerenderEncounterActorSheets(combat);
 });
 
 Hooks.once("shutdown", () => {

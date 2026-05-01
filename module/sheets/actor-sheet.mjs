@@ -200,8 +200,30 @@ function buildInventorySummary(actor, systemSource) {
     };
 }
 
-function findCombatantForActor(combat, actor) {
+function pickPreferredCombatant(combatants = []) {
+    if (!combatants.length) return null;
+    if (combatants.length === 1) return combatants[0];
+
+    const owned = combatants.find((entry) => Boolean(entry?.actor?.isOwner));
+    if (owned) return owned;
+
+    const current = game.combat?.combatant;
+    if (current) {
+        const active = combatants.find((entry) => entry.id === current.id);
+        if (active) return active;
+    }
+
+    return combatants[0];
+}
+
+function findCombatantForActor(combat, actor, tokenDocument = null) {
     if (!combat || !actor) return null;
+
+    const explicitTokenIds = new Set([
+        tokenDocument?.id,
+        tokenDocument?.object?.id,
+        tokenDocument?.document?.id
+    ].filter(Boolean));
 
     const actorIds = new Set([
         actor.id,
@@ -219,7 +241,8 @@ function findCombatantForActor(combat, actor) {
     const tokenIds = new Set([
         actor.token?.id,
         actor.token?.document?.id,
-        actor.parent?.id
+        actor.parent?.id,
+        ...explicitTokenIds
     ].filter(Boolean));
 
     if (typeof actor.getActiveTokens === "function") {
@@ -229,21 +252,49 @@ function findCombatantForActor(combat, actor) {
         }
     }
 
-    return combat.getCombatantByActor?.(actor.id)
-        ?? combat.getCombatantByActor?.(actor.baseActor?.id)
-        ?? combat.combatants?.find((entry) => actorIds.has(entry.actorId))
-        ?? combat.combatants?.find((entry) => actorIds.has(entry.actor?.id))
-        ?? combat.combatants?.find((entry) => actorIds.has(entry.token?.actorId))
-        ?? combat.combatants?.find((entry) => actorIds.has(entry.token?.actor?.id))
-        ?? combat.combatants?.find((entry) => actorUuids.has(entry.actor?.uuid))
-        ?? combat.combatants?.find((entry) => actorUuids.has(entry.token?.actor?.uuid))
-        ?? combat.combatants?.find((entry) => tokenIds.has(entry.tokenId))
-        ?? combat.combatants?.find((entry) => tokenIds.has(entry.token?.id))
-        ?? null;
+    const byExplicitToken = (combat.combatants?.contents ?? []).filter(
+        (entry) => explicitTokenIds.has(entry.tokenId) || explicitTokenIds.has(entry.token?.id)
+    );
+    if (byExplicitToken.length) {
+        return pickPreferredCombatant(byExplicitToken);
+    }
+
+    const byToken = (combat.combatants?.contents ?? []).filter(
+        (entry) => tokenIds.has(entry.tokenId) || tokenIds.has(entry.token?.id)
+    );
+    if (byToken.length) {
+        return pickPreferredCombatant(byToken);
+    }
+
+    const byActor = [
+        combat.getCombatantByActor?.(actor.id),
+        combat.getCombatantByActor?.(actor.baseActor?.id)
+    ].filter(Boolean);
+    if (byActor.length) {
+        return pickPreferredCombatant(byActor);
+    }
+
+    const actorMatches = (combat.combatants?.contents ?? []).filter((entry) => (
+        actorIds.has(entry.actorId)
+        || actorIds.has(entry.actor?.id)
+        || actorIds.has(entry.token?.actorId)
+        || actorIds.has(entry.token?.actor?.id)
+        || actorUuids.has(entry.actor?.uuid)
+        || actorUuids.has(entry.token?.actor?.uuid)
+    ));
+
+    return pickPreferredCombatant(actorMatches);
 }
 
-function resolveEncounterCombatForActor(actor) {
+function resolveEncounterCombatForActor(actor, tokenDocument = null) {
+    const tokenCombatant = tokenDocument?.combatant;
+    const tokenCombat = tokenCombatant?.combat;
+    if (tokenCombat?.initializeEncounterRound && tokenCombatant) {
+        return { combat: tokenCombat, combatant: tokenCombatant };
+    }
+
     const candidates = [
+        tokenCombat,
         ui.combat?.viewed,
         game.combat,
         ...(game.combats?.contents ?? [])
@@ -251,7 +302,7 @@ function resolveEncounterCombatForActor(actor) {
 
     for (const combat of candidates) {
         if (!combat.initializeEncounterRound) continue;
-        const combatant = findCombatantForActor(combat, actor);
+        const combatant = findCombatantForActor(combat, actor, tokenDocument);
         if (combatant) {
             return { combat, combatant };
         }
@@ -260,8 +311,8 @@ function resolveEncounterCombatForActor(actor) {
     return { combat: null, combatant: null };
 }
 
-function buildEncounterPlanner(actor) {
-    const { combat, combatant } = resolveEncounterCombatForActor(actor);
+function buildEncounterPlanner(actor, tokenDocument = null) {
+    const { combat, combatant } = resolveEncounterCombatForActor(actor, tokenDocument);
     if (!combat || !combatant) return null;
 
     const combatantState = combat.getCombatantState?.(combatant.id) ?? null;
@@ -427,7 +478,7 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
         context.system = systemSource;
         context.equipmentSlots = buildEquipmentSlots(this.actor, systemSource);
         context.inventorySummary = buildInventorySummary(this.actor, systemSource);
-        context.encounterPlanner = buildEncounterPlanner(this.actor);
+        context.encounterPlanner = buildEncounterPlanner(this.actor, this.token);
         
         const packItemIds = systemSource.inventory?.pack?.itemIds ?? [];
         context.packItems = packItemIds
