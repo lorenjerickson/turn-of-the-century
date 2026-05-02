@@ -2968,7 +2968,7 @@ async function importIntoCompendium(pack, entries) {
 
     await withPackUnlocked(pack, async (activePack) => {
         for (const entry of entries) {
-            const temporaryDocument = await activePack.documentClass.create(maybeDeepClone(entry), { temporary: true });
+            const temporaryDocument = new activePack.documentClass(maybeDeepClone(entry));
             await activePack.importDocument(temporaryDocument);
             imported += 1;
         }
