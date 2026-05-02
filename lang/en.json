@@ -112,5 +112,6 @@
     "TOTC.Sheet.Encounter": "Encounter",
     "TOTC.Sheet.Inventory": "Inventory",
     "TOTC.Sheet.Profile": "Profile",
+    "TOTC.Sheet.Save": "Save",
     "TOTC.Sheet.SystemData": "System Data"
 }

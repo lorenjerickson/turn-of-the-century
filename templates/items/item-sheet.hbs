@@ -1,4 +1,5 @@
 <form class="{{cssClass}} totc-item-sheet" autocomplete="off">
+    <input type="hidden" name="img" value="{{item.img}}" />
     <header class="sheet-header">
         <img class="profile-img" src="{{artworkImage}}" data-edit="img" title="{{item.name}}" height="96" width="96" />
         <section class="header-fields">
@@ -12,6 +13,9 @@
             <div class="item-actions">
                 <button type="button" data-action="use-item">
                     {{localize "TOTC.Item.Use"}}
+                </button>
+                <button type="submit" data-action="save-item">
+                    {{localize "TOTC.Sheet.Save"}}
                 </button>
             </div>
         </section>
