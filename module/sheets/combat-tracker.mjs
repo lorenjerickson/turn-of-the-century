@@ -75,7 +75,7 @@ export class TurnOfTheCenturyCombatTracker extends CombatTracker {
 
         context.turns = turns;
         context.totcEncounter = {
-            active: Boolean(encounterState && Object.keys(encounterState).length),
+            active: Boolean(encounterState?.initialized),
             phase,
             apBudget: combat.apBudget ?? 6,
             initiativeReady,

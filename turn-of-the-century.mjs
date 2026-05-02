@@ -36,7 +36,13 @@ import {
     migrateTotcEquipmentSlots,
     runTotcMigrations
 } from "./module/migrations.mjs";
-import { TurnOfTheCenturyActor, TurnOfTheCenturyCombat, TurnOfTheCenturyItem } from "./module/documents.mjs";
+import {
+    TurnOfTheCenturyActor,
+    TurnOfTheCenturyCombat,
+    TurnOfTheCenturyItem,
+    TOTC_ENCOUNTER_EVENTS,
+    getEncounterHookName
+} from "./module/documents.mjs";
 import {
     TurnOfTheCenturyHeroSheet,
     TurnOfTheCenturyPawnSheet,
@@ -52,6 +58,16 @@ const ENCOUNTER_MOVE_FEET_PER_AP_SETTING = "encounterMovementFeetPerAp";
 const ENCOUNTER_PLANNING_LIMIT_SECONDS_SETTING = "encounterPlanningLimitSeconds";
 const ENCOUNTER_PLANNING_WARNING_SECONDS_SETTING = "encounterPlanningWarningSeconds";
 const ENCOUNTER_REPLAY_STYLE_SETTING = "encounterReplayNarrationStyle";
+const ENCOUNTER_EVENT_HOOK_NAMES = [
+    "totcEncounterStateInitialized",
+    "totcEncounterPhaseChanged",
+    "totcEncounterPlanningStarted",
+    "totcEncounterPlanningEnded",
+    "totcEncounterRoundStarted",
+    "totcEncounterRoundResolved",
+    "totcEncounterCombatantReadyChanged",
+    "totcEncounterPlanUpdated"
+];
 let encounterPlanningWatchHandle = null;
 const initiativePromptKeys = new Set();
 
@@ -121,6 +137,101 @@ function rerenderEncounterActorSheets(combat) {
             app.render(false);
         }
     }
+}
+
+function rerenderEncounterTracker(combat) {
+    const tracker = ui.combat;
+    if (!tracker?.rendered || typeof tracker.render !== "function") return;
+
+    const viewedCombat = tracker.viewed ?? game.combat;
+    if (!viewedCombat || viewedCombat.id !== combat?.id) return;
+
+    tracker.render(false);
+}
+
+function handleEncounterEventHook(hookName, payload = {}) {
+    const combat = payload.combat ?? game.combat ?? null;
+    const summary = {
+        combat,
+        phase: payload.phase,
+        previousPhase: payload.previousPhase,
+        round: payload.round,
+        combatantId: payload.combatantId,
+        ready: payload.ready,
+        timelineCount: Array.isArray(payload.timeline) ? payload.timeline.length : undefined
+    };
+
+    logEncounterLifecycle(hookName, summary);
+    maybePromptInitiativeRolls(combat);
+    rerenderEncounterActorSheets(combat);
+    rerenderEncounterTracker(combat);
+}
+
+/**
+ * @typedef {object} EncounterEventSubscription
+ * @property {string}   eventName        - The TOTC_ENCOUNTER_EVENTS value that was subscribed to.
+ * @property {string}   hookName         - The Foundry hook name used internally.
+ * @property {Function} listener         - The original listener passed to onEvent.
+ * @property {Function} wrappedListener  - The internally wrapped listener registered with Hooks.
+ * @property {Function} unsubscribe      - Call to remove this listener from the Foundry hook.
+ */
+
+function ensureEncounterEventName(eventName) {
+    const key = String(eventName ?? "").trim();
+    if (!key) throw new Error("Encounter event name is required.");
+    if (!Object.values(TOTC_ENCOUNTER_EVENTS).includes(key)) {
+        throw new Error(`Unsupported encounter event: ${eventName}`);
+    }
+    return key;
+}
+
+/**
+ * Register a listener on a Foundry hook that fires for the given encounter
+ * lifecycle event. Returns an {@link EncounterEventSubscription} that can be
+ * passed to `removeEncounterEventSubscription` or have its `unsubscribe()`
+ * method called to clean up.
+ *
+ * @param {string}   eventName - A value from {@link TOTC_ENCOUNTER_EVENTS}.
+ * @param {Function} listener  - Callback invoked with the encounter event payload.
+ * @returns {EncounterEventSubscription}
+ */
+function createEncounterEventSubscription(eventName, listener) {
+    const resolvedEventName = ensureEncounterEventName(eventName);
+    if (typeof listener !== "function") {
+        throw new Error("Encounter event listener must be a function.");
+    }
+
+    const hookName = getEncounterHookName(resolvedEventName);
+    if (!hookName) {
+        throw new Error(`No Foundry hook mapping exists for encounter event: ${resolvedEventName}`);
+    }
+
+    const wrappedListener = (payload) => {
+        listener(payload);
+    };
+
+    Hooks.on(hookName, wrappedListener);
+    return {
+        eventName: resolvedEventName,
+        hookName,
+        listener,
+        wrappedListener,
+        unsubscribe: () => {
+            Hooks.off(hookName, wrappedListener);
+        }
+    };
+}
+
+/**
+ * Remove a listener created by {@link createEncounterEventSubscription}.
+ *
+ * @param {EncounterEventSubscription} subscription
+ * @returns {boolean} `true` if the listener was found and removed.
+ */
+function removeEncounterEventSubscription(subscription) {
+    if (!subscription?.hookName || typeof subscription?.wrappedListener !== "function") return false;
+    Hooks.off(subscription.hookName, subscription.wrappedListener);
+    return true;
 }
 
 function getIndexCount(pack) {
@@ -361,6 +472,57 @@ Hooks.once("ready", () => {
         }
     };
     game.turnOfTheCentury.encounters = {
+        /**
+         * Read-only map of all encounter event name constants.
+         * Use these as the `eventName` argument for `onEvent`.
+         * @type {Readonly<Record<string,string>>}
+         */
+        events: Object.freeze(foundry.utils.deepClone(TOTC_ENCOUNTER_EVENTS)),
+
+        /**
+         * Resolve the Foundry hook name that is called when a given encounter
+         * event fires. Useful if you prefer `Hooks.on` directly over `onEvent`.
+         *
+         * @param {string} eventName - A value from `encounters.events`.
+         * @returns {string} The matching Foundry hook name.
+         * @throws If `eventName` is not a recognized encounter event.
+         */
+        getEventHookName: (eventName) => {
+            const resolvedEventName = ensureEncounterEventName(eventName);
+            return getEncounterHookName(resolvedEventName);
+        },
+
+        /**
+         * Subscribe to an encounter lifecycle event. Returns an
+         * {@link EncounterEventSubscription} object with an `unsubscribe()`
+         * method and the original event/hook metadata.
+         *
+         * @param {object}   options
+         * @param {string}   options.eventName - A value from `encounters.events`.
+         * @param {Function} options.listener  - Callback invoked with the event payload.
+         * @returns {EncounterEventSubscription}
+         *
+         * @example
+         * const sub = game.turnOfTheCentury.encounters.onEvent({
+         *   eventName: game.turnOfTheCentury.encounters.events.PLANNING_STARTED,
+         *   listener: ({ combat, round }) => console.log(`Round ${round} planning began`)
+         * });
+         * // Clean up:
+         * sub.unsubscribe();
+         */
+        onEvent: ({ eventName, listener }) => {
+            return createEncounterEventSubscription(eventName, listener);
+        },
+
+        /**
+         * Unsubscribe a listener that was registered with `onEvent`.
+         *
+         * @param {EncounterEventSubscription} subscription - The object returned by `onEvent`.
+         * @returns {boolean} `true` if the listener was found and removed.
+         */
+        offEvent: (subscription) => {
+            return removeEncounterEventSubscription(subscription);
+        },
         getCatalog: () => getBaseActionCatalog(),
         getSettings: () => ({
             apBudget: getActionPointBudget(),
@@ -440,7 +602,14 @@ Hooks.on("updateCombat", (combat) => {
     logEncounterLifecycle("updateCombat", { combat });
     maybePromptInitiativeRolls(combat);
     rerenderEncounterActorSheets(combat);
+    rerenderEncounterTracker(combat);
 });
+
+for (const hookName of ENCOUNTER_EVENT_HOOK_NAMES) {
+    Hooks.on(hookName, (payload) => {
+        handleEncounterEventHook(hookName, payload);
+    });
+}
 
 Hooks.on("createCombatant", (combatant) => {
     logEncounterLifecycle("createCombatant", { combatantId: combatant?.id, combatant });
