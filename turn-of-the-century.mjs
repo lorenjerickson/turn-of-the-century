@@ -127,6 +127,22 @@ function getIndexCount(pack) {
     return pack.index?.size ?? pack.index?.length ?? 0;
 }
 
+async function getStarterCompendiumDocumentCount() {
+    const systemId = game.system?.id;
+    const packNames = Object.values(TOTC_SAMPLE_COMPENDIUMS);
+    let total = 0;
+
+    for (const packName of packNames) {
+        const pack = game.packs.get(`${systemId}.${packName}`);
+        if (!pack) continue;
+
+        await pack.getIndex();
+        total += getIndexCount(pack);
+    }
+
+    return total;
+}
+
 async function maybeRunAutomatedMigrations() {
     if (!game?.ready || !game.user?.isGM) return;
 
@@ -158,7 +174,12 @@ async function maybeSeedStarterCompendiums() {
     if (!game?.ready || !game.user?.isGM) return;
 
     const isSeeded = game.settings.get("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING);
-    if (isSeeded) return;
+    if (isSeeded) {
+        const starterDocumentCount = await getStarterCompendiumDocumentCount();
+        if (starterDocumentCount > 0) return;
+
+        console.warn("[turn-of-the-century] Starter compendium seeded flag is true but packs are empty. Re-seeding starter compendiums.");
+    }
 
     try {
         await publishTotcSampleCompendiums({ overwrite: true });

@@ -90,11 +90,11 @@ export class TurnOfTheCenturyItemSheet extends ItemSheet {
             if (!result?.success) ui.notifications.warn(game.i18n.localize("TOTC.Item.UseUnavailable"));
         });
 
-        html.find("[data-action='save-item']").on("click", () => this.#syncImageField());
+        html.find("[data-action='save-item']").on("click", () => this._syncImageField());
     }
 
     _getSubmitData(updateData = {}) {
-        this.#syncImageField();
+        this._syncImageField();
         return super._getSubmitData(updateData);
     }
 
@@ -121,7 +121,7 @@ export class TurnOfTheCenturyItemSheet extends ItemSheet {
     async close(options = {}) {
         if (this.isEditable && this.form) {
             try {
-                this.#syncImageField();
+                this._syncImageField();
                 await this.submit({ preventClose: true, preventRender: true });
             } catch (error) {
                 console.error("[turn-of-the-century] Failed to save item sheet before close.", error);
@@ -132,7 +132,7 @@ export class TurnOfTheCenturyItemSheet extends ItemSheet {
         return super.close(options);
     }
 
-    #syncImageField() {
+    _syncImageField() {
         if (!this.form) return;
 
         const imageInput = this.form.querySelector("input[name='img']");
