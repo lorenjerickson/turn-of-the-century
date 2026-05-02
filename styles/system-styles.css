@@ -184,9 +184,19 @@
 }
 
 .turn-of-the-century.sheet.actor .sheet-main {
+    display: flex;
     flex: 1;
+    flex-direction: column;
     min-width: 0;
     overflow-y: auto;
+}
+
+.turn-of-the-century.sheet.actor .tab.encounter {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .turn-of-the-century.sheet.actor .form-group.stacked {
@@ -435,6 +445,15 @@
     margin-top: 14px;
 }
 
+.turn-of-the-century.sheet.actor .totc-encounter-planner {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    margin-top: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .turn-of-the-century.sheet.actor .totc-inventory-group h2 {
     border-bottom: 1px solid #b7a993;
     font-size: 1rem;
@@ -520,15 +539,21 @@
 
 .turn-of-the-century .totc-encounter-dual-list {
     display: grid;
+    flex: 1;
     gap: 12px;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     margin-top: 10px;
+    min-height: 0;
 }
 
 .turn-of-the-century .totc-encounter-listbox {
     background: rgba(111, 96, 76, 0.08);
     border: 1px solid #b7a993;
     border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
     padding: 8px;
 }
 
@@ -541,6 +566,12 @@
 
 .turn-of-the-century .totc-encounter-listbox select {
     width: 100%;
+}
+
+.turn-of-the-century .totc-encounter-action-select {
+    flex: 1;
+    height: 0;
+    min-height: 4em;
 }
 
 .turn-of-the-century .totc-encounter-plan-controls {
@@ -564,9 +595,12 @@
 
 .turn-of-the-century .totc-encounter-queue {
     display: grid;
+    flex: 1;
     gap: 4px;
     list-style: decimal;
     margin: 8px 0 0 18px;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .turn-of-the-century .totc-encounter-queue li {

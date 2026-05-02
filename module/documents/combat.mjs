@@ -346,10 +346,10 @@ export class TurnOfTheCenturyEncounter {
         }
     }
 
-    #defaultCombatantState() {
+    #defaultCombatantState(apBudget) {
         return {
             spentAp: 0,
-            remainingAp: this.apBudget,
+            remainingAp: apBudget,
             plan: [],
             pointer: 0,
             progress: 0,
@@ -366,10 +366,12 @@ export class TurnOfTheCenturyEncounter {
             ? foundry.utils.deepClone(existing.actionCatalog)
             : getBaseActionCatalog();
 
+        const apBudget = Number(existing.apBudget ?? getActionPointBudget() ?? TOTC_BASE_ACTION_POINT_BUDGET);
+
         const perCombatant = foundry.utils.deepClone(existing.perCombatant ?? {});
         for (const combatant of this.#combat.combatants?.contents ?? []) {
             perCombatant[combatant.id] = {
-                ...this.#defaultCombatantState(),
+                ...this.#defaultCombatantState(apBudget),
                 ...(perCombatant[combatant.id] ?? {}),
                 plan: toArray(perCombatant[combatant.id]?.plan)
             };
@@ -378,7 +380,7 @@ export class TurnOfTheCenturyEncounter {
         return {
             initialized,
             phase: TOTC_ENCOUNTER_PHASES.includes(existing.phase) ? existing.phase : "planning",
-            apBudget: Number(existing.apBudget ?? getActionPointBudget() ?? TOTC_BASE_ACTION_POINT_BUDGET),
+            apBudget,
             actionCatalog,
             perCombatant,
             timeline: toArray(existing.timeline),
