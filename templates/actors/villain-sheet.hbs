@@ -208,10 +208,11 @@
                         <div class="totc-encounter-dual-list">
                             <div class="totc-encounter-listbox">
                                 <h3>{{localize "TOTC.Encounter.AvailableActions"}}</h3>
-                                <select class="totc-encounter-action-select" size="8" {{#unless encounterPlanner.canEditPlan}}disabled{{/unless}}>
+                                <div class="totc-encounter-action-list">
                                     {{#each encounterPlanner.availableActions as |action|}}
-                                        <option
-                                            value="{{action.id}}"
+                                        <button
+                                            type="button"
+                                            class="totc-encounter-action-item"
                                             data-id="{{action.id}}"
                                             data-action-id="{{action.actionId}}"
                                             data-type="{{action.type}}"
@@ -225,9 +226,18 @@
                                             data-item-id="{{action.itemId}}"
                                             data-movement-feet="{{action.movementFeet}}"
                                             data-movement-feet-per-ap="{{action.movementFeetPerAp}}"
-                                        >{{action.label}} ({{action.apCost}} AP)</option>
+                                            {{#unless encounterPlanner.canEditPlan}}disabled{{/unless}}
+                                        >
+                                            <span class="totc-encounter-action-item__icon">
+                                                <i class="fas fa-{{#if (eq action.type 'attack')}}crossed-swords{{else if (eq action.type 'movement')}}person-hiking{{else if (eq action.type 'defend')}}shield{{else}}dot-circle{{/if}}"></i>
+                                            </span>
+                                            <span class="totc-encounter-action-item__content">
+                                                <span class="totc-encounter-action-item__name">{{action.label}}</span>
+                                            </span>
+                                            <span class="totc-encounter-action-item__ap">{{action.apCost}} AP</span>
+                                        </button>
                                     {{/each}}
-                                </select>
+                                </div>
                                 <select class="totc-encounter-target-select" {{#unless encounterPlanner.canEditPlan}}disabled{{/unless}}>
                                     <option value="">{{localize "TOTC.Encounter.Target.None"}}</option>
                                     {{#each encounterPlanner.targetOptions as |target|}}
@@ -248,14 +258,31 @@
                                 {{#if encounterPlanner.queue.length}}
                                     <ol class="totc-encounter-queue">
                                         {{#each encounterPlanner.queue as |action actionIndex|}}
-                                            <li>
-                                                <div class="totc-encounter-queue-row">
-                                                    <span>{{action.label}} ({{action.apCost}} AP)</span>
-                                                    <button type="button" data-action="totc-encounter-remove-action" data-combatant-id="{{../encounterPlanner.combatantId}}" data-action-index="{{actionIndex}}" {{#unless ../encounterPlanner.canEditPlan}}disabled{{/unless}}>{{localize "TOTC.Encounter.RemoveAction"}}</button>
-                                                </div>
+                                            <li class="totc-encounter-queued-action">
+                                                <span class="totc-encounter-action-item__icon">
+                                                    <i class="fas fa-{{#if (eq action.type 'attack')}}crossed-swords{{else if (eq action.type 'movement')}}person-hiking{{else if (eq action.type 'defend')}}shield{{else}}dot-circle{{/if}}"></i>
+                                                </span>
+                                                <span class="totc-encounter-action-item__content">
+                                                    <span class="totc-encounter-action-item__name">{{action.label}}</span>
+                                                    {{#if action.variableAp}}
+                                                        <span class="totc-encounter-action-item__ap-range">{{action.apCost}} / {{action.apMax}} AP</span>
+                                                    {{else}}
+                                                        <span class="totc-encounter-action-item__ap-fixed">{{action.apCost}} AP</span>
+                                                    {{/if}}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    class="totc-encounter-action-item__delete"
+                                                    data-action="totc-encounter-remove-action"
+                                                    data-combatant-id="{{../encounterPlanner.combatantId}}"
+                                                    data-action-index="{{actionIndex}}"
+                                                    title="{{localize 'TOTC.Encounter.RemoveAction'}}"
+                                                    {{#unless ../encounterPlanner.canEditPlan}}disabled{{/unless}}
+                                                >
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
                                                 {{#if action.variableAp}}
                                                     <label class="totc-encounter-action-slider">
-                                                        {{localize "TOTC.Encounter.ActionPoints"}}
                                                         <input
                                                             type="range"
                                                             min="{{action.apMin}}"
@@ -267,7 +294,6 @@
                                                             data-action-index="{{actionIndex}}"
                                                             {{#unless ../encounterPlanner.canEditPlan}}disabled{{/unless}}
                                                         />
-                                                        <span>{{action.apCost}}</span>
                                                     </label>
                                                 {{/if}}
                                             </li>

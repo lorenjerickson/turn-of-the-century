@@ -664,25 +664,24 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
             if (!combatantId || !game.combat?.addCombatantAction) return;
 
             const row = event.currentTarget.closest(".totc-encounter-planner");
-            const actionSelect = row?.querySelector(".totc-encounter-action-select");
+            const selectedButton = row?.querySelector(".totc-encounter-action-item.active");
             const targetSelect = row?.querySelector(".totc-encounter-target-select");
-            const selectedOption = actionSelect?.selectedOptions?.[0];
-            if (!selectedOption) return;
+            if (!selectedButton) return;
 
             const actionData = {
-                id: selectedOption.dataset.id,
-                actionId: selectedOption.dataset.actionId,
-                type: selectedOption.dataset.type,
-                label: selectedOption.dataset.label,
-                apCost: Number(selectedOption.dataset.apCost || 1),
-                apMin: Number(selectedOption.dataset.apMin || selectedOption.dataset.apCost || 1),
-                apMax: Number(selectedOption.dataset.apMax || selectedOption.dataset.apCost || 1),
-                variableAp: selectedOption.dataset.variableAp === "true",
-                requiresToHit: selectedOption.dataset.requiresToHit === "true",
-                toHitBonus: Number(selectedOption.dataset.toHitBonus || 0),
-                movementFeet: Number(selectedOption.dataset.movementFeet || 0),
-                movementFeetPerAp: Number(selectedOption.dataset.movementFeetPerAp || 0),
-                itemId: selectedOption.dataset.itemId || null,
+                id: selectedButton.dataset.id,
+                actionId: selectedButton.dataset.actionId,
+                type: selectedButton.dataset.type,
+                label: selectedButton.dataset.label,
+                apCost: Number(selectedButton.dataset.apCost || 1),
+                apMin: Number(selectedButton.dataset.apMin || selectedButton.dataset.apCost || 1),
+                apMax: Number(selectedButton.dataset.apMax || selectedButton.dataset.apCost || 1),
+                variableAp: selectedButton.dataset.variableAp === "true",
+                requiresToHit: selectedButton.dataset.requiresToHit === "true",
+                toHitBonus: Number(selectedButton.dataset.toHitBonus || 0),
+                movementFeet: Number(selectedButton.dataset.movementFeet || 0),
+                movementFeetPerAp: Number(selectedButton.dataset.movementFeetPerAp || 0),
+                itemId: selectedButton.dataset.itemId || null,
                 targetId: targetSelect?.value || null
             };
 
@@ -702,17 +701,24 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
             this.render(true);
         });
 
-        html.find(".totc-encounter-action-select").on("change", (event) => {
+        html.find(".totc-encounter-action-item").on("click", (event) => {
             const select = event.currentTarget;
-            const row = select.closest(".totc-encounter-planner");
+            const row = event.currentTarget.closest(".totc-encounter-planner");
             const apInput = row?.querySelector(".totc-encounter-ap-input");
-            const selectedOption = select.selectedOptions?.[0];
-            if (!selectedOption || !apInput) return;
+            if (!apInput) return;
 
-            const variableAp = selectedOption.dataset.variableAp === "true";
-            const apMin = Number(selectedOption.dataset.apMin || selectedOption.dataset.apCost || 1);
-            const apMax = Number(selectedOption.dataset.apMax || selectedOption.dataset.apCost || apMin);
-            const apCost = Number(selectedOption.dataset.apCost || apMin || 1);
+            // Remove active class from siblings
+            row?.querySelectorAll(".totc-encounter-action-item").forEach((btn) => {
+                btn.classList.remove("active");
+            });
+            
+            // Add active class to clicked button
+            event.currentTarget.classList.add("active");
+            
+            const variableAp = event.currentTarget.dataset.variableAp === "true";
+            const apMin = Number(event.currentTarget.dataset.apMin || event.currentTarget.dataset.apCost || 1);
+            const apMax = Number(event.currentTarget.dataset.apMax || event.currentTarget.dataset.apCost || apMin);
+            const apCost = Number(event.currentTarget.dataset.apCost || apMin || 1);
 
             apInput.disabled = !variableAp;
             apInput.min = String(Math.max(1, apMin));
@@ -732,9 +738,11 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
             this.render(true);
         });
 
-        html.find(".totc-encounter-action-select").each((_, select) => {
-            select.dispatchEvent(new Event("change"));
-        });
+        // Select the first action by default
+        const firstActionButton = html.find(".totc-encounter-action-item").first();
+        if (firstActionButton.length) {
+            firstActionButton.click();
+        }
 
         html.find("[data-action='totc-encounter-remove-action']").on("click", async (event) => {
             event.preventDefault();
