@@ -334,6 +334,53 @@ function resolveEncounterCombatForActor(actor, tokenDocument = null) {
     return { combat: null, combatant: null };
 }
 
+const ACTION_TYPE_ICONS = {
+    attack: "systems/turn-of-the-century/assets/icons/action-attack.svg",
+    movement: "systems/turn-of-the-century/assets/icons/action-move.svg",
+    defense: "systems/turn-of-the-century/assets/icons/action-defend.svg",
+    consumable: "systems/turn-of-the-century/assets/icons/action-use.svg"
+};
+const ACTION_FALLBACK_ICON = "icons/svg/d20-grey.svg";
+
+function resolveActionImg(action, actor) {
+    if (action.itemId) {
+        const item = actor?.items?.get(action.itemId);
+        if (item?.img) return item.img;
+    }
+    return ACTION_TYPE_ICONS[action.type] ?? ACTION_FALLBACK_ICON;
+}
+
+function buildPlanSlots(queue, apBudget, actor) {
+    const slots = [];
+    let usedAp = 0;
+
+    for (const [index, action] of queue.entries()) {
+        const cost = Math.max(1, Number(action.apCost || 1));
+        slots.push({
+            type: "action",
+            action: { ...action, img: resolveActionImg(action, actor) },
+            actionIndex: index,
+            span: cost
+        });
+        usedAp += cost;
+    }
+
+    const remaining = Math.max(0, apBudget - usedAp);
+    for (let i = 0; i < remaining; i++) {
+        slots.push({ type: "empty", span: 1, slotIndex: usedAp + i });
+    }
+
+    return slots;
+}
+
+function formatPlanningTime(totalSeconds) {
+    const s = Math.max(0, Math.floor(totalSeconds));
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    if (mins > 0) return `${mins}m ${secs}s`;
+    return `${secs}s`;
+}
+
 function buildEncounterPlanner(actor, tokenDocument = null) {
     const { combat, combatant } = resolveEncounterCombatForActor(actor, tokenDocument);
     if (!combat || !combatant) {
@@ -365,32 +412,50 @@ function buildEncounterPlanner(actor, tokenDocument = null) {
     const round = Number(combat.encounterState?.round ?? combat.round ?? 1);
     const missingInitiative = combat.getMissingInitiativeCombatants?.() ?? [];
     const initiativeReady = missingInitiative.length === 0;
+    const remainingAp = Number(combat.getCombatantRemainingAp?.(combatant.id) ?? 0);
+    const planningRemainingSeconds = Number(combat.planningRemainingSeconds ?? 0);
+    const phase = combat.phase ?? "planning";
+
+    const rawAvailableActions = combat.getAvailableActionsForCombatant?.(combatant.id) ?? [];
+    const availableActions = rawAvailableActions.map((action) => ({
+        ...action,
+        img: resolveActionImg(action, actor),
+        apLabel: action.variableAp
+            ? `(${action.apMin}-${action.apMax} points)`
+            : `(${action.apCost} point${action.apCost === 1 ? "" : "s"})`
+    }));
+
+    const targetOptions = combat.getTargetOptionsForCombatant?.(combatant.id) ?? [];
+    const planSlots = buildPlanSlots(queue, apBudget, actor);
 
     return {
         combatId: combat.id,
         combatantId: combatant.id,
-        phase: combat.phase ?? "planning",
+        encounterName: combat.name ?? "Encounter",
+        phase,
         round,
         apBudget,
         plannedAp,
+        remainingAp,
         apMeterPercent: apBudget > 0 ? Math.min(100, Math.round((plannedAp / apBudget) * 100)) : 0,
         spentAp: Number(combatantState?.spentAp ?? 0),
-        remainingAp: Number(combat.getCombatantRemainingAp?.(combatant.id) ?? 0),
         planningElapsedSeconds: Number(combat.planningElapsedSeconds ?? 0),
         planningLimitSeconds: Number(combat.planningLimitSeconds ?? 60),
-        planningRemainingSeconds: Number(combat.planningRemainingSeconds ?? 0),
+        planningRemainingSeconds,
+        planningTimeDisplay: formatPlanningTime(planningRemainingSeconds),
         committedCount,
         combatantCount: combatants.length,
         ready: Boolean(combatantState?.ready),
         initiativeReady,
         missingInitiativeCount: missingInitiative.length,
         canRollInitiative: Boolean(combat.canCurrentUserRollInitiative?.(combatant.id)),
-        canCommit: initiativeReady && (combat.phase ?? "planning") === "planning" && !Boolean(combatantState?.ready),
-        canEditPlan: initiativeReady && (combat.phase ?? "planning") === "planning" && !Boolean(combatantState?.ready),
+        canCommit: initiativeReady && phase === "planning" && !Boolean(combatantState?.ready),
+        canEditPlan: initiativeReady && phase === "planning" && !Boolean(combatantState?.ready),
         planningWarningActive: Boolean(combat.isPlanningWarningActive),
         queue,
-        availableActions: combat.getAvailableActionsForCombatant?.(combatant.id) ?? [],
-        targetOptions: combat.getTargetOptionsForCombatant?.(combatant.id) ?? []
+        planSlots,
+        availableActions,
+        targetOptions
     };
 }
 
@@ -488,6 +553,116 @@ async function assignItemToSlot(actor, itemId, slotKey, index) {
     return actor.update({
         [`system.inventory.equipment.${slotKey}.itemIds`]: updated
     });
+}
+
+function readActionFromElement(el) {
+    if (!el) return null;
+    const d = el.dataset;
+    return {
+        id: d.id,
+        actionId: d.actionId,
+        type: d.type,
+        label: d.label,
+        img: d.img || null,
+        apCost: Number(d.apCost || 1),
+        apMin: Number(d.apMin || d.apCost || 1),
+        apMax: Number(d.apMax || d.apCost || 1),
+        variableAp: d.variableAp === "true",
+        requiresToHit: d.requiresToHit === "true",
+        toHitBonus: Number(d.toHitBonus || 0),
+        movementFeet: Number(d.movementFeet || 0),
+        movementFeetPerAp: Number(d.movementFeetPerAp || 0),
+        itemId: d.itemId || null,
+        targetId: null
+    };
+}
+
+function finalizeActionData(actionData, apCost, targetId) {
+    const min = Math.max(1, Number(actionData.apMin || 1));
+    const max = Math.max(min, Number(actionData.apMax || min));
+    const cost = Math.max(min, Math.min(max, Number(apCost) || min));
+    const result = { ...actionData, apCost: cost, targetId: targetId || null };
+    if (result.type === "movement") {
+        const feetPerAp = Number(result.movementFeetPerAp || 10);
+        result.movementFeet = feetPerAp * cost;
+    }
+    return result;
+}
+
+function showInlinePlannerConfig(plannerSection, planner, actionData, remainingAp, combatantId, sheet) {
+    // Remove any existing inline config panel
+    plannerSection?.querySelector(".totc-planner-inline-config")?.remove();
+
+    const targetOptions = game.combat?.getTargetOptionsForCombatant?.(combatantId) ?? [];
+    const needsTarget = actionData.requiresToHit && targetOptions.length > 0;
+    const needsAp = actionData.variableAp;
+    const apMin = Math.max(1, Number(actionData.apMin || 1));
+    const apMax = Math.min(Math.max(apMin, Number(actionData.apMax || apMin)), remainingAp);
+    const apDefault = Math.max(apMin, Math.min(apMax, Number(actionData.apCost || apMin)));
+
+    const panel = document.createElement("div");
+    panel.className = "totc-planner-inline-config";
+
+    let apHtml = "";
+    if (needsAp) {
+        apHtml = `
+            <label class="totc-planner-config-row">
+                <span>${game.i18n?.localize("TOTC.Encounter.ActionPoints") ?? "Action Points"} (${apMin}–${apMax})</span>
+                <input type="range" class="totc-planner-config__ap-range" min="${apMin}" max="${apMax}" step="1" value="${apDefault}" />
+                <span class="totc-planner-config__ap-display">${apDefault}</span>
+            </label>`;
+    }
+
+    let targetHtml = "";
+    if (needsTarget) {
+        const options = targetOptions.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
+        targetHtml = `
+            <label class="totc-planner-config-row">
+                <span>${game.i18n?.localize("TOTC.Encounter.Target") ?? "Target"}</span>
+                <select class="totc-planner-config__target">${options}</select>
+            </label>`;
+    }
+
+    panel.innerHTML = `
+        <div class="totc-planner-config-header">
+            <img src="${actionData.img || "icons/svg/d20-grey.svg"}" class="totc-planner-config__img" onerror="this.src='icons/svg/d20-grey.svg'" />
+            <span class="totc-planner-config__name">${actionData.label}</span>
+        </div>
+        ${apHtml}
+        ${targetHtml}
+        <div class="totc-planner-config-footer">
+            <button type="button" class="totc-planner-config__cancel">${game.i18n?.localize("TOTC.Encounter.Cancel") ?? "Cancel"}</button>
+            <button type="button" class="totc-planner-config__confirm">${game.i18n?.localize("TOTC.Encounter.ConfirmAction") ?? "Confirm"}</button>
+        </div>`;
+
+    // Live-update the AP display as the slider moves
+    const rangeInput = panel.querySelector(".totc-planner-config__ap-range");
+    const apDisplay = panel.querySelector(".totc-planner-config__ap-display");
+    if (rangeInput && apDisplay) {
+        rangeInput.addEventListener("input", () => { apDisplay.textContent = rangeInput.value; });
+    }
+
+    panel.querySelector(".totc-planner-config__cancel").addEventListener("click", () => {
+        panel.remove();
+    });
+
+    panel.querySelector(".totc-planner-config__confirm").addEventListener("click", async () => {
+        const apCost = rangeInput ? Number(rangeInput.value) : actionData.apCost;
+        const targetId = panel.querySelector(".totc-planner-config__target")?.value ?? null;
+        const final = finalizeActionData(actionData, apCost, targetId);
+        panel.remove();
+        if (!game.combat?.addCombatantAction) return;
+        await game.combat.addCombatantAction(combatantId, final);
+        sheet.render(true);
+    });
+
+    // Insert just before the planned column footer
+    const footer = plannerSection?.querySelector(".totc-planner-footer");
+    if (footer) {
+        footer.closest(".totc-planner-planned")?.insertBefore(panel, footer);
+    } else {
+        plannerSection?.appendChild(panel);
+    }
 }
 
 export class TurnOfTheCenturyActorSheet extends ActorSheet {
@@ -657,93 +832,97 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
             this.render(true);
         });
 
-        html.find("[data-action='totc-encounter-add-action']").on("click", async (event) => {
+        // ── Available Action: double-click to add ──────────────────────────
+        html.find(".totc-planner-available-action").on("dblclick", async (event) => {
             event.preventDefault();
+            const el = event.currentTarget;
+            if (el.classList.contains("totc-planner-available-action--disabled")) return;
 
-            const combatantId = event.currentTarget.dataset.combatantId;
+            const planner = el.closest(".totc-planner-columns");
+            const combatantId = planner?.dataset.combatantId;
             if (!combatantId || !game.combat?.addCombatantAction) return;
 
-            const row = event.currentTarget.closest(".totc-encounter-planner");
-            const selectedButton = row?.querySelector(".totc-encounter-action-item.active");
-            const targetSelect = row?.querySelector(".totc-encounter-target-select");
-            if (!selectedButton) return;
+            const actionData = readActionFromElement(el);
+            if (!actionData) return;
 
-            const actionData = {
-                id: selectedButton.dataset.id,
-                actionId: selectedButton.dataset.actionId,
-                type: selectedButton.dataset.type,
-                label: selectedButton.dataset.label,
-                apCost: Number(selectedButton.dataset.apCost || 1),
-                apMin: Number(selectedButton.dataset.apMin || selectedButton.dataset.apCost || 1),
-                apMax: Number(selectedButton.dataset.apMax || selectedButton.dataset.apCost || 1),
-                variableAp: selectedButton.dataset.variableAp === "true",
-                requiresToHit: selectedButton.dataset.requiresToHit === "true",
-                toHitBonus: Number(selectedButton.dataset.toHitBonus || 0),
-                movementFeet: Number(selectedButton.dataset.movementFeet || 0),
-                movementFeetPerAp: Number(selectedButton.dataset.movementFeetPerAp || 0),
-                itemId: selectedButton.dataset.itemId || null,
-                targetId: targetSelect?.value || null
-            };
-
-            if (actionData.variableAp) {
-                const apInput = row?.querySelector(".totc-encounter-ap-input");
-                const selectedCost = Number(apInput?.value || actionData.apCost || actionData.apMin || 1);
-                const min = Math.max(1, Number(actionData.apMin || 1));
-                const max = Math.max(min, Number(actionData.apMax || min));
-                actionData.apCost = Math.max(min, Math.min(max, selectedCost));
-                if (actionData.type === "movement") {
-                    const feetPerAp = Number(actionData.movementFeetPerAp || 10);
-                    actionData.movementFeet = feetPerAp * actionData.apCost;
-                }
+            const remainingAp = Number(planner.dataset.remainingAp ?? 0);
+            if (actionData.apMin > remainingAp) {
+                ui.notifications?.warn(game.i18n?.localize("TOTC.Encounter.InsufficientAp") ?? "Insufficient AP remaining.");
+                return;
             }
 
-            await game.combat.addCombatantAction(combatantId, actionData);
-            this.render(true);
+            const needsConfig = actionData.variableAp
+                || (actionData.requiresToHit && (game.combat?.getTargetOptionsForCombatant?.(combatantId) ?? []).length > 0);
+
+            if (needsConfig) {
+                showInlinePlannerConfig(el.closest(".totc-encounter-planner"), planner, actionData, remainingAp, combatantId, this);
+            } else {
+                await game.combat.addCombatantAction(combatantId, actionData);
+                this.render(true);
+            }
         });
 
-        html.find(".totc-encounter-action-item").on("click", (event) => {
-            const select = event.currentTarget;
-            const row = event.currentTarget.closest(".totc-encounter-planner");
-            const apInput = row?.querySelector(".totc-encounter-ap-input");
-            if (!apInput) return;
-
-            // Remove active class from siblings
-            row?.querySelectorAll(".totc-encounter-action-item").forEach((btn) => {
-                btn.classList.remove("active");
-            });
-            
-            // Add active class to clicked button
-            event.currentTarget.classList.add("active");
-            
-            const variableAp = event.currentTarget.dataset.variableAp === "true";
-            const apMin = Number(event.currentTarget.dataset.apMin || event.currentTarget.dataset.apCost || 1);
-            const apMax = Number(event.currentTarget.dataset.apMax || event.currentTarget.dataset.apCost || apMin);
-            const apCost = Number(event.currentTarget.dataset.apCost || apMin || 1);
-
-            apInput.disabled = !variableAp;
-            apInput.min = String(Math.max(1, apMin));
-            apInput.max = String(Math.max(apInput.min, apMax));
-            apInput.value = String(Math.max(apMin, Math.min(apMax, apCost)));
+        // ── Available Action: drag start ────────────────────────────────────
+        html.find(".totc-planner-available-action").on("dragstart", (event) => {
+            const el = event.currentTarget;
+            if (el.classList.contains("totc-planner-available-action--disabled")) {
+                event.preventDefault();
+                return;
+            }
+            const actionData = readActionFromElement(el);
+            if (!actionData) return;
+            event.originalEvent.dataTransfer.effectAllowed = "copy";
+            event.originalEvent.dataTransfer.setData("text/plain", JSON.stringify({ totcAction: actionData }));
         });
 
-        html.find("[data-action='totc-encounter-set-ap']").on("change", async (event) => {
+        // ── Planned slot: drag-over / drop ─────────────────────────────────
+        html.find(".totc-planner-slot--empty").on("dragover", (event) => {
             event.preventDefault();
-
-            const combatantId = event.currentTarget.dataset.combatantId;
-            const actionIndex = Number(event.currentTarget.dataset.actionIndex);
-            const apCost = Number(event.currentTarget.value || 1);
-            if (!combatantId || Number.isNaN(actionIndex) || Number.isNaN(apCost) || !game.combat?.setCombatantActionApCost) return;
-
-            await game.combat.setCombatantActionApCost(combatantId, actionIndex, apCost);
-            this.render(true);
+            event.originalEvent.dataTransfer.dropEffect = "copy";
+            event.currentTarget.classList.add("totc-planner-slot--drag-over");
         });
 
-        // Select the first action by default
-        const firstActionButton = html.find(".totc-encounter-action-item").first();
-        if (firstActionButton.length) {
-            firstActionButton.click();
-        }
+        html.find(".totc-planner-slot--empty").on("dragleave", (event) => {
+            event.currentTarget.classList.remove("totc-planner-slot--drag-over");
+        });
 
+        html.find(".totc-planner-slot--empty").on("drop", async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.classList.remove("totc-planner-slot--drag-over");
+
+            let payload;
+            try {
+                payload = JSON.parse(event.originalEvent.dataTransfer.getData("text/plain") ?? "{}");
+            } catch {
+                return;
+            }
+            if (!payload?.totcAction) return;
+
+            const actionData = payload.totcAction;
+            const slot = event.currentTarget;
+            const planner = slot.closest(".totc-planner-columns");
+            const combatantId = slot.dataset.combatantId ?? planner?.dataset.combatantId;
+            if (!combatantId || !game.combat?.addCombatantAction) return;
+
+            const remainingAp = Number(planner?.dataset.remainingAp ?? 0);
+            if (actionData.apMin > remainingAp) {
+                ui.notifications?.warn(game.i18n?.localize("TOTC.Encounter.InsufficientAp") ?? "Insufficient AP remaining.");
+                return;
+            }
+
+            const needsConfig = actionData.variableAp
+                || (actionData.requiresToHit && (game.combat?.getTargetOptionsForCombatant?.(combatantId) ?? []).length > 0);
+
+            if (needsConfig) {
+                showInlinePlannerConfig(slot.closest(".totc-encounter-planner"), planner, actionData, remainingAp, combatantId, this);
+            } else {
+                await game.combat.addCombatantAction(combatantId, actionData);
+                this.render(true);
+            }
+        });
+
+        // ── Remove action from planned list ────────────────────────────────
         html.find("[data-action='totc-encounter-remove-action']").on("click", async (event) => {
             event.preventDefault();
 

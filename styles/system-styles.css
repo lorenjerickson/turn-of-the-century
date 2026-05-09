@@ -837,6 +837,318 @@
     margin: 0 0 4px;
 }
 
+/* ── New Encounter Planner (card-based) ─────────────────────────────────── */
+
+.turn-of-the-century.sheet.actor .totc-encounter-planner {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+}
+
+.turn-of-the-century .totc-planner-banner {
+    background: rgba(111, 96, 76, 0.12);
+    border-bottom: 1px solid #b7a993;
+    display: grid;
+    gap: 2px 16px;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    padding: 10px 12px;
+}
+
+.turn-of-the-century .totc-planner-banner__title {
+    font-size: 1rem;
+    font-weight: 700;
+    grid-column: 1 / 2;
+    grid-row: 1;
+}
+
+.turn-of-the-century .totc-planner-banner__round {
+    color: #5f574c;
+    font-size: 0.85rem;
+    grid-column: 1 / 2;
+    grid-row: 2;
+}
+
+.turn-of-the-century .totc-planner-banner__timer {
+    align-self: center;
+    color: #5f574c;
+    font-size: 0.85rem;
+    grid-column: 2 / 3;
+    grid-row: 1 / 3;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-planner-columns {
+    display: grid;
+    flex: 1;
+    gap: 0;
+    grid-template-columns: 1fr 1fr;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.turn-of-the-century .totc-planner-available {
+    border-right: 1px solid #b7a993;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.turn-of-the-century .totc-planner-planned {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.turn-of-the-century .totc-planner-col-header {
+    border-bottom: 1px solid #cbbda8;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    margin: 0;
+    padding: 8px 12px;
+    text-transform: uppercase;
+}
+
+/* ── Available action cards ─────────────────────────────────────────────── */
+
+.turn-of-the-century .totc-planner-available-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.turn-of-the-century .totc-planner-available-action {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: grab;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 4px;
+    padding: 8px 10px;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    user-select: none;
+}
+
+.turn-of-the-century .totc-planner-available-action:hover {
+    background: rgba(111, 96, 76, 0.18);
+    border-color: #8d7b62;
+}
+
+.turn-of-the-century .totc-planner-available-action:active {
+    cursor: grabbing;
+}
+
+.turn-of-the-century .totc-planner-available-action--disabled {
+    cursor: default;
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+/* ── Planned action slots ────────────────────────────────────────────────── */
+
+.turn-of-the-century .totc-planner-slots {
+    display: grid;
+    flex: 1;
+    gap: 4px;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.turn-of-the-century .totc-planner-slot {
+    border-radius: 6px;
+}
+
+.turn-of-the-century .totc-planner-slot--empty {
+    border: 2px dashed rgba(183, 169, 147, 0.5);
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.turn-of-the-century .totc-planner-slot--empty.totc-planner-slot--drag-over {
+    background: rgba(111, 96, 76, 0.2);
+    border-color: #8d7b62;
+}
+
+.turn-of-the-century .totc-planner-slot--action {
+    align-items: center;
+    background: rgba(111, 96, 76, 0.15);
+    border: 1px solid #8d7b62;
+    display: flex;
+    gap: 10px;
+    padding: 8px 10px;
+    position: relative;
+}
+
+/* ── Shared action card body parts ─────────────────────────────────────── */
+
+.turn-of-the-century .totc-planner-action-thumb {
+    flex: 0 0 40px;
+    height: 40px;
+    width: 40px;
+}
+
+.turn-of-the-century .totc-planner-action-thumb img {
+    border: 1px solid rgba(183, 169, 147, 0.5);
+    border-radius: 4px;
+    height: 40px;
+    object-fit: cover;
+    width: 40px;
+}
+
+.turn-of-the-century .totc-planner-action-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.turn-of-the-century .totc-planner-action-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-planner-action-desc {
+    color: #7a6e62;
+    font-size: 0.78rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-planner-action-cost {
+    color: #7a6e62;
+    flex: 0 0 auto;
+    font-size: 0.78rem;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-planner-action-cost-label {
+    color: #7a6e62;
+    font-size: 0.78rem;
+}
+
+/* ── Delete button on planned slot ─────────────────────────────────────── */
+
+.turn-of-the-century .totc-planner-slot__delete {
+    background: transparent;
+    border: none;
+    color: rgba(180, 80, 70, 0.7);
+    cursor: pointer;
+    flex: 0 0 24px;
+    font-size: 14px;
+    padding: 0;
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    transition: color 0.12s ease;
+}
+
+.turn-of-the-century .totc-planner-slot__delete:hover {
+    color: #d96556;
+}
+
+/* ── Footer (Clear + Confirm) ───────────────────────────────────────────── */
+
+.turn-of-the-century .totc-planner-footer {
+    border-top: 1px solid #b7a993;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 8px 10px;
+}
+
+.turn-of-the-century .totc-planner-footer button {
+    border: 1px solid #6f604c;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    padding: 4px 12px;
+}
+
+/* ── Inline config panel ────────────────────────────────────────────────── */
+
+.turn-of-the-century .totc-planner-inline-config {
+    background: rgba(42, 38, 32, 0.95);
+    border: 1px solid #8d7b62;
+    border-radius: 6px;
+    color: #e8e8e0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 6px 6px;
+    padding: 10px 12px;
+}
+
+.turn-of-the-century .totc-planner-config-header {
+    align-items: center;
+    display: flex;
+    font-weight: 600;
+    gap: 8px;
+}
+
+.turn-of-the-century .totc-planner-config__img {
+    border-radius: 4px;
+    height: 32px;
+    object-fit: cover;
+    width: 32px;
+}
+
+.turn-of-the-century .totc-planner-config-row {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+}
+
+.turn-of-the-century .totc-planner-config-row input[type="range"] {
+    flex: 1;
+}
+
+.turn-of-the-century .totc-planner-config-row select {
+    flex: 1;
+}
+
+.turn-of-the-century .totc-planner-config__ap-display {
+    flex: 0 0 24px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.turn-of-the-century .totc-planner-config-footer {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.turn-of-the-century .totc-planner-config__confirm {
+    background: rgba(100, 140, 80, 0.25);
+    border: 1px solid #7aaa5a;
+    border-radius: 4px;
+    color: #c8e8b0;
+    cursor: pointer;
+    padding: 4px 12px;
+}
+
+.turn-of-the-century .totc-planner-config__cancel {
+    background: rgba(120, 60, 50, 0.2);
+    border: 1px solid #8a3a2a;
+    border-radius: 4px;
+    color: #e8b0a8;
+    cursor: pointer;
+    padding: 4px 12px;
+}
+
 @media (max-width: 900px) {
     .turn-of-the-century.sheet.actor .sheet-body--sidebar {
         flex-direction: column;
