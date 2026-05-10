@@ -234,6 +234,52 @@ function removeEncounterEventSubscription(subscription) {
     return true;
 }
 
+async function ensureTotcLocalizationLoaded() {
+    const probeKey = "TOTC.Sheet.Profile";
+    if (!game?.i18n || game.i18n.localize(probeKey) !== probeKey) return;
+
+    const systemId = game.system?.id ?? "turn-of-the-century";
+    const activeLang = String(game.i18n.lang ?? "en").trim() || "en";
+    const candidatePaths = Array.from(new Set([
+        `systems/${systemId}/lang/${activeLang}.json`,
+        `systems/${systemId}/lang/en.json`
+    ]));
+
+    for (const path of candidatePaths) {
+        try {
+            const response = await fetch(path, { cache: "no-store" });
+            if (!response.ok) continue;
+
+            const translations = await response.json();
+            if (!translations || typeof translations !== "object") continue;
+
+            foundry.utils.mergeObject(game.i18n.translations, translations, {
+                insertKeys: true,
+                insertValues: true,
+                overwrite: true,
+                inplace: true,
+                recursive: true
+            });
+
+            if (game.i18n.localize(probeKey) !== probeKey) {
+                console.warn(`[turn-of-the-century] Recovered missing i18n translations from ${path}.`);
+                for (const app of Object.values(ui.windows ?? {})) {
+                    if (!app?.rendered || typeof app.render !== "function") continue;
+                    app.render(false);
+                }
+                if (ui.combat?.rendered && typeof ui.combat.render === "function") {
+                    ui.combat.render(false);
+                }
+                return;
+            }
+        } catch (error) {
+            console.warn(`[turn-of-the-century] Failed to load i18n file at ${path}.`, error);
+        }
+    }
+
+    console.error("[turn-of-the-century] Could not recover missing i18n translations. Check system language files and manifest paths.");
+}
+
 function getIndexCount(pack) {
     return pack.index?.size ?? pack.index?.length ?? 0;
 }
@@ -440,7 +486,9 @@ Hooks.once("init", () => {
     });
 });
 
-Hooks.once("ready", () => {
+Hooks.once("ready", async () => {
+    await ensureTotcLocalizationLoaded();
+
     game.turnOfTheCentury ??= {};
     game.turnOfTheCentury.sampleContent = {
         actors: TOTC_SAMPLE_ACTORS,
