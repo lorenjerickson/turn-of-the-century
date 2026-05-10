@@ -1,0 +1,118 @@
+body.totc-system-theme {
+    --totc-focus-ring: #f2cd7e;
+    --totc-focus-ring-shadow: rgba(47, 29, 12, 0.46);
+    --totc-link-color: #5a1e2a;
+    --totc-link-hover: #7d1d1f;
+}
+
+body.totc-system-theme a {
+    color: var(--totc-link-color);
+    text-decoration-color: rgba(90, 30, 42, 0.55);
+    text-underline-offset: 2px;
+}
+
+body.totc-system-theme a:hover {
+    color: var(--totc-link-hover);
+    text-decoration-color: rgba(125, 29, 31, 0.82);
+}
+
+body.totc-system-theme .window-app .window-header a,
+body.totc-system-theme #sidebar .directory-header a,
+body.totc-system-theme #sidebar .directory-footer a,
+body.totc-system-theme .turn-of-the-century .totc-workspace-shell__header a,
+body.totc-system-theme .turn-of-the-century .totc-workspace-shell__contexts a {
+    color: #f0ddba;
+    text-decoration-color: rgba(240, 221, 186, 0.5);
+}
+
+body.totc-system-theme .window-app .window-header a:hover,
+body.totc-system-theme #sidebar .directory-header a:hover,
+body.totc-system-theme #sidebar .directory-footer a:hover,
+body.totc-system-theme .turn-of-the-century .totc-workspace-shell__header a:hover,
+body.totc-system-theme .turn-of-the-century .totc-workspace-shell__contexts a:hover {
+    color: #fff0cf;
+    text-decoration-color: rgba(255, 240, 207, 0.8);
+}
+
+body.totc-system-theme a:focus-visible,
+body.totc-system-theme button:focus-visible,
+body.totc-system-theme input:focus-visible,
+body.totc-system-theme select:focus-visible,
+body.totc-system-theme textarea:focus-visible,
+body.totc-system-theme [role="button"]:focus-visible,
+body.totc-system-theme .directory-item:focus-visible,
+body.totc-system-theme .item:focus-visible {
+    box-shadow:
+        0 0 0 2px var(--totc-focus-ring),
+        0 0 0 4px var(--totc-focus-ring-shadow);
+    outline: none;
+}
+
+body.totc-system-theme #sidebar-tabs > .item,
+body.totc-system-theme .directory .directory-item,
+body.totc-system-theme #chat-log .message {
+    transition:
+        background-color var(--totc-motion-fast),
+        border-color var(--totc-motion-fast),
+        color var(--totc-motion-fast);
+}
+
+body.totc-system-theme #sidebar-tabs > .item:hover,
+body.totc-system-theme .directory .directory-item:hover {
+    border-color: rgba(124, 84, 49, 0.7);
+    color: #2a1e14;
+}
+
+body.totc-system-theme #chat-log .message {
+    color: #2e2217;
+    line-height: 1.4;
+}
+
+body.totc-system-theme #chat-log .message .message-header {
+    color: #4b3728;
+}
+
+body.totc-system-theme .window-app .window-header .window-title {
+    color: #f3e4c5;
+}
+
+body.totc-system-theme .window-app .window-header .header-button {
+    color: #e9d5af;
+}
+
+body.totc-system-theme .window-app .window-header .header-button:hover {
+    color: #fff1d2;
+}
+
+body.totc-system-theme .turn-of-the-century .totc-encounter-warning button,
+body.totc-system-theme .totc-combat-tracker .totc-encounter-warning button {
+    background: linear-gradient(180deg, rgba(93, 29, 33, 0.98), rgba(70, 21, 24, 0.98));
+    border: 1px solid rgba(159, 58, 64, 0.84);
+    color: #f9e8ce;
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-action-name,
+body.totc-system-theme .turn-of-the-century .totc-planner-action-cost,
+body.totc-system-theme .turn-of-the-century .totc-planner-action-cost-label,
+body.totc-system-theme .totc-combat-tracker .totc-encounter-meta {
+    letter-spacing: 0.01em;
+}
+
+body.totc-system-theme button:disabled,
+body.totc-system-theme input:disabled,
+body.totc-system-theme select:disabled,
+body.totc-system-theme textarea:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.totc-system-theme *,
+    body.totc-system-theme *::before,
+    body.totc-system-theme *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}

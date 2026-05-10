@@ -1,0 +1,58 @@
+@font-face {
+    font-family: "TotcDisplay";
+    src: local("Cinzel Decorative Bold"), url("../assets/fonts/CinzelDecorative-Bold.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "TotcSmallCaps";
+    src: local("Cormorant SC SemiBold"), url("../assets/fonts/CormorantSC-SemiBold.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "TotcBody";
+    src: local("IM FELL English"), url("../assets/fonts/IMFePIrm29PqvfPYP5e8T92.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+
+.turn-of-the-century,
+body.totc-system-theme {
+    --totc-font-display: "TotcDisplay", "Bookman Old Style", "Goudy Old Style", serif;
+    --totc-font-smallcaps: "TotcSmallCaps", "Palatino Linotype", serif;
+    --totc-font-body: "TotcBody", "Georgia", serif;
+}
+
+.turn-of-the-century .window-title,
+.turn-of-the-century h1,
+.turn-of-the-century h2,
+.turn-of-the-century h3,
+.turn-of-the-century .totc-planner-banner__title,
+.turn-of-the-century .totc-workspace-shell__title {
+    font-family: var(--totc-font-display);
+    letter-spacing: 0.02em;
+}
+
+.turn-of-the-century,
+.turn-of-the-century p,
+.turn-of-the-century input,
+.turn-of-the-century select,
+.turn-of-the-century textarea,
+body.totc-system-theme #chat-log,
+body.totc-system-theme #sidebar {
+    font-family: var(--totc-font-body);
+}
+
+.turn-of-the-century .sheet-tabs .item,
+.turn-of-the-century .totc-ability-score__label,
+.turn-of-the-century .totc-planner-col-header,
+.turn-of-the-century .totc-workspace-shell__meta {
+    font-family: var(--totc-font-smallcaps);
+    letter-spacing: 0.06em;
+}

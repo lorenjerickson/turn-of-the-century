@@ -1,0 +1,154 @@
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-ability-scores {
+    background: linear-gradient(180deg, rgba(50, 35, 24, 0.08), rgba(50, 35, 24, 0.02));
+    border: var(--totc-border-soft);
+    border-radius: 12px;
+    padding: 10px;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-ability-score {
+    background:
+        radial-gradient(circle at 28% 24%, rgba(248, 230, 192, 0.28), rgba(248, 230, 192, 0) 44%),
+        linear-gradient(145deg, #5a402c 0%, #3b291b 48%, #2a1d13 100%);
+    border: 2px solid var(--totc-color-brass);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 241, 214, 0.38),
+        inset 0 0 0 1px rgba(27, 19, 13, 0.66),
+        0 6px 12px rgba(0, 0, 0, 0.35);
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-ability-score::before {
+    border: 1px solid rgba(228, 198, 147, 0.6);
+    border-radius: 50%;
+    content: "";
+    inset: 8px;
+    pointer-events: none;
+    position: absolute;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-ability-score__modifier {
+    background: linear-gradient(180deg, #2c2329 0%, #1a1418 100%);
+    border: 1px solid var(--totc-color-brass);
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-inventory-group h2,
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-equipment-section h2,
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-pack-section h2 {
+    border-bottom: 1px solid rgba(128, 92, 54, 0.5);
+    color: var(--totc-color-text);
+    text-transform: uppercase;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-equipment-slot,
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-inventory-slot,
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-pack-item,
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-inventory-item {
+    background: linear-gradient(180deg, rgba(247, 236, 215, 0.84), rgba(233, 218, 192, 0.8));
+    border: var(--totc-border-soft);
+    box-shadow: inset 0 0 0 1px rgba(255, 241, 214, 0.35);
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-equipment-slot__meta,
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-equipment-slot__empty,
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-pack-item__type,
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-pack-empty,
+body.totc-system-theme .turn-of-the-century .totc-encounter-meta {
+    color: var(--totc-color-text-soft);
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-pack-item__delete {
+    background: rgba(66, 44, 29, 0.16);
+    color: var(--totc-color-text-soft);
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-pack-item__delete:hover {
+    background: #7b1c26;
+    color: #f3e4c8;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-encounter-planner {
+    background: linear-gradient(180deg, rgba(246, 232, 206, 0.9), rgba(233, 216, 188, 0.86));
+    border: var(--totc-border-soft);
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 1px rgba(255, 241, 214, 0.42);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-banner {
+    background:
+        radial-gradient(circle at 8% 18%, rgba(211, 176, 120, 0.28), rgba(211, 176, 120, 0) 36%),
+        linear-gradient(180deg, rgba(52, 32, 25, 0.95), rgba(32, 21, 18, 0.95));
+    border-bottom: 1px solid rgba(194, 155, 96, 0.58);
+    color: #efe0c5;
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-banner__round,
+body.totc-system-theme .turn-of-the-century .totc-planner-banner__timer {
+    color: rgba(241, 219, 182, 0.84);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-columns {
+    background: linear-gradient(180deg, rgba(242, 228, 202, 0.7), rgba(233, 218, 190, 0.58));
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-available {
+    border-right: 1px solid rgba(137, 100, 61, 0.44);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-col-header {
+    background: linear-gradient(180deg, rgba(89, 58, 34, 0.16), rgba(89, 58, 34, 0.06));
+    border-bottom: 1px solid rgba(126, 89, 53, 0.45);
+    color: var(--totc-color-text);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-available-action {
+    background: linear-gradient(180deg, rgba(252, 244, 228, 0.82), rgba(240, 225, 199, 0.76));
+    border: 1px solid rgba(128, 92, 54, 0.35);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-available-action:hover {
+    background: linear-gradient(180deg, rgba(117, 78, 45, 0.2), rgba(117, 78, 45, 0.1));
+    border-color: rgba(128, 92, 54, 0.75);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-slot--empty {
+    background: rgba(255, 249, 237, 0.46);
+    border: 2px dashed rgba(139, 101, 62, 0.55);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-slot--empty.totc-planner-slot--drag-over {
+    background: rgba(121, 81, 48, 0.2);
+    border-color: rgba(139, 101, 62, 0.95);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-slot--action {
+    background: linear-gradient(180deg, rgba(247, 236, 215, 0.94), rgba(233, 217, 189, 0.9));
+    border: 1px solid rgba(130, 92, 55, 0.66);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-action-thumb img {
+    border: 1px solid rgba(153, 113, 71, 0.58);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-action-desc,
+body.totc-system-theme .turn-of-the-century .totc-planner-action-cost,
+body.totc-system-theme .turn-of-the-century .totc-planner-action-cost-label {
+    color: var(--totc-color-text-soft);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-slot__delete {
+    color: rgba(145, 31, 37, 0.72);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-slot__delete:hover {
+    color: #b91929;
+}
+
+body.totc-system-theme .turn-of-the-century .totc-planner-footer {
+    background: linear-gradient(180deg, rgba(89, 58, 34, 0.16), rgba(89, 58, 34, 0.06));
+    border-top: 1px solid rgba(126, 89, 53, 0.48);
+}
+
+body.totc-system-theme .turn-of-the-century .totc-encounter-warning {
+    background: linear-gradient(180deg, rgba(130, 31, 35, 0.14), rgba(130, 31, 35, 0.08));
+    border: 1px solid rgba(125, 29, 31, 0.72);
+    color: #53171c;
+}

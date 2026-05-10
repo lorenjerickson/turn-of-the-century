@@ -1,0 +1,94 @@
+body.totc-system-theme .turn-of-the-century.sheet.item .window-content {
+    background:
+        radial-gradient(circle at 12% 8%, rgba(218, 178, 117, 0.22), rgba(218, 178, 117, 0) 30%),
+        radial-gradient(circle at 88% 92%, rgba(114, 38, 48, 0.2), rgba(114, 38, 48, 0) 36%),
+        linear-gradient(165deg, rgba(246, 238, 221, 0.97), rgba(233, 219, 193, 0.95));
+    border: 1px solid rgba(125, 88, 52, 0.42);
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .sheet-header {
+    border-bottom: 1px solid rgba(126, 89, 53, 0.42);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .profile-img {
+    border: 1px solid rgba(139, 99, 60, 0.7);
+    box-shadow: 0 4px 10px rgba(38, 25, 15, 0.24);
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .charname input {
+    color: #2d2116;
+    font-family: var(--totc-font-display);
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .item-subtitle {
+    color: var(--totc-color-text-soft);
+    font-family: var(--totc-font-smallcaps);
+    letter-spacing: 0.04em;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .item-actions {
+    border-top: 1px dashed rgba(142, 103, 64, 0.45);
+    margin-top: 6px;
+    padding-top: 8px;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .sheet-tabs.tabs {
+    margin: 6px 0 10px;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .sheet-body {
+    background: linear-gradient(180deg, rgba(252, 243, 227, 0.5), rgba(242, 229, 202, 0.3));
+    border: 1px solid rgba(136, 98, 60, 0.3);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .tab.details,
+body.totc-system-theme .turn-of-the-century.sheet.item .tab.system {
+    gap: 8px;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .form-group {
+    background: rgba(255, 247, 234, 0.58);
+    border: 1px solid rgba(144, 105, 64, 0.3);
+    border-radius: 6px;
+    padding: 8px;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .form-group label {
+    color: #483424;
+    font-family: var(--totc-font-smallcaps);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .totc-field-grid {
+    gap: 10px;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .totc-field-row {
+    background: rgba(255, 247, 234, 0.62);
+    border: 1px solid rgba(144, 105, 64, 0.32);
+    border-radius: 6px;
+    padding: 8px;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item input,
+body.totc-system-theme .turn-of-the-century.sheet.item select,
+body.totc-system-theme .turn-of-the-century.sheet.item textarea {
+    background: linear-gradient(180deg, rgba(249, 237, 214, 0.96), rgba(236, 219, 190, 0.96));
+    border: 1px solid rgba(140, 101, 61, 0.68);
+    color: #2f2217;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .editor {
+    background: rgba(250, 241, 224, 0.7);
+    border: 1px solid rgba(137, 98, 59, 0.32);
+    border-radius: 6px;
+}
+
+body.totc-system-theme .turn-of-the-century.sheet.item .notes {
+    color: var(--totc-color-text-soft);
+}

@@ -1,0 +1,58 @@
+.turn-of-the-century.sheet.actor .totc-victorian-frame {
+    background: var(--totc-surface-frame);
+    border: 3px solid var(--totc-color-ink);
+    box-shadow: var(--totc-shadow-ornate);
+}
+
+.turn-of-the-century .sheet-tabs.tabs {
+    border-bottom: var(--totc-border-soft);
+    padding-bottom: 4px;
+}
+
+.turn-of-the-century .sheet-tabs .item {
+    border: var(--totc-border-soft);
+    border-radius: 6px 6px 0 0;
+    color: var(--totc-color-text-soft);
+    margin: 0 4px 0 0;
+    padding: 6px 10px;
+    text-transform: uppercase;
+    transition: color var(--totc-motion-fast) ease, border-color var(--totc-motion-fast) ease, background var(--totc-motion-fast) ease;
+}
+
+.turn-of-the-century .sheet-tabs .item:hover,
+.turn-of-the-century .sheet-tabs .item.active {
+    background: linear-gradient(180deg, rgba(104, 72, 44, 0.2), rgba(104, 72, 44, 0.03));
+    border-color: rgba(123, 90, 53, 0.9);
+    color: var(--totc-color-text);
+}
+
+.turn-of-the-century button,
+.turn-of-the-century .button,
+.turn-of-the-century .totc-context-button {
+    background: linear-gradient(180deg, rgba(88, 54, 36, 0.96), rgba(64, 38, 24, 0.96));
+    border: var(--totc-border-ornate);
+    border-radius: 4px;
+    box-shadow: var(--totc-shadow-emboss);
+    color: #f2e6cf;
+    text-shadow: 0 1px 1px rgba(15, 10, 6, 0.8);
+    transition: transform var(--totc-motion-fast) ease, filter var(--totc-motion-fast) ease;
+}
+
+.turn-of-the-century button:hover,
+.turn-of-the-century .button:hover,
+.turn-of-the-century .totc-context-button:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}
+
+.turn-of-the-century input,
+.turn-of-the-century select,
+.turn-of-the-century textarea {
+    border: 1px solid #876842;
+    box-shadow: inset 0 1px 2px rgba(54, 40, 26, 0.24);
+}
+
+.turn-of-the-century :focus-visible {
+    outline: 2px solid var(--totc-color-brass-bright);
+    outline-offset: 1px;
+}

@@ -1,0 +1,86 @@
+body.totc-system-theme .window-app.dialog .window-content,
+body.totc-system-theme .dialog .dialog-content {
+    background:
+        radial-gradient(circle at 10% 10%, rgba(208, 164, 104, 0.24), rgba(208, 164, 104, 0) 30%),
+        linear-gradient(165deg, rgba(246, 236, 215, 0.97), rgba(230, 214, 188, 0.95));
+    border: 1px solid rgba(132, 95, 56, 0.46);
+    color: #2f2317;
+}
+
+body.totc-system-theme .window-app.dialog .dialog-content h1,
+body.totc-system-theme .window-app.dialog .dialog-content h2,
+body.totc-system-theme .window-app.dialog .dialog-content h3,
+body.totc-system-theme .dialog .dialog-content h1,
+body.totc-system-theme .dialog .dialog-content h2,
+body.totc-system-theme .dialog .dialog-content h3 {
+    color: #3a2819;
+}
+
+body.totc-system-theme .window-app.dialog .dialog-content p,
+body.totc-system-theme .dialog .dialog-content p,
+body.totc-system-theme .window-app.dialog .dialog-content label,
+body.totc-system-theme .dialog .dialog-content label {
+    color: #3d2c1d;
+}
+
+body.totc-system-theme .window-app.dialog .dialog-content label,
+body.totc-system-theme .dialog .dialog-content label {
+    font-family: var(--totc-font-smallcaps);
+    letter-spacing: 0.04em;
+}
+
+body.totc-system-theme .window-app.dialog input,
+body.totc-system-theme .window-app.dialog select,
+body.totc-system-theme .window-app.dialog textarea,
+body.totc-system-theme .dialog input,
+body.totc-system-theme .dialog select,
+body.totc-system-theme .dialog textarea {
+    background: linear-gradient(180deg, rgba(250, 239, 216, 0.96), rgba(237, 220, 192, 0.96));
+    border: 1px solid rgba(140, 101, 61, 0.68);
+    color: #2f2217;
+}
+
+body.totc-system-theme .window-app.dialog .dialog-buttons,
+body.totc-system-theme .dialog .dialog-buttons {
+    border-top: 1px dashed rgba(140, 101, 61, 0.42);
+    margin-top: 10px;
+    padding-top: 10px;
+}
+
+body.totc-system-theme .window-app.dialog .dialog-buttons button,
+body.totc-system-theme .dialog .dialog-buttons button {
+    min-height: 1.95rem;
+}
+
+body.totc-system-theme .prosemirror,
+body.totc-system-theme .editor-content,
+body.totc-system-theme .tox .tox-edit-area__iframe {
+    background: rgba(250, 241, 224, 0.88);
+    color: #2f2317;
+}
+
+body.totc-system-theme .tox .tox-toolbar,
+body.totc-system-theme .tox .tox-toolbar__primary,
+body.totc-system-theme .tox .tox-statusbar {
+    background: linear-gradient(180deg, rgba(44, 30, 21, 0.92), rgba(30, 21, 15, 0.92));
+    border-color: rgba(159, 118, 68, 0.42);
+    color: #ead9bb;
+}
+
+body.totc-system-theme .tox .tox-tbtn {
+    color: #ead9bb;
+}
+
+body.totc-system-theme .tox .tox-tbtn:hover,
+body.totc-system-theme .tox .tox-tbtn--enabled {
+    background: rgba(194, 151, 95, 0.24);
+    color: #fff0cf;
+}
+
+body.totc-system-theme .tooltip,
+body.totc-system-theme .locked-tooltip,
+body.totc-system-theme .tooltipster-box {
+    background: rgba(27, 19, 14, 0.95);
+    border: 1px solid rgba(174, 133, 77, 0.5);
+    color: #eddcbe;
+}

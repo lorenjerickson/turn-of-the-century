@@ -1,3 +1,16 @@
+@import url("totc-theme-tokens.css");
+@import url("totc-theme-typography.css");
+@import url("totc-theme-ornaments.css");
+@import url("totc-theme-core-overrides.css");
+@import url("totc-theme-actor-overrides.css");
+@import url("totc-theme-workspace-overrides.css");
+@import url("totc-theme-combat-overrides.css");
+@import url("totc-theme-item-overrides.css");
+@import url("totc-theme-accessibility-overrides.css");
+@import url("totc-theme-chat-overrides.css");
+@import url("totc-theme-sidebar-overrides.css");
+@import url("totc-theme-dialog-overrides.css");
+
 .turn-of-the-century.sheet.item .sheet-header {
     align-items: flex-start;
     display: flex;

@@ -1,0 +1,63 @@
+body.totc-system-theme #chat-log {
+    color: #2f2317;
+}
+
+body.totc-system-theme #chat-log .message {
+    border: 1px solid rgba(132, 95, 56, 0.46);
+    border-radius: 8px;
+    box-shadow:
+        inset 0 0 0 1px rgba(254, 239, 208, 0.42),
+        0 3px 8px rgba(31, 21, 13, 0.2);
+}
+
+body.totc-system-theme #chat-log .message .message-header {
+    border-bottom: 1px dashed rgba(132, 95, 56, 0.4);
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+}
+
+body.totc-system-theme #chat-log .message .message-sender {
+    color: #4a3120;
+    font-family: var(--totc-font-smallcaps);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+body.totc-system-theme #chat-log .message .flavor-text,
+body.totc-system-theme #chat-log .message .message-metadata {
+    color: #6a5240;
+}
+
+body.totc-system-theme #chat-log .message-content {
+    color: #2f2317;
+}
+
+body.totc-system-theme #chat-log .dice-roll,
+body.totc-system-theme #chat-log .dice-result {
+    background: linear-gradient(180deg, rgba(248, 237, 216, 0.92), rgba(235, 220, 193, 0.9));
+    border: 1px solid rgba(136, 98, 60, 0.44);
+    border-radius: 6px;
+    color: #2f2317;
+}
+
+body.totc-system-theme #chat-log .dice-total,
+body.totc-system-theme #chat-log .dice-formula {
+    color: #3a2a1c;
+}
+
+body.totc-system-theme #chat-log .dice-tooltip {
+    background: rgba(30, 21, 16, 0.92);
+    border: 1px solid rgba(176, 134, 76, 0.46);
+    color: #ead9bb;
+}
+
+body.totc-system-theme #chat-log .dice-tooltip .part-header {
+    border-bottom: 1px dashed rgba(176, 134, 76, 0.4);
+    color: #f2e3c5;
+}
+
+body.totc-system-theme #chat-form textarea {
+    background: linear-gradient(180deg, rgba(250, 239, 216, 0.96), rgba(237, 220, 192, 0.96));
+    border: 1px solid rgba(140, 101, 61, 0.66);
+    color: #2f2317;
+}

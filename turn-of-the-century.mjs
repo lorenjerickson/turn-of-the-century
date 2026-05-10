@@ -78,6 +78,13 @@ let encounterPlanningWatchHandle = null;
 const initiativePromptKeys = new Set();
 let workspaceManager = null;
 
+function applyTotcThemeBodyClass() {
+    const body = globalThis.document?.body;
+    if (!body) return;
+
+    body.classList.add("totc-system-theme", "totc-theme-victorian");
+}
+
 function logEncounterLifecycle(eventName, payload = {}) {
     const combat = payload.combat ?? payload.combatant?.combat ?? game.combat ?? null;
     const combatId = combat?.id ?? "none";
@@ -548,6 +555,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", async () => {
+    applyTotcThemeBodyClass();
     await ensureTotcLocalizationLoaded();
 
     game.turnOfTheCentury ??= {};

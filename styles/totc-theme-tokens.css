@@ -1,0 +1,35 @@
+:root {
+    --totc-motion-fast: 140ms;
+    --totc-motion-standard: 220ms;
+}
+
+.turn-of-the-century,
+body.totc-system-theme {
+    --totc-color-ink: #201811;
+    --totc-color-text: #342315;
+    --totc-color-text-soft: #614f40;
+    --totc-color-paper: #f1e7d4;
+    --totc-color-paper-alt: #e8dbc4;
+    --totc-color-night: #171316;
+    --totc-color-night-2: #231c22;
+    --totc-color-burgundy: #4f1820;
+    --totc-color-emerald: #1f3b2a;
+    --totc-color-navy: #1d2f46;
+    --totc-color-brass: #b79252;
+    --totc-color-brass-bright: #e0c686;
+    --totc-color-crimson: #7d1d1f;
+
+    --totc-border-ornate: 2px solid var(--totc-color-brass);
+    --totc-border-soft: 1px solid rgba(133, 102, 64, 0.55);
+    --totc-shadow-ornate:
+        inset 0 0 0 1px rgba(252, 233, 190, 0.22),
+        0 8px 18px rgba(27, 16, 10, 0.32);
+    --totc-shadow-emboss:
+        inset 0 1px 0 rgba(250, 238, 211, 0.55),
+        inset 0 -1px 0 rgba(73, 52, 30, 0.45);
+
+    --totc-surface-frame:
+        radial-gradient(circle at 10% 8%, rgba(255, 241, 214, 0.44), rgba(255, 241, 214, 0) 32%),
+        radial-gradient(circle at 92% 90%, rgba(148, 108, 62, 0.28), rgba(148, 108, 62, 0) 38%),
+        linear-gradient(160deg, #f8efdf 0%, #ebdcc4 55%, #dfcfb3 100%);
+}
