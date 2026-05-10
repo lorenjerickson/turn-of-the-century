@@ -51,7 +51,41 @@ import {
 } from "./module/sheets/actor-sheet.mjs";
 import { TurnOfTheCenturyCombatTracker } from "./module/sheets/combat-tracker.mjs";
 import { TurnOfTheCenturyItemSheet } from "./module/sheets/item-sheet.mjs";
-import { TotcWorkspaceManager, UI_CONTEXTS, UI_MODES } from "./module/ui/workspace-shell.mjs";
+import { TotcWorkspaceManager, UI_CONTEXTS, UI_MODES, TotcTabGroupManager, TabGroupConsoleAPI } from "./module/ui/workspace-shell.mjs";
+import {
+    MultiplayerGovernanceTestHelper,
+    MultiplayerTestConsoleAPI
+} from "./module/ui/test-governance-multiplayer.mjs";
+import {
+    RealMultiplayerTestCoordinator,
+    RealMultiplayerTestConsoleAPI
+} from "./module/ui/test-real-multiplayer.mjs";
+import {
+    instantiateEncounterSeed,
+    getEscalationTrigger,
+    getTerrainFeature,
+    getNarrativeHooks,
+    getFactionMetadata,
+    rollLoot,
+    buildEncounterContext,
+    applyFactionTerrainAdaptations,
+    getFactionTerrainAdaptations
+} from "./module/encounters/enhanced-seeds.mjs";
+import {
+    createCombatEncounterWithNpcs,
+    createNpcsFromEncounterSeed,
+    getNpcDetails,
+    getActiveTemporaryNpcs,
+    cleanupTemporaryNpcs,
+    NpcInstantiationConsoleAPI
+} from "./module/encounters/npc-instantiation.mjs";
+import {
+    rollRegionAwareCampEvent,
+    getDetailedCampEventReport,
+    getRegionCampEvents,
+    REGIONS,
+    CAMP_SEASONS
+} from "./module/camps/region-aware-events.mjs";
 
 const STARTER_CONTENT_SEEDED_SETTING = "starterContentSeeded";
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
@@ -64,6 +98,8 @@ const UI_MODE_SETTING = "uiMode";
 const UI_PLAY_CONTEXT_SETTING = "uiPlayContext";
 const UI_BLOCK_FLOATING_WINDOWS_SETTING = "uiBlockFloatingWindows";
 const UI_TRAVEL_ENCOUNTER_SEED_POLICY_SETTING = "travelEncounterSeedPolicy";
+const UI_DEBUG_WINDOW_POLICY_SETTING = "uiDebugWindowPolicy";
+const AUTO_CREATE_ENCOUNTER_NPCS_SETTING = "autoCreateEncounterNpcs";
 const ENCOUNTER_EVENT_HOOK_NAMES = [
     "totcEncounterStateInitialized",
     "totcEncounterPhaseChanged",
@@ -77,13 +113,6 @@ const ENCOUNTER_EVENT_HOOK_NAMES = [
 let encounterPlanningWatchHandle = null;
 const initiativePromptKeys = new Set();
 let workspaceManager = null;
-
-function applyTotcThemeBodyClass() {
-    const body = globalThis.document?.body;
-    if (!body) return;
-
-    body.classList.add("totc-system-theme", "totc-theme-victorian");
-}
 
 function logEncounterLifecycle(eventName, payload = {}) {
     const combat = payload.combat ?? payload.combatant?.combat ?? game.combat ?? null;
@@ -552,10 +581,27 @@ Hooks.once("init", () => {
         },
         default: "append"
     });
+
+    game.settings.register("turn-of-the-century", UI_DEBUG_WINDOW_POLICY_SETTING, {
+        name: "Debug play-mode window policy",
+        hint: "Log allow/block decisions for play-mode window governance to the browser console.",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: false
+    });
+
+    game.settings.register("turn-of-the-century", AUTO_CREATE_ENCOUNTER_NPCS_SETTING, {
+        name: "Auto-create encounter NPCs",
+        hint: "Automatically instantiate NPC actors from encounter seeds during travel combat initiation.",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true
+    });
 });
 
 Hooks.once("ready", async () => {
-    applyTotcThemeBodyClass();
     await ensureTotcLocalizationLoaded();
 
     game.turnOfTheCentury ??= {};
@@ -594,9 +640,20 @@ Hooks.once("ready", async () => {
         systemId: "turn-of-the-century",
         modeSettingKey: UI_MODE_SETTING,
         playContextSettingKey: UI_PLAY_CONTEXT_SETTING,
-        blockFloatingWindowsSettingKey: UI_BLOCK_FLOATING_WINDOWS_SETTING
+        blockFloatingWindowsSettingKey: UI_BLOCK_FLOATING_WINDOWS_SETTING,
+        debugWindowPolicySettingKey: UI_DEBUG_WINDOW_POLICY_SETTING
     });
     await workspaceManager.initialize();
+
+    const testHelper = new MultiplayerGovernanceTestHelper(workspaceManager);
+    const testAPI = new MultiplayerTestConsoleAPI(testHelper);
+
+    const realMultiplayerCoordinator = new RealMultiplayerTestCoordinator(
+        workspaceManager,
+        game.turnOfTheCentury.npcs,
+        testHelper
+    );
+    const realMultiplayerAPI = new RealMultiplayerTestConsoleAPI(realMultiplayerCoordinator);
 
     game.turnOfTheCentury.ui = {
         modes: Object.freeze({ ...UI_MODES }),
@@ -618,13 +675,126 @@ Hooks.once("ready", async () => {
                 : "append";
             await game.settings.set("turn-of-the-century", UI_TRAVEL_ENCOUNTER_SEED_POLICY_SETTING, normalized);
         },
+        getDebugWindowPolicy: () => Boolean(game.settings.get("turn-of-the-century", UI_DEBUG_WINDOW_POLICY_SETTING)),
+        setDebugWindowPolicy: async (enabled) => {
+            await game.settings.set("turn-of-the-century", UI_DEBUG_WINDOW_POLICY_SETTING, Boolean(enabled));
+        },
         openWorkspace: async () => {
             if (!workspaceManager) return;
             await workspaceManager.openShell(true);
         },
+        auditWindowPolicy: ({ closeBlocked = false, includeAllowed = true, notify = true } = {}) => {
+            if (!workspaceManager) return null;
+            return workspaceManager.auditWindowPolicy({ closeBlocked, includeAllowed, notify });
+        },
+        enforceAndAuditWindowPolicy: ({ includeAllowed = true, notify = true } = {}) => {
+            if (!workspaceManager) return null;
+            return workspaceManager.auditWindowPolicy({ closeBlocked: true, includeAllowed, notify });
+        },
         enforceWindowPolicy: () => {
             workspaceManager?.enforceWindowPolicy();
         }
+    };
+
+    game.turnOfTheCentury.testMultiplayer = {
+        /**
+         * Start a new test session for multiplayer governance validation
+         * @param {string} testName - Name for this test session
+         * @returns {Promise<Object>} Session info
+         */
+        startSession: (testName) => testHelper.startTestSession(testName),
+
+        /**
+         * Run a single quick test by name
+         * Available: "prohibition", "isolation", "prompts", "gmplayer", "rapid", "persistence"
+         * @param {string} testName - Name of the test to run
+         * @returns {Promise<Object>} Test result
+         */
+        runQuickTest: (testName) => testAPI.runQuickTest(testName),
+
+        /**
+         * Run full multiplayer governance validation suite
+         * @returns {Promise<Object>} Full validation results
+         */
+        runFullValidation: () => testAPI.runFullValidation(),
+
+        /**
+         * Display test results summary in console
+         */
+        displayResults: () => testAPI.displayResults(),
+
+        /**
+         * Export test results to console (copy the JSON output)
+         * @returns {Object} Test results data
+         */
+        exportResults: () => testAPI.exportToFile(),
+
+        /**
+         * End current test session and generate report
+         * @returns {Promise<Object>} Session summary
+         */
+        endSession: () => testHelper.endTestSession(),
+
+        /**
+         * Get raw test log for inspection
+         * @returns {Array} Test log entries
+         */
+        getTestLog: () => testHelper.getTestLog()
+    };
+
+    /**
+     * Real Multiplayer Validation API
+     * Comprehensive testing with 3-5 concurrent players
+     */
+    game.turnOfTheCentury.realMultiplayer = {
+        /**
+         * Start a new multiplayer test session
+         * @param {string} sessionName - Name for this session
+         * @returns {Promise<Object>} Session info
+         */
+        startSession: (sessionName) => realMultiplayerAPI.startSession(sessionName),
+
+        /**
+         * Run full multiplayer test suite
+         * @param {string} sessionName - Name for test session
+         * @returns {Promise<Object>} Full test results with pass/fail counts
+         */
+        runFullSuite: (sessionName) => realMultiplayerAPI.runFullSuite(sessionName),
+
+        /**
+         * Run specific multiplayer test
+         * Tests: contextSwitching, tabGroupManagement, encounterSeeding, windowStress, chatDistribution
+         * @param {string} testName - Name of test to run
+         * @returns {Promise<Object>} Test result
+         */
+        runTest: async (testName) => {
+            switch (testName) {
+                case "contextSwitching":
+                    return await realMultiplayerCoordinator.testConcurrentContextSwitching();
+                case "tabGroupManagement":
+                    return await realMultiplayerCoordinator.testConcurrentTabGroupManagement();
+                case "encounterSeeding":
+                    return await realMultiplayerCoordinator.testMultiplayerEncounterSeeding();
+                case "windowStress":
+                    return await realMultiplayerCoordinator.testWindowGovernanceStress();
+                case "chatDistribution":
+                    return await realMultiplayerCoordinator.testChatMessageDistribution();
+                default:
+                    return { error: `Unknown test: ${testName}` };
+            }
+        },
+
+        /**
+         * Get current test session report
+         * @returns {Object} Metrics and recent log entries
+         */
+        getReport: () => realMultiplayerAPI.showReport(),
+
+        /**
+         * Export full test session data
+         * @returns {Object} Complete log and metrics
+         */
+        exportData: () => realMultiplayerAPI.exportData()
     };
 
     game.turnOfTheCentury.encounters = {
@@ -727,6 +897,310 @@ Hooks.once("ready", async () => {
             if (!combat?.setEncounterPhase) throw new Error("Active combat does not support AP encounter phases.");
             return combat.setEncounterPhase(phase);
         }
+    };
+
+    game.turnOfTheCentury.seeds = {
+        /**
+         * Reference data for encounter seeding
+         * @type {Object}
+         */
+        adversaryProfiles: Object.freeze(foundry.utils.deepClone(ADVERSARY_PROFILES)),
+        factionMetadata: Object.freeze(foundry.utils.deepClone(FACTION_METADATA)),
+        terrainFeatures: Object.freeze(foundry.utils.deepClone(TERRAIN_FEATURES)),
+        escalationTriggers: Object.freeze(foundry.utils.deepClone(ESCALATION_TRIGGERS)),
+        lootTables: Object.freeze(foundry.utils.deepClone(LOOT_TABLES)),
+        narrativeHooks: Object.freeze(foundry.utils.deepClone(NARRATIVE_HOOKS)),
+
+        /**
+         * Build complete encounter context from a seed template
+         * @param {Object} seed - Encounter seed template
+         * @param {string} region - Region name (frontier, urban, industrial, wilds)
+         * @returns {Object} Full encounter context with all metadata
+         */
+        buildContext: (seed, region) => buildEncounterContext(seed, region),
+
+        /**
+         * Instantiate an encounter seed into actor profiles for creation
+         * @param {Object} seed - Encounter seed template
+         * @param {string} difficulty - Difficulty override (standard, hard)
+         * @returns {Array<Object>} Adversary profile objects ready for Actor creation
+         */
+        instantiate: (seed, difficulty) => instantiateEncounterSeed(seed, difficulty),
+
+        /**
+         * Get escalation trigger for a seed
+         * @param {Object} seed - Encounter seed template
+         * @returns {Object|null} Escalation trigger metadata
+         */
+        getEscalation: (seed) => getEscalationTrigger(seed),
+
+        /**
+         * Get terrain feature by name
+         * @param {string} terrainName - Terrain feature name
+         * @returns {Object|null} Terrain feature metadata
+         */
+        getTerrain: (terrainName) => getTerrainFeature(terrainName),
+
+        /**
+         * Get narrative hooks for a faction
+         * @param {string} factionKey - Faction identifier
+         * @returns {Object} Narrative hooks for the faction
+         */
+        getNarrative: (factionKey) => getNarrativeHooks(factionKey),
+
+        /**
+         * Get faction metadata
+         * @param {string} factionKey - Faction identifier
+         * @returns {Object} Faction metadata and objectives
+         */
+        getFaction: (factionKey) => getFactionMetadata(factionKey),
+
+        /**
+         * Get terrain adaptations for a faction
+         * @param {string} factionKey - Faction identifier
+         * @returns {Object|null} Faction terrain adaptations mapping
+         */
+        getFactionTerrainAdaptations: (factionKey) => getFactionTerrainAdaptations(factionKey),
+
+        /**
+         * Apply faction-specific terrain modifiers to base terrain
+         * @param {Object} terrain - Base terrain feature object
+         * @param {string} factionKey - Faction identifier
+         * @returns {Object} Terrain with faction adaptations applied
+         */
+        applyFactionTerrainAdaptations: (terrain, factionKey) =>
+            applyFactionTerrainAdaptations(terrain, factionKey),
+
+        /**
+         * Roll loot from faction table
+         * @param {string} factionKey - Faction identifier
+         * @param {string} difficulty - Difficulty level (standard, hard)
+         * @returns {Array<string>} Loot descriptions
+         */
+        rollLoot: (factionKey, difficulty) => rollLoot(factionKey, difficulty)
+    };
+
+    /**
+     * Workspace Tab Group Management API
+     * Allows customization of panel organization into tab groups
+     */
+    game.turnOfTheCentury.tabGroups = {
+        /**
+         * Get the tab group manager for the current scene
+         * @returns {TotcTabGroupManager} The tab group manager instance
+         */
+        getManager: () => workspaceManager?.shell?.tabGroupManager ?? null,
+
+        /**
+         * Get all tab groups
+         * @returns {Array<Object>} Array of tab group objects
+         */
+        listGroups: () => workspaceManager?.shell?.tabGroupManager?.getGroups() ?? [],
+
+        /**
+         * Get details for a specific group
+         * @param {string} groupId - Tab group ID
+         * @returns {Object|null} Group details with tabs and active panel
+         */
+        getGroup: (groupId) => workspaceManager?.shell?.tabGroupManager?.getGroupDetails(groupId) ?? null,
+
+        /**
+         * Create a new tab group
+         * @param {string} name - Name for the new group
+         * @returns {Promise<Object>} The created group
+         */
+        createGroup: (name) => workspaceManager?.shell?.tabGroupManager?.createGroup(name),
+
+        /**
+         * Delete a tab group
+         * @param {string} groupId - Tab group ID
+         * @returns {Promise<boolean>} Success flag
+         */
+        deleteGroup: (groupId) => workspaceManager?.shell?.tabGroupManager?.deleteGroup(groupId),
+
+        /**
+         * Add a panel to a tab group
+         * @param {string} groupId - Tab group ID
+         * @param {string} panelContext - Panel context (encounter, travel, market, camp)
+         * @param {string} label - Optional tab label
+         * @returns {Promise<Object|null>} The created tab
+         */
+        addTab: (groupId, panelContext, label) => workspaceManager?.shell?.tabGroupManager?.addTab(groupId, panelContext, label),
+
+        /**
+         * Remove a tab from a group
+         * @param {string} groupId - Tab group ID
+         * @param {string} tabId - Tab ID
+         * @returns {Promise<boolean>} Success flag
+         */
+        removeTab: (groupId, tabId) => workspaceManager?.shell?.tabGroupManager?.removeTab(groupId, tabId),
+
+        /**
+         * Switch to a different tab in a group
+         * @param {string} groupId - Tab group ID
+         * @param {string} tabId - Tab ID
+         * @returns {Promise<boolean>} Success flag
+         */
+        switchTab: (groupId, tabId) => workspaceManager?.shell?.tabGroupManager?.setActiveTab(groupId, tabId),
+
+        /**
+         * Apply a preset layout
+         * @param {string} layoutName - Layout name: 'default', 'separate', 'grouped'
+         * @returns {Promise<boolean>} Success flag
+         */
+        applyLayout: async (layoutName) => {
+            const manager = workspaceManager?.shell?.tabGroupManager;
+            if (!manager) return false;
+
+            switch (layoutName) {
+                case "default":
+                    await manager.resetToDefault();
+                    break;
+                case "separate":
+                    await manager.createSeparateTabsLayout();
+                    break;
+                case "grouped":
+                    await manager.createGroupedLayout();
+                    break;
+                default:
+                    return false;
+            }
+
+            // Re-render shell to show new layout
+            workspaceManager?.shell?.render(false);
+            return true;
+        },
+
+        /**
+         * Reset to default layout
+         * @returns {Promise<void>}
+         */
+        resetToDefault: () => {
+            if (workspaceManager?.shell?.tabGroupManager) {
+                workspaceManager.shell.tabGroupManager.resetToDefault();
+                workspaceManager.shell.render(false);
+            }
+        },
+
+        /**
+         * Export tab configuration as JSON
+         * @returns {string} JSON string of tab configuration
+         */
+        exportConfig: () => workspaceManager?.shell?.tabGroupManager?.exportConfig() ?? "{}",
+
+        /**
+         * Import tab configuration from JSON
+         * @param {string} jsonString - JSON configuration string
+         * @returns {Promise<boolean>} Success flag
+         */
+        importConfig: (jsonString) => {
+            if (workspaceManager?.shell?.tabGroupManager) {
+                return workspaceManager.shell.tabGroupManager.importConfig(jsonString);
+            }
+            return Promise.resolve(false);
+        }
+    };
+
+    /**
+     * NPC Instantiation API
+     * Manage auto-creation of NPC actors from encounter seeds
+     */
+    game.turnOfTheCentury.npcs = {
+        /**
+         * Create NPCs from an encounter seed
+         * @param {Object} seed - Encounter seed with adversaries list
+         * @param {string} difficulty - Difficulty level (standard, hard)
+         * @returns {Promise<Object>} Result with combat, actors, combatants
+         */
+        createFromSeed: (seed, difficulty = "standard") =>
+            createCombatEncounterWithNpcs(seed, difficulty),
+
+        /**
+         * Create NPCs from seed and add to existing combat
+         * @param {Object} seed - Encounter seed
+         * @param {string} difficulty - Difficulty level
+         * @param {Combat} combat - Existing combat to add to
+         * @returns {Promise<Object>} Result with combat, actors, combatants
+         */
+        createFromSeedForCombat: (seed, difficulty, combat) =>
+            createCombatEncounterWithNpcs(seed, difficulty, combat),
+
+        /**
+         * List all active temporary NPCs
+         * @returns {Array<Actor>} Temporary NPC actors
+         */
+        listActive: () => getActiveTemporaryNpcs(),
+
+        /**
+         * Get details for a specific NPC
+         * @param {Actor} actor - NPC actor
+         * @returns {Object} Display details (name, role, faction, health, etc)
+         */
+        getDetails: (actor) => getNpcDetails(actor),
+
+        /**
+         * Clean up temporary NPCs after encounter
+         * @param {Array<Actor>} actors - Specific actors to delete (optional)
+         * @returns {Promise<Array>} Deleted actor IDs
+         */
+        cleanup: (actors = null) => cleanupTemporaryNpcs(actors),
+
+        /**
+         * Toggle auto-creation of NPCs for travel encounters
+         * @param {boolean} enabled - Enable or disable auto-creation
+         */
+        setAutoCreate: (enabled) =>
+            game.settings.set("turn-of-the-century", AUTO_CREATE_ENCOUNTER_NPCS_SETTING, Boolean(enabled)),
+
+        /**
+         * Check if auto-creation is enabled
+         * @returns {boolean} Auto-creation enabled state
+         */
+        isAutoCreateEnabled: () =>
+            game.settings.get("turn-of-the-century", AUTO_CREATE_ENCOUNTER_NPCS_SETTING) ?? true,
+
+        /**
+         * Console API for NPC operations
+         */
+        console: NpcInstantiationConsoleAPI
+    };
+
+    game.turnOfTheCentury.campEvents = {
+        /**
+         * Roll a region-aware camp event
+         * @param {Object} options - Roll options
+         * @param {string} options.region - Region (frontier, urban, industrial, wilds)
+         * @param {string} options.season - Season (spring, summer, autumn, winter)
+         * @param {string} options.morale - Morale level (low, normal, high)
+         * @returns {Object} Event details
+         */
+        rollEvent: (options = {}) => rollRegionAwareCampEvent(options),
+
+        /**
+         * Get detailed report for a camp event
+         * @param {Object} options - Options for event
+         * @returns {Object} Detailed report with narrative
+         */
+        getReport: (options = {}) => getDetailedCampEventReport(options),
+
+        /**
+         * Get all camp events for a region
+         * @param {string} region - Region name
+         * @returns {Object} Event table for that region
+         */
+        getEventsForRegion: (region = "frontier") => getRegionCampEvents(region),
+
+        /**
+         * Get available regions
+         * @returns {Array<string>} Array of region names
+         */
+        getRegions: () => [...REGIONS],
+
+        /**
+         * Get available seasons
+         * @returns {Array<string>} Array of season names
+         */
+        getSeasons: () => Object.values(CAMP_SEASONS)
     };
 
     if (encounterPlanningWatchHandle) {

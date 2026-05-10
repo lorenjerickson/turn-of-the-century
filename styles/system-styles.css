@@ -1,16 +1,3 @@
-@import url("totc-theme-tokens.css");
-@import url("totc-theme-typography.css");
-@import url("totc-theme-ornaments.css");
-@import url("totc-theme-core-overrides.css");
-@import url("totc-theme-actor-overrides.css");
-@import url("totc-theme-workspace-overrides.css");
-@import url("totc-theme-combat-overrides.css");
-@import url("totc-theme-item-overrides.css");
-@import url("totc-theme-accessibility-overrides.css");
-@import url("totc-theme-chat-overrides.css");
-@import url("totc-theme-sidebar-overrides.css");
-@import url("totc-theme-dialog-overrides.css");
-
 .turn-of-the-century.sheet.item .sheet-header {
     align-items: flex-start;
     display: flex;
@@ -1143,6 +1130,90 @@
     opacity: 0.8;
 }
 
+.turn-of-the-century .totc-workspace-shell__meta-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.turn-of-the-century .totc-workspace-shell__debug-badge {
+    background: rgba(167, 110, 29, 0.35);
+    border: 1px solid rgba(248, 203, 126, 0.55);
+    border-radius: 999px;
+    color: #f8d895;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 0.2rem 0.5rem;
+    text-transform: uppercase;
+}
+
+/* Tab Groups */
+.turn-of-the-century .totc-tab-groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid rgba(239, 231, 214, 0.1);
+    background: rgba(15, 15, 15, 0.15);
+}
+
+.turn-of-the-century .totc-tab-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.turn-of-the-century .totc-tab-group__name {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: rgba(239, 231, 214, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+}
+
+.turn-of-the-century .totc-tab-group__name:hover {
+    background: rgba(153, 122, 71, 0.25);
+}
+
+.turn-of-the-century .totc-tab-group__tabs {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.turn-of-the-century .totc-tab {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+    border: 1px solid rgba(239, 231, 214, 0.2);
+    background: rgba(15, 15, 15, 0.4);
+    color: rgba(239, 231, 214, 0.7);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-tab:hover {
+    border-color: rgba(239, 231, 214, 0.4);
+    background: rgba(15, 15, 15, 0.6);
+    color: rgba(239, 231, 214, 0.9);
+}
+
+.turn-of-the-century .totc-tab.is-active {
+    background: rgba(153, 122, 71, 0.5);
+    border-color: rgba(153, 122, 71, 0.7);
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 600;
+}
+
 .turn-of-the-century .totc-workspace-shell__contexts {
     display: flex;
     gap: 0.5rem;
@@ -1193,7 +1264,8 @@
 .turn-of-the-century .totc-workspace-context-placeholder,
 .turn-of-the-century .totc-workspace-encounter,
 .turn-of-the-century .totc-workspace-travel,
-.turn-of-the-century .totc-workspace-market {
+.turn-of-the-century .totc-workspace-market,
+.turn-of-the-century .totc-workspace-camp {
     display: grid;
     gap: 0.9rem;
 }
@@ -1254,7 +1326,14 @@
 .turn-of-the-century .totc-workspace-market__treasury,
 .turn-of-the-century .totc-workspace-market__sell,
 .turn-of-the-century .totc-workspace-market__admin,
-.turn-of-the-century .totc-workspace-market__controls {
+.turn-of-the-century .totc-workspace-market__controls,
+.turn-of-the-century .totc-workspace-camp__header,
+.turn-of-the-century .totc-workspace-camp__resources,
+.turn-of-the-century .totc-workspace-camp__morale,
+.turn-of-the-century .totc-workspace-camp__activities,
+.turn-of-the-century .totc-workspace-camp__resources-controls,
+.turn-of-the-century .totc-workspace-camp__event,
+.turn-of-the-century .totc-workspace-camp__controls {
     background: rgba(0, 0, 0, 0.25);
     border: 1px solid rgba(239, 231, 214, 0.15);
     border-radius: 8px;
@@ -1272,7 +1351,11 @@
 .turn-of-the-century .totc-workspace-market__treasury,
 .turn-of-the-century .totc-workspace-market__sell,
 .turn-of-the-century .totc-workspace-market__admin,
-.turn-of-the-century .totc-workspace-market__controls {
+.turn-of-the-century .totc-workspace-market__controls,
+.turn-of-the-century .totc-workspace-camp__morale,
+.turn-of-the-century .totc-workspace-camp__activities,
+.turn-of-the-century .totc-workspace-camp__resources-controls,
+.turn-of-the-century .totc-workspace-camp__controls {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1281,7 +1364,12 @@
 
 .turn-of-the-century .totc-workspace-travel__controls h4,
 .turn-of-the-century .totc-workspace-market__header h3,
-.turn-of-the-century .totc-workspace-travel__header h3 {
+.turn-of-the-century .totc-workspace-travel__header h3,
+.turn-of-the-century .totc-workspace-camp__header h3,
+.turn-of-the-century .totc-workspace-camp__morale h4,
+.turn-of-the-century .totc-workspace-camp__activities h4,
+.turn-of-the-century .totc-workspace-camp__resources h4,
+.turn-of-the-century .totc-workspace-camp__resources-controls h4 {
     margin: 0;
 }
 
@@ -1338,6 +1426,37 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 0.5rem;
+}
+
+.turn-of-the-century .totc-workspace-camp__resources {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.5rem;
+}
+
+.turn-of-the-century .totc-workspace-camp__resource-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.turn-of-the-century .totc-workspace-camp__resource-row span {
+    min-width: 70px;
+    font-weight: 600;
+}
+
+.turn-of-the-century .totc-workspace-camp__morale label,
+.turn-of-the-century .totc-workspace-camp__activities label {
+    display: grid;
+    gap: 0.35rem;
+    font-weight: 600;
+    min-width: 180px;
+}
+
+.turn-of-the-century .totc-workspace-camp__morale select,
+.turn-of-the-century .totc-workspace-camp__activities select {
+    min-height: 2rem;
 }
 
 @media (max-width: 1100px) {
