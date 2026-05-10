@@ -935,6 +935,7 @@
     margin-bottom: 4px;
     padding: 8px 10px;
     transition: background 0.12s ease, border-color 0.12s ease;
+    -webkit-user-select: none;
     user-select: none;
 }
 
@@ -1089,6 +1090,254 @@
     gap: 8px;
     margin: 0 6px 6px;
     padding: 10px 12px;
+}
+
+.totc-workspace-shell-app {
+    inset: 0;
+}
+
+.totc-workspace-shell-app .window-content {
+    padding: 0;
+    overflow: hidden;
+}
+
+.turn-of-the-century .totc-workspace-shell {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    min-height: 100vh;
+    background: linear-gradient(180deg, #1f2022 0%, #2b2c2f 100%);
+    color: #efe7d6;
+}
+
+.turn-of-the-century .totc-workspace-shell__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.9rem 1.1rem;
+    border-bottom: 1px solid rgba(239, 231, 214, 0.18);
+    background: rgba(10, 10, 10, 0.4);
+}
+
+.turn-of-the-century .totc-workspace-shell__title {
+    margin: 0;
+    font-size: 1.2rem;
+    letter-spacing: 0.03em;
+}
+
+.turn-of-the-century .totc-workspace-shell__meta {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.turn-of-the-century .totc-workspace-shell__contexts {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid rgba(239, 231, 214, 0.14);
+}
+
+.turn-of-the-century .totc-context-button {
+    border: 1px solid rgba(239, 231, 214, 0.25);
+    color: inherit;
+    background: rgba(15, 15, 15, 0.35);
+    border-radius: 6px;
+    padding: 0.35rem 0.65rem;
+    font-weight: 600;
+}
+
+.turn-of-the-century .totc-context-button.is-active {
+    background: rgba(153, 122, 71, 0.45);
+    border-color: rgba(239, 231, 214, 0.4);
+}
+
+.turn-of-the-century .totc-workspace-shell__layout {
+    display: grid;
+    grid-template-columns: 280px 1fr 280px;
+    min-height: 0;
+}
+
+.turn-of-the-century .totc-workspace-shell__dock,
+.turn-of-the-century .totc-workspace-shell__main {
+    padding: 1rem;
+    overflow: auto;
+}
+
+.turn-of-the-century .totc-workspace-shell__dock {
+    background: rgba(0, 0, 0, 0.2);
+    border-right: 1px solid rgba(239, 231, 214, 0.12);
+}
+
+.turn-of-the-century .totc-workspace-shell__dock--right {
+    border-right: 0;
+    border-left: 1px solid rgba(239, 231, 214, 0.12);
+}
+
+.turn-of-the-century .totc-workspace-shell__main {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.turn-of-the-century .totc-workspace-context-placeholder,
+.turn-of-the-century .totc-workspace-encounter,
+.turn-of-the-century .totc-workspace-travel,
+.turn-of-the-century .totc-workspace-market {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.turn-of-the-century .totc-workspace-encounter__header,
+.turn-of-the-century .totc-workspace-encounter__gm-controls,
+.turn-of-the-century .totc-workspace-encounter__editor,
+.turn-of-the-century .totc-workspace-encounter__queue,
+.turn-of-the-century .totc-workspace-encounter__footer {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(239, 231, 214, 0.15);
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+
+.turn-of-the-century .totc-workspace-encounter__gm-controls,
+.turn-of-the-century .totc-workspace-encounter__footer,
+.turn-of-the-century .totc-workspace-encounter__editor {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+}
+
+.turn-of-the-century .totc-workspace-encounter__editor select,
+.turn-of-the-century .totc-workspace-encounter__editor input {
+    min-height: 2rem;
+}
+
+.turn-of-the-century .totc-workspace-encounter__action-select {
+    min-width: 260px;
+    flex: 1 1 320px;
+}
+
+.turn-of-the-century .totc-workspace-encounter__queue ul {
+    margin: 0;
+    padding-left: 1rem;
+    display: grid;
+    gap: 0.45rem;
+}
+
+.turn-of-the-century .totc-workspace-encounter__queue li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.turn-of-the-century .totc-workspace-travel__header,
+.turn-of-the-century .totc-workspace-travel__status,
+.turn-of-the-century .totc-workspace-travel__controls,
+.turn-of-the-century .totc-workspace-travel__event,
+.turn-of-the-century .totc-workspace-travel__seed,
+.turn-of-the-century .totc-workspace-market__header,
+.turn-of-the-century .totc-workspace-market__merchant-tools,
+.turn-of-the-century .totc-workspace-market__editor,
+.turn-of-the-century .totc-workspace-market__quote,
+.turn-of-the-century .totc-workspace-market__treasury,
+.turn-of-the-century .totc-workspace-market__sell,
+.turn-of-the-century .totc-workspace-market__admin,
+.turn-of-the-century .totc-workspace-market__controls {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(239, 231, 214, 0.15);
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+
+.turn-of-the-century .totc-workspace-travel__status {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.5rem;
+}
+
+.turn-of-the-century .totc-workspace-travel__controls,
+.turn-of-the-century .totc-workspace-market__merchant-tools,
+.turn-of-the-century .totc-workspace-market__treasury,
+.turn-of-the-century .totc-workspace-market__sell,
+.turn-of-the-century .totc-workspace-market__admin,
+.turn-of-the-century .totc-workspace-market__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.turn-of-the-century .totc-workspace-travel__controls h4,
+.turn-of-the-century .totc-workspace-market__header h3,
+.turn-of-the-century .totc-workspace-travel__header h3 {
+    margin: 0;
+}
+
+.turn-of-the-century .totc-workspace-market__editor {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+}
+
+.turn-of-the-century .totc-workspace-market__editor label {
+    display: grid;
+    gap: 0.35rem;
+    font-weight: 600;
+}
+
+.turn-of-the-century .totc-workspace-market__sell label {
+    display: grid;
+    gap: 0.35rem;
+    font-weight: 600;
+    min-width: 220px;
+}
+
+.turn-of-the-century .totc-workspace-travel__controls label,
+.turn-of-the-century .totc-workspace-market__treasury label {
+    display: grid;
+    gap: 0.35rem;
+    font-weight: 600;
+    min-width: 180px;
+}
+
+.turn-of-the-century .totc-workspace-travel__seed {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.turn-of-the-century .totc-workspace-market__admin h4 {
+    margin: 0;
+    width: 100%;
+}
+
+.turn-of-the-century .totc-workspace-market__admin label {
+    display: grid;
+    gap: 0.35rem;
+    font-weight: 600;
+    min-width: 220px;
+}
+
+.turn-of-the-century .totc-workspace-market__editor select,
+.turn-of-the-century .totc-workspace-market__editor input {
+    min-height: 2rem;
+}
+
+.turn-of-the-century .totc-workspace-market__quote {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.5rem;
+}
+
+@media (max-width: 1100px) {
+    .turn-of-the-century .totc-workspace-shell__layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+    }
+
+    .turn-of-the-century .totc-workspace-shell__dock,
+    .turn-of-the-century .totc-workspace-shell__dock--right {
+        border: 0;
+        border-top: 1px solid rgba(239, 231, 214, 0.12);
+    }
 }
 
 .turn-of-the-century .totc-planner-config-header {

@@ -30,6 +30,7 @@ import {
     TOTC_WORLD_SCHEMA_VERSION,
     migrateTotcActorProfiles,
     migrateTotcActorProfessions,
+    migrateTotcActorEconomy,
     migrateTotcEncounterActions,
     migrateTotcModifiers,
     migrateTotcStarterCompendiums,
@@ -50,6 +51,7 @@ import {
 } from "./module/sheets/actor-sheet.mjs";
 import { TurnOfTheCenturyCombatTracker } from "./module/sheets/combat-tracker.mjs";
 import { TurnOfTheCenturyItemSheet } from "./module/sheets/item-sheet.mjs";
+import { TotcWorkspaceManager, UI_CONTEXTS, UI_MODES } from "./module/ui/workspace-shell.mjs";
 
 const STARTER_CONTENT_SEEDED_SETTING = "starterContentSeeded";
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
@@ -58,6 +60,10 @@ const ENCOUNTER_MOVE_FEET_PER_AP_SETTING = "encounterMovementFeetPerAp";
 const ENCOUNTER_PLANNING_LIMIT_SECONDS_SETTING = "encounterPlanningLimitSeconds";
 const ENCOUNTER_PLANNING_WARNING_SECONDS_SETTING = "encounterPlanningWarningSeconds";
 const ENCOUNTER_REPLAY_STYLE_SETTING = "encounterReplayNarrationStyle";
+const UI_MODE_SETTING = "uiMode";
+const UI_PLAY_CONTEXT_SETTING = "uiPlayContext";
+const UI_BLOCK_FLOATING_WINDOWS_SETTING = "uiBlockFloatingWindows";
+const UI_TRAVEL_ENCOUNTER_SEED_POLICY_SETTING = "travelEncounterSeedPolicy";
 const ENCOUNTER_EVENT_HOOK_NAMES = [
     "totcEncounterStateInitialized",
     "totcEncounterPhaseChanged",
@@ -70,6 +76,7 @@ const ENCOUNTER_EVENT_HOOK_NAMES = [
 ];
 let encounterPlanningWatchHandle = null;
 const initiativePromptKeys = new Set();
+let workspaceManager = null;
 
 function logEncounterLifecycle(eventName, payload = {}) {
     const combat = payload.combat ?? payload.combatant?.combat ?? game.combat ?? null;
@@ -311,6 +318,7 @@ async function maybeRunAutomatedMigrations() {
             currentVersion,
             migrateActorProfiles: migrateTotcActorProfiles,
             migrateActorProfessions: migrateTotcActorProfessions,
+            migrateActorEconomy: migrateTotcActorEconomy,
             migrateEquipmentSlots: migrateTotcEquipmentSlots,
             migrateEncounterActions: migrateTotcEncounterActions,
             migrateModifiers: migrateTotcModifiers,
@@ -367,6 +375,8 @@ Hooks.once("init", () => {
             "system.profile.role",
             "system.profile.faction",
             "system.profile.summary",
+            "system.economy.isMerchant",
+            "system.economy.wallet.gbp",
             "system.progression.level",
             "system.hero.archetype",
             "system.villain.scheme",
@@ -484,6 +494,57 @@ Hooks.once("init", () => {
         },
         default: "detailed"
     });
+
+    game.settings.register("turn-of-the-century", UI_MODE_SETTING, {
+        name: "UI mode",
+        hint: "Choose whether the world boots into design tools or play workspace mode.",
+        scope: "world",
+        config: true,
+        type: String,
+        choices: {
+            [UI_MODES.DESIGN]: "Design",
+            [UI_MODES.PLAY]: "Play"
+        },
+        default: UI_MODES.DESIGN
+    });
+
+    game.settings.register("turn-of-the-century", UI_PLAY_CONTEXT_SETTING, {
+        name: "Play context",
+        hint: "Active play context used by the workspace shell.",
+        scope: "world",
+        config: true,
+        type: String,
+        choices: {
+            [UI_CONTEXTS.TRAVEL]: "Travel",
+            [UI_CONTEXTS.ENCOUNTER]: "Encounter",
+            [UI_CONTEXTS.MARKET]: "Market",
+            [UI_CONTEXTS.CAMP]: "Camp"
+        },
+        default: UI_CONTEXTS.TRAVEL
+    });
+
+    game.settings.register("turn-of-the-century", UI_BLOCK_FLOATING_WINDOWS_SETTING, {
+        name: "Block floating windows in play mode",
+        hint: "Automatically closes non-prompt floating windows while play mode is active.",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true
+    });
+
+    game.settings.register("turn-of-the-century", UI_TRAVEL_ENCOUNTER_SEED_POLICY_SETTING, {
+        name: "Travel encounter scaffold policy",
+        hint: "How travel-seeded encounters should treat existing scene combat: append, reset, or replace.",
+        scope: "world",
+        config: true,
+        type: String,
+        choices: {
+            append: "Append to current scene combat",
+            reset: "Reset current scene combat",
+            replace: "Replace with a new scene combat"
+        },
+        default: "append"
+    });
 });
 
 Hooks.once("ready", async () => {
@@ -501,6 +562,7 @@ Hooks.once("ready", async () => {
     game.turnOfTheCentury.migrations = {
         migrateActorProfiles: migrateTotcActorProfiles,
         migrateActorProfessions: migrateTotcActorProfessions,
+        migrateActorEconomy: migrateTotcActorEconomy,
         migrateEquipmentSlots: migrateTotcEquipmentSlots,
         migrateEncounterActions: migrateTotcEncounterActions,
         migrateModifiers: migrateTotcModifiers,
@@ -509,6 +571,7 @@ Hooks.once("ready", async () => {
                 currentVersion: game.settings.get("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING),
                 migrateActorProfiles: migrateTotcActorProfiles,
                 migrateActorProfessions: migrateTotcActorProfessions,
+                migrateActorEconomy: migrateTotcActorEconomy,
                 migrateEquipmentSlots: migrateTotcEquipmentSlots,
                 migrateEncounterActions: migrateTotcEncounterActions,
                 migrateModifiers: migrateTotcModifiers,
@@ -519,6 +582,43 @@ Hooks.once("ready", async () => {
             return result;
         }
     };
+    workspaceManager = new TotcWorkspaceManager({
+        systemId: "turn-of-the-century",
+        modeSettingKey: UI_MODE_SETTING,
+        playContextSettingKey: UI_PLAY_CONTEXT_SETTING,
+        blockFloatingWindowsSettingKey: UI_BLOCK_FLOATING_WINDOWS_SETTING
+    });
+    await workspaceManager.initialize();
+
+    game.turnOfTheCentury.ui = {
+        modes: Object.freeze({ ...UI_MODES }),
+        contexts: Object.freeze({ ...UI_CONTEXTS }),
+        getMode: () => game.settings.get("turn-of-the-century", UI_MODE_SETTING),
+        setMode: async (mode) => {
+            if (!workspaceManager) return;
+            await workspaceManager.setMode(mode);
+        },
+        getContext: () => game.settings.get("turn-of-the-century", UI_PLAY_CONTEXT_SETTING),
+        setContext: async (context) => {
+            if (!workspaceManager) return;
+            await workspaceManager.setPlayContext(context);
+        },
+        getTravelEncounterSeedPolicy: () => game.settings.get("turn-of-the-century", UI_TRAVEL_ENCOUNTER_SEED_POLICY_SETTING),
+        setTravelEncounterSeedPolicy: async (policy) => {
+            const normalized = ["append", "reset", "replace"].includes(String(policy ?? "").toLowerCase())
+                ? String(policy).toLowerCase()
+                : "append";
+            await game.settings.set("turn-of-the-century", UI_TRAVEL_ENCOUNTER_SEED_POLICY_SETTING, normalized);
+        },
+        openWorkspace: async () => {
+            if (!workspaceManager) return;
+            await workspaceManager.openShell(true);
+        },
+        enforceWindowPolicy: () => {
+            workspaceManager?.enforceWindowPolicy();
+        }
+    };
+
     game.turnOfTheCentury.encounters = {
         /**
          * Read-only map of all encounter event name constants.
@@ -698,4 +798,6 @@ Hooks.once("shutdown", () => {
     if (!encounterPlanningWatchHandle) return;
     clearInterval(encounterPlanningWatchHandle);
     encounterPlanningWatchHandle = null;
+
+    workspaceManager = null;
 });

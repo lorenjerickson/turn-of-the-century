@@ -127,6 +127,15 @@ function createProfileField() {
     });
 }
 
+function createEconomyField() {
+    return new SchemaField({
+        isMerchant: new BooleanField({ required: true, initial: false }),
+        wallet: new SchemaField({
+            gbp: new NumberField({ required: true, min: 0, initial: 100 })
+        })
+    });
+}
+
 function createSlotField({ label, capacity, allowed }) {
     return new SchemaField({
         label: new StringField({ required: true, blank: false, initial: label }),
@@ -171,6 +180,7 @@ class CreatureActorDataModel extends foundry.abstract.TypeDataModel {
             artwork: createArtworkField(),
             tokenArtwork: createTokenArtworkField(),
             profile: createProfileField(),
+            economy: createEconomyField(),
             biography: new HTMLField({ required: true, blank: true }),
             notes: new HTMLField({ required: true, blank: true }),
             classification: createClassificationField("npc"),

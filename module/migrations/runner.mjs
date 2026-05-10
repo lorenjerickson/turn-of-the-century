@@ -1,9 +1,10 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 7;
+export const TOTC_WORLD_SCHEMA_VERSION = 8;
 
 export async function runTotcMigrations({
     currentVersion = 0,
     migrateActorProfiles,
     migrateActorProfessions,
+    migrateActorEconomy,
     migrateEquipmentSlots,
     migrateEncounterActions,
     migrateModifiers,
@@ -19,6 +20,9 @@ export async function runTotcMigrations({
     }
     if (typeof migrateActorProfessions !== "function") {
         throw new Error("runTotcMigrations requires a migrateActorProfessions function.");
+    }
+    if (typeof migrateActorEconomy !== "function") {
+        throw new Error("runTotcMigrations requires a migrateActorEconomy function.");
     }
     if (typeof migrateEncounterActions !== "function") {
         throw new Error("runTotcMigrations requires a migrateEncounterActions function.");
@@ -135,6 +139,21 @@ export async function runTotcMigrations({
         appliedVersion = 7;
     }
 
+    if (appliedVersion < 8) {
+        const report = await migrateActorEconomy({
+            dryRun: false,
+            notify: false,
+            includeCompendiums: false
+        });
+
+        appliedSteps.push({
+            version: 8,
+            key: "actor-economy",
+            report
+        });
+        appliedVersion = 8;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -160,6 +179,10 @@ export async function runTotcMigrations({
 
                 if (step.key === "starter-compendiums-refresh") {
                     return `${step.key}: ${step.report.totalImported} documents imported`;
+                }
+
+                if (step.key === "actor-economy") {
+                    return `${step.key}: ${step.report.actorsUpdated} actors updated`;
                 }
 
                 return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;
