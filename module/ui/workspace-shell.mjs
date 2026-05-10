@@ -72,7 +72,8 @@ const BLOCKED_WINDOW_ID_FRAGMENTS = [
 const ALLOWED_WINDOW_APP_NAMES = new Set([
     "Dialog",
     "DialogV2",
-    "Prompt"
+    "Prompt",
+    "SettingsConfig"
 ]);
 
 function getApplicationV2BaseClass() {
@@ -137,7 +138,8 @@ function isExplicitlyBlockedWindow(app) {
     if (BLOCKED_WINDOW_APP_NAMES.has(constructorName)) return true;
 
     const lowerCtor = constructorName.toLowerCase();
-    if (lowerCtor.endsWith("sheet") || lowerCtor.endsWith("config")) return true;
+    // Block actor/item sheets but allow system config dialogs (SettingsConfig, etc.)
+    if (lowerCtor.endsWith("sheet")) return true;
 
     return BLOCKED_WINDOW_ID_FRAGMENTS.some((fragment) => id.includes(fragment));
 }
@@ -2370,7 +2372,8 @@ export class TotcWorkspaceManager {
             return;
         }
 
-        await this.closeShell();
+        // In DESIGN mode, keep shell open for configuration but don't enforce policies
+        await this.openShell();
     }
 
     async setMode(mode) {
