@@ -1,4 +1,6 @@
-export class TurnOfTheCenturyItem extends Item {
+const BaseItemDocument = foundry.documents?.Item ?? Item;
+
+export class TurnOfTheCenturyItem extends BaseItemDocument {
     get dataModel() {
         return this.system;
     }

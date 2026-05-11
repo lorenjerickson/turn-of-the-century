@@ -116,6 +116,10 @@ const ENCOUNTER_EVENT_HOOK_NAMES = [
     "totcEncounterCombatantReadyChanged",
     "totcEncounterPlanUpdated"
 ];
+const ActorsCollection = foundry.documents?.collections?.Actors ?? Actors;
+const ItemsCollection = foundry.documents?.collections?.Items ?? Items;
+const BaseActorSheetClass = foundry.appv1?.sheets?.ActorSheet ?? ActorSheet;
+const BaseItemSheetClass = foundry.appv1?.sheets?.ItemSheet ?? ItemSheet;
 let encounterPlanningWatchHandle = null;
 const initiativePromptKeys = new Set();
 let workspaceManager = null;
@@ -472,24 +476,24 @@ Hooks.once("init", () => {
         weapon: WeaponDataModel
     });
 
-    Items.unregisterSheet("core", ItemSheet);
-    Items.registerSheet("turn-of-the-century", TurnOfTheCenturyItemSheet, {
+    ItemsCollection.unregisterSheet("core", BaseItemSheetClass);
+    ItemsCollection.registerSheet("turn-of-the-century", TurnOfTheCenturyItemSheet, {
         makeDefault: true,
         label: "Turn of the Century Item Sheet"
     });
 
-    Actors.unregisterSheet("core", ActorSheet);
-    Actors.registerSheet("turn-of-the-century", TurnOfTheCenturyHeroSheet, {
+    ActorsCollection.unregisterSheet("core", BaseActorSheetClass);
+    ActorsCollection.registerSheet("turn-of-the-century", TurnOfTheCenturyHeroSheet, {
         types: ["hero"],
         makeDefault: true,
         label: "Turn of the Century Hero Sheet"
     });
-    Actors.registerSheet("turn-of-the-century", TurnOfTheCenturyVillainSheet, {
+    ActorsCollection.registerSheet("turn-of-the-century", TurnOfTheCenturyVillainSheet, {
         types: ["villain"],
         makeDefault: true,
         label: "Turn of the Century Villain Sheet"
     });
-    Actors.registerSheet("turn-of-the-century", TurnOfTheCenturyPawnSheet, {
+    ActorsCollection.registerSheet("turn-of-the-century", TurnOfTheCenturyPawnSheet, {
         types: ["pawn"],
         makeDefault: true,
         label: "Turn of the Century Pawn Sheet"

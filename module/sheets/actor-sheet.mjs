@@ -1,6 +1,9 @@
 import { TOTC_EQUIPMENT_SLOT_KEYS } from "../models/actor.mjs";
 import { buildEncounterPlanner } from "../encounters/planner-context.mjs";
 
+const BaseActorSheet = foundry.appv1?.sheets?.ActorSheet ?? ActorSheet;
+const BaseItemDocument = foundry.documents?.Item ?? Item;
+
 function toArrayInput(value) {
     if (!Array.isArray(value)) return "";
     return value.join(", ");
@@ -402,7 +405,7 @@ function showInlinePlannerConfig(plannerSection, planner, actionData, remainingA
     }
 }
 
-export class TurnOfTheCenturyActorSheet extends ActorSheet {
+export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
     static templatePath = "systems/turn-of-the-century/templates/actors/hero-sheet.hbs";
 
     static get defaultOptions() {
@@ -514,7 +517,7 @@ export class TurnOfTheCenturyActorSheet extends ActorSheet {
             return;
         }
 
-        const itemData = item instanceof Item ? item.toObject() : item;
+        const itemData = item instanceof BaseItemDocument ? item.toObject() : item;
         const createdItems = await this.actor.createEmbeddedDocuments("Item", [itemData]);
 
         if (!createdItems?.length) {

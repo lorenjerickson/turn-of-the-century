@@ -19,7 +19,9 @@ function readSelectedAction(selectElement) {
     };
 }
 
-export class TurnOfTheCenturyCombatTracker extends CombatTracker {
+const BaseCombatTracker = foundry.appv1?.applications?.sidebar?.tabs?.CombatTracker ?? CombatTracker;
+
+export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
     static get defaultOptions() {
         return foundry.utils.mergeObject(super.defaultOptions, {
             template: "systems/turn-of-the-century/templates/combat/combat-tracker.hbs"

@@ -2,6 +2,8 @@ function isPlainObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+const BaseItemSheet = foundry.appv1?.sheets?.ItemSheet ?? ItemSheet;
+
 /**
  * Converts a dot-separated system field path into a human-readable label.
  * E.g. "system.armorClass.increment" → "Armor Class › Increment"
@@ -52,7 +54,7 @@ function flattenSystemData(source, prefix = "system") {
     });
 }
 
-export class TurnOfTheCenturyItemSheet extends ItemSheet {
+export class TurnOfTheCenturyItemSheet extends BaseItemSheet {
     static get defaultOptions() {
         return foundry.utils.mergeObject(super.defaultOptions, {
             classes: ["turn-of-the-century", "sheet", "item"],

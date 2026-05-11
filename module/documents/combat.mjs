@@ -8,6 +8,9 @@ import {
     getPlanningWarningSeconds
 } from "../encounters/action-catalog.mjs";
 
+const BaseCombatDocument = foundry.documents?.Combat ?? Combat;
+const ChatMessageDocument = foundry.documents?.ChatMessage ?? ChatMessage;
+
 const ENCOUNTER_FLAG_SCOPE = "turn-of-the-century";
 const ENCOUNTER_FLAG_KEY = "encounter";
 
@@ -73,7 +76,7 @@ function clampActionCost(value) {
 }
 
 function getWhisperRecipientsForGm() {
-    return ChatMessage.getWhisperRecipients("GM").map((user) => user.id);
+    return ChatMessageDocument.getWhisperRecipients("GM").map((user) => user.id);
 }
 
 function createNarrationMessage(round, tick, line) {
@@ -1235,7 +1238,7 @@ export class TurnOfTheCenturyEncounter {
     }
 }
 
-export class TurnOfTheCenturyCombat extends Combat {
+export class TurnOfTheCenturyCombat extends BaseCombatDocument {
     #encounter = null;
 
     get encounter() {

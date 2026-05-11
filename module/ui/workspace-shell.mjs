@@ -1466,18 +1466,31 @@ export class TotcWorkspaceShell extends (ApplicationV2Base ?? class {}) {
     }
 
     async _renderHTML(context) {
-        const root = document.createElement("section");
-        root.classList.add("totc-workspace-shell-root");
-        root.innerHTML = renderShellContent(context);
-        return root;
+        return renderShellContent(context);
     }
 
     _replaceHTML(result, content) {
-        content.replaceChildren(result);
+        const target = content?.querySelector
+            ? content
+            : content?.[0] ?? null;
+        if (!target) return;
+
+        if (typeof result === "string") {
+            target.innerHTML = result;
+            return;
+        }
+
+        if (target.replaceChildren) {
+            target.replaceChildren(result);
+        }
     }
 
     async _onRender(context, options) {
         await super._onRender(context, options);
+
+        if (this.element && typeof this.element.querySelectorAll !== "function" && typeof this.element.find === "function") {
+            this.element.querySelectorAll = (selector) => this.element.find(selector).toArray();
+        }
 
         this.element
             ?.querySelectorAll("[data-action='setContext']")

@@ -1,4 +1,6 @@
-export class TurnOfTheCenturyActor extends Actor {
+const BaseActorDocument = foundry.documents?.Actor ?? Actor;
+
+export class TurnOfTheCenturyActor extends BaseActorDocument {
     get dataModel() {
         return this.system;
     }
