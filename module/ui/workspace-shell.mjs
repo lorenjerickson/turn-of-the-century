@@ -2438,12 +2438,6 @@ export class TotcWorkspaceManager {
         this.shell.mode = this.isPlayMode() ? UI_MODES.PLAY : UI_MODES.DESIGN;
         this.shell.context = this.getPlayContext();
 
-        const viewportWidth = Math.max(320, Number(globalThis?.innerWidth ?? window?.innerWidth ?? 1920));
-        const viewportHeight = Math.max(320, Number(globalThis?.innerHeight ?? window?.innerHeight ?? 1080));
-        if (typeof this.shell.setPosition === "function") {
-            this.shell.setPosition({ left: 0, top: 0, width: viewportWidth, height: viewportHeight });
-        }
-
         try {
             await this.shell.render({ force: true, focus: true });
         } catch (renderOptionsError) {
