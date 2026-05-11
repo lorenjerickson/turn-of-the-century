@@ -1,7 +1,7 @@
 import { TOTC_EQUIPMENT_SLOT_KEYS } from "../models/actor.mjs";
 import { buildEncounterPlanner } from "../encounters/planner-context.mjs";
 
-const BaseActorSheet = foundry.appv1?.sheets?.ActorSheet ?? ActorSheet;
+const BaseActorSheet = foundry.applications?.sheets?.ActorSheet ?? foundry.appv1?.sheets?.ActorSheet ?? ActorSheet;
 const BaseItemDocument = foundry.documents?.Item ?? Item;
 
 function toArrayInput(value) {

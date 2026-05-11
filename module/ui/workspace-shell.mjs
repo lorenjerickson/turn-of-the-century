@@ -1738,7 +1738,6 @@ export class TotcWorkspaceManager {
         this.shell = null;
         this.dismissedIds = new Set();
         this._onRenderApplicationV2 = this._onRenderApplicationV2.bind(this);
-        this._onRenderApplicationV1 = this._onRenderApplicationV1.bind(this);
     }
 
     isPlayMode() {
@@ -1756,7 +1755,6 @@ export class TotcWorkspaceManager {
 
     async initialize() {
         Hooks.on("renderApplicationV2", this._onRenderApplicationV2);
-        Hooks.on("renderApplicationV1", this._onRenderApplicationV1);
 
         if (this.isPlayMode()) {
             await this.openShell();
@@ -1861,10 +1859,6 @@ export class TotcWorkspaceManager {
     }
 
     _onRenderApplicationV2(app) {
-        this._closeDisallowedWindow(app);
-    }
-
-    _onRenderApplicationV1(app) {
         this._closeDisallowedWindow(app);
     }
 
