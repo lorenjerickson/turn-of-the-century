@@ -77,11 +77,15 @@ const ALLOWED_WINDOW_APP_NAMES = new Set([
 ]);
 
 function getApplicationV2BaseClass() {
-    return globalThis?.foundry?.applications?.api?.ApplicationV2 ?? null;
+    return globalThis?.foundry?.applications?.api?.ApplicationV2
+        ?? globalThis?.foundry?.applications?.ApplicationV2
+        ?? null;
 }
 
 function getDialogV2BaseClass() {
-    return globalThis?.foundry?.applications?.api?.DialogV2 ?? null;
+    return globalThis?.foundry?.applications?.api?.DialogV2
+        ?? globalThis?.foundry?.applications?.DialogV2
+        ?? null;
 }
 
 function getDialogV1BaseClass() {
@@ -2427,7 +2431,20 @@ export class TotcWorkspaceManager {
 
         this.shell.mode = this.isPlayMode() ? UI_MODES.PLAY : UI_MODES.DESIGN;
         this.shell.context = this.getPlayContext();
-        await this.shell.render({ force: true, focus: true });
+        try {
+            await this.shell.render({ force: true, focus: true });
+        } catch (renderOptionsError) {
+            // Some Foundry builds use a boolean-first render signature.
+            try {
+                await this.shell.render(true);
+            } catch (renderBooleanError) {
+                console.error("[turn-of-the-century] Workspace shell render failed.", {
+                    renderOptionsError,
+                    renderBooleanError
+                });
+                return;
+            }
+        }
 
         if (force && typeof this.shell.bringToFront === "function") {
             this.shell.bringToFront();

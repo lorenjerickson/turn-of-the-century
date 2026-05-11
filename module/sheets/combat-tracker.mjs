@@ -19,7 +19,9 @@ function readSelectedAction(selectElement) {
     };
 }
 
-const BaseCombatTracker = foundry.appv1?.applications?.sidebar?.tabs?.CombatTracker ?? CombatTracker;
+const BaseCombatTracker = foundry.applications?.sidebar?.tabs?.CombatTracker
+    ?? foundry.appv1?.applications?.sidebar?.tabs?.CombatTracker
+    ?? globalThis.CombatTracker;
 
 export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
     static get defaultOptions() {
