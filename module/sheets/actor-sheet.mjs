@@ -355,7 +355,7 @@ function showInlinePlannerConfig(plannerSection, planner, actionData, remainingA
         const options = targetOptions.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
         targetHtml = `
             <label class="totc-planner-config-row">
-                <span>${game.i18n?.localize("TOTC.Encounter.Target") ?? "Target"}</span>
+                <span>${game.i18n?.localize("TOTC.Encounter.TargetLabel") ?? "Target"}</span>
                 <select class="totc-planner-config__target">${options}</select>
             </label>`;
     }

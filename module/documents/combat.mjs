@@ -676,8 +676,8 @@ export class TurnOfTheCenturyEncounter {
                 id: movementTemplate.id,
                 actionId: movementTemplate.id,
                 type: movementTemplate.type,
-                label: game.i18n.localize("TOTC.Encounter.Action.Move"),
-                description: game.i18n.localize("TOTC.Encounter.Action.Move.Description"),
+                label: game.i18n.localize("TOTC.Encounter.Action.MoveLabel"),
+                description: game.i18n.localize("TOTC.Encounter.Action.MoveDescription"),
                 apCost: Number(movementTemplate.apCost ?? 1),
                 apMin: Number(movementTemplate.apMin ?? 1),
                 apMax: Number(movementTemplate.apMax ?? this.apBudget),
@@ -695,8 +695,8 @@ export class TurnOfTheCenturyEncounter {
                 id: catalog.defend.id,
                 actionId: catalog.defend.id,
                 type: catalog.defend.type,
-                label: game.i18n.localize("TOTC.Encounter.Action.Defend"),
-                description: game.i18n.localize("TOTC.Encounter.Action.Defend.Description"),
+                label: game.i18n.localize("TOTC.Encounter.Action.DefendLabel"),
+                description: game.i18n.localize("TOTC.Encounter.Action.DefendDescription"),
                 apCost: Number(catalog.defend.apCost ?? 1),
                 apMin: Number(catalog.defend.apMin ?? 1),
                 apMax: Number(catalog.defend.apMax ?? this.apBudget),
@@ -1107,7 +1107,7 @@ export class TurnOfTheCenturyEncounter {
                 damageMultiplier: 2,
                 damage: appliedDamage,
                 targetCombatantId: targetCombatant?.id ?? null,
-                targetName: targetCombatant?.name ?? game.i18n.localize("TOTC.Encounter.Target.Unspecified"),
+                targetName: targetCombatant?.name ?? game.i18n.localize("TOTC.Encounter.TargetUnspecified"),
                 detail: `${combatant.name} critically hits ${targetCombatant?.name ?? "the target"} with ${action.label} for ${formatDamageText(appliedDamage)}.`
             };
         }
@@ -1140,7 +1140,7 @@ export class TurnOfTheCenturyEncounter {
             targetArmorClass,
             damage: hits ? baseDamage : 0,
             targetCombatantId: targetCombatant?.id ?? null,
-            targetName: targetCombatant?.name ?? game.i18n.localize("TOTC.Encounter.Target.Unspecified"),
+            targetName: targetCombatant?.name ?? game.i18n.localize("TOTC.Encounter.TargetUnspecified"),
             detail: hits
                 ? `${combatant.name} hits ${targetCombatant?.name ?? "the target"} with ${action.label} (AC ${targetArmorClass}) for ${formatDamageText(baseDamage)}.`
                 : `${combatant.name} misses ${targetCombatant?.name ?? "the target"} with ${action.label} (AC ${targetArmorClass}, total ${toHitTotal}).`
