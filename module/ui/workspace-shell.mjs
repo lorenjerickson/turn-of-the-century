@@ -996,17 +996,9 @@ function renderShellContent({ context, mode, encounterPlanner = null, travelCont
         ${contextButtons}
     </nav>
     <div class="totc-workspace-shell__layout">
-        <aside class="totc-workspace-shell__dock totc-workspace-shell__dock--left">
-            <h3>Left Dock</h3>
-            <p>Context tools and party controls appear here.</p>
-        </aside>
         <main class="totc-workspace-shell__main">
             ${renderMainPanel(context, { encounterPlanner, travelContext, marketContext })}
         </main>
-        <aside class="totc-workspace-shell__dock totc-workspace-shell__dock--right">
-            <h3>Right Dock</h3>
-            <p>Reference data and actions appear here.</p>
-        </aside>
     </div>
 </section>`;
 }

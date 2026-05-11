@@ -52,7 +52,6 @@ import {
 import { TurnOfTheCenturyCombatTracker } from "./module/sheets/combat-tracker.mjs";
 import { TurnOfTheCenturyItemSheet } from "./module/sheets/item-sheet.mjs";
 import { TotcWorkspaceManager, UI_CONTEXTS, UI_MODES } from "./module/ui/workspace-shell.mjs";
-import { TotcTabGroupManager, TabGroupConsoleAPI } from "./module/ui/tab-group-manager.mjs";
 import {
     MultiplayerGovernanceTestHelper,
     MultiplayerTestConsoleAPI
@@ -799,7 +798,7 @@ Hooks.once("ready", async () => {
 
         /**
          * Run specific multiplayer test
-         * Tests: contextSwitching, tabGroupManagement, encounterSeeding, windowStress, chatDistribution
+         * Tests: contextSwitching, encounterSeeding, windowStress, chatDistribution
          * @param {string} testName - Name of test to run
          * @returns {Promise<Object>} Test result
          */
@@ -807,8 +806,6 @@ Hooks.once("ready", async () => {
             switch (testName) {
                 case "contextSwitching":
                     return await realMultiplayerCoordinator.testConcurrentContextSwitching();
-                case "tabGroupManagement":
-                    return await realMultiplayerCoordinator.testConcurrentTabGroupManagement();
                 case "encounterSeeding":
                     return await realMultiplayerCoordinator.testMultiplayerEncounterSeeding();
                 case "windowStress":
@@ -1014,127 +1011,6 @@ Hooks.once("ready", async () => {
          * @returns {Array<string>} Loot descriptions
          */
         rollLoot: (factionKey, difficulty) => rollLoot(factionKey, difficulty)
-    };
-
-    /**
-     * Workspace Tab Group Management API
-     * Allows customization of panel organization into tab groups
-     */
-    game.turnOfTheCentury.tabGroups = {
-        /**
-         * Get the tab group manager for the current scene
-         * @returns {TotcTabGroupManager} The tab group manager instance
-         */
-        getManager: () => workspaceManager?.shell?.tabGroupManager ?? null,
-
-        /**
-         * Get all tab groups
-         * @returns {Array<Object>} Array of tab group objects
-         */
-        listGroups: () => workspaceManager?.shell?.tabGroupManager?.getGroups() ?? [],
-
-        /**
-         * Get details for a specific group
-         * @param {string} groupId - Tab group ID
-         * @returns {Object|null} Group details with tabs and active panel
-         */
-        getGroup: (groupId) => workspaceManager?.shell?.tabGroupManager?.getGroupDetails(groupId) ?? null,
-
-        /**
-         * Create a new tab group
-         * @param {string} name - Name for the new group
-         * @returns {Promise<Object>} The created group
-         */
-        createGroup: (name) => workspaceManager?.shell?.tabGroupManager?.createGroup(name),
-
-        /**
-         * Delete a tab group
-         * @param {string} groupId - Tab group ID
-         * @returns {Promise<boolean>} Success flag
-         */
-        deleteGroup: (groupId) => workspaceManager?.shell?.tabGroupManager?.deleteGroup(groupId),
-
-        /**
-         * Add a panel to a tab group
-         * @param {string} groupId - Tab group ID
-         * @param {string} panelContext - Panel context (encounter, travel, market, camp)
-         * @param {string} label - Optional tab label
-         * @returns {Promise<Object|null>} The created tab
-         */
-        addTab: (groupId, panelContext, label) => workspaceManager?.shell?.tabGroupManager?.addTab(groupId, panelContext, label),
-
-        /**
-         * Remove a tab from a group
-         * @param {string} groupId - Tab group ID
-         * @param {string} tabId - Tab ID
-         * @returns {Promise<boolean>} Success flag
-         */
-        removeTab: (groupId, tabId) => workspaceManager?.shell?.tabGroupManager?.removeTab(groupId, tabId),
-
-        /**
-         * Switch to a different tab in a group
-         * @param {string} groupId - Tab group ID
-         * @param {string} tabId - Tab ID
-         * @returns {Promise<boolean>} Success flag
-         */
-        switchTab: (groupId, tabId) => workspaceManager?.shell?.tabGroupManager?.setActiveTab(groupId, tabId),
-
-        /**
-         * Apply a preset layout
-         * @param {string} layoutName - Layout name: 'default', 'separate', 'grouped'
-         * @returns {Promise<boolean>} Success flag
-         */
-        applyLayout: async (layoutName) => {
-            const manager = workspaceManager?.shell?.tabGroupManager;
-            if (!manager) return false;
-
-            switch (layoutName) {
-                case "default":
-                    await manager.resetToDefault();
-                    break;
-                case "separate":
-                    await manager.createSeparateTabsLayout();
-                    break;
-                case "grouped":
-                    await manager.createGroupedLayout();
-                    break;
-                default:
-                    return false;
-            }
-
-            // Re-render shell to show new layout
-            workspaceManager?.shell?.render(false);
-            return true;
-        },
-
-        /**
-         * Reset to default layout
-         * @returns {Promise<void>}
-         */
-        resetToDefault: () => {
-            if (workspaceManager?.shell?.tabGroupManager) {
-                workspaceManager.shell.tabGroupManager.resetToDefault();
-                workspaceManager.shell.render(false);
-            }
-        },
-
-        /**
-         * Export tab configuration as JSON
-         * @returns {string} JSON string of tab configuration
-         */
-        exportConfig: () => workspaceManager?.shell?.tabGroupManager?.exportConfig() ?? "{}",
-
-        /**
-         * Import tab configuration from JSON
-         * @param {string} jsonString - JSON configuration string
-         * @returns {Promise<boolean>} Success flag
-         */
-        importConfig: (jsonString) => {
-            if (workspaceManager?.shell?.tabGroupManager) {
-                return workspaceManager.shell.tabGroupManager.importConfig(jsonString);
-            }
-            return Promise.resolve(false);
-        }
     };
 
     /**

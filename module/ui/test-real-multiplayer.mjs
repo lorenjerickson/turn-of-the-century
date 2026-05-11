@@ -20,7 +20,6 @@ export class RealMultiplayerTestCoordinator {
             contextSwitches: [],
             encounterInitiations: [],
             npcCreations: [],
-            tabGroupOperations: [],
             economyTransactions: []
         };
     }
@@ -35,7 +34,6 @@ export class RealMultiplayerTestCoordinator {
             contextSwitches: [],
             encounterInitiations: [],
             npcCreations: [],
-            tabGroupOperations: [],
             economyTransactions: []
         };
 
@@ -109,89 +107,6 @@ export class RealMultiplayerTestCoordinator {
             playerCount: players.length,
             success: true
         };
-    }
-
-    /**
-     * Tab Group Operation Test
-     * Multiple players create, modify, and use custom tab groups
-     */
-    async testConcurrentTabGroupManagement() {
-        const players = [...(game.users?.contents ?? [])].filter((u) => u.active && !u.isSelf);
-        if (players.length === 0) {
-            this._log("TEST_SKIP", { reason: "No active players" });
-            return { skipped: true };
-        }
-
-        const operations = [];
-
-        try {
-            // Player 1: Apply "separate" layout
-            if (players.length >= 1) {
-                await game.turnOfTheCentury.tabGroups.applyLayout("separate");
-                operations.push({
-                    player: players[0].name,
-                    operation: "apply_layout",
-                    layout: "separate",
-                    success: true
-                });
-            }
-
-            // Player 2: Apply "grouped" layout
-            if (players.length >= 2) {
-                await game.turnOfTheCentury.tabGroups.applyLayout("grouped");
-                operations.push({
-                    player: players[1].name,
-                    operation: "apply_layout",
-                    layout: "grouped",
-                    success: true
-                });
-            }
-
-            // All players: Create custom groups
-            for (let i = 0; i < Math.min(players.length, 3); i++) {
-                const customGroup = await game.turnOfTheCentury.tabGroups.createGroup(`Player${i}Group`);
-                operations.push({
-                    player: players[i].name,
-                    operation: "create_group",
-                    groupName: customGroup.name,
-                    success: !!customGroup
-                });
-            }
-
-            // Switch between tabs
-            const groups = game.turnOfTheCentury.tabGroups.listGroups();
-            if (groups.length > 0 && groups[0].tabs?.length > 1) {
-                await game.turnOfTheCentury.tabGroups.switchTab(groups[0].id, groups[0].tabs[0].id);
-                operations.push({
-                    player: players[0]?.name ?? "system",
-                    operation: "switch_tab",
-                    groupId: groups[0].id,
-                    success: true
-                });
-            }
-
-            this.metrics.tabGroupOperations.push(...operations);
-
-            this._log("TAB_GROUP_CONCURRENT_TEST", {
-                playerCount: players.length,
-                operationCount: operations.length,
-                operations
-            });
-
-            return {
-                testId: "tab_group_concurrent",
-                operationCount: operations.length,
-                successCount: operations.filter((o) => o.success).length,
-                success: true
-            };
-        } catch (err) {
-            this._log("TAB_GROUP_TEST_ERROR", { error: String(err) });
-            return {
-                testId: "tab_group_concurrent",
-                error: String(err),
-                success: false
-            };
-        }
     }
 
     /**
@@ -395,7 +310,6 @@ export class RealMultiplayerTestCoordinator {
         // Run all tests
         const testMethods = [
             ("Concurrent Context Switching", this.testConcurrentContextSwitching.bind(this)),
-            ("Tab Group Management", this.testConcurrentTabGroupManagement.bind(this)),
             ("Multiplayer Encounters", this.testMultiplayerEncounterSeeding.bind(this)),
             ("Window Governance Stress", this.testWindowGovernanceStress.bind(this)),
             ("Chat Distribution", this.testChatMessageDistribution.bind(this))
@@ -443,7 +357,6 @@ export class RealMultiplayerTestCoordinator {
                 contextSwitches: this.metrics.contextSwitches.length,
                 encounterInitiations: this.metrics.encounterInitiations.length,
                 npcCreations: this.metrics.npcCreations.length,
-                tabGroupOperations: this.metrics.tabGroupOperations.length,
                 economyTransactions: this.metrics.economyTransactions.length
             },
             recentLog: this.sessionLog.slice(-10)

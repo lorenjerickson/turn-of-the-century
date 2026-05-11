@@ -28,16 +28,6 @@ body.totc-system-theme .turn-of-the-century .totc-workspace-shell__contexts {
     border-bottom: 1px solid rgba(178, 136, 76, 0.3);
 }
 
-body.totc-system-theme .turn-of-the-century .totc-workspace-shell__dock {
-    background:
-        linear-gradient(180deg, rgba(24, 16, 15, 0.86), rgba(17, 12, 12, 0.86));
-    border-right: 1px solid rgba(173, 132, 76, 0.26);
-}
-
-body.totc-system-theme .turn-of-the-century .totc-workspace-shell__dock--right {
-    border-left: 1px solid rgba(173, 132, 76, 0.26);
-}
-
 body.totc-system-theme .turn-of-the-century .totc-workspace-shell__main {
     background:
         linear-gradient(180deg, rgba(237, 225, 202, 0.14), rgba(237, 225, 202, 0.06));
@@ -94,9 +84,4 @@ body.totc-system-theme .turn-of-the-century .totc-workspace-shell button {
     min-height: 2rem;
 }
 
-@media (max-width: 1100px) {
-    body.totc-system-theme .turn-of-the-century .totc-workspace-shell__dock,
-    body.totc-system-theme .turn-of-the-century .totc-workspace-shell__dock--right {
-        border-top: 1px solid rgba(173, 132, 76, 0.3);
-    }
-}
+
