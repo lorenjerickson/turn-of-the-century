@@ -51,7 +51,8 @@ import {
 } from "./module/sheets/actor-sheet.mjs";
 import { TurnOfTheCenturyCombatTracker } from "./module/sheets/combat-tracker.mjs";
 import { TurnOfTheCenturyItemSheet } from "./module/sheets/item-sheet.mjs";
-import { TotcWorkspaceManager, UI_CONTEXTS, UI_MODES, TotcTabGroupManager, TabGroupConsoleAPI } from "./module/ui/workspace-shell.mjs";
+import { TotcWorkspaceManager, UI_CONTEXTS, UI_MODES } from "./module/ui/workspace-shell.mjs";
+import { TotcTabGroupManager, TabGroupConsoleAPI } from "./module/ui/tab-group-manager.mjs";
 import {
     MultiplayerGovernanceTestHelper,
     MultiplayerTestConsoleAPI
@@ -118,8 +119,8 @@ const ENCOUNTER_EVENT_HOOK_NAMES = [
 ];
 const ActorsCollection = foundry.documents?.collections?.Actors ?? Actors;
 const ItemsCollection = foundry.documents?.collections?.Items ?? Items;
-const BaseActorSheetClass = foundry.applications?.sheets?.ActorSheet ?? foundry.appv1?.sheets?.ActorSheet ?? ActorSheet;
-const BaseItemSheetClass = foundry.applications?.sheets?.ItemSheet ?? foundry.appv1?.sheets?.ItemSheet ?? ItemSheet;
+const BaseActorSheetClass = foundry.appv1?.sheets?.ActorSheet ?? foundry.applications?.sheets?.ActorSheet ?? ActorSheet;
+const BaseItemSheetClass = foundry.appv1?.sheets?.ItemSheet ?? foundry.applications?.sheets?.ItemSheet ?? ItemSheet;
 let encounterPlanningWatchHandle = null;
 const initiativePromptKeys = new Set();
 let workspaceManager = null;

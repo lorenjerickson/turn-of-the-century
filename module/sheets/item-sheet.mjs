@@ -2,7 +2,7 @@ function isPlainObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-const BaseItemSheet = foundry.applications?.sheets?.ItemSheet ?? foundry.appv1?.sheets?.ItemSheet ?? ItemSheet;
+const BaseItemSheet = foundry.appv1?.sheets?.ItemSheet ?? foundry.applications?.sheets?.ItemSheet ?? ItemSheet;
 
 /**
  * Converts a dot-separated system field path into a human-readable label.
