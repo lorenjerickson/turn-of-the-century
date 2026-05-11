@@ -30,18 +30,11 @@ function getDialogV2BaseClass() {
     return globalThis?.foundry?.applications?.api?.DialogV2 ?? null;
 }
 
-function getDialogV1BaseClass() {
-    return globalThis?.foundry?.appv1?.api?.Dialog ?? globalThis?.Dialog ?? null;
-}
-
 function isDialogApp(app) {
     if (!app) return false;
 
     const DialogV2Base = getDialogV2BaseClass();
     if (DialogV2Base && app instanceof DialogV2Base) return true;
-
-    const DialogV1Base = getDialogV1BaseClass();
-    if (DialogV1Base && app instanceof DialogV1Base) return true;
 
     const ctorName = String(app.constructor?.name ?? "");
     return ctorName.includes("Dialog");

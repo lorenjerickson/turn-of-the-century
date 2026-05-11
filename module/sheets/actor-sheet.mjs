@@ -1,7 +1,10 @@
 import { TOTC_EQUIPMENT_SLOT_KEYS } from "../models/actor.mjs";
 import { buildEncounterPlanner } from "../encounters/planner-context.mjs";
 
-const BaseActorSheet = foundry.appv1?.sheets?.ActorSheet ?? foundry.applications?.sheets?.ActorSheet ?? ActorSheet;
+const BaseActorSheet = foundry.applications?.sheets?.ActorSheetV2 ?? foundry.applications?.sheets?.ActorSheet;
+if (!BaseActorSheet) {
+    throw new Error("[turn-of-the-century] Foundry ActorSheetV2 is required.");
+}
 const BaseItemDocument = foundry.documents?.Item ?? Item;
 
 function toArrayInput(value) {
@@ -408,13 +411,24 @@ function showInlinePlannerConfig(plannerSection, planner, actionData, remainingA
 export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
     static templatePath = "systems/turn-of-the-century/templates/actors/hero-sheet.hbs";
 
-    static get defaultOptions() {
-        return foundry.utils.mergeObject(super.defaultOptions, {
+    static TABS = {
+        primary: {
+            navSelector: ".sheet-tabs",
+            contentSelector: ".sheet-body",
+            initial: "profile"
+        }
+    };
+
+    static get DEFAULT_OPTIONS() {
+        return foundry.utils.mergeObject(super.DEFAULT_OPTIONS ?? {}, {
             classes: ["turn-of-the-century", "sheet", "actor"],
-            width: 760,
-            height: 760,
-            resizable: true,
-            tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "profile" }],
+            position: {
+                width: 760,
+                height: 760
+            },
+            window: {
+                resizable: true
+            },
             template: this.templatePath
         });
     }
@@ -423,14 +437,15 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
         return this.options.template;
     }
 
-    async getData(options = {}) {
-        const context = await super.getData(options);
+    async _prepareContext(options = {}) {
+        const context = await super._prepareContext(options);
         const systemSource = this.actor.system?.toObject?.() ?? foundry.utils.deepClone(this.actor.system ?? {});
 
         if (game.user?.isGM && game.combat?.phase === "planning") {
             await game.combat.maybeAutoFinalizePlanning?.();
         }
 
+        context.actor = this.actor;
         context.system = systemSource;
         context.equipmentSlots = buildEquipmentSlots(this.actor, systemSource);
         context.inventorySummary = buildInventorySummary(this.actor, systemSource);
@@ -456,37 +471,45 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
         return context;
     }
 
-    async _updateObject(event, formData) {
-        const updateData = foundry.utils.deepClone(formData);
+    async _renderHTML(context) {
+        return renderTemplate(this.template, context);
+    }
 
-        extractEquipmentSlotUpdates(updateData);
+    _replaceHTML(result, content) {
+        content.innerHTML = result;
+    }
 
-        if (Object.hasOwn(updateData, "_array.system.profile.tags")) {
-            updateData["system.profile.tags"] = parseArrayInput(updateData["_array.system.profile.tags"]);
-            delete updateData["_array.system.profile.tags"];
+    _prepareSubmitData(event, form, formData, updateData = {}) {
+        const submitData = super._prepareSubmitData(event, form, formData, updateData);
+
+        extractEquipmentSlotUpdates(submitData);
+
+        if (Object.hasOwn(submitData, "_array.system.profile.tags")) {
+            submitData["system.profile.tags"] = parseArrayInput(submitData["_array.system.profile.tags"]);
+            delete submitData["_array.system.profile.tags"];
         }
 
-        if (Object.hasOwn(updateData, "_array.system.hero.bonds")) {
-            updateData["system.hero.bonds"] = parseArrayInput(updateData["_array.system.hero.bonds"]);
-            delete updateData["_array.system.hero.bonds"];
+        if (Object.hasOwn(submitData, "_array.system.hero.bonds")) {
+            submitData["system.hero.bonds"] = parseArrayInput(submitData["_array.system.hero.bonds"]);
+            delete submitData["_array.system.hero.bonds"];
         }
 
-        if (Object.hasOwn(updateData, "_array.system.villain.lieutenants")) {
-            updateData["system.villain.lieutenants"] = parseArrayInput(updateData["_array.system.villain.lieutenants"]);
-            delete updateData["_array.system.villain.lieutenants"];
+        if (Object.hasOwn(submitData, "_array.system.villain.lieutenants")) {
+            submitData["system.villain.lieutenants"] = parseArrayInput(submitData["_array.system.villain.lieutenants"]);
+            delete submitData["_array.system.villain.lieutenants"];
         }
 
-        const beltQuality = updateData["system.inventory.equipment.belt.quality"]
+        const beltQuality = submitData["system.inventory.equipment.belt.quality"]
             ?? this.actor.system?.inventory?.equipment?.belt?.quality
             ?? "standard";
         const beltCapacity = getBeltCapacityFromQuality(beltQuality);
-        updateData["system.inventory.equipment.belt.capacity"] = beltCapacity;
+        submitData["system.inventory.equipment.belt.capacity"] = beltCapacity;
 
-        if (Array.isArray(updateData["system.inventory.equipment.belt.itemIds"])) {
-            updateData["system.inventory.equipment.belt.itemIds"] = updateData["system.inventory.equipment.belt.itemIds"].slice(0, beltCapacity);
+        if (Array.isArray(submitData["system.inventory.equipment.belt.itemIds"])) {
+            submitData["system.inventory.equipment.belt.itemIds"] = submitData["system.inventory.equipment.belt.itemIds"].slice(0, beltCapacity);
         }
 
-        return this.object.update(updateData);
+        return submitData;
     }
 
     async _onDrop(event) {
@@ -540,18 +563,18 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
         }
     }
 
-    activateListeners(html) {
-        super.activateListeners(html);
+    async _onRender(context, options) {
+        await super._onRender(context, options);
 
-        html.find(".totc-pack-item__delete").on("click", (event) => {
+        this.element.querySelectorAll(".totc-pack-item__delete").forEach((element) => element.addEventListener("click", (event) => {
             event.preventDefault();
             const itemId = event.currentTarget.dataset.itemId;
             if (itemId) {
                 this.actor.deleteEmbeddedDocuments("Item", [itemId]);
             }
-        });
+        }));
 
-        html.find("[data-action='totc-encounter-toggle-ready']").on("click", async (event) => {
+        this.element.querySelectorAll("[data-action='totc-encounter-toggle-ready']").forEach((element) => element.addEventListener("click", async (event) => {
             event.preventDefault();
             const combatantId = event.currentTarget.dataset.combatantId;
             const ready = event.currentTarget.dataset.ready === "true";
@@ -559,9 +582,9 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
 
             await game.combat.setCombatantReady(combatantId, !ready);
             this.render(true);
-        });
+        }));
 
-        html.find("[data-action='totc-roll-initiative']").on("click", async (event) => {
+        this.element.querySelectorAll("[data-action='totc-roll-initiative']").forEach((element) => element.addEventListener("click", async (event) => {
             event.preventDefault();
             const combatId = event.currentTarget.dataset.combatId;
             const combatantId = event.currentTarget.dataset.combatantId;
@@ -570,10 +593,9 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
 
             await combat.rollEncounterInitiative(combatantId);
             this.render(true);
-        });
+        }));
 
-        // ── Available Action: double-click to add ──────────────────────────
-        html.find(".totc-planner-available-action").on("dblclick", async (event) => {
+        this.element.querySelectorAll(".totc-planner-available-action").forEach((element) => element.addEventListener("dblclick", async (event) => {
             event.preventDefault();
             const el = event.currentTarget;
             if (el.classList.contains("totc-planner-available-action--disabled")) return;
@@ -600,10 +622,9 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
                 await game.combat.addCombatantAction(combatantId, actionData);
                 this.render(true);
             }
-        });
+        }));
 
-        // ── Available Action: drag start ────────────────────────────────────
-        html.find(".totc-planner-available-action").on("dragstart", (event) => {
+        this.element.querySelectorAll(".totc-planner-available-action").forEach((element) => element.addEventListener("dragstart", (event) => {
             const el = event.currentTarget;
             if (el.classList.contains("totc-planner-available-action--disabled")) {
                 event.preventDefault();
@@ -611,29 +632,29 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
             }
             const actionData = readActionFromElement(el);
             if (!actionData) return;
-            event.originalEvent.dataTransfer.effectAllowed = "copy";
-            event.originalEvent.dataTransfer.setData("text/plain", JSON.stringify({ totcAction: actionData }));
-        });
+            if (!event.dataTransfer) return;
+            event.dataTransfer.effectAllowed = "copy";
+            event.dataTransfer.setData("text/plain", JSON.stringify({ totcAction: actionData }));
+        }));
 
-        // ── Planned slot: drag-over / drop ─────────────────────────────────
-        html.find(".totc-planner-slot--empty").on("dragover", (event) => {
+        this.element.querySelectorAll(".totc-planner-slot--empty").forEach((element) => element.addEventListener("dragover", (event) => {
             event.preventDefault();
-            event.originalEvent.dataTransfer.dropEffect = "copy";
+            if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
             event.currentTarget.classList.add("totc-planner-slot--drag-over");
-        });
+        }));
 
-        html.find(".totc-planner-slot--empty").on("dragleave", (event) => {
+        this.element.querySelectorAll(".totc-planner-slot--empty").forEach((element) => element.addEventListener("dragleave", (event) => {
             event.currentTarget.classList.remove("totc-planner-slot--drag-over");
-        });
+        }));
 
-        html.find(".totc-planner-slot--empty").on("drop", async (event) => {
+        this.element.querySelectorAll(".totc-planner-slot--empty").forEach((element) => element.addEventListener("drop", async (event) => {
             event.preventDefault();
             event.stopPropagation();
             event.currentTarget.classList.remove("totc-planner-slot--drag-over");
 
             let payload;
             try {
-                payload = JSON.parse(event.originalEvent.dataTransfer.getData("text/plain") ?? "{}");
+                payload = JSON.parse(event.dataTransfer?.getData("text/plain") ?? "{}");
             } catch {
                 return;
             }
@@ -660,10 +681,9 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
                 await game.combat.addCombatantAction(combatantId, actionData);
                 this.render(true);
             }
-        });
+        }));
 
-        // ── Remove action from planned list ────────────────────────────────
-        html.find("[data-action='totc-encounter-remove-action']").on("click", async (event) => {
+        this.element.querySelectorAll("[data-action='totc-encounter-remove-action']").forEach((element) => element.addEventListener("click", async (event) => {
             event.preventDefault();
 
             const combatantId = event.currentTarget.dataset.combatantId;
@@ -672,9 +692,9 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
 
             await game.combat.removeCombatantAction(combatantId, actionIndex);
             this.render(true);
-        });
+        }));
 
-        html.find("[data-action='totc-encounter-clear-plan']").on("click", async (event) => {
+        this.element.querySelectorAll("[data-action='totc-encounter-clear-plan']").forEach((element) => element.addEventListener("click", async (event) => {
             event.preventDefault();
 
             const combatantId = event.currentTarget.dataset.combatantId;
@@ -682,7 +702,7 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
 
             await game.combat.clearCombatantPlan(combatantId);
             this.render(true);
-        });
+        }));
     }
 }
 

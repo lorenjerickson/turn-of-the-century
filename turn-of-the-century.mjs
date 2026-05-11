@@ -119,8 +119,8 @@ const ENCOUNTER_EVENT_HOOK_NAMES = [
 ];
 const ActorsCollection = foundry.documents?.collections?.Actors ?? Actors;
 const ItemsCollection = foundry.documents?.collections?.Items ?? Items;
-const BaseActorSheetClass = foundry.appv1?.sheets?.ActorSheet ?? foundry.applications?.sheets?.ActorSheet ?? ActorSheet;
-const BaseItemSheetClass = foundry.appv1?.sheets?.ItemSheet ?? foundry.applications?.sheets?.ItemSheet ?? ItemSheet;
+const BaseActorSheetClass = foundry.applications?.sheets?.ActorSheetV2 ?? foundry.applications?.sheets?.ActorSheet;
+const BaseItemSheetClass = foundry.applications?.sheets?.ItemSheetV2 ?? foundry.applications?.sheets?.ItemSheet;
 let encounterPlanningWatchHandle = null;
 const initiativePromptKeys = new Set();
 let workspaceManager = null;

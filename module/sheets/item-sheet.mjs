@@ -2,7 +2,10 @@ function isPlainObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-const BaseItemSheet = foundry.appv1?.sheets?.ItemSheet ?? foundry.applications?.sheets?.ItemSheet ?? ItemSheet;
+const BaseItemSheet = foundry.applications?.sheets?.ItemSheetV2 ?? foundry.applications?.sheets?.ItemSheet;
+if (!BaseItemSheet) {
+    throw new Error("[turn-of-the-century] Foundry ItemSheetV2 is required.");
+}
 
 /**
  * Converts a dot-separated system field path into a human-readable label.
@@ -55,13 +58,24 @@ function flattenSystemData(source, prefix = "system") {
 }
 
 export class TurnOfTheCenturyItemSheet extends BaseItemSheet {
-    static get defaultOptions() {
-        return foundry.utils.mergeObject(super.defaultOptions, {
+    static TABS = {
+        primary: {
+            navSelector: ".sheet-tabs",
+            contentSelector: ".sheet-body",
+            initial: "details"
+        }
+    };
+
+    static get DEFAULT_OPTIONS() {
+        return foundry.utils.mergeObject(super.DEFAULT_OPTIONS ?? {}, {
             classes: ["turn-of-the-century", "sheet", "item"],
-            width: 620,
-            height: 720,
-            resizable: true,
-            tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "details" }],
+            position: {
+                width: 620,
+                height: 720
+            },
+            window: {
+                resizable: true
+            },
             template: "systems/turn-of-the-century/templates/items/item-sheet.hbs"
         });
     }
@@ -70,10 +84,11 @@ export class TurnOfTheCenturyItemSheet extends BaseItemSheet {
         return this.options.template;
     }
 
-    async getData(options = {}) {
-        const context = await super.getData(options);
+    async _prepareContext(options = {}) {
+        const context = await super._prepareContext(options);
         const systemSource = this.item.system?.toObject?.() ?? foundry.utils.deepClone(this.item.system ?? {});
 
+        context.item = this.item;
         context.system = systemSource;
         context.displayName = this.item.displayName ?? this.item.name;
         context.artworkImage = this.item.artworkImage ?? this.item.img;
@@ -83,41 +98,45 @@ export class TurnOfTheCenturyItemSheet extends BaseItemSheet {
         return context;
     }
 
-    activateListeners(html) {
-        super.activateListeners(html);
+    async _renderHTML(context) {
+        return renderTemplate(this.template, context);
+    }
 
-        html.find("[data-action='use-item']").on("click", async (event) => {
+    _replaceHTML(result, content) {
+        content.innerHTML = result;
+    }
+
+    async _onRender(context, options) {
+        await super._onRender(context, options);
+
+        this.element.querySelectorAll("[data-action='use-item']").forEach((element) => element.addEventListener("click", async (event) => {
             event.preventDefault();
             const result = await this.item.use?.();
             if (!result?.success) ui.notifications.warn(game.i18n.localize("TOTC.Item.UseUnavailable"));
-        });
+        }));
 
-        html.find("[data-action='save-item']").on("click", () => this._syncImageField());
+        this.element.querySelectorAll("[data-action='save-item']").forEach((element) => element.addEventListener("click", () => this._syncImageField()));
     }
 
-    _getSubmitData(updateData = {}) {
+    _prepareSubmitData(event, form, formData, updateData = {}) {
         this._syncImageField();
-        return super._getSubmitData(updateData);
-    }
+        const submitData = super._prepareSubmitData(event, form, formData, updateData);
 
-    async _updateObject(event, formData) {
-        const updateData = foundry.utils.deepClone(formData);
-
-        for (const [key, value] of Object.entries(formData)) {
+        for (const [key, value] of Object.entries(submitData)) {
             if (!key.startsWith("_json.")) continue;
 
             const path = key.slice("_json.".length);
-            delete updateData[key];
+            delete submitData[key];
 
             try {
-                updateData[path] = value ? JSON.parse(value) : [];
+                submitData[path] = value ? JSON.parse(value) : [];
             } catch (error) {
                 ui.notifications.error(game.i18n.format("TOTC.Item.InvalidJson", { path }));
                 throw error;
             }
         }
 
-        return this.object.update(updateData);
+        return submitData;
     }
 
     async close(options = {}) {

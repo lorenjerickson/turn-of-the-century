@@ -20,18 +20,21 @@ function readSelectedAction(selectElement) {
 }
 
 const BaseCombatTracker = foundry.applications?.sidebar?.tabs?.CombatTracker
-    ?? foundry.appv1?.applications?.sidebar?.tabs?.CombatTracker
-    ?? globalThis.CombatTracker;
+    ?? null;
+
+if (!BaseCombatTracker) {
+    throw new Error("[turn-of-the-century] Foundry CombatTracker V2 is required.");
+}
 
 export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
-    static get defaultOptions() {
-        return foundry.utils.mergeObject(super.defaultOptions, {
+    static get DEFAULT_OPTIONS() {
+        return foundry.utils.mergeObject(super.DEFAULT_OPTIONS ?? {}, {
             template: "systems/turn-of-the-century/templates/combat/combat-tracker.hbs"
         });
     }
 
-    async getData(options = {}) {
-        const context = await super.getData(options);
+    async _prepareContext(options = {}) {
+        const context = await super._prepareContext(options);
         const combat = this.viewed ?? game.combat;
 
         if (!combat) {
@@ -95,26 +98,26 @@ export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
         return context;
     }
 
-    activateListeners(html) {
-        super.activateListeners(html);
+    async _onRender(context, options) {
+        await super._onRender(context, options);
 
-        html.find("[data-action='totc-init-round']").on("click", async (event) => {
+        this.element.querySelectorAll("[data-action='totc-init-round']").forEach((element) => element.addEventListener("click", async (event) => {
             event.preventDefault();
             const combat = this.viewed ?? game.combat;
             if (!combat?.initializeEncounterRound) return;
             await combat.initializeEncounterRound();
             this.render();
-        });
+        }));
 
-        html.find("[data-action='totc-roll-all-initiative']").on("click", async (event) => {
+        this.element.querySelectorAll("[data-action='totc-roll-all-initiative']").forEach((element) => element.addEventListener("click", async (event) => {
             event.preventDefault();
             const combat = this.viewed ?? game.combat;
             if (!combat?.rollAllMissingInitiatives) return;
             await combat.rollAllMissingInitiatives();
             this.render();
-        });
+        }));
 
-        html.find("[data-action='totc-roll-initiative']").on("click", async (event) => {
+        this.element.querySelectorAll("[data-action='totc-roll-initiative']").forEach((element) => element.addEventListener("click", async (event) => {
             event.preventDefault();
             const combatantId = event.currentTarget.dataset.combatantId;
             const combat = this.viewed ?? game.combat;
@@ -122,9 +125,9 @@ export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
 
             await combat.rollEncounterInitiative(combatantId);
             this.render();
-        });
+        }));
 
-        html.find("[data-action='totc-toggle-ready']").on("click", async (event) => {
+        this.element.querySelectorAll("[data-action='totc-toggle-ready']").forEach((element) => element.addEventListener("click", async (event) => {
             event.preventDefault();
             const combatantId = event.currentTarget.dataset.combatantId;
             const combat = this.viewed ?? game.combat;
@@ -133,9 +136,9 @@ export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
             const currentReady = event.currentTarget.dataset.ready === "true";
             await combat.setCombatantReady(combatantId, !currentReady);
             this.render();
-        });
+        }));
 
-        html.find("[data-action='totc-add-action']").on("click", async (event) => {
+        this.element.querySelectorAll("[data-action='totc-add-action']").forEach((element) => element.addEventListener("click", async (event) => {
             event.preventDefault();
 
             const combatantId = event.currentTarget.dataset.combatantId;
@@ -163,9 +166,9 @@ export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
             selectedAction.targetId = targetSelect?.value || null;
             await combat.addCombatantAction(combatantId, selectedAction);
             this.render();
-        });
+        }));
 
-        html.find("[data-action='totc-remove-action']").on("click", async (event) => {
+        this.element.querySelectorAll("[data-action='totc-remove-action']").forEach((element) => element.addEventListener("click", async (event) => {
             event.preventDefault();
             const combatantId = event.currentTarget.dataset.combatantId;
             const actionIndex = Number(event.currentTarget.dataset.actionIndex);
@@ -174,9 +177,9 @@ export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
 
             await combat.removeCombatantAction(combatantId, actionIndex);
             this.render();
-        });
+        }));
 
-        html.find("[data-action='totc-clear-plan']").on("click", async (event) => {
+        this.element.querySelectorAll("[data-action='totc-clear-plan']").forEach((element) => element.addEventListener("click", async (event) => {
             event.preventDefault();
             const combatantId = event.currentTarget.dataset.combatantId;
             const combat = this.viewed ?? game.combat;
@@ -184,9 +187,9 @@ export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
 
             await combat.clearCombatantPlan(combatantId);
             this.render();
-        });
+        }));
 
-        html.find(".totc-encounter-action-select").on("change", (event) => {
+        this.element.querySelectorAll(".totc-encounter-action-select").forEach((selectElement) => selectElement.addEventListener("change", (event) => {
             const select = event.currentTarget;
             const row = select.closest(".totc-encounter-row");
             const apInput = row?.querySelector(".totc-encounter-ap-input");
@@ -202,9 +205,9 @@ export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
             apInput.min = String(Math.max(1, apMin));
             apInput.max = String(Math.max(apMin, apMax));
             apInput.value = String(Math.max(apMin, Math.min(apMax, apCost)));
-        });
+        }));
 
-        html.find(".totc-encounter-action-select").each((_, select) => {
+        this.element.querySelectorAll(".totc-encounter-action-select").forEach((select) => {
             select.dispatchEvent(new Event("change"));
         });
     }
