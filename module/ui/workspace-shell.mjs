@@ -1,25 +1,4 @@
 import { buildEncounterPlanner } from "../encounters/planner-context.mjs";
-import {
-    ADVERSARY_PROFILES,
-    FACTION_METADATA,
-    TERRAIN_FEATURES,
-    ESCALATION_TRIGGERS,
-    instantiateEncounterSeed,
-    getEscalationTrigger,
-    getTerrainFeature,
-    getNarrativeHooks,
-    getFactionMetadata,
-    rollLoot,
-    buildEncounterContext
-} from "../encounters/enhanced-seeds.mjs";
-import { createCombatEncounterWithNpcs, getNpcDetails } from "../encounters/npc-instantiation.mjs";
-import { TotcTabGroupManager, TabGroupConsoleAPI } from "./tab-group-manager.mjs";
-import {
-    rollRegionAwareCampEvent,
-    getDetailedCampEventReport,
-    CAMP_SEASONS,
-    REGIONS
-} from "../camps/region-aware-events.mjs";
 
 const UI_MODES = Object.freeze({
     DESIGN: "design",
@@ -40,66 +19,15 @@ const BLOCKED_WINDOW_APP_NAMES = new Set([
     "ItemSheet",
     "CombatTracker",
     "JournalSheet",
-    "RollTableSheet",
-    "Compendium",
-    "CompendiumDirectory",
-    "JournalPageSheet",
-    "SceneConfig",
-    "TokenConfig",
-    "MeasuredTemplateConfig",
-    "DrawingConfig",
-    "TileConfig",
-    "AmbientLightConfig",
-    "AmbientSoundConfig",
-    "WallConfig",
-    "SettingsConfig",
-    "UserConfig",
-    "PlaylistConfig",
-    "MacroConfig",
-    "RollTableConfig"
-]);
-
-const BLOCKED_WINDOW_ID_FRAGMENTS = [
-    "sheet",
-    "compendium",
-    "journal",
-    "rolltable",
-    "config",
-    "macro",
-    "playlist"
-];
-
-const ALLOWED_WINDOW_APP_NAMES = new Set([
-    "Dialog",
-    "DialogV2",
-    "Prompt",
-    "SettingsConfig"
+    "RollTableSheet"
 ]);
 
 function getApplicationV2BaseClass() {
-    const v2 = globalThis?.foundry?.applications?.api?.ApplicationV2
-        ?? globalThis?.foundry?.applications?.ApplicationV2;
-    
-    if (v2) {
-        console.log("[turn-of-the-century] ApplicationV2 detected and will be used for workspace shell.");
-        return v2;
-    }
-    
-    console.warn("[turn-of-the-century] ApplicationV2 not found; checking for ApplicationV1 fallback...");
-    return null;
-}
-
-function getApplicationV1BaseClass() {
-    return globalThis?.foundry?.appv1?.api?.Application
-        ?? globalThis?.foundry?.appv1?.Application
-        ?? globalThis?.Application
-        ?? null;
+    return globalThis?.foundry?.applications?.api?.ApplicationV2 ?? null;
 }
 
 function getDialogV2BaseClass() {
-    return globalThis?.foundry?.applications?.api?.DialogV2
-        ?? globalThis?.foundry?.applications?.DialogV2
-        ?? null;
+    return globalThis?.foundry?.applications?.api?.DialogV2 ?? null;
 }
 
 function getDialogV1BaseClass() {
@@ -117,49 +45,6 @@ function isDialogApp(app) {
 
     const ctorName = String(app.constructor?.name ?? "");
     return ctorName.includes("Dialog");
-}
-
-function getAppIdentifiers(app) {
-    return {
-        id: String(app?.id ?? app?.appId ?? "").toLowerCase(),
-        constructorName: String(app?.constructor?.name ?? "")
-    };
-}
-
-function isFloatingWindowCandidate(app) {
-    if (!app) return false;
-
-    return Boolean(
-        app.options?.popOut === true
-        || app.options?.window?.frame === true
-        || app.options?.window?.positioned === true
-        || app.hasFrame === true
-    );
-}
-
-function isAllowedPromptLikeWindow(app) {
-    if (!app) return false;
-    if (isDialogApp(app)) return true;
-
-    const { constructorName } = getAppIdentifiers(app);
-    if (ALLOWED_WINDOW_APP_NAMES.has(constructorName)) return true;
-    if (constructorName.includes("Prompt")) return true;
-    if (app.options?.window?.modal === true) return true;
-
-    return false;
-}
-
-function isExplicitlyBlockedWindow(app) {
-    if (!app) return false;
-
-    const { id, constructorName } = getAppIdentifiers(app);
-    if (BLOCKED_WINDOW_APP_NAMES.has(constructorName)) return true;
-
-    const lowerCtor = constructorName.toLowerCase();
-    // Block actor/item sheets but allow system config dialogs (SettingsConfig, etc.)
-    if (lowerCtor.endsWith("sheet")) return true;
-
-    return BLOCKED_WINDOW_ID_FRAGMENTS.some((fragment) => id.includes(fragment));
 }
 
 function normalizeContext(value, fallback = UI_CONTEXTS.TRAVEL) {
@@ -376,48 +261,11 @@ const DEFAULT_MARKET_STATE = Object.freeze({
     splitMode: "buyer"
 });
 const BUYBACK_RATE = 0.5;
-const UI_DEBUG_WINDOW_POLICY_SETTING = "uiDebugWindowPolicy";
 const TRAVEL_ENCOUNTER_SEED_POLICY_SETTING = "travelEncounterSeedPolicy";
 const ENCOUNTER_SEED_POLICIES = Object.freeze({
     APPEND: "append",
     RESET: "reset",
     REPLACE: "replace"
-});
-const DEFAULT_CAMP_STATE = Object.freeze({
-    day: 1,
-    morale: "normal",
-    supplies: 10,
-    water: 10,
-    firewood: 5,
-    lastEvent: "",
-    currentActivity: "rest"
-});
-const CAMP_ACTIVITIES = Object.freeze({
-    REST: "rest",
-    PREPARE: "prepare",
-    SCOUT: "scout",
-    TRAIN: "train",
-    FORAGE: "forage"
-});
-const CAMP_MORALE_STATES = ["low", "normal", "high"];
-const CAMP_EVENT_OUTCOMES = Object.freeze({
-    low: [
-        { min: 1, max: 8, outcome: "quarrel", description: "Party members bicker over camp chores and rations." },
-        { min: 9, max: 15, outcome: "watchfall", description: "A sentry falls asleep; hazard nearly breaches perimeter." },
-        { min: 16, max: 20, outcome: "sickness", description: "A party member develops a fever from tainted water." }
-    ],
-    normal: [
-        { min: 1, max: 6, outcome: "uneventful", description: "A quiet night with routine watch rotations." },
-        { min: 7, max: 13, outcome: "wildlife", description: "Nocturnal creatures skirt the perimeter, then fade." },
-        { min: 14, max: 18, outcome: "discovery", description: "Scouts find a cache of abandoned supplies nearby." },
-        { min: 19, max: 20, outcome: "threat", description: "A distant campfire is spotted on the horizon." }
-    ],
-    high: [
-        { min: 1, max: 5, outcome: "bonding", description: "Tales and song strengthen party resolve." },
-        { min: 6, max: 12, outcome: "preparation", description: "Team spends evening sharpening gear and refining tactics." },
-        { min: 13, max: 18, outcome: "opportunity", description: "A traveling merchant passes through with rare goods." },
-        { min: 19, max: 20, outcome: "reinforcement", description: "A friendly scout arrives with intel about the route ahead." }
-    ]
 });
 
 function toNumber(value, fallback = 0) {
@@ -606,86 +454,12 @@ async function ensureSeededEncounterFromTravelPayload(payload = {}) {
         await combat.createEmbeddedDocuments("Combatant", plannedCombatants);
     }
 
-    // Auto-create NPCs from encounter seed if enabled
-    const autoCreateNpcs = game.settings?.get("turn-of-the-century", "AUTO_CREATE_ENCOUNTER_NPCS_SETTING") ?? true;
-    if (autoCreateNpcs && seed?.adversaries && Array.isArray(seed.adversaries) && seed.adversaries.length > 0) {
-        try {
-            const npcDifficulty = String(payload?.difficulty ?? "standard");
-            const npcResult = await createCombatEncounterWithNpcs(seed, npcDifficulty, combat);
-            if (npcResult?.actors && npcResult.actors.length > 0) {
-                // Log created NPCs to chat
-                const npcSummary = npcResult.actors
-                    .map((a) => {
-                        const details = getNpcDetails(a);
-                        return `${details.name} (${details.role} - HP ${details.health.max})`;
-                    })
-                    .join(", ");
-
-                await ChatMessage.create({
-                    content: `<div class="totc-encounter-npcs"><strong>Encounter NPCs:</strong> ${escapeHTML(npcSummary)}</div>`,
-                    flags: { "turn-of-the-century": { npcSummary: true } }
-                }).catch(() => null);
-            }
-        } catch (err) {
-            console.error("[ensureSeededEncounter] NPC creation failed:", err);
-        }
-    }
-
-    // Build enhanced seed context with all metadata
-    const region = String(payload?.region ?? "frontier");
-    const encounterContext = buildEncounterContext(seed, region);
-
-    // Store comprehensive encounter data in combat flags
-    const seedFlag = {
+    await combat.setFlag("turn-of-the-century", "travelEncounterSeed", {
         ...payload,
         template: seed,
         policy,
-        seededAt: Date.now(),
-        // Enhanced seed data
-        context: {
-            region,
-            difficulty: encounterContext.difficulty,
-            factionKey: encounterContext.faction?.name,
-            terrain: encounterContext.terrain?.name,
-            escalationTrigger: encounterContext.escalation?.name
-        },
-        escalation: encounterContext.escalation ? {
-            name: encounterContext.escalation.name,
-            trigger: encounterContext.escalation.triggerCondition,
-            effect: encounterContext.escalation.effect,
-            counterplay: encounterContext.escalation.counterplay
-        } : null,
-        faction: encounterContext.faction ? {
-            name: encounterContext.faction.name,
-            objective: encounterContext.faction.objective,
-            alignment: encounterContext.faction.alignment,
-            cruelty: encounterContext.faction.cruelty
-        } : null,
-        terrain: encounterContext.terrain ? {
-            name: encounterContext.terrain.name,
-            coverBonus: encounterContext.terrain.coverBonus,
-            mobilityPenalty: encounterContext.terrain.mobilityPenalty,
-            features: encounterContext.terrain.features,
-            hazards: encounterContext.terrain.hazards
-        } : null,
-        narrative: encounterContext.narrative ? {
-            preEncounter: encounterContext.narrative.preEncounter,
-            combat: encounterContext.narrative.combat,
-            victory: encounterContext.narrative.victory,
-            defeat: encounterContext.narrative.defeat
-        } : null,
-        loot: encounterContext.loot
-    };
-
-    await combat.setFlag("turn-of-the-century", "travelEncounterSeed", seedFlag);
-
-    // Optional: log narrative pre-encounter hook to chat
-    if (encounterContext.narrative?.preEncounter) {
-        await ChatMessage.create({
-            content: `<div class="totc-encounter-narrative"><em>${escapeHTML(encounterContext.narrative.preEncounter)}</em></div>`,
-            flags: { "turn-of-the-century": { narrativeHook: true } }
-        }).catch(() => null);
-    }
+        seededAt: Date.now()
+    });
 
     if (typeof combat.initializeEncounterRound === "function") {
         await combat.initializeEncounterRound({ phase: "planning" });
@@ -916,30 +690,6 @@ async function removeItemQuantity(item, quantity) {
     }
 
     await item.update({ "system.physical.quantity": next });
-}
-
-function buildCampPanelContext(actor) {
-    const scene = getWorkspaceScene();
-    const state = getWorkspaceState(scene);
-    const camp = { ...DEFAULT_CAMP_STATE, ...(state.camp ?? {}) };
-    const morale = CAMP_MORALE_STATES.includes(String(camp.morale ?? ""))
-        ? String(camp.morale)
-        : "normal";
-
-    return {
-        sceneName: scene?.name ?? "No Active Scene",
-        day: Math.max(1, toNumber(camp.day, 1)),
-        morale,
-        region: String(camp.region ?? "frontier"),
-        season: String(camp.season ?? "summer"),
-        supplies: Math.max(0, toNumber(camp.supplies, 10)),
-        water: Math.max(0, toNumber(camp.water, 10)),
-        firewood: Math.max(0, toNumber(camp.firewood, 5)),
-        currentActivity: String(camp.currentActivity ?? "rest"),
-        lastEvent: String(camp.lastEvent ?? ""),
-        leaderName: actor?.name ?? "No party leader selected",
-        actorId: actor?.id ?? ""
-    };
 }
 
 function renderEncounterPanel(encounterPlanner) {
@@ -1215,112 +965,6 @@ function renderMarketPanel(marketContext) {
 </section>`;
 }
 
-function renderCampPanel(campContext) {
-    const activityOptions = Object.values(CAMP_ACTIVITIES)
-        .map((activity) => `<option value="${activity}" ${activity === campContext.currentActivity ? "selected" : ""}>${escapeHTML(titleCase(activity))}</option>`)
-        .join("");
-    const moraleOptions = CAMP_MORALE_STATES
-        .map((morale) => `<option value="${morale}" ${morale === campContext.morale ? "selected" : ""}>${escapeHTML(titleCase(morale))}</option>`)
-        .join("");
-
-    const regionOptions = REGIONS
-        .map((region) => `<option value="${region}" ${region === campContext.region ? "selected" : ""}>${escapeHTML(titleCase(region))}</option>`)
-        .join("");
-
-    const seasonOptions = ["spring", "summer", "autumn", "winter"]
-        .map((season) => `<option value="${season}" ${season === campContext.season ? "selected" : ""}>${escapeHTML(titleCase(season))}</option>`)
-        .join("");
-
-    return `
-<section class="totc-workspace-camp">
-    <header class="totc-workspace-camp__header">
-        <h3>Camp Panel</h3>
-        <div>${escapeHTML(campContext.sceneName)} | Day ${escapeHTML(campContext.day)} | Leader: ${escapeHTML(campContext.leaderName)} | Morale: ${escapeHTML(titleCase(campContext.morale))}</div>
-    </header>
-
-    <div class="totc-workspace-camp__resources">
-        <h4>Resources</h4>
-        <div><strong>Supplies:</strong> ${escapeHTML(campContext.supplies)}</div>
-        <div><strong>Water:</strong> ${escapeHTML(campContext.water)}</div>
-        <div><strong>Firewood:</strong> ${escapeHTML(campContext.firewood)}</div>
-    </div>
-
-    <div class="totc-workspace-camp__location">
-        <h4>Location & Season</h4>
-        <label>
-            Region
-            <select data-action="camp-set-region">
-                ${regionOptions}
-            </select>
-        </label>
-        <label>
-            Season
-            <select data-action="camp-set-season">
-                ${seasonOptions}
-            </select>
-        </label>
-    </div>
-
-    <div class="totc-workspace-camp__morale">
-        <h4>Party Morale</h4>
-        <label>
-            Morale Level
-            <select data-action="camp-set-morale">
-                ${moraleOptions}
-            </select>
-        </label>
-        <button type="button" data-action="camp-boost-morale">Boost Morale</button>
-        <button type="button" data-action="camp-lower-morale">Lower Morale</button>
-    </div>
-
-    <div class="totc-workspace-camp__activities">
-        <h4>Camp Activities</h4>
-        <label>
-            Current Activity
-            <select data-action="camp-set-activity">
-                ${activityOptions}
-            </select>
-        </label>
-        <button type="button" data-action="camp-perform-rest">Perform Rest</button>
-        <button type="button" data-action="camp-perform-prepare">Prepare Equipment</button>
-        <button type="button" data-action="camp-perform-scout">Scout Perimeter</button>
-        <button type="button" data-action="camp-perform-train">Train Skill</button>
-        <button type="button" data-action="camp-perform-forage">Forage for Supplies</button>
-    </div>
-
-    <div class="totc-workspace-camp__resources-controls">
-        <h4>Resource Management</h4>
-        <div class="totc-workspace-camp__resource-row">
-            <span>Supplies</span>
-            <button type="button" data-action="camp-adjust-supplies" data-delta="-1">-1</button>
-            <button type="button" data-action="camp-adjust-supplies" data-delta="1">+1</button>
-            <button type="button" data-action="camp-adjust-supplies" data-delta="5">+5</button>
-        </div>
-        <div class="totc-workspace-camp__resource-row">
-            <span>Water</span>
-            <button type="button" data-action="camp-adjust-water" data-delta="-1">-1</button>
-            <button type="button" data-action="camp-adjust-water" data-delta="1">+1</button>
-            <button type="button" data-action="camp-adjust-water" data-delta="5">+5</button>
-        </div>
-        <div class="totc-workspace-camp__resource-row">
-            <span>Firewood</span>
-            <button type="button" data-action="camp-adjust-firewood" data-delta="-1">-1</button>
-            <button type="button" data-action="camp-adjust-firewood" data-delta="1">+1</button>
-            <button type="button" data-action="camp-adjust-firewood" data-delta="5">+5</button>
-        </div>
-    </div>
-
-    <div class="totc-workspace-camp__event">
-        <strong>Latest Event:</strong> ${escapeHTML(campContext.lastEvent || "No event logged yet.")}
-    </div>
-
-    <div class="totc-workspace-camp__controls">
-        <button type="button" data-action="camp-roll-event">Roll Camp Event</button>
-        <button type="button" data-action="camp-advance-day">Advance Day</button>
-    </div>
-</section>`;
-}
-
 function renderMainPanel(context, panelContext) {
     if (context === UI_CONTEXTS.ENCOUNTER) {
         return renderEncounterPanel(panelContext?.encounterPlanner ?? null);
@@ -1334,10 +978,6 @@ function renderMainPanel(context, panelContext) {
         return renderMarketPanel(panelContext?.marketContext ?? buildMarketPanelContext(null));
     }
 
-    if (context === UI_CONTEXTS.CAMP) {
-        return renderCampPanel(panelContext?.campContext ?? buildCampPanelContext(null));
-    }
-
     return `
 <section class="totc-workspace-context-placeholder">
     <h3>${titleCase(context)} Panel</h3>
@@ -1345,39 +985,7 @@ function renderMainPanel(context, panelContext) {
 </section>`;
 }
 
-/**
- * Render tab group interface
- */
-function renderTabGroups(tabGroupManager) {
-    const groups = tabGroupManager.getGroups();
-    if (!groups || groups.length === 0) return "";
-
-    const groupsHtml = groups
-        .map((group) => {
-            const tabsHtml = group.tabs
-                ?.map((tab) => {
-                    const isActive = group.activeTab === tab.id ? "is-active" : "";
-                    return `<button type="button" class="totc-tab ${isActive}" data-action="switchTab" data-group-id="${group.id}" data-tab-id="${tab.id}" title="${tab.label}">${tab.label}</button>`;
-                })
-                .join("") ?? "";
-
-            return `
-<div class="totc-tab-group" data-group-id="${group.id}">
-    <div class="totc-tab-group__name" title="Click to rename">${group.name}</div>
-    <div class="totc-tab-group__tabs" role="tablist">
-        ${tabsHtml}
-    </div>
-</div>`;
-        })
-        .join("");
-
-    return `
-<section class="totc-tab-groups" aria-label="Tab Groups">
-    ${groupsHtml}
-</section>`;
-}
-
-function renderShellContent({ context, mode, encounterPlanner = null, travelContext = null, marketContext = null, campContext = null, debugWindowPolicyEnabled = false, tabGroups = null }) {
+function renderShellContent({ context, mode, encounterPlanner = null, travelContext = null, marketContext = null }) {
     const contextButtons = Object.values(UI_CONTEXTS)
         .map((key) => {
             const activeClass = key === context ? "is-active" : "";
@@ -1385,18 +993,12 @@ function renderShellContent({ context, mode, encounterPlanner = null, travelCont
         })
         .join("");
 
-    const tabGroupsHtml = tabGroups ? renderTabGroups(tabGroups) : "";
-
     return `
 <section class="totc-workspace-shell" data-context="${context}" data-mode="${mode}">
     <header class="totc-workspace-shell__header">
         <h2 class="totc-workspace-shell__title">Turn of the Century Workspace</h2>
-        <div class="totc-workspace-shell__meta-wrap">
-            <div class="totc-workspace-shell__meta">Mode: ${titleCase(mode)} | Context: ${titleCase(context)}</div>
-            ${debugWindowPolicyEnabled ? "<span class=\"totc-workspace-shell__debug-badge\" title=\"Window policy debug logging is enabled\">Window Policy Debug: ON</span>" : ""}
-        </div>
+        <div class="totc-workspace-shell__meta">Mode: ${titleCase(mode)} | Context: ${titleCase(context)}</div>
     </header>
-    ${tabGroupsHtml}
     <nav class="totc-workspace-shell__contexts" aria-label="Play Contexts">
         ${contextButtons}
     </nav>
@@ -1406,7 +1008,7 @@ function renderShellContent({ context, mode, encounterPlanner = null, travelCont
             <p>Context tools and party controls appear here.</p>
         </aside>
         <main class="totc-workspace-shell__main">
-            ${renderMainPanel(context, { encounterPlanner, travelContext, marketContext, campContext })}
+            ${renderMainPanel(context, { encounterPlanner, travelContext, marketContext })}
         </main>
         <aside class="totc-workspace-shell__dock totc-workspace-shell__dock--right">
             <h3>Right Dock</h3>
@@ -1417,59 +1019,32 @@ function renderShellContent({ context, mode, encounterPlanner = null, travelCont
 }
 
 const ApplicationV2Base = getApplicationV2BaseClass();
-const ApplicationV1Base = ApplicationV2Base ? null : getApplicationV1BaseClass();
-const ApplicationBase = ApplicationV2Base ?? ApplicationV1Base ?? class {};
 
-export class TotcWorkspaceShell extends ApplicationBase {
-    static get isV2() {
+export class TotcWorkspaceShell extends (ApplicationV2Base ?? class {}) {
+    static get isSupported() {
         return Boolean(ApplicationV2Base);
     }
 
-    static get isV1() {
-        return Boolean(ApplicationV1Base && !ApplicationV2Base);
-    }
-
-    static get isSupported() {
-        return Boolean(ApplicationV2Base || ApplicationV1Base);
-    }
-
     static get DEFAULT_OPTIONS() {
-        if (ApplicationV2Base) {
-            const viewportWidth = Math.max(320, Number(globalThis?.innerWidth ?? window?.innerWidth ?? 1920));
-            const viewportHeight = Math.max(320, Number(globalThis?.innerHeight ?? window?.innerHeight ?? 1080));
+        if (!ApplicationV2Base) return {};
 
-            return {
-                id: "totc-workspace-shell",
-                classes: ["turn-of-the-century", "totc-workspace-shell-app"],
-                tag: "section",
-                position: {
-                    width: viewportWidth,
-                    height: viewportHeight,
-                    top: 0,
-                    left: 0
-                },
-                window: {
-                    frame: false,
-                    positioned: true,
-                    minimizable: false,
-                    resizable: false,
-                    title: "Turn of the Century Workspace"
-                }
-            };
-        }
-
-        // ApplicationV1 options
         return {
             id: "totc-workspace-shell",
             classes: ["turn-of-the-century", "totc-workspace-shell-app"],
-            width: Math.max(320, Number(globalThis?.innerWidth ?? window?.innerWidth ?? 1920)),
-            height: Math.max(320, Number(globalThis?.innerHeight ?? window?.innerHeight ?? 1080)),
-            top: 0,
-            left: 0,
-            popOut: true,
-            resizable: false,
-            minimizable: false,
-            title: "Turn of the Century Workspace"
+            tag: "section",
+            position: {
+                width: "100vw",
+                height: "100vh",
+                top: 0,
+                left: 0
+            },
+            window: {
+                frame: false,
+                positioned: true,
+                minimizable: false,
+                resizable: false,
+                title: "Turn of the Century Workspace"
+            }
         };
     }
 
@@ -1478,13 +1053,9 @@ export class TotcWorkspaceShell extends ApplicationBase {
         this.mode = mode;
         this.context = normalizeContext(context);
         this.manager = manager;
-        this.tabGroupManager = new TotcTabGroupManager(getWorkspaceScene());
     }
 
     async _prepareContext() {
-        const liveMode = this.manager?.isPlayMode?.() ? UI_MODES.PLAY : UI_MODES.DESIGN;
-        this.mode = liveMode;
-
         const { actor, tokenDocument } = resolveWorkspaceActorToken();
         const encounterPlanner = this.context === UI_CONTEXTS.ENCOUNTER && actor
             ? buildEncounterPlanner(actor, tokenDocument)
@@ -1495,96 +1066,30 @@ export class TotcWorkspaceShell extends ApplicationBase {
         const marketContext = this.context === UI_CONTEXTS.MARKET
             ? buildMarketPanelContext(actor)
             : null;
-        const campContext = this.context === UI_CONTEXTS.CAMP
-            ? buildCampPanelContext(actor)
-            : null;
-        const debugWindowPolicyEnabled = this.mode === UI_MODES.PLAY
-            && Boolean(game.settings?.get("turn-of-the-century", UI_DEBUG_WINDOW_POLICY_SETTING));
 
         return {
             mode: this.mode,
             context: this.context,
             encounterPlanner,
             travelContext,
-            marketContext,
-            campContext,
-            debugWindowPolicyEnabled,
-            tabGroups: this.tabGroupManager
+            marketContext
         };
     }
 
-    // V2 lifecycle method
     async _renderHTML(context) {
-        return renderShellContent(context);
-    }
-
-    // V1 lifecycle method
-    async getData() {
-        return this._prepareContext();
-    }
-
-    // V1 render method
-    async _render(force) {
-        if (!this.element) {
-            this.element = document.createElement(this.options?.tag ?? "div");
-            this.element.id = this.id;
-            if (this.options?.classes) {
-                this.element.classList.add(...(Array.isArray(this.options.classes) ? this.options.classes : [this.options.classes]));
-            }
-            document.body.appendChild(this.element);
-        }
-
-        const context = await this._prepareContext();
-        const html = renderShellContent(context);
-        this.element.innerHTML = html;
-        
-        // Apply positioning for V1
-        if (this.element && this.options) {
-            const width = this.options.width ?? Math.max(320, window.innerWidth ?? 1920);
-            const height = this.options.height ?? Math.max(320, window.innerHeight ?? 1080);
-            Object.assign(this.element.style, {
-                position: "fixed",
-                top: "0px",
-                left: "0px",
-                width: `${width}px`,
-                height: `${height}px`,
-                zIndex: "10000"
-            });
-        }
-        
-        // Attach event handlers for V1
-        if (TotcWorkspaceShell.isV1) {
-            this._attachEventHandlers();
-        }
-        
-        // Trigger lifecycle hook
-        Hooks.callAll("renderTotcWorkspaceShell", this, this.element);
+        const root = document.createElement("section");
+        root.classList.add("totc-workspace-shell-root");
+        root.innerHTML = renderShellContent(context);
+        return root;
     }
 
     _replaceHTML(result, content) {
-        const target = content?.querySelector
-            ? content
-            : content?.[0] ?? null;
-        if (!target) return;
-
-        if (typeof result === "string") {
-            target.innerHTML = result;
-            return;
-        }
-
-        if (target.replaceChildren) {
-            target.replaceChildren(result);
-        }
+        content.replaceChildren(result);
     }
 
     async _onRender(context, options) {
-        if (TotcWorkspaceShell.isV2) {
-            await super._onRender?.(context, options);
-        }
-        this._attachEventHandlers();
-    }
+        await super._onRender(context, options);
 
-    _attachEventHandlers() {
         this.element
             ?.querySelectorAll("[data-action='setContext']")
             ?.forEach((button) => {
@@ -2215,216 +1720,6 @@ export class TotcWorkspaceShell extends ApplicationBase {
                     this.render(false);
                 });
             });
-
-        this.element
-            ?.querySelectorAll("[data-action='camp-set-morale']")
-            ?.forEach((select) => {
-                select.addEventListener("change", async (event) => {
-                    event.preventDefault();
-                    const morale = String(event.currentTarget?.value ?? "normal");
-                    if (!CAMP_MORALE_STATES.includes(morale)) return;
-                    await updateWorkspaceState({ camp: { morale } });
-                    this.render(false);
-                });
-            });
-
-        this.element
-            ?.querySelectorAll("[data-action='camp-set-activity']")
-            ?.forEach((select) => {
-                select.addEventListener("change", async (event) => {
-                    event.preventDefault();
-                    const activity = String(event.currentTarget?.value ?? CAMP_ACTIVITIES.REST);
-                    if (!Object.values(CAMP_ACTIVITIES).includes(activity)) return;
-                    await updateWorkspaceState({ camp: { currentActivity: activity } });
-                    this.render(false);
-                });
-            });
-
-        this.element
-            ?.querySelectorAll("[data-action='camp-set-region']")
-            ?.forEach((select) => {
-                select.addEventListener("change", async (event) => {
-                    event.preventDefault();
-                    const region = String(event.currentTarget?.value ?? "frontier");
-                    if (!REGIONS.includes(region)) return;
-                    await updateWorkspaceState({ camp: { region } });
-                    this.render(false);
-                });
-            });
-
-        this.element
-            ?.querySelectorAll("[data-action='camp-set-season']")
-            ?.forEach((select) => {
-                select.addEventListener("change", async (event) => {
-                    event.preventDefault();
-                    const season = String(event.currentTarget?.value ?? "summer");
-                    const validSeasons = ["spring", "summer", "autumn", "winter"];
-                    if (!validSeasons.includes(season)) return;
-                    await updateWorkspaceState({ camp: { season } });
-                    this.render(false);
-                });
-            });
-
-        this.element
-            ?.querySelectorAll("[data-action='camp-boost-morale']")
-            ?.forEach((button) => {
-                button.addEventListener("click", async (event) => {
-                    event.preventDefault();
-                    const scene = getWorkspaceScene();
-                    const state = getWorkspaceState(scene);
-                    const camp = { ...DEFAULT_CAMP_STATE, ...(state.camp ?? {}) };
-                    const currentIndex = CAMP_MORALE_STATES.indexOf(camp.morale ?? "normal");
-                    const nextIndex = Math.min(CAMP_MORALE_STATES.length - 1, currentIndex + 1);
-                    const newMorale = CAMP_MORALE_STATES[nextIndex];
-                    await updateWorkspaceState({ camp: { morale: newMorale } });
-                    ui.notifications?.info(`Party morale boosted to ${titleCase(newMorale)}.`);
-                    this.render(false);
-                });
-            });
-
-        this.element
-            ?.querySelectorAll("[data-action='camp-lower-morale']")
-            ?.forEach((button) => {
-                button.addEventListener("click", async (event) => {
-                    event.preventDefault();
-                    const scene = getWorkspaceScene();
-                    const state = getWorkspaceState(scene);
-                    const camp = { ...DEFAULT_CAMP_STATE, ...(state.camp ?? {}) };
-                    const currentIndex = CAMP_MORALE_STATES.indexOf(camp.morale ?? "normal");
-                    const nextIndex = Math.max(0, currentIndex - 1);
-                    const newMorale = CAMP_MORALE_STATES[nextIndex];
-                    await updateWorkspaceState({ camp: { morale: newMorale } });
-                    ui.notifications?.info(`Party morale lowered to ${titleCase(newMorale)}.`);
-                    this.render(false);
-                });
-            });
-
-        this.element
-            ?.querySelectorAll("[data-action^='camp-perform-']")
-            ?.forEach((button) => {
-                button.addEventListener("click", async (event) => {
-                    event.preventDefault();
-                    const action = event.currentTarget?.dataset?.action?.replace("camp-perform-", "") ?? "";
-                    if (!action) return;
-                    
-                    const activities = {
-                        rest: "The party settles in for rest and recovery.",
-                        prepare: "Equipment is checked and readied for travel.",
-                        scout: "Scouts advance cautiously to survey the area.",
-                        train: "The party spends time honing combat skills.",
-                        forage: "Foragers search the surrounding area for supplies."
-                    };
-                    
-                    const description = activities[action] ?? "An activity is underway.";
-                    await updateWorkspaceState({ camp: { currentActivity: action, lastEvent: description } });
-                    ui.notifications?.info(description);
-                    this.render(false);
-                });
-            });
-
-        this.element
-            ?.querySelectorAll("[data-action^='camp-adjust-supplies'], [data-action^='camp-adjust-water'], [data-action^='camp-adjust-firewood']")
-            ?.forEach((button) => {
-                button.addEventListener("click", async (event) => {
-                    event.preventDefault();
-                    const action = String(event.currentTarget?.dataset?.action ?? "");
-                    const resourceType = action.replace("camp-adjust-", "");
-                    const delta = toNumber(event.currentTarget?.dataset?.delta, 0);
-                    
-                    const scene = getWorkspaceScene();
-                    const state = getWorkspaceState(scene);
-                    const camp = { ...DEFAULT_CAMP_STATE, ...(state.camp ?? {}) };
-                    const current = Math.max(0, toNumber(camp[resourceType], 0));
-                    const next = Math.max(0, current + delta);
-                    
-                    await updateWorkspaceState({ camp: { [resourceType]: next } });
-                    ui.notifications?.info(`${titleCase(resourceType)} adjusted to ${next}.`);
-                    this.render(false);
-                });
-            });
-
-        this.element
-            ?.querySelectorAll("[data-action='camp-roll-event']")
-            ?.forEach((button) => {
-                button.addEventListener("click", async (event) => {
-                    event.preventDefault();
-                    const scene = getWorkspaceScene();
-                    const state = getWorkspaceState(scene);
-                    const camp = { ...DEFAULT_CAMP_STATE, ...(state.camp ?? {}) };
-                    const morale = CAMP_MORALE_STATES.includes(String(camp.morale ?? "")) ? String(camp.morale) : "normal";
-                    
-                    // Get region and season from camp state or use defaults
-                    const region = String(camp.region ?? "frontier").toLowerCase();
-                    const season = String(camp.season ?? "summer").toLowerCase();
-                    
-                    // Roll region-aware camp event
-                    const campEvent = rollRegionAwareCampEvent({ region, season, morale });
-                    const eventDescription = `[Roll ${campEvent.roll}] ${campEvent.description}`;
-                    
-                    // Store event and update UI
-                    await updateWorkspaceState({ camp: { lastEvent: eventDescription, lastEventOutcome: campEvent.outcome } });
-                    
-                    // Post to chat if there's a hazard or benefit
-                    if (campEvent.hazard || campEvent.benefits) {
-                        const chatContent = `<div class="totc-camp-event">
-                            <strong>${titleCase(region)} Camp Event (${titleCase(season)})</strong><br/>
-                            <em>${escapeHTML(campEvent.description)}</em><br/>
-                            ${campEvent.hazard ? `<span class="hazard">⚠️ ${escapeHTML(campEvent.hazard)}</span><br/>` : ""}
-                            ${campEvent.benefits ? `<span class="benefit">✓ ${escapeHTML(campEvent.benefits)}</span><br/>` : ""}
-                        </div>`;
-                        
-                        await ChatMessage.create({
-                            content: chatContent,
-                            speaker: ChatMessage.getSpeaker(),
-                            flags: { "turn-of-the-century": { campEvent: true } }
-                        }).catch(() => null);
-                    }
-                    
-                    ui.notifications?.info(eventDescription);
-                    this.render(false);
-                });
-            });
-
-        this.element
-            ?.querySelectorAll("[data-action='camp-advance-day']")
-            ?.forEach((button) => {
-                button.addEventListener("click", async (event) => {
-                    event.preventDefault();
-                    const scene = getWorkspaceScene();
-                    const state = getWorkspaceState(scene);
-                    const camp = { ...DEFAULT_CAMP_STATE, ...(state.camp ?? {}) };
-                    const nextDay = Math.max(1, toNumber(camp.day, 1) + 1);
-                    
-                    await updateWorkspaceState({ camp: { day: nextDay, lastEvent: "" } });
-                    ui.notifications?.info(`Advanced to Day ${nextDay}.`);
-                    this.render(false);
-                });
-            });
-
-        // Tab group event listeners
-        this.element
-            ?.querySelectorAll("[data-action='switchTab']")
-            ?.forEach((button) => {
-                button.addEventListener("click", async (event) => {
-                    event.preventDefault();
-                    const groupId = event.currentTarget?.dataset?.groupId;
-                    const tabId = event.currentTarget?.dataset?.tabId;
-                    if (!groupId || !tabId) return;
-
-                    const success = await this.tabGroupManager.setActiveTab(groupId, tabId);
-                    if (success) {
-                        // Get the active tab's panel context
-                        const activeTab = this.tabGroupManager.getActiveTab(groupId);
-                        if (activeTab?.panelContext) {
-                            // Switch to the panel context
-                            if (this.manager) {
-                                await this.manager.setPlayContext(activeTab.panelContext);
-                            }
-                        }
-                        this.render(false);
-                    }
-                });
-            });
     }
 }
 
@@ -2433,18 +1728,15 @@ export class TotcWorkspaceManager {
         systemId,
         modeSettingKey,
         playContextSettingKey,
-        blockFloatingWindowsSettingKey,
-        debugWindowPolicySettingKey
+        blockFloatingWindowsSettingKey
     }) {
         this.systemId = systemId;
         this.modeSettingKey = modeSettingKey;
         this.playContextSettingKey = playContextSettingKey;
         this.blockFloatingWindowsSettingKey = blockFloatingWindowsSettingKey;
-        this.debugWindowPolicySettingKey = debugWindowPolicySettingKey;
 
         this.shell = null;
         this.dismissedIds = new Set();
-        this.windowPolicyDecisionLogKeys = new Set();
         this._onRenderApplicationV2 = this._onRenderApplicationV2.bind(this);
         this._onRenderApplicationV1 = this._onRenderApplicationV1.bind(this);
     }
@@ -2457,23 +1749,14 @@ export class TotcWorkspaceManager {
         return this.isPlayMode() && Boolean(game.settings.get(this.systemId, this.blockFloatingWindowsSettingKey));
     }
 
-    shouldDebugWindowPolicy() {
-        if (!this.debugWindowPolicySettingKey) return false;
-        if (!this.isPlayMode()) return false;
-        return Boolean(game.settings.get(this.systemId, this.debugWindowPolicySettingKey));
-    }
-
     getPlayContext() {
         const value = game.settings.get(this.systemId, this.playContextSettingKey);
         return normalizeContext(value);
     }
 
     async initialize() {
-        if (TotcWorkspaceShell.isV2) {
-            Hooks.on("renderApplicationV2", this._onRenderApplicationV2);
-        } else if (TotcWorkspaceShell.isV1) {
-            Hooks.on("renderApplication", this._onRenderApplicationV1);
-        }
+        Hooks.on("renderApplicationV2", this._onRenderApplicationV2);
+        Hooks.on("renderApplicationV1", this._onRenderApplicationV1);
 
         if (this.isPlayMode()) {
             await this.openShell();
@@ -2481,14 +1764,12 @@ export class TotcWorkspaceManager {
             return;
         }
 
-        // In DESIGN mode, keep shell open for configuration but don't enforce policies
-        await this.openShell();
+        await this.closeShell();
     }
 
     async setMode(mode) {
         const nextMode = mode === UI_MODES.PLAY ? UI_MODES.PLAY : UI_MODES.DESIGN;
         await game.settings.set(this.systemId, this.modeSettingKey, nextMode);
-        this.windowPolicyDecisionLogKeys.clear();
 
         if (nextMode === UI_MODES.PLAY) {
             await this.openShell(true);
@@ -2509,15 +1790,11 @@ export class TotcWorkspaceManager {
 
     async openShell(force = false) {
         if (!TotcWorkspaceShell.isSupported) {
-            console.error("[turn-of-the-century] Neither ApplicationV2 nor ApplicationV1 available; workspace shell cannot open.");
+            console.warn("[turn-of-the-century] ApplicationV2 is unavailable; workspace shell was not opened.");
             return;
         }
 
         if (!this.shell) {
-            const isV2 = TotcWorkspaceShell.isV2;
-            const isV1 = TotcWorkspaceShell.isV1;
-            console.log(`[turn-of-the-century] Creating workspace shell (V${isV2 ? "2" : "1"}).`);
-            
             this.shell = new TotcWorkspaceShell({
                 mode: this.isPlayMode() ? UI_MODES.PLAY : UI_MODES.DESIGN,
                 context: this.getPlayContext(),
@@ -2527,24 +1804,7 @@ export class TotcWorkspaceManager {
 
         this.shell.mode = this.isPlayMode() ? UI_MODES.PLAY : UI_MODES.DESIGN;
         this.shell.context = this.getPlayContext();
-
-        try {
-            if (TotcWorkspaceShell.isV2) {
-                // V2 render signature
-                await this.shell.render({ force: true, focus: true });
-            } else {
-                // V1 render signature - might support both boolean and options
-                try {
-                    await this.shell.render({ force: true });
-                } catch (optionsError) {
-                    await this.shell.render(true);
-                }
-            }
-            console.log("[turn-of-the-century] Workspace shell rendered successfully.");
-        } catch (renderError) {
-            console.error("[turn-of-the-century] Workspace shell render failed.", renderError);
-            return;
-        }
+        await this.shell.render({ force: true, focus: true });
 
         if (force && typeof this.shell.bringToFront === "function") {
             this.shell.bringToFront();
@@ -2560,80 +1820,30 @@ export class TotcWorkspaceManager {
     _isAllowedWindow(app) {
         if (!app) return true;
         if (app === this.shell) return true;
-        if (isAllowedPromptLikeWindow(app)) return true;
+        if (isDialogApp(app)) return true;
 
         const appId = String(app.id ?? app.appId ?? "");
         if (appId === "totc-workspace-shell") return true;
-        if (appId.startsWith("totc-workspace-shell")) return true;
 
         return false;
     }
 
-    _getWindowPolicyDecision(app) {
-        if (!this.shouldBlockFloatingWindows()) {
-            return { shouldClose: false, reason: "policy-disabled" };
-        }
-
-        if (this._isAllowedWindow(app)) {
-            return { shouldClose: false, reason: "allowed-window" };
-        }
-
-        if (!isFloatingWindowCandidate(app)) {
-            return { shouldClose: false, reason: "non-floating-window" };
-        }
-
-        if (isExplicitlyBlockedWindow(app)) {
-            return { shouldClose: true, reason: "explicitly-blocked-window" };
-        }
-
-        const ctorName = String(app?.constructor?.name ?? "");
-        if (BLOCKED_WINDOW_APP_NAMES.has(ctorName)) {
-            return { shouldClose: true, reason: "blocked-constructor" };
-        }
-
-        if (typeof app?.hasFrame === "boolean" && app.hasFrame) {
-            return { shouldClose: true, reason: "framed-window" };
-        }
-
-        if (app?.options?.popOut === true) {
-            return { shouldClose: true, reason: "popout-window" };
-        }
-
-        if (app?.options?.window?.frame === true) {
-            return { shouldClose: true, reason: "window-frame-enabled" };
-        }
-
-        return { shouldClose: false, reason: "default-allow" };
-    }
-
-    _debugWindowPolicyDecision(app, decision) {
-        if (!this.shouldDebugWindowPolicy()) return;
-
-        const appId = String(app?.id ?? app?.appId ?? "unknown");
-        const appName = String(app?.constructor?.name ?? "UnknownApp");
-        const logKey = `${appId}:${decision.reason}:${decision.shouldClose}`;
-        if (this.windowPolicyDecisionLogKeys.has(logKey)) return;
-        this.windowPolicyDecisionLogKeys.add(logKey);
-
-        const level = decision.shouldClose ? "warn" : "debug";
-        console[level]("[turn-of-the-century] play-mode window policy", {
-            action: decision.shouldClose ? "blocked" : "allowed",
-            reason: decision.reason,
-            appId,
-            appName,
-            title: app?.title ?? ""
-        });
-    }
-
     _shouldCloseWindow(app) {
-        return this._getWindowPolicyDecision(app).shouldClose;
+        if (!this.shouldBlockFloatingWindows()) return false;
+        if (this._isAllowedWindow(app)) return false;
+
+        const ctorName = String(app.constructor?.name ?? "");
+        if (BLOCKED_WINDOW_APP_NAMES.has(ctorName)) return true;
+
+        if (typeof app.hasFrame === "boolean" && app.hasFrame) return true;
+        if (app.options?.popOut === true) return true;
+        if (app.options?.window?.frame === true) return true;
+
+        return false;
     }
 
     _closeDisallowedWindow(app) {
-        const decision = this._getWindowPolicyDecision(app);
-        this._debugWindowPolicyDecision(app, decision);
-        if (!decision.shouldClose) return;
-        if (app?.rendered === false) return;
+        if (!this._shouldCloseWindow(app)) return;
 
         const key = String(app.id ?? app.appId ?? app.constructor?.name ?? "unknown");
         if (!this.dismissedIds.has(key)) {
@@ -2658,77 +1868,6 @@ export class TotcWorkspaceManager {
         this._closeDisallowedWindow(app);
     }
 
-    auditWindowPolicy({ closeBlocked = false, includeAllowed = true, notify = true } = {}) {
-        const report = {
-            playMode: this.isPlayMode(),
-            policyEnabled: this.shouldBlockFloatingWindows(),
-            total: 0,
-            blocked: 0,
-            allowed: 0,
-            ignored: 0,
-            entries: []
-        };
-
-        const windows = Object.values(ui.windows ?? {});
-        for (const app of windows) {
-            report.total += 1;
-
-            const decision = this._getWindowPolicyDecision(app);
-            const appId = String(app?.id ?? app?.appId ?? "unknown");
-            const appName = String(app?.constructor?.name ?? "UnknownApp");
-            const baseEntry = {
-                appId,
-                appName,
-                title: String(app?.title ?? ""),
-                reason: decision.reason,
-                shouldClose: Boolean(decision.shouldClose)
-            };
-
-            if (decision.reason === "policy-disabled") {
-                report.ignored += 1;
-                if (includeAllowed) {
-                    report.entries.push({ ...baseEntry, action: "ignored" });
-                }
-                continue;
-            }
-
-            if (decision.shouldClose) {
-                report.blocked += 1;
-                let closed = false;
-                if (closeBlocked) {
-                    try {
-                        if (typeof app?.close === "function") {
-                            void app.close();
-                            closed = true;
-                        }
-                    } catch (error) {
-                        console.warn("[turn-of-the-century] Failed to close blocked window during audit.", error);
-                    }
-                }
-
-                report.entries.push({
-                    ...baseEntry,
-                    action: closeBlocked ? (closed ? "closed" : "failed-close") : "would-close"
-                });
-                continue;
-            }
-
-            report.allowed += 1;
-            if (includeAllowed) {
-                report.entries.push({ ...baseEntry, action: "allowed" });
-            }
-        }
-
-        if (notify) {
-            const prefix = closeBlocked ? "Window policy audit + enforcement" : "Window policy audit";
-            ui.notifications?.info(
-                `${prefix}: total=${report.total}, blocked=${report.blocked}, allowed=${report.allowed}, ignored=${report.ignored}.`
-            );
-        }
-
-        return report;
-    }
-
     enforceWindowPolicy() {
         if (!this.shouldBlockFloatingWindows()) return;
 
@@ -2740,7 +1879,5 @@ export class TotcWorkspaceManager {
 
 export {
     UI_MODES,
-    UI_CONTEXTS,
-    TotcTabGroupManager,
-    TabGroupConsoleAPI
+    UI_CONTEXTS
 };
