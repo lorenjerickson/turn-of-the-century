@@ -61,6 +61,12 @@ import {
     RealMultiplayerTestConsoleAPI
 } from "./module/ui/test-real-multiplayer.mjs";
 import {
+    ADVERSARY_PROFILES,
+    FACTION_METADATA,
+    TERRAIN_FEATURES,
+    ESCALATION_TRIGGERS,
+    LOOT_TABLES,
+    NARRATIVE_HOOKS,
     instantiateEncounterSeed,
     getEscalationTrigger,
     getTerrainFeature,
@@ -283,10 +289,29 @@ async function ensureTotcLocalizationLoaded() {
 
     const systemId = game.system?.id ?? "turn-of-the-century";
     const activeLang = String(game.i18n.lang ?? "en").trim() || "en";
+    const systemPath = String(game.system?.path ?? "").replace(/\/+$/, "");
+    const configuredLanguages = Array.isArray(game.system?.languages) ? game.system.languages : [];
+
+    const resolveConfiguredPath = (lang) => {
+        const configuredPath = configuredLanguages.find((entry) => entry?.lang === lang)?.path;
+        if (!configuredPath) return null;
+
+        if (configuredPath.startsWith("/")) return configuredPath;
+        if (configuredPath.startsWith("systems/")) return configuredPath;
+        if (systemPath) return `${systemPath}/${configuredPath.replace(/^\.?\//, "")}`;
+        return configuredPath;
+    };
+
     const candidatePaths = Array.from(new Set([
+        resolveConfiguredPath(activeLang),
+        resolveConfiguredPath("en"),
         `systems/${systemId}/lang/${activeLang}.json`,
         `systems/${systemId}/lang/en.json`
-    ]));
+    ].filter(Boolean)));
+
+    if (!game.i18n.translations || typeof game.i18n.translations !== "object") {
+        game.i18n.translations = {};
+    }
 
     for (const path of candidatePaths) {
         try {
@@ -296,13 +321,19 @@ async function ensureTotcLocalizationLoaded() {
             const translations = await response.json();
             if (!translations || typeof translations !== "object") continue;
 
-            foundry.utils.mergeObject(game.i18n.translations, translations, {
+            const mergeOptions = {
                 insertKeys: true,
                 insertValues: true,
                 overwrite: true,
                 inplace: true,
                 recursive: true
-            });
+            };
+
+            game.i18n.translations = foundry.utils.mergeObject(game.i18n.translations, translations, mergeOptions);
+
+            if (game.i18n._fallback && typeof game.i18n._fallback === "object") {
+                game.i18n._fallback = foundry.utils.mergeObject(game.i18n._fallback, translations, mergeOptions);
+            }
 
             if (game.i18n.localize(probeKey) !== probeKey) {
                 console.warn(`[turn-of-the-century] Recovered missing i18n translations from ${path}.`);
