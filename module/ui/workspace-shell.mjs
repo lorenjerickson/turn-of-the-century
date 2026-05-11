@@ -77,8 +77,22 @@ const ALLOWED_WINDOW_APP_NAMES = new Set([
 ]);
 
 function getApplicationV2BaseClass() {
-    return globalThis?.foundry?.applications?.api?.ApplicationV2
-        ?? globalThis?.foundry?.applications?.ApplicationV2
+    const v2 = globalThis?.foundry?.applications?.api?.ApplicationV2
+        ?? globalThis?.foundry?.applications?.ApplicationV2;
+    
+    if (v2) {
+        console.log("[turn-of-the-century] ApplicationV2 detected and will be used for workspace shell.");
+        return v2;
+    }
+    
+    console.warn("[turn-of-the-century] ApplicationV2 not found; checking for ApplicationV1 fallback...");
+    return null;
+}
+
+function getApplicationV1BaseClass() {
+    return globalThis?.foundry?.appv1?.api?.Application
+        ?? globalThis?.foundry?.appv1?.Application
+        ?? globalThis?.Application
         ?? null;
 }
 
@@ -1403,35 +1417,59 @@ function renderShellContent({ context, mode, encounterPlanner = null, travelCont
 }
 
 const ApplicationV2Base = getApplicationV2BaseClass();
+const ApplicationV1Base = ApplicationV2Base ? null : getApplicationV1BaseClass();
+const ApplicationBase = ApplicationV2Base ?? ApplicationV1Base ?? class {};
 
-export class TotcWorkspaceShell extends (ApplicationV2Base ?? class {}) {
-    static get isSupported() {
+export class TotcWorkspaceShell extends ApplicationBase {
+    static get isV2() {
         return Boolean(ApplicationV2Base);
     }
 
+    static get isV1() {
+        return Boolean(ApplicationV1Base && !ApplicationV2Base);
+    }
+
+    static get isSupported() {
+        return Boolean(ApplicationV2Base || ApplicationV1Base);
+    }
+
     static get DEFAULT_OPTIONS() {
-        if (!ApplicationV2Base) return {};
+        if (ApplicationV2Base) {
+            const viewportWidth = Math.max(320, Number(globalThis?.innerWidth ?? window?.innerWidth ?? 1920));
+            const viewportHeight = Math.max(320, Number(globalThis?.innerHeight ?? window?.innerHeight ?? 1080));
 
-        const viewportWidth = Math.max(320, Number(globalThis?.innerWidth ?? window?.innerWidth ?? 1920));
-        const viewportHeight = Math.max(320, Number(globalThis?.innerHeight ?? window?.innerHeight ?? 1080));
+            return {
+                id: "totc-workspace-shell",
+                classes: ["turn-of-the-century", "totc-workspace-shell-app"],
+                tag: "section",
+                position: {
+                    width: viewportWidth,
+                    height: viewportHeight,
+                    top: 0,
+                    left: 0
+                },
+                window: {
+                    frame: false,
+                    positioned: true,
+                    minimizable: false,
+                    resizable: false,
+                    title: "Turn of the Century Workspace"
+                }
+            };
+        }
 
+        // ApplicationV1 options
         return {
             id: "totc-workspace-shell",
             classes: ["turn-of-the-century", "totc-workspace-shell-app"],
-            tag: "section",
-            position: {
-                width: viewportWidth,
-                height: viewportHeight,
-                top: 0,
-                left: 0
-            },
-            window: {
-                frame: false,
-                positioned: true,
-                minimizable: false,
-                resizable: false,
-                title: "Turn of the Century Workspace"
-            }
+            width: Math.max(320, Number(globalThis?.innerWidth ?? window?.innerWidth ?? 1920)),
+            height: Math.max(320, Number(globalThis?.innerHeight ?? window?.innerHeight ?? 1080)),
+            top: 0,
+            left: 0,
+            popOut: true,
+            resizable: false,
+            minimizable: false,
+            title: "Turn of the Century Workspace"
         };
     }
 
@@ -1475,8 +1513,52 @@ export class TotcWorkspaceShell extends (ApplicationV2Base ?? class {}) {
         };
     }
 
+    // V2 lifecycle method
     async _renderHTML(context) {
         return renderShellContent(context);
+    }
+
+    // V1 lifecycle method
+    async getData() {
+        return this._prepareContext();
+    }
+
+    // V1 render method
+    async _render(force) {
+        if (!this.element) {
+            this.element = document.createElement(this.options?.tag ?? "div");
+            this.element.id = this.id;
+            if (this.options?.classes) {
+                this.element.classList.add(...(Array.isArray(this.options.classes) ? this.options.classes : [this.options.classes]));
+            }
+            document.body.appendChild(this.element);
+        }
+
+        const context = await this._prepareContext();
+        const html = renderShellContent(context);
+        this.element.innerHTML = html;
+        
+        // Apply positioning for V1
+        if (this.element && this.options) {
+            const width = this.options.width ?? Math.max(320, window.innerWidth ?? 1920);
+            const height = this.options.height ?? Math.max(320, window.innerHeight ?? 1080);
+            Object.assign(this.element.style, {
+                position: "fixed",
+                top: "0px",
+                left: "0px",
+                width: `${width}px`,
+                height: `${height}px`,
+                zIndex: "10000"
+            });
+        }
+        
+        // Attach event handlers for V1
+        if (TotcWorkspaceShell.isV1) {
+            this._attachEventHandlers();
+        }
+        
+        // Trigger lifecycle hook
+        Hooks.callAll("renderTotcWorkspaceShell", this, this.element);
     }
 
     _replaceHTML(result, content) {
@@ -1496,12 +1578,13 @@ export class TotcWorkspaceShell extends (ApplicationV2Base ?? class {}) {
     }
 
     async _onRender(context, options) {
-        await super._onRender(context, options);
-
-        if (this.element && typeof this.element.querySelectorAll !== "function" && typeof this.element.find === "function") {
-            this.element.querySelectorAll = (selector) => this.element.find(selector).toArray();
+        if (TotcWorkspaceShell.isV2) {
+            await super._onRender?.(context, options);
         }
+        this._attachEventHandlers();
+    }
 
+    _attachEventHandlers() {
         this.element
             ?.querySelectorAll("[data-action='setContext']")
             ?.forEach((button) => {
@@ -2386,8 +2469,11 @@ export class TotcWorkspaceManager {
     }
 
     async initialize() {
-        Hooks.on("renderApplicationV2", this._onRenderApplicationV2);
-        Hooks.on("renderApplicationV1", this._onRenderApplicationV1);
+        if (TotcWorkspaceShell.isV2) {
+            Hooks.on("renderApplicationV2", this._onRenderApplicationV2);
+        } else if (TotcWorkspaceShell.isV1) {
+            Hooks.on("renderApplication", this._onRenderApplicationV1);
+        }
 
         if (this.isPlayMode()) {
             await this.openShell();
@@ -2423,11 +2509,15 @@ export class TotcWorkspaceManager {
 
     async openShell(force = false) {
         if (!TotcWorkspaceShell.isSupported) {
-            console.warn("[turn-of-the-century] ApplicationV2 is unavailable; workspace shell was not opened.");
+            console.error("[turn-of-the-century] Neither ApplicationV2 nor ApplicationV1 available; workspace shell cannot open.");
             return;
         }
 
         if (!this.shell) {
+            const isV2 = TotcWorkspaceShell.isV2;
+            const isV1 = TotcWorkspaceShell.isV1;
+            console.log(`[turn-of-the-century] Creating workspace shell (V${isV2 ? "2" : "1"}).`);
+            
             this.shell = new TotcWorkspaceShell({
                 mode: this.isPlayMode() ? UI_MODES.PLAY : UI_MODES.DESIGN,
                 context: this.getPlayContext(),
@@ -2439,18 +2529,21 @@ export class TotcWorkspaceManager {
         this.shell.context = this.getPlayContext();
 
         try {
-            await this.shell.render({ force: true, focus: true });
-        } catch (renderOptionsError) {
-            // Some Foundry builds use a boolean-first render signature.
-            try {
-                await this.shell.render(true);
-            } catch (renderBooleanError) {
-                console.error("[turn-of-the-century] Workspace shell render failed.", {
-                    renderOptionsError,
-                    renderBooleanError
-                });
-                return;
+            if (TotcWorkspaceShell.isV2) {
+                // V2 render signature
+                await this.shell.render({ force: true, focus: true });
+            } else {
+                // V1 render signature - might support both boolean and options
+                try {
+                    await this.shell.render({ force: true });
+                } catch (optionsError) {
+                    await this.shell.render(true);
+                }
             }
+            console.log("[turn-of-the-century] Workspace shell rendered successfully.");
+        } catch (renderError) {
+            console.error("[turn-of-the-century] Workspace shell render failed.", renderError);
+            return;
         }
 
         if (force && typeof this.shell.bringToFront === "function") {
