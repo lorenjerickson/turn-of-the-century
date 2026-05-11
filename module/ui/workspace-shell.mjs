@@ -1412,13 +1412,16 @@ export class TotcWorkspaceShell extends (ApplicationV2Base ?? class {}) {
     static get DEFAULT_OPTIONS() {
         if (!ApplicationV2Base) return {};
 
+        const viewportWidth = Math.max(320, Number(globalThis?.innerWidth ?? window?.innerWidth ?? 1920));
+        const viewportHeight = Math.max(320, Number(globalThis?.innerHeight ?? window?.innerHeight ?? 1080));
+
         return {
             id: "totc-workspace-shell",
             classes: ["turn-of-the-century", "totc-workspace-shell-app"],
             tag: "section",
             position: {
-                width: "100vw",
-                height: "100vh",
+                width: viewportWidth,
+                height: viewportHeight,
                 top: 0,
                 left: 0
             },
@@ -1441,6 +1444,9 @@ export class TotcWorkspaceShell extends (ApplicationV2Base ?? class {}) {
     }
 
     async _prepareContext() {
+        const liveMode = this.manager?.isPlayMode?.() ? UI_MODES.PLAY : UI_MODES.DESIGN;
+        this.mode = liveMode;
+
         const { actor, tokenDocument } = resolveWorkspaceActorToken();
         const encounterPlanner = this.context === UI_CONTEXTS.ENCOUNTER && actor
             ? buildEncounterPlanner(actor, tokenDocument)
@@ -2431,6 +2437,13 @@ export class TotcWorkspaceManager {
 
         this.shell.mode = this.isPlayMode() ? UI_MODES.PLAY : UI_MODES.DESIGN;
         this.shell.context = this.getPlayContext();
+
+        const viewportWidth = Math.max(320, Number(globalThis?.innerWidth ?? window?.innerWidth ?? 1920));
+        const viewportHeight = Math.max(320, Number(globalThis?.innerHeight ?? window?.innerHeight ?? 1080));
+        if (typeof this.shell.setPosition === "function") {
+            this.shell.setPosition({ left: 0, top: 0, width: viewportWidth, height: viewportHeight });
+        }
+
         try {
             await this.shell.render({ force: true, focus: true });
         } catch (renderOptionsError) {
