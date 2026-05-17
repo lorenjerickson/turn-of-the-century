@@ -1808,6 +1808,10 @@ export class TotcWorkspaceManager {
         const appId = String(app.id ?? app.appId ?? "");
         if (appId === "totc-workspace-shell") return true;
 
+        // Always allow the system's own custom sheets (actor and item sheets).
+        const ctorName = String(app.constructor?.name ?? "");
+        if (ctorName.startsWith("TurnOfTheCentury")) return true;
+
         return false;
     }
 
