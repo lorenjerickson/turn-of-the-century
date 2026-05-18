@@ -18,18 +18,14 @@ body.totc-system-theme a:hover {
 
 body.totc-system-theme .window-app .window-header a,
 body.totc-system-theme #sidebar .directory-header a,
-body.totc-system-theme #sidebar .directory-footer a,
-body.totc-system-theme .turn-of-the-century .totc-workspace-shell__header a,
-body.totc-system-theme .turn-of-the-century .totc-workspace-shell__contexts a {
+body.totc-system-theme #sidebar .directory-footer a {
     color: #f0ddba;
     text-decoration-color: rgba(240, 221, 186, 0.5);
 }
 
 body.totc-system-theme .window-app .window-header a:hover,
 body.totc-system-theme #sidebar .directory-header a:hover,
-body.totc-system-theme #sidebar .directory-footer a:hover,
-body.totc-system-theme .turn-of-the-century .totc-workspace-shell__header a:hover,
-body.totc-system-theme .turn-of-the-century .totc-workspace-shell__contexts a:hover {
+body.totc-system-theme #sidebar .directory-footer a:hover {
     color: #fff0cf;
     text-decoration-color: rgba(255, 240, 207, 0.8);
 }

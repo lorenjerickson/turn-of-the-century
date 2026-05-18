@@ -51,15 +51,10 @@ import {
 } from "./module/sheets/actor-sheet.mjs";
 import { TurnOfTheCenturyCombatTracker } from "./module/sheets/combat-tracker.mjs";
 import { TurnOfTheCenturyItemSheet } from "./module/sheets/item-sheet.mjs";
-import { TotcWorkspaceManager, UI_CONTEXTS, UI_MODES } from "./module/ui/workspace-shell.mjs";
 import {
-    MultiplayerGovernanceTestHelper,
-    MultiplayerTestConsoleAPI
-} from "./module/ui/test-governance-multiplayer.mjs";
-import {
-    RealMultiplayerTestCoordinator,
-    RealMultiplayerTestConsoleAPI
-} from "./module/ui/test-real-multiplayer.mjs";
+    WorkspaceV2Coordinator,
+    registerWorkspaceV2PolicySettings
+} from "./module/ui/workspace-v2/index.mjs";
 import {
     ADVERSARY_PROFILES,
     FACTION_METADATA,
@@ -100,11 +95,6 @@ const ENCOUNTER_MOVE_FEET_PER_AP_SETTING = "encounterMovementFeetPerAp";
 const ENCOUNTER_PLANNING_LIMIT_SECONDS_SETTING = "encounterPlanningLimitSeconds";
 const ENCOUNTER_PLANNING_WARNING_SECONDS_SETTING = "encounterPlanningWarningSeconds";
 const ENCOUNTER_REPLAY_STYLE_SETTING = "encounterReplayNarrationStyle";
-const UI_MODE_SETTING = "uiMode";
-const UI_PLAY_CONTEXT_SETTING = "uiPlayContext";
-const UI_BLOCK_FLOATING_WINDOWS_SETTING = "uiBlockFloatingWindows";
-const UI_TRAVEL_ENCOUNTER_SEED_POLICY_SETTING = "travelEncounterSeedPolicy";
-const UI_DEBUG_WINDOW_POLICY_SETTING = "uiDebugWindowPolicy";
 const AUTO_CREATE_ENCOUNTER_NPCS_SETTING = "autoCreateEncounterNpcs";
 const ENCOUNTER_EVENT_HOOK_NAMES = [
     "totcEncounterStateInitialized",
@@ -122,7 +112,7 @@ const BaseActorSheetClass = foundry.applications?.sheets?.ActorSheetV2 ?? foundr
 const BaseItemSheetClass = foundry.applications?.sheets?.ItemSheetV2 ?? foundry.applications?.sheets?.ItemSheet;
 let encounterPlanningWatchHandle = null;
 const initiativePromptKeys = new Set();
-let workspaceManager = null;
+let workspaceV2Coordinator = null;
 
 function logEncounterLifecycle(eventName, payload = {}) {
     const combat = payload.combat ?? payload.combatant?.combat ?? game.combat ?? null;
@@ -566,66 +556,6 @@ Hooks.once("init", () => {
         default: "detailed"
     });
 
-    game.settings.register("turn-of-the-century", UI_MODE_SETTING, {
-        name: "UI mode",
-        hint: "Choose whether the world boots into design tools or play workspace mode.",
-        scope: "world",
-        config: true,
-        type: String,
-        choices: {
-            [UI_MODES.DESIGN]: "Design",
-            [UI_MODES.PLAY]: "Play"
-        },
-        default: UI_MODES.DESIGN
-    });
-
-    game.settings.register("turn-of-the-century", UI_PLAY_CONTEXT_SETTING, {
-        name: "Play context",
-        hint: "Active play context used by the workspace shell.",
-        scope: "world",
-        config: true,
-        type: String,
-        choices: {
-            [UI_CONTEXTS.TRAVEL]: "Travel",
-            [UI_CONTEXTS.ENCOUNTER]: "Encounter",
-            [UI_CONTEXTS.MARKET]: "Market",
-            [UI_CONTEXTS.CAMP]: "Camp"
-        },
-        default: UI_CONTEXTS.TRAVEL
-    });
-
-    game.settings.register("turn-of-the-century", UI_BLOCK_FLOATING_WINDOWS_SETTING, {
-        name: "Block floating windows in play mode",
-        hint: "Automatically closes non-prompt floating windows while play mode is active.",
-        scope: "world",
-        config: true,
-        type: Boolean,
-        default: true
-    });
-
-    game.settings.register("turn-of-the-century", UI_TRAVEL_ENCOUNTER_SEED_POLICY_SETTING, {
-        name: "Travel encounter scaffold policy",
-        hint: "How travel-seeded encounters should treat existing scene combat: append, reset, or replace.",
-        scope: "world",
-        config: true,
-        type: String,
-        choices: {
-            append: "Append to current scene combat",
-            reset: "Reset current scene combat",
-            replace: "Replace with a new scene combat"
-        },
-        default: "append"
-    });
-
-    game.settings.register("turn-of-the-century", UI_DEBUG_WINDOW_POLICY_SETTING, {
-        name: "Debug play-mode window policy",
-        hint: "Log allow/block decisions for play-mode window governance to the browser console.",
-        scope: "world",
-        config: true,
-        type: Boolean,
-        default: false
-    });
-
     game.settings.register("turn-of-the-century", AUTO_CREATE_ENCOUNTER_NPCS_SETTING, {
         name: "Auto-create encounter NPCs",
         hint: "Automatically instantiate NPC actors from encounter seeds during travel combat initiation.",
@@ -634,6 +564,8 @@ Hooks.once("init", () => {
         type: Boolean,
         default: true
     });
+
+    registerWorkspaceV2PolicySettings("turn-of-the-century");
 });
 
 Hooks.once("ready", async () => {
@@ -671,163 +603,42 @@ Hooks.once("ready", async () => {
             return result;
         }
     };
-    workspaceManager = new TotcWorkspaceManager({
-        systemId: "turn-of-the-century",
-        modeSettingKey: UI_MODE_SETTING,
-        playContextSettingKey: UI_PLAY_CONTEXT_SETTING,
-        blockFloatingWindowsSettingKey: UI_BLOCK_FLOATING_WINDOWS_SETTING,
-        debugWindowPolicySettingKey: UI_DEBUG_WINDOW_POLICY_SETTING
+
+    workspaceV2Coordinator = new WorkspaceV2Coordinator({
+        systemId: "turn-of-the-century"
     });
-    await workspaceManager.initialize();
+    await workspaceV2Coordinator.initialize();
 
-    const testHelper = new MultiplayerGovernanceTestHelper(workspaceManager);
-    const testAPI = new MultiplayerTestConsoleAPI(testHelper);
-
-    const realMultiplayerCoordinator = new RealMultiplayerTestCoordinator(
-        workspaceManager,
-        game.turnOfTheCentury.npcs,
-        testHelper
-    );
-    const realMultiplayerAPI = new RealMultiplayerTestConsoleAPI(realMultiplayerCoordinator);
-
-    game.turnOfTheCentury.ui = {
-        modes: Object.freeze({ ...UI_MODES }),
-        contexts: Object.freeze({ ...UI_CONTEXTS }),
-        getMode: () => game.settings.get("turn-of-the-century", UI_MODE_SETTING),
-        setMode: async (mode) => {
-            if (!workspaceManager) return;
-            await workspaceManager.setMode(mode);
+    game.turnOfTheCentury.uiV2 = {
+        getStatus: () => workspaceV2Coordinator?.getStatus?.() ?? {
+            enabledSetting: false,
+            debugGovernance: false,
+            running: false,
+            supported: false
         },
-        getContext: () => game.settings.get("turn-of-the-century", UI_PLAY_CONTEXT_SETTING),
-        setContext: async (context) => {
-            if (!workspaceManager) return;
-            await workspaceManager.setPlayContext(context);
+        enable: async () => {
+            await workspaceV2Coordinator?.setEnabled?.(true);
         },
-        getTravelEncounterSeedPolicy: () => game.settings.get("turn-of-the-century", UI_TRAVEL_ENCOUNTER_SEED_POLICY_SETTING),
-        setTravelEncounterSeedPolicy: async (policy) => {
-            const normalized = ["append", "reset", "replace"].includes(String(policy ?? "").toLowerCase())
-                ? String(policy).toLowerCase()
-                : "append";
-            await game.settings.set("turn-of-the-century", UI_TRAVEL_ENCOUNTER_SEED_POLICY_SETTING, normalized);
+        disable: async () => {
+            await workspaceV2Coordinator?.setEnabled?.(false);
         },
-        getDebugWindowPolicy: () => Boolean(game.settings.get("turn-of-the-century", UI_DEBUG_WINDOW_POLICY_SETTING)),
-        setDebugWindowPolicy: async (enabled) => {
-            await game.settings.set("turn-of-the-century", UI_DEBUG_WINDOW_POLICY_SETTING, Boolean(enabled));
+        start: async () => {
+            await workspaceV2Coordinator?.start?.();
         },
-        openWorkspace: async () => {
-            if (!workspaceManager) return;
-            await workspaceManager.openShell(true);
+        stop: async () => {
+            await workspaceV2Coordinator?.stop?.();
         },
-        auditWindowPolicy: ({ closeBlocked = false, includeAllowed = true, notify = true } = {}) => {
-            if (!workspaceManager) return null;
-            return workspaceManager.auditWindowPolicy({ closeBlocked, includeAllowed, notify });
+        setDebugGovernance: async (enabled) => {
+            await workspaceV2Coordinator?.setDebugGovernance?.(Boolean(enabled));
         },
-        enforceAndAuditWindowPolicy: ({ includeAllowed = true, notify = true } = {}) => {
-            if (!workspaceManager) return null;
-            return workspaceManager.auditWindowPolicy({ closeBlocked: true, includeAllowed, notify });
+        auditRegions: () => workspaceV2Coordinator?.auditRegions?.() ?? {
+            active: false,
+            hiddenCount: 0,
+            rows: []
         },
-        enforceWindowPolicy: () => {
-            workspaceManager?.enforceWindowPolicy();
-        }
-    };
-
-    game.turnOfTheCentury.testMultiplayer = {
-        /**
-         * Start a new test session for multiplayer governance validation
-         * @param {string} testName - Name for this test session
-         * @returns {Promise<Object>} Session info
-         */
-        startSession: (testName) => testHelper.startTestSession(testName),
-
-        /**
-         * Run a single quick test by name
-         * Available: "prohibition", "isolation", "prompts", "gmplayer", "rapid", "persistence"
-         * @param {string} testName - Name of the test to run
-         * @returns {Promise<Object>} Test result
-         */
-        runQuickTest: (testName) => testAPI.runQuickTest(testName),
-
-        /**
-         * Run full multiplayer governance validation suite
-         * @returns {Promise<Object>} Full validation results
-         */
-        runFullValidation: () => testAPI.runFullValidation(),
-
-        /**
-         * Display test results summary in console
-         */
-        displayResults: () => testAPI.displayResults(),
-
-        /**
-         * Export test results to console (copy the JSON output)
-         * @returns {Object} Test results data
-         */
-        exportResults: () => testAPI.exportToFile(),
-
-        /**
-         * End current test session and generate report
-         * @returns {Promise<Object>} Session summary
-         */
-        endSession: () => testHelper.endTestSession(),
-
-        /**
-         * Get raw test log for inspection
-         * @returns {Array} Test log entries
-         */
-        getTestLog: () => testHelper.getTestLog()
-    };
-
-    /**
-     * Real Multiplayer Validation API
-     * Comprehensive testing with 3-5 concurrent players
-     */
-    game.turnOfTheCentury.realMultiplayer = {
-        /**
-         * Start a new multiplayer test session
-         * @param {string} sessionName - Name for this session
-         * @returns {Promise<Object>} Session info
-         */
-        startSession: (sessionName) => realMultiplayerAPI.startSession(sessionName),
-
-        /**
-         * Run full multiplayer test suite
-         * @param {string} sessionName - Name for test session
-         * @returns {Promise<Object>} Full test results with pass/fail counts
-         */
-        runFullSuite: (sessionName) => realMultiplayerAPI.runFullSuite(sessionName),
-
-        /**
-         * Run specific multiplayer test
-         * Tests: contextSwitching, encounterSeeding, windowStress, chatDistribution
-         * @param {string} testName - Name of test to run
-         * @returns {Promise<Object>} Test result
-         */
-        runTest: async (testName) => {
-            switch (testName) {
-                case "contextSwitching":
-                    return await realMultiplayerCoordinator.testConcurrentContextSwitching();
-                case "encounterSeeding":
-                    return await realMultiplayerCoordinator.testMultiplayerEncounterSeeding();
-                case "windowStress":
-                    return await realMultiplayerCoordinator.testWindowGovernanceStress();
-                case "chatDistribution":
-                    return await realMultiplayerCoordinator.testChatMessageDistribution();
-                default:
-                    return { error: `Unknown test: ${testName}` };
-            }
-        },
-
-        /**
-         * Get current test session report
-         * @returns {Object} Metrics and recent log entries
-         */
-        getReport: () => realMultiplayerAPI.showReport(),
-
-        /**
-         * Export full test session data
-         * @returns {Object} Complete log and metrics
-         */
-        exportData: () => realMultiplayerAPI.exportData()
+        getUserLayout: () => workspaceV2Coordinator?.stateStore?.getUserLayout?.() ?? null,
+        setUserLayout: async (layout) => workspaceV2Coordinator?.stateStore?.setUserLayout?.(layout),
+        clearUserLayout: async () => workspaceV2Coordinator?.stateStore?.clearUserLayout?.()
     };
 
     game.turnOfTheCentury.encounters = {
@@ -1189,9 +1000,11 @@ Hooks.on("combatStart", (combat) => {
 });
 
 Hooks.once("shutdown", () => {
-    if (!encounterPlanningWatchHandle) return;
-    clearInterval(encounterPlanningWatchHandle);
-    encounterPlanningWatchHandle = null;
+    if (encounterPlanningWatchHandle) {
+        clearInterval(encounterPlanningWatchHandle);
+        encounterPlanningWatchHandle = null;
+    }
 
-    workspaceManager = null;
+    void workspaceV2Coordinator?.shutdown?.();
+    workspaceV2Coordinator = null;
 });

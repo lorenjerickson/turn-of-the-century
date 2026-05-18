@@ -20,10 +20,9 @@ The **Enhanced Encounter Seeding** system provides rich metadata, NPC instantiat
 - Provides instantiation functions to convert templates into combat-ready data
 - Exports public helper functions for theme queries
 
-**2. Workspace Shell Integration** (`module/ui/workspace-shell.mjs`)
-- Imports enhanced seed functions
-- Enhanced `ensureSeededEncounterFromTravelPayload()` to store rich metadata
-- Seeds now include escalation, faction, terrain, narrative, and loot data in combat flags
+**2. Workspace V2 Integration** (`module/ui/workspace-v2/workspace-v2-coordinator.mjs`)
+- Coordinates enhanced seed usage in the replacement UI runtime
+- Seeds include escalation, faction, terrain, narrative, and loot data in combat flags
 
 **3. Public API** (`game.turnOfTheCentury.seeds`)
 - Reference data for all profiles, factions, terrains, escalations, loot, narratives
@@ -458,8 +457,8 @@ const seed = {
 };
 
 // 2. Escalate to combat
-await game.turnOfTheCentury.ui.setContext("encounter");
-const combat = await game.turnOfTheCentury.ui.initiateTravelEncounter(seed, "frontier");
+// Use your Workspace V2 command surface to initiate the encounter for this seed.
+const combat = await startEncounterFromTravelSeed(seed, "frontier");
 
 // 3. Access rich context in combat
 const seedData = combat.getFlag("turn-of-the-century", "travelEncounterSeed");

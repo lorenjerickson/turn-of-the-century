@@ -33,8 +33,7 @@ body.totc-system-theme {
 .turn-of-the-century h1,
 .turn-of-the-century h2,
 .turn-of-the-century h3,
-.turn-of-the-century .totc-planner-banner__title,
-.turn-of-the-century .totc-workspace-shell__title {
+.turn-of-the-century .totc-planner-banner__title {
     font-family: var(--totc-font-display);
     letter-spacing: 0.02em;
 }
@@ -51,8 +50,7 @@ body.totc-system-theme #sidebar {
 
 .turn-of-the-century .sheet-tabs .item,
 .turn-of-the-century .totc-ability-score__label,
-.turn-of-the-century .totc-planner-col-header,
-.turn-of-the-century .totc-workspace-shell__meta {
+.turn-of-the-century .totc-planner-col-header {
     font-family: var(--totc-font-smallcaps);
     letter-spacing: 0.06em;
 }
