@@ -103,6 +103,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const root = document.createElement("section");
         root.classList.add("totc-workspace-v2-root");
         root.setAttribute("data-drag-host", "true");
+        const dockWeights = context.dockWeights ?? { left: 0.18, center: 0.46, right: 0.18, top: 0.18, bottom: 0.18 };
+        const columnTemplate = `${Math.round(dockWeights.left * 100)}fr ${Math.round(dockWeights.center * 100)}fr ${Math.round(dockWeights.right * 100)}fr`;
+        const rowTemplate = `${Math.round(dockWeights.top * 100)}fr minmax(250px, 1fr) ${Math.round(dockWeights.bottom * 100)}fr`;
 
         const docksMarkup = WORKSPACE_V2_DOCK_IDS
             .map((dockId) => this.#renderDockMarkup(dockId, context.layout.root[dockId], context))
@@ -128,7 +131,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 ${panel.title}
             </button>`).join("")}
         </section>
-        <section class="totc-v2-layout" data-layout-root="true">
+        <section class="totc-v2-layout" data-layout-root="true" style="grid-template-columns:${columnTemplate};grid-template-rows:${rowTemplate};">
             ${docksMarkup}
             ${this.#renderDockSplittersMarkup()}
             ${this.#renderFloatingWindowsMarkup(context.layout.root.floatingWindows ?? [])}
@@ -187,8 +190,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
 
         this.element?.querySelectorAll("[data-action='floating-close']")?.forEach((button) => {
+            button.addEventListener("pointerdown", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
+                event.stopPropagation();
                 const windowId = button.dataset.floatingId;
                 if (!windowId) return;
 

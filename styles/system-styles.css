@@ -1380,7 +1380,8 @@ body.totc-v2-active #ui-right {
     box-shadow: 0 18px 42px rgba(15, 23, 42, 0.42);
     color: #e5e7eb;
     display: grid;
-    gap: 0.35rem;
+    gap: 0;
+    grid-template-rows: 36px minmax(0, 1fr);
     min-height: 0;
     overflow: hidden;
     position: absolute;
@@ -1391,8 +1392,11 @@ body.totc-v2-active #ui-right {
     background: rgba(30, 41, 59, 0.9);
     cursor: grab;
     display: flex;
+    flex: 0 0 36px;
+    height: 36px;
     justify-content: space-between;
     gap: 0.5rem;
+    min-height: 36px;
     padding: 0.35rem 0.55rem;
 }
 
@@ -1406,6 +1410,7 @@ body.totc-v2-active #ui-right {
 }
 
 .turn-of-the-century .totc-v2-floating__body {
+    height: 100%;
     min-height: 0;
     overflow: hidden;
     padding: 0.45rem;
