@@ -1224,9 +1224,17 @@ body.totc-v2-active #ui-right {
 }
 
 .turn-of-the-century .totc-v2-dock__stacks {
-    display: grid;
+    display: flex;
     gap: 0.4rem;
     min-height: 0;
+}
+
+.turn-of-the-century .totc-v2-dock__stacks.is-horizontal {
+    flex-direction: row;
+}
+
+.turn-of-the-century .totc-v2-dock__stacks.is-vertical {
+    flex-direction: column;
 }
 
 .turn-of-the-century .totc-v2-dock__empty {
@@ -1245,7 +1253,38 @@ body.totc-v2-active #ui-right {
     border-radius: 7px;
     display: grid;
     gap: 0.35rem;
+    min-width: 0;
     padding: 0.4rem;
+}
+
+.turn-of-the-century .totc-v2-stack__actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.turn-of-the-century .totc-v2-stack__actions button {
+    background: rgba(59, 130, 246, 0.18);
+    border: 1px solid rgba(147, 197, 253, 0.45);
+    border-radius: 4px;
+    color: #dbeafe;
+    font-size: 0.72rem;
+    padding: 0.2rem 0.45rem;
+}
+
+.turn-of-the-century .totc-v2-stack-splitter {
+    background: rgba(148, 163, 184, 0.28);
+    border-radius: 999px;
+    flex: 0 0 auto;
+}
+
+.turn-of-the-century .totc-v2-stack-splitter.is-horizontal {
+    cursor: col-resize;
+    width: 8px;
+}
+
+.turn-of-the-century .totc-v2-stack-splitter.is-vertical {
+    cursor: row-resize;
+    height: 8px;
 }
 
 .turn-of-the-century .totc-v2-stack__tabs {
@@ -1332,6 +1371,103 @@ body.totc-v2-active #ui-right {
 
 .turn-of-the-century .totc-v2-map-panel__meta {
     color: #94a3b8;
+}
+
+.turn-of-the-century .totc-v2-floating {
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    border-radius: 10px;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.42);
+    color: #e5e7eb;
+    display: grid;
+    gap: 0.35rem;
+    min-height: 0;
+    overflow: hidden;
+    position: absolute;
+}
+
+.turn-of-the-century .totc-v2-floating__header {
+    align-items: center;
+    background: rgba(30, 41, 59, 0.9);
+    cursor: grab;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.35rem 0.55rem;
+}
+
+.turn-of-the-century .totc-v2-floating__buttons button {
+    background: rgba(248, 113, 113, 0.16);
+    border: 1px solid rgba(248, 113, 113, 0.38);
+    border-radius: 4px;
+    color: #fecaca;
+    font-size: 0.72rem;
+    padding: 0.2rem 0.45rem;
+}
+
+.turn-of-the-century .totc-v2-floating__body {
+    min-height: 0;
+    overflow: hidden;
+    padding: 0.45rem;
+}
+
+.turn-of-the-century .totc-v2-floating__resize-handle {
+    bottom: 2px;
+    cursor: se-resize;
+    height: 16px;
+    position: absolute;
+    right: 2px;
+    width: 16px;
+}
+
+.turn-of-the-century .totc-v2-floating__resize-handle::after {
+    border-bottom: 2px solid rgba(148, 163, 184, 0.65);
+    border-right: 2px solid rgba(148, 163, 184, 0.65);
+    bottom: 4px;
+    content: "";
+    height: 8px;
+    position: absolute;
+    right: 4px;
+    width: 8px;
+}
+
+.turn-of-the-century .totc-v2-layout [data-action='dock-resizer'] {
+    position: absolute;
+    z-index: 3;
+}
+
+.turn-of-the-century .totc-v2-dock-resizer--left,
+.turn-of-the-century .totc-v2-dock-resizer--right {
+    bottom: 12%;
+    top: 12%;
+    width: 12px;
+}
+
+.turn-of-the-century .totc-v2-dock-resizer--left {
+    cursor: col-resize;
+    left: 0;
+}
+
+.turn-of-the-century .totc-v2-dock-resizer--right {
+    cursor: col-resize;
+    right: 0;
+}
+
+.turn-of-the-century .totc-v2-dock-resizer--top,
+.turn-of-the-century .totc-v2-dock-resizer--bottom {
+    left: 12%;
+    right: 12%;
+    height: 12px;
+}
+
+.turn-of-the-century .totc-v2-dock-resizer--top {
+    cursor: row-resize;
+    top: 0;
+}
+
+.turn-of-the-century .totc-v2-dock-resizer--bottom {
+    cursor: row-resize;
+    bottom: 0;
 }
 
 .turn-of-the-century .totc-v2-ghost {

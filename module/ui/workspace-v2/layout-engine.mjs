@@ -36,6 +36,28 @@ function makeStackWithPanel(panelDef) {
     };
 }
 
+function makeFloatingWindow(panelDef, geometry = {}) {
+    return {
+        id: nextId("float"),
+        panel: makePanelInstance(panelDef),
+        x: Number.isFinite(geometry.x) ? geometry.x : 80,
+        y: Number.isFinite(geometry.y) ? geometry.y : 80,
+        width: Number.isFinite(geometry.width) ? geometry.width : 480,
+        height: Number.isFinite(geometry.height) ? geometry.height : 360,
+        zIndex: Number.isFinite(geometry.zIndex) ? geometry.zIndex : 10
+    };
+}
+
+function makeDefaultDockWeights() {
+    return {
+        left: 0.18,
+        center: 0.46,
+        right: 0.18,
+        top: 0.18,
+        bottom: 0.18
+    };
+}
+
 export class LayoutEngine {
     static createDefaultLayout({ panels = [] } = {}) {
         const centerDefaultPanel = panels.find((panel) => panel.id === "map") ?? panels[0] ?? {
@@ -45,6 +67,7 @@ export class LayoutEngine {
 
         return {
             version: 1,
+            dockWeights: makeDefaultDockWeights(),
             root: {
                 leftDock: makeEmptyDock("vertical"),
                 topDock: makeEmptyDock("horizontal"),
@@ -82,6 +105,8 @@ export class LayoutEngine {
         if (!candidate || typeof candidate !== "object") return null;
         if (!candidate.root || typeof candidate.root !== "object") return null;
 
+        candidate.dockWeights = this.#normalizeDockWeights(candidate.dockWeights);
+
         for (const dockId of WORKSPACE_V2_DOCK_IDS) {
             const dock = candidate.root[dockId];
             if (!dock || !Array.isArray(dock.stacks)) {
@@ -90,11 +115,24 @@ export class LayoutEngine {
             for (const stack of dock.stacks) {
                 if (!stack || typeof stack !== "object") return null;
                 if (!Array.isArray(stack.panels)) return null;
+                stack.size = Number.isFinite(stack.size) && stack.size > 0 ? stack.size : 1;
             }
         }
 
         if (!Array.isArray(candidate.root.floatingWindows)) {
             candidate.root.floatingWindows = [];
+        } else {
+            candidate.root.floatingWindows = candidate.root.floatingWindows
+                .filter((window) => window && window.panel?.id)
+                .map((window) => ({
+                    id: window.id ?? nextId("float"),
+                    panel: makePanelInstance(window.panel),
+                    x: Number.isFinite(window.x) ? window.x : 80,
+                    y: Number.isFinite(window.y) ? window.y : 80,
+                    width: Number.isFinite(window.width) ? window.width : 480,
+                    height: Number.isFinite(window.height) ? window.height : 360,
+                    zIndex: Number.isFinite(window.zIndex) ? window.zIndex : 10
+                }));
         }
 
         return candidate;
@@ -116,6 +154,92 @@ export class LayoutEngine {
 
         this.layout = next;
         return this.getLayout();
+    }
+
+    floatPanel(panelDef, geometry = {}) {
+        if (!panelDef?.id || !panelDef?.title) return this.getLayout();
+
+        const next = this.getLayout();
+        this.#removePanelInstances(next, panelDef.id);
+        next.root.floatingWindows.push(makeFloatingWindow(panelDef, geometry));
+        this.layout = next;
+        return this.getLayout();
+    }
+
+    updateFloatingWindow(windowId, patch = {}) {
+        const next = this.getLayout();
+        const window = next.root.floatingWindows.find((entry) => entry.id === windowId);
+        if (!window) return this.getLayout();
+
+        if (Number.isFinite(patch.x)) window.x = patch.x;
+        if (Number.isFinite(patch.y)) window.y = patch.y;
+        if (Number.isFinite(patch.width)) window.width = Math.max(240, patch.width);
+        if (Number.isFinite(patch.height)) window.height = Math.max(160, patch.height);
+        if (Number.isFinite(patch.zIndex)) window.zIndex = patch.zIndex;
+
+        this.layout = next;
+        return this.getLayout();
+    }
+
+    removeFloatingWindow(windowId) {
+        const next = this.getLayout();
+        const removed = next.root.floatingWindows.find((entry) => entry.id === windowId);
+        if (!removed) return this.getLayout();
+
+        next.root.floatingWindows = next.root.floatingWindows.filter((entry) => entry.id !== windowId);
+        this.layout = next;
+        return this.getLayout();
+    }
+
+    setDockWeight(dockId, weight) {
+        const next = this.getLayout();
+        const normalized = Math.max(0.08, Math.min(0.7, Number(weight) || 0));
+
+        if (dockId === "leftDock") next.dockWeights.left = normalized;
+        else if (dockId === "rightDock") next.dockWeights.right = normalized;
+        else if (dockId === "topDock") next.dockWeights.top = normalized;
+        else if (dockId === "bottomDock") next.dockWeights.bottom = normalized;
+        else if (dockId === "centerDock") next.dockWeights.center = normalized;
+
+        this.layout = this.#normalizeLayout(next);
+        return this.getLayout();
+    }
+
+    resizeStack(dockId, stackId, delta = 0) {
+        const next = this.getLayout();
+        const dock = next.root[dockId] ?? next.root.centerDock;
+        const stackIndex = dock.stacks.findIndex((stack) => stack.id === stackId);
+        if (stackIndex === -1) return this.getLayout();
+
+        const currentStack = dock.stacks[stackIndex];
+        const siblingIndex = delta < 0 ? stackIndex - 1 : stackIndex + 1;
+        const sibling = dock.stacks[siblingIndex];
+        if (!sibling) return this.getLayout();
+
+        const amount = Math.abs(Number(delta) || 0);
+        const currentSize = Math.max(0.2, Number(currentStack.size) || 1);
+        const siblingSize = Math.max(0.2, Number(sibling.size) || 1);
+        if (delta < 0) {
+            currentStack.size = Math.max(0.2, currentSize - amount);
+            sibling.size = siblingSize + amount;
+        } else {
+            currentStack.size = currentSize + amount;
+            sibling.size = Math.max(0.2, siblingSize - amount);
+        }
+
+        this.layout = next;
+        return this.getLayout();
+    }
+
+    getDockWeightLayout() {
+        const weights = this.layout?.dockWeights ?? makeDefaultDockWeights();
+        return {
+            left: weights.left,
+            center: weights.center,
+            right: weights.right,
+            top: weights.top,
+            bottom: weights.bottom
+        };
     }
 
     #composeIntoEdgeDock(layout, panelDef, dockId) {
@@ -167,5 +291,22 @@ export class LayoutEngine {
 
             dock.stacks = retainedStacks;
         }
+
+        layout.root.floatingWindows = (layout.root.floatingWindows ?? []).filter((entry) => entry.panel?.id !== panelId);
+    }
+
+    #normalizeDockWeights(weights = {}) {
+        return {
+            left: Number.isFinite(weights.left) ? weights.left : 0.18,
+            center: Number.isFinite(weights.center) ? weights.center : 0.46,
+            right: Number.isFinite(weights.right) ? weights.right : 0.18,
+            top: Number.isFinite(weights.top) ? weights.top : 0.18,
+            bottom: Number.isFinite(weights.bottom) ? weights.bottom : 0.18
+        };
+    }
+
+    #normalizeLayout(layout) {
+        const validated = this.validate(layout);
+        return validated ?? LayoutEngine.createDefaultLayout({ panels: this.panels });
     }
 }
