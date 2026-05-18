@@ -241,6 +241,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             .map((panel) => `
             <button
                 type="button"
+                draggable="${panel.id === stack.activePanelId ? "true" : "false"}"
+                data-drag-panel-id="${panel.id === stack.activePanelId ? panel.id : ""}"
                 class="totc-v2-stack__tab ${panel.id === stack.activePanelId ? "is-active" : ""}">
                 ${panel.title}
             </button>`)
@@ -294,7 +296,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 class="totc-v2-floating"
                 data-floating-id="${floatingWindow.id}"
                 style="left:${floatingWindow.x}px;top:${floatingWindow.y}px;width:${floatingWindow.width}px;height:${floatingWindow.height}px;z-index:${floatingWindow.zIndex};">
-                <header class="totc-v2-floating__header" data-action="floating-move-handle" data-floating-id="${floatingWindow.id}">
+                <header class="totc-v2-floating__header" data-action="floating-move-handle" data-floating-id="${floatingWindow.id}" draggable="true" data-drag-panel-id="${floatingWindow.panel?.id ?? ""}">
                     <span>${title}</span>
                     <div class="totc-v2-floating__buttons">
                         <button type="button" data-action="floating-close" data-floating-id="${floatingWindow.id}">Close</button>
@@ -374,9 +376,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const host = this.element?.querySelector("[data-layout-root='true']");
         if (!host) return;
 
-        this.element?.querySelectorAll("[data-panel-id]")?.forEach((panelButton) => {
+        this.element?.querySelectorAll("[data-panel-id], [data-drag-panel-id]")?.forEach((panelButton) => {
             panelButton.addEventListener("dragstart", (event) => {
-                const panelId = panelButton.dataset.panelId;
+                const panelId = panelButton.dataset.panelId || panelButton.dataset.dragPanelId;
                 event.dataTransfer?.setData("text/plain", panelId ?? "");
                 event.dataTransfer.effectAllowed = "move";
             });
@@ -543,11 +545,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (this._resizeSession.type === "stack") {
             const dock = this.layoutEngine.getLayout().root[this._resizeSession.dockId] ?? { stacks: [] };
             const leading = dock.stacks.find((stack) => stack.id === this._resizeSession.leadingStackId);
-            if (!leading) return;
+            const trailing = dock.stacks.find((stack) => stack.id === this._resizeSession.trailingStackId);
+            if (!leading || !trailing) return;
 
             const orientation = dock.orientation ?? "vertical";
-            const delta = orientation === "horizontal" ? deltaY / 100 : deltaX / 100;
-            this.layoutEngine.resizeStack(this._resizeSession.dockId, leading.id, delta);
+            const delta = orientation === "horizontal" ? deltaX / 100 : deltaY / 100;
+            this.layoutEngine.resizeStack(this._resizeSession.dockId, leading.id, delta, trailing.id);
             void this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
             this.render(false);
             return;

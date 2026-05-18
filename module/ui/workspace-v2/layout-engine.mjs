@@ -205,27 +205,23 @@ export class LayoutEngine {
         return this.getLayout();
     }
 
-    resizeStack(dockId, stackId, delta = 0) {
+    resizeStack(dockId, stackId, delta = 0, trailingStackId = null) {
         const next = this.getLayout();
         const dock = next.root[dockId] ?? next.root.centerDock;
         const stackIndex = dock.stacks.findIndex((stack) => stack.id === stackId);
         if (stackIndex === -1) return this.getLayout();
 
         const currentStack = dock.stacks[stackIndex];
-        const siblingIndex = delta < 0 ? stackIndex - 1 : stackIndex + 1;
-        const sibling = dock.stacks[siblingIndex];
+        const sibling = trailingStackId
+            ? dock.stacks.find((stack) => stack.id === trailingStackId)
+            : dock.stacks[stackIndex + 1];
         if (!sibling) return this.getLayout();
 
-        const amount = Math.abs(Number(delta) || 0);
+        const amount = Number(delta) || 0;
         const currentSize = Math.max(0.2, Number(currentStack.size) || 1);
         const siblingSize = Math.max(0.2, Number(sibling.size) || 1);
-        if (delta < 0) {
-            currentStack.size = Math.max(0.2, currentSize - amount);
-            sibling.size = siblingSize + amount;
-        } else {
-            currentStack.size = currentSize + amount;
-            sibling.size = Math.max(0.2, siblingSize - amount);
-        }
+        currentStack.size = Math.max(0.2, currentSize + amount);
+        sibling.size = Math.max(0.2, siblingSize - amount);
 
         this.layout = next;
         return this.getLayout();
