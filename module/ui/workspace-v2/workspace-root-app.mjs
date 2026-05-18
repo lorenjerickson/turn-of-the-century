@@ -64,19 +64,33 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
         this.interactionController = new InteractionController();
         this.ghostIntent = null;
+        this._sceneRefreshHandler = () => {
+            if (this.rendered) {
+                this.render(false);
+            }
+        };
+        this._sceneHooksBound = false;
     }
 
     async _prepareContext() {
         const policy = this.stateStore?.getPolicy?.() ?? { enabled: false, debugGovernance: false };
         const userLayout = this.stateStore?.getUserLayout?.() ?? this.layoutEngine.getLayout();
         this.layoutEngine.setLayout(userLayout);
+        const scene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
 
         return {
             enabled: policy.enabled,
             debugGovernance: policy.debugGovernance,
             hasUserLayout: Boolean(this.stateStore?.getUserLayout?.()),
             panels: PANEL_LIBRARY,
-            layout: this.layoutEngine.getLayout()
+            layout: this.layoutEngine.getLayout(),
+            scene: {
+                id: scene?.id ?? null,
+                name: scene?.name ?? game.scenes?.viewed?.name ?? "Current Scene",
+                mapSrc: this.#getSceneMapSource(scene),
+                width: Number(scene?.width ?? canvas?.dimensions?.sceneWidth ?? 0),
+                height: Number(scene?.height ?? canvas?.dimensions?.sceneHeight ?? 0)
+            }
         };
     }
 
@@ -86,7 +100,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         root.setAttribute("data-drag-host", "true");
 
         const docksMarkup = WORKSPACE_V2_DOCK_IDS
-            .map((dockId) => this.#renderDockMarkup(dockId, context.layout.root[dockId]))
+            .map((dockId) => this.#renderDockMarkup(dockId, context.layout.root[dockId], context))
             .join("\n");
 
         root.innerHTML = `
@@ -129,6 +143,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     async _onRender(context, options) {
         await super._onRender(context, options);
+        this.#bindSceneHooks();
 
         this.element?.querySelectorAll("[data-action='totc-v2-audit']")?.forEach((button) => {
             button.addEventListener("click", (event) => {
@@ -153,9 +168,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#wireInteractionHandlers();
     }
 
-    #renderDockMarkup(dockId, dock = { stacks: [] }) {
+    async close(options = {}) {
+        this.#unbindSceneHooks();
+        return await super.close?.(options);
+    }
+
+    #renderDockMarkup(dockId, dock = { stacks: [] }, context = {}) {
         const stacksMarkup = (dock?.stacks ?? [])
-            .map((stack) => this.#renderStackMarkup(dockId, stack))
+            .map((stack) => this.#renderStackMarkup(dockId, stack, context))
             .join("");
 
         return `
@@ -167,7 +187,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         </section>`;
     }
 
-    #renderStackMarkup(dockId, stack) {
+    #renderStackMarkup(dockId, stack, context = {}) {
         const tabsMarkup = (stack?.panels ?? [])
             .map((panel) => `
             <button
@@ -178,12 +198,77 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             .join("");
 
         const activePanel = (stack?.panels ?? []).find((panel) => panel.id === stack.activePanelId) ?? stack?.panels?.[0];
+        const panelContent = this.#renderPanelContent(activePanel, context);
 
         return `
         <article class="totc-v2-stack" data-dock-id="${dockId}" data-stack-id="${stack.id}">
             <div class="totc-v2-stack__tabs">${tabsMarkup}</div>
-            <div class="totc-v2-stack__content">${activePanel?.title ?? "Empty"}</div>
+            <div class="totc-v2-stack__content">${panelContent}</div>
         </article>`;
+    }
+
+    #renderPanelContent(panel, context = {}) {
+        if (!panel) {
+            return `<div class="totc-v2-panel-placeholder">Empty</div>`;
+        }
+
+        if (panel.id === "map") {
+            const sceneName = this.#escapeHTML(context.scene?.name ?? "Current Scene");
+            const mapSrc = context.scene?.mapSrc ?? "";
+            const dimensions = [context.scene?.width, context.scene?.height].filter((value) => Number.isFinite(value) && value > 0);
+            const dimensionLabel = dimensions.length === 2 ? `${dimensions[0]} × ${dimensions[1]}` : "Scene map";
+            const imageMarkup = mapSrc
+                ? `<img class="totc-v2-map-panel__image" src="${this.#escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false">`
+                : `<div class="totc-v2-map-panel__empty">No active scene map available</div>`;
+
+            return `
+            <figure class="totc-v2-map-panel">
+                ${imageMarkup}
+                <figcaption class="totc-v2-map-panel__caption">
+                    <span class="totc-v2-map-panel__name">${sceneName}</span>
+                    <span class="totc-v2-map-panel__meta">${this.#escapeHTML(dimensionLabel)}</span>
+                </figcaption>
+            </figure>`;
+        }
+
+        return `<div class="totc-v2-panel-placeholder">${this.#escapeHTML(panel.title)}</div>`;
+    }
+
+    #getSceneMapSource(scene) {
+        return scene?.background?.src
+            ?? scene?.img
+            ?? scene?.texture?.src
+            ?? scene?.thumb
+            ?? scene?.thumbnail?.src
+            ?? "";
+    }
+
+    #escapeHTML(value) {
+        const text = String(value ?? "");
+        return foundry?.utils?.escapeHTML?.(text) ?? text
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    #bindSceneHooks() {
+        if (this._sceneHooksBound) return;
+        Hooks.on("canvasReady", this._sceneRefreshHandler);
+        Hooks.on("updateScene", this._sceneRefreshHandler);
+        Hooks.on("createScene", this._sceneRefreshHandler);
+        Hooks.on("deleteScene", this._sceneRefreshHandler);
+        this._sceneHooksBound = true;
+    }
+
+    #unbindSceneHooks() {
+        if (!this._sceneHooksBound) return;
+        Hooks.off("canvasReady", this._sceneRefreshHandler);
+        Hooks.off("updateScene", this._sceneRefreshHandler);
+        Hooks.off("createScene", this._sceneRefreshHandler);
+        Hooks.off("deleteScene", this._sceneRefreshHandler);
+        this._sceneHooksBound = false;
     }
 
     #wireInteractionHandlers() {

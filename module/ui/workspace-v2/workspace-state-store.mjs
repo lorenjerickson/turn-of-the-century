@@ -4,14 +4,17 @@ import {
     WORKSPACE_V2_POLICY_SETTINGS
 } from "./constants.mjs";
 
-export function registerWorkspaceV2PolicySettings(systemId) {
+export function registerWorkspaceV2PolicySettings(systemId, handlers = {}) {
     game.settings.register(systemId, WORKSPACE_V2_POLICY_SETTINGS.enabled, {
         name: "Enable Workspace V2",
         hint: "Opt-in switch for the new Application V2 workspace runtime.",
         scope: "world",
         config: true,
         type: Boolean,
-        default: false
+        default: false,
+        onChange: async (enabled) => {
+            await handlers.onEnabledChange?.(Boolean(enabled));
+        }
     });
 
     game.settings.register(systemId, WORKSPACE_V2_POLICY_SETTINGS.debugGovernance, {
@@ -20,7 +23,10 @@ export function registerWorkspaceV2PolicySettings(systemId) {
         scope: "world",
         config: true,
         type: Boolean,
-        default: false
+        default: false,
+        onChange: async (enabled) => {
+            await handlers.onDebugChange?.(Boolean(enabled));
+        }
     });
 }
 

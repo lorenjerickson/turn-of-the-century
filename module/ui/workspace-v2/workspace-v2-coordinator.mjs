@@ -63,6 +63,10 @@ export class WorkspaceV2Coordinator {
 
     async setDebugGovernance(enabled) {
         await this.stateStore.setPolicyPatch({ debugGovernance: Boolean(enabled) });
+        this.applyDebugGovernance(Boolean(enabled));
+    }
+
+    applyDebugGovernance(enabled) {
         this.governor?.setDebug(Boolean(enabled));
     }
 

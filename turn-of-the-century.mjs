@@ -565,7 +565,20 @@ Hooks.once("init", () => {
         default: true
     });
 
-    registerWorkspaceV2PolicySettings("turn-of-the-century");
+    registerWorkspaceV2PolicySettings("turn-of-the-century", {
+        onEnabledChange: async (enabled) => {
+            if (!workspaceV2Coordinator) return;
+            if (enabled) {
+                await workspaceV2Coordinator.start();
+            } else {
+                await workspaceV2Coordinator.stop();
+            }
+        },
+        onDebugChange: async (enabled) => {
+            if (!workspaceV2Coordinator) return;
+            workspaceV2Coordinator.applyDebugGovernance(enabled);
+        }
+    });
 });
 
 Hooks.once("ready", async () => {
