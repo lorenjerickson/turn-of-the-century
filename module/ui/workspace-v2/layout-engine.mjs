@@ -44,7 +44,8 @@ function makeFloatingWindow(panelDef, geometry = {}) {
         y: Number.isFinite(geometry.y) ? geometry.y : 80,
         width: Number.isFinite(geometry.width) ? geometry.width : 480,
         height: Number.isFinite(geometry.height) ? geometry.height : 360,
-        zIndex: Number.isFinite(geometry.zIndex) ? geometry.zIndex : 10
+        zIndex: Number.isFinite(geometry.zIndex) ? geometry.zIndex : 10,
+        lastDock: geometry.lastDock ? { ...geometry.lastDock } : null
     };
 }
 
@@ -58,26 +59,47 @@ function makeDefaultDockWeights() {
     };
 }
 
+function findPanelById(panels, panelId, fallbackIndex = 0) {
+    return panels.find((panel) => panel.id === panelId) ?? panels[fallbackIndex] ?? {
+        id: "placeholder",
+        title: "Workspace"
+    };
+}
+
 export class LayoutEngine {
     static createDefaultLayout({ panels = [] } = {}) {
-        const centerDefaultPanel = panels.find((panel) => panel.id === "map") ?? panels[0] ?? {
-            id: "placeholder",
-            title: "Workspace"
-        };
+        const leftPanel = findPanelById(panels, "travel");
+        const topPanel = findPanelById(panels, "chat");
+        const centerPanel = findPanelById(panels, "map");
+        const rightPanel = findPanelById(panels, "market");
+        const bottomPanel = findPanelById(panels, "tracker");
+        const floatingPanel = findPanelById(panels, "camp");
 
         return {
             version: 1,
             dockWeights: makeDefaultDockWeights(),
             root: {
-                leftDock: makeEmptyDock("vertical"),
-                topDock: makeEmptyDock("horizontal"),
+                leftDock: {
+                    orientation: "vertical",
+                    stacks: [makeStackWithPanel(leftPanel)]
+                },
+                topDock: {
+                    orientation: "horizontal",
+                    stacks: [makeStackWithPanel(topPanel)]
+                },
                 centerDock: {
                     orientation: "vertical",
-                    stacks: [makeStackWithPanel(centerDefaultPanel)]
+                    stacks: [makeStackWithPanel(centerPanel)]
                 },
-                rightDock: makeEmptyDock("vertical"),
-                bottomDock: makeEmptyDock("horizontal"),
-                floatingWindows: []
+                rightDock: {
+                    orientation: "vertical",
+                    stacks: [makeStackWithPanel(rightPanel)]
+                },
+                bottomDock: {
+                    orientation: "horizontal",
+                    stacks: [makeStackWithPanel(bottomPanel)]
+                },
+                floatingWindows: [makeFloatingWindow(floatingPanel, { x: 120, y: 120, width: 420, height: 280, zIndex: 20 })]
             }
         };
     }
@@ -131,7 +153,8 @@ export class LayoutEngine {
                     y: Number.isFinite(window.y) ? window.y : 80,
                     width: Number.isFinite(window.width) ? window.width : 480,
                     height: Number.isFinite(window.height) ? window.height : 360,
-                    zIndex: Number.isFinite(window.zIndex) ? window.zIndex : 10
+                    zIndex: Number.isFinite(window.zIndex) ? window.zIndex : 10,
+                    lastDock: this.#normalizeLastDock(window.lastDock)
                 }));
         }
 
@@ -166,6 +189,57 @@ export class LayoutEngine {
         return this.getLayout();
     }
 
+    undockPanel({ dockId, stackId, panelId, geometry = {} } = {}) {
+        if (!dockId || !stackId || !panelId) return this.getLayout();
+
+        const next = this.getLayout();
+        const dock = next.root[dockId];
+        const stack = dock?.stacks?.find((entry) => entry.id === stackId);
+        const panel = stack?.panels?.find((entry) => entry.id === panelId);
+        if (!dock || !stack || !panel) return this.getLayout();
+
+        stack.panels = stack.panels.filter((entry) => entry.id !== panelId);
+        if (!stack.panels.length) {
+            dock.stacks = dock.stacks.filter((entry) => entry.id !== stackId);
+        } else {
+            stack.activePanelId = stack.panels.some((entry) => entry.id === stack.activePanelId)
+                ? stack.activePanelId
+                : stack.panels[0].id;
+        }
+
+        next.root.floatingWindows.push(makeFloatingWindow(panel, {
+            ...geometry,
+            lastDock: { dockId, stackId }
+        }));
+
+        this.layout = next;
+        return this.getLayout();
+    }
+
+    redockFloatingWindow(windowId) {
+        const next = this.getLayout();
+        const index = next.root.floatingWindows.findIndex((entry) => entry.id === windowId);
+        if (index === -1) return this.getLayout();
+
+        const window = next.root.floatingWindows[index];
+        const panelDef = window?.panel;
+        if (!panelDef?.id || !panelDef?.title) return this.getLayout();
+
+        next.root.floatingWindows.splice(index, 1);
+        this.#composeIntoDockLocation(next, panelDef, window.lastDock);
+        this.layout = next;
+        return this.getLayout();
+    }
+
+    closePanel(panelId) {
+        if (!panelId) return this.getLayout();
+
+        const next = this.getLayout();
+        this.#removePanelInstances(next, panelId);
+        this.layout = next;
+        return this.getLayout();
+    }
+
     updateFloatingWindow(windowId, patch = {}) {
         const next = this.getLayout();
         const window = next.root.floatingWindows.find((entry) => entry.id === windowId);
@@ -193,7 +267,7 @@ export class LayoutEngine {
 
     setDockWeight(dockId, weight) {
         const next = this.getLayout();
-        const normalized = Math.max(0.08, Math.min(0.7, Number(weight) || 0));
+        const normalized = Math.max(0.1, Math.min(0.4, Number(weight) || 0));
 
         if (dockId === "leftDock") next.dockWeights.left = normalized;
         else if (dockId === "rightDock") next.dockWeights.right = normalized;
@@ -202,6 +276,21 @@ export class LayoutEngine {
         else if (dockId === "centerDock") next.dockWeights.center = normalized;
 
         this.layout = this.#normalizeLayout(next);
+        return this.getLayout();
+    }
+
+    setActivePanel(dockId, stackId, panelId) {
+        const next = this.getLayout();
+        const dock = next.root[dockId];
+        if (!dock) return this.getLayout();
+
+        const stack = dock.stacks.find((entry) => entry.id === stackId);
+        if (!stack || !stack.panels.some((panel) => panel.id === panelId)) {
+            return this.getLayout();
+        }
+
+        stack.activePanelId = panelId;
+        this.layout = next;
         return this.getLayout();
     }
 
@@ -229,9 +318,13 @@ export class LayoutEngine {
 
     getDockWeightLayout() {
         const weights = this.layout?.dockWeights ?? makeDefaultDockWeights();
+        const centerX = Math.max(0.2, 1 - weights.left - weights.right);
+        const centerY = Math.max(0.2, 1 - weights.top - weights.bottom);
         return {
             left: weights.left,
             center: weights.center,
+            centerX,
+            centerY,
             right: weights.right,
             top: weights.top,
             bottom: weights.bottom
@@ -248,6 +341,23 @@ export class LayoutEngine {
         const stack = dock.stacks[0];
         stack.panels.push(makePanelInstance(panelDef));
         stack.activePanelId = panelDef.id;
+    }
+
+    #composeIntoDockLocation(layout, panelDef, location = null) {
+        if (!location?.dockId) {
+            this.#composeIntoEdgeDock(layout, panelDef, "centerDock");
+            return;
+        }
+
+        const dock = layout.root[location.dockId] ?? layout.root.centerDock;
+        const stack = dock.stacks.find((entry) => entry.id === location.stackId);
+        if (stack) {
+            stack.panels.push(makePanelInstance(panelDef));
+            stack.activePanelId = panelDef.id;
+            return;
+        }
+
+        this.#composeIntoEdgeDock(layout, panelDef, location.dockId);
     }
 
     #composeIntoLocalZone(layout, panelDef, intent) {
@@ -298,6 +408,16 @@ export class LayoutEngine {
             right: Number.isFinite(weights.right) ? weights.right : 0.18,
             top: Number.isFinite(weights.top) ? weights.top : 0.18,
             bottom: Number.isFinite(weights.bottom) ? weights.bottom : 0.18
+        };
+    }
+
+    #normalizeLastDock(lastDock = null) {
+        if (!lastDock || typeof lastDock !== "object") return null;
+        if (!lastDock.dockId || !lastDock.stackId) return null;
+
+        return {
+            dockId: lastDock.dockId,
+            stackId: lastDock.stackId
         };
     }
 
