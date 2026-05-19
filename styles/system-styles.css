@@ -1313,19 +1313,25 @@ body.totc-v2-active #ui-right {
     border-bottom: 1px solid rgba(148, 163, 184, 0.24);
     display: flex;
     flex-wrap: wrap;
+    position: relative;
     min-height: 34px;
     gap: 0.3rem;
     padding: 0.35rem 0.35rem 0;
+    padding-left: 5.9rem;
 }
 
 .turn-of-the-century .totc-v2-dock-label-inline {
     align-self: center;
     color: #9ca3af;
     display: inline-flex;
+    left: 0.35rem;
+    pointer-events: none;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
     font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: 0.08em;
-    margin-right: 0.35rem;
     text-transform: uppercase;
 }
 
@@ -1413,6 +1419,80 @@ body.totc-v2-active #ui-right {
 
 .turn-of-the-century .totc-v2-map-panel__meta {
     color: #94a3b8;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel {
+    display: grid;
+    gap: 0.45rem;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__search {
+    display: grid;
+    gap: 0.25rem;
+    color: #cbd5e1;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__search input {
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 6px;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    padding: 0.45rem 0.55rem;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__search input::placeholder {
+    color: #64748b;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__summary {
+    color: #94a3b8;
+    font-size: 0.75rem;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__list {
+    display: grid;
+    gap: 0.35rem;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 0.15rem;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__entry,
+.turn-of-the-century .totc-v2-compendium-panel__empty {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 6px;
+    padding: 0.45rem 0.55rem;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__entry {
+    cursor: default;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__entry-name {
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__entry-pack {
+    color: #94a3b8;
+    font-size: 0.72rem;
+    margin-top: 0.15rem;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__empty {
+    color: #94a3b8;
+    font-size: 0.82rem;
+    text-align: center;
 }
 
 .turn-of-the-century .totc-v2-floating {

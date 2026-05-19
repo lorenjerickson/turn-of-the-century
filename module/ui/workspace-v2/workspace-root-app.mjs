@@ -13,6 +13,7 @@ const PANEL_LIBRARY = Object.freeze([
     { id: "travel", title: "Travel" },
     { id: "encounter", title: "Encounter Planner" },
     { id: "market", title: "Market" },
+    { id: "compendium", title: "Unified Compendium" },
     { id: "camp", title: "Camp" },
     { id: "chat", title: "Chat and Messages" },
     { id: "tracker", title: "Turn Tracker" }
@@ -69,6 +70,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
         this.interactionController = new InteractionController();
         this.ghostIntent = null;
+        this.compendiumSearchQuery = "";
+        this._compendiumItemEntries = null;
         this._resizeSession = null;
         this._sceneRefreshHandler = () => {
             if (this.rendered) {
@@ -83,6 +86,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const userLayout = this.stateStore?.getUserLayout?.() ?? this.layoutEngine.getLayout();
         this.layoutEngine.setLayout(userLayout);
         const scene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
+        const compendiumItems = await this.#getUnifiedCompendiumItems();
 
         return {
             enabled: policy.enabled,
@@ -91,6 +95,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             panels: PANEL_LIBRARY,
             layout: this.layoutEngine.getLayout(),
             dockWeights: this.layoutEngine.getDockWeightLayout(),
+            compendiumSearchQuery: this.compendiumSearchQuery,
+            compendiumItems,
             scene: {
                 id: scene?.id ?? null,
                 name: scene?.name ?? game.scenes?.viewed?.name ?? "Current Scene",
@@ -166,6 +172,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 if (!confirmed) return;
                 await game.shutDown?.();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='compendium-search']")?.forEach((input) => {
+            input.addEventListener("input", async () => {
+                this.compendiumSearchQuery = String(input.value ?? "");
+                this.render(false);
             });
         });
 
@@ -404,6 +417,32 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     <span class="totc-v2-map-panel__meta">${this.#escapeHTML(dimensionLabel)}</span>
                 </figcaption>
             </figure>`;
+        }
+
+        if (panel.id === "compendium") {
+            const query = String(context.compendiumSearchQuery ?? "").trim().toLowerCase();
+            const allEntries = Array.isArray(context.compendiumItems) ? context.compendiumItems : [];
+            const entries = query
+                ? allEntries.filter((entry) => String(entry.name ?? "").toLowerCase().includes(query))
+                : allEntries;
+
+            return `
+            <section class="totc-v2-compendium-panel">
+                <label class="totc-v2-compendium-panel__search">
+                    <span>Search items</span>
+                    <input type="search" data-action="compendium-search" value="${this.#escapeHTML(context.compendiumSearchQuery ?? "")}" placeholder="Filter by item name">
+                </label>
+                <div class="totc-v2-compendium-panel__summary">
+                    ${entries.length} item${entries.length === 1 ? "" : "s"} from ${this.#escapeHTML(allEntries.length ? `${allEntries.length} compendium entries` : "no compendium entries")}
+                </div>
+                <div class="totc-v2-compendium-panel__list" role="list">
+                    ${entries.length ? entries.map((entry) => `
+                        <article class="totc-v2-compendium-panel__entry" role="listitem" data-entry-uuid="${this.#escapeHTML(entry.uuid ?? "")}">
+                            <div class="totc-v2-compendium-panel__entry-name">${this.#escapeHTML(entry.name)}</div>
+                            <div class="totc-v2-compendium-panel__entry-pack">${this.#escapeHTML(entry.packLabel)}</div>
+                        </article>`).join("") : `<div class="totc-v2-compendium-panel__empty">No items match this search.</div>`}
+                </div>
+            </section>`;
         }
 
         return `<div class="totc-v2-panel-placeholder">${this.#escapeHTML(panel.title)}</div>`;
@@ -707,6 +746,44 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #isDockOccupied(dock) {
         return Boolean(dock?.stacks?.some((stack) => (stack?.panels?.length ?? 0) > 0));
+    }
+
+    async #getUnifiedCompendiumItems() {
+        if (Array.isArray(this._compendiumItemEntries)) return this._compendiumItemEntries;
+
+        const packs = Array.from(game.packs ?? []);
+        const itemPacks = packs.filter((pack) => {
+            const documentName = pack?.documentName ?? pack?.metadata?.type ?? pack?.metadata?.documentName ?? "";
+            return documentName === "Item";
+        });
+
+        const entries = [];
+        for (const pack of itemPacks) {
+            let documents = [];
+            try {
+                documents = Array.from(await pack.getDocuments());
+            } catch (error) {
+                console.warn("[turn-of-the-century] Failed to load item compendium", pack?.collection ?? pack?.metadata?.label, error);
+                continue;
+            }
+
+            for (const document of documents) {
+                entries.push({
+                    uuid: document?.uuid ?? `Compendium.${pack.collection}.${document?.id}`,
+                    name: document?.name ?? "Unnamed Item",
+                    packLabel: pack?.metadata?.label ?? pack?.title ?? pack?.collection ?? "Compendium"
+                });
+            }
+        }
+
+        entries.sort((left, right) => {
+            const nameCompare = String(left.name ?? "").localeCompare(String(right.name ?? ""), undefined, { sensitivity: "base" });
+            if (nameCompare !== 0) return nameCompare;
+            return String(left.packLabel ?? "").localeCompare(String(right.packLabel ?? ""), undefined, { sensitivity: "base" });
+        });
+
+        this._compendiumItemEntries = entries;
+        return entries;
     }
 
     #showGhost(rect, label) {

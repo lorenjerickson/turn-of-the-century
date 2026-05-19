@@ -71,7 +71,7 @@ export class LayoutEngine {
         const leftPanel = findPanelById(panels, "travel");
         const topPanel = findPanelById(panels, "chat");
         const centerPanel = findPanelById(panels, "map");
-        const rightPanel = findPanelById(panels, "market");
+        const rightPanel = findPanelById(panels, "compendium");
         const bottomPanel = findPanelById(panels, "tracker");
         const floatingPanel = findPanelById(panels, "camp");
 
