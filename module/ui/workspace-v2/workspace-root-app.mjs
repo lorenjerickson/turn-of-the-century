@@ -181,15 +181,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.preventDefault();
                 event.stopPropagation();
 
-                const confirmed = await Dialog.confirm({
-                    title: "Exit World",
-                    content: "Return to the Foundry setup screen?",
-                    yes: "Exit to Setup",
-                    no: "Cancel",
-                    defaultYes: false
-                }).catch(() => false);
+                if (!game.user?.isGM) {
+                    ui.notifications?.warn("Only a GM can exit the world to setup.");
+                    return;
+                }
 
-                if (!confirmed) return;
                 await game.shutDown?.();
             });
         });
@@ -836,25 +832,28 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (Array.isArray(this._compendiumItemEntries)) return this._compendiumItemEntries;
 
         const packs = Array.from(game.packs ?? []);
-        const itemPacks = packs.filter((pack) => {
-            const documentName = pack?.documentName ?? pack?.metadata?.type ?? pack?.metadata?.documentName ?? "";
-            return documentName === "Item";
-        });
-
         const entries = [];
-        for (const pack of itemPacks) {
-            let documents = [];
+        for (const pack of packs) {
+            let indexEntries = [];
             try {
-                documents = Array.from(await pack.getDocuments());
+                const index = await pack.getIndex();
+                if (Array.isArray(index)) {
+                    indexEntries = index;
+                } else if (Array.isArray(index?.contents)) {
+                    indexEntries = index.contents;
+                } else if (typeof index?.values === "function") {
+                    indexEntries = Array.from(index.values());
+                }
             } catch (error) {
-                console.warn("[turn-of-the-century] Failed to load item compendium", pack?.collection ?? pack?.metadata?.label, error);
+                console.warn("[turn-of-the-century] Failed to load compendium index", pack?.collection ?? pack?.metadata?.label, error);
                 continue;
             }
 
-            for (const document of documents) {
+            for (const entry of indexEntries) {
+                const entryId = entry?._id ?? entry?.id;
                 entries.push({
-                    uuid: document?.uuid ?? `Compendium.${pack.collection}.${document?.id}`,
-                    name: document?.name ?? "Unnamed Item",
+                    uuid: entry?.uuid ?? `Compendium.${pack.collection}.${entryId}`,
+                    name: entry?.name ?? "Unnamed Entry",
                     packLabel: pack?.metadata?.label ?? pack?.title ?? pack?.collection ?? "Compendium"
                 });
             }

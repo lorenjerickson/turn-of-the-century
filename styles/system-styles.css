@@ -1363,7 +1363,8 @@ body.totc-v2-active #board {
     align-items: flex-end;
     border-bottom: 1px solid rgba(148, 163, 184, 0.24);
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     position: relative;
     min-height: 34px;
     gap: 0.3rem;
@@ -1397,6 +1398,7 @@ body.totc-v2-active #board {
     font-weight: 700;
     padding: 0.3rem 0.55rem;
     position: relative;
+    white-space: nowrap;
     transform: translateY(1px);
 }
 
