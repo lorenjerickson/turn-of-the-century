@@ -124,6 +124,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         root.innerHTML = `
 <section class="totc-workspace-v2-shell">
+    <div class="totc-workspace-v2-shell__emergency">
+        <button type="button" class="totc-v2-emergency-button" data-action="totc-v2-exit-world" title="Exit world and return to Foundry setup" aria-label="Exit world and return to Foundry setup">
+            <i class="fas fa-gear" aria-hidden="true"></i>
+        </button>
+    </div>
     <main class="totc-workspace-v2-shell__main">
         <section class="totc-v2-layout" data-layout-root="true" style="grid-template-columns:${columnTemplate};grid-template-rows:${rowTemplate};">
             ${docksMarkup}
@@ -145,6 +150,24 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async _onRender(context, options) {
         await super._onRender(context, options);
         this.#bindSceneHooks();
+
+        this.element?.querySelectorAll("[data-action='totc-v2-exit-world']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const confirmed = await Dialog.confirm({
+                    title: "Exit World",
+                    content: "Return to the Foundry setup screen?",
+                    yes: "Exit to Setup",
+                    no: "Cancel",
+                    defaultYes: false
+                }).catch(() => false);
+
+                if (!confirmed) return;
+                await game.shutDown?.();
+            });
+        });
 
         this.element?.querySelectorAll("[data-action='activate-tab']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
