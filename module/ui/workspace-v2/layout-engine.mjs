@@ -59,6 +59,10 @@ function makeDefaultDockWeights() {
     };
 }
 
+function makeDefaultPanelMemory() {
+    return {};
+}
+
 function findPanelById(panels, panelId, fallbackIndex = 0) {
     return panels.find((panel) => panel.id === panelId) ?? panels[fallbackIndex] ?? {
         id: "placeholder",
@@ -99,7 +103,8 @@ export class LayoutEngine {
                     orientation: "horizontal",
                     stacks: [makeStackWithPanel(bottomPanel)]
                 },
-                floatingWindows: [makeFloatingWindow(floatingPanel, { x: 120, y: 120, width: 420, height: 280, zIndex: 20 })]
+                floatingWindows: [makeFloatingWindow(floatingPanel, { x: 120, y: 120, width: 420, height: 280, zIndex: 20 })],
+                panelMemory: makeDefaultPanelMemory()
             }
         };
     }
@@ -156,6 +161,10 @@ export class LayoutEngine {
                     zIndex: Number.isFinite(window.zIndex) ? window.zIndex : 10,
                     lastDock: this.#normalizeLastDock(window.lastDock)
                 }));
+        }
+
+        if (!candidate.root.panelMemory || typeof candidate.root.panelMemory !== "object") {
+            candidate.root.panelMemory = makeDefaultPanelMemory();
         }
 
         return candidate;
@@ -235,7 +244,42 @@ export class LayoutEngine {
         if (!panelId) return this.getLayout();
 
         const next = this.getLayout();
+        this.#rememberPanelLocation(next, panelId);
         this.#removePanelInstances(next, panelId);
+        this.layout = next;
+        return this.getLayout();
+    }
+
+    restorePanel(panelDef) {
+        if (!panelDef?.id || !panelDef?.title) return this.getLayout();
+
+        const next = this.getLayout();
+        const memory = next.root.panelMemory?.[panelDef.id] ?? null;
+        this.#removePanelInstances(next, panelDef.id);
+
+        if (memory?.kind === "floating") {
+            next.root.floatingWindows.push(makeFloatingWindow(panelDef, {
+                x: memory.x,
+                y: memory.y,
+                width: memory.width,
+                height: memory.height,
+                zIndex: memory.zIndex,
+                lastDock: memory.lastDock
+            }));
+            this.layout = next;
+            return this.getLayout();
+        }
+
+        if (memory?.kind === "dock" && memory.dockId) {
+            this.#composeIntoDockLocation(next, panelDef, {
+                dockId: memory.dockId,
+                stackId: memory.stackId
+            });
+            this.layout = next;
+            return this.getLayout();
+        }
+
+        next.root.floatingWindows.push(makeFloatingWindow(panelDef));
         this.layout = next;
         return this.getLayout();
     }
@@ -399,6 +443,37 @@ export class LayoutEngine {
         }
 
         layout.root.floatingWindows = (layout.root.floatingWindows ?? []).filter((entry) => entry.panel?.id !== panelId);
+    }
+
+    #rememberPanelLocation(layout, panelId) {
+        layout.root.panelMemory ??= makeDefaultPanelMemory();
+
+        for (const window of layout.root.floatingWindows ?? []) {
+            if (window?.panel?.id !== panelId) continue;
+            layout.root.panelMemory[panelId] = {
+                kind: "floating",
+                x: Number.isFinite(window.x) ? window.x : 80,
+                y: Number.isFinite(window.y) ? window.y : 80,
+                width: Number.isFinite(window.width) ? window.width : 480,
+                height: Number.isFinite(window.height) ? window.height : 360,
+                zIndex: Number.isFinite(window.zIndex) ? window.zIndex : 10,
+                lastDock: this.#normalizeLastDock(window.lastDock)
+            };
+            return;
+        }
+
+        for (const dockId of WORKSPACE_V2_DOCK_IDS) {
+            const dock = layout.root[dockId];
+            for (const stack of dock?.stacks ?? []) {
+                if (!(stack?.panels ?? []).some((panel) => panel.id === panelId)) continue;
+                layout.root.panelMemory[panelId] = {
+                    kind: "dock",
+                    dockId,
+                    stackId: stack.id
+                };
+                return;
+            }
+        }
     }
 
     #normalizeDockWeights(weights = {}) {

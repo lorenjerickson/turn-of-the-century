@@ -85,6 +85,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const policy = this.stateStore?.getPolicy?.() ?? { enabled: false, debugGovernance: false };
         const userLayout = this.stateStore?.getUserLayout?.() ?? this.layoutEngine.getLayout();
         this.layoutEngine.setLayout(userLayout);
+        const enforcedLayout = this.#enforceRequiredDocking();
+        if (enforcedLayout) {
+            await this.stateStore?.setUserLayout?.(enforcedLayout);
+        }
+        const activeLayout = this.layoutEngine.getLayout();
+        const visiblePanels = this.#getVisiblePanelIds(activeLayout);
         const scene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
         const compendiumItems = await this.#getUnifiedCompendiumItems();
 
@@ -93,7 +99,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             debugGovernance: policy.debugGovernance,
             hasUserLayout: Boolean(this.stateStore?.getUserLayout?.()),
             panels: PANEL_LIBRARY,
-            layout: this.layoutEngine.getLayout(),
+            availablePanels: PANEL_LIBRARY.filter((panel) => !visiblePanels.has(panel.id)),
+            layout: activeLayout,
             dockWeights: this.layoutEngine.getDockWeightLayout(),
             compendiumSearchQuery: this.compendiumSearchQuery,
             compendiumItems,
@@ -127,9 +134,21 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const docksMarkup = WORKSPACE_V2_DOCK_IDS
             .map((dockId) => this.#renderDockMarkup(dockId, context.layout.root[dockId], context))
             .join("\n");
+        const availablePanelOptions = (context.availablePanels ?? []).map((panel) =>
+            `<option value="${panel.id}">${this.#escapeHTML(panel.title)}</option>`
+        ).join("");
+        const availablePanelMarkup = availablePanelOptions
+            ? `<div class="totc-v2-panel-picker">
+                <select data-action="select-hidden-panel" aria-label="Add hidden panel">
+                    ${availablePanelOptions}
+                </select>
+                <button type="button" data-action="add-hidden-panel">Add Panel</button>
+            </div>`
+            : "";
 
         root.innerHTML = `
 <section class="totc-workspace-v2-shell">
+    ${availablePanelMarkup}
     <div class="totc-workspace-v2-shell__emergency">
         <button type="button" class="totc-v2-emergency-button" data-action="totc-v2-exit-world" title="Exit world and return to Foundry setup" aria-label="Exit world and return to Foundry setup">
             <i class="fas fa-gear" aria-hidden="true"></i>
@@ -178,6 +197,24 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.element?.querySelectorAll("[data-action='compendium-search']")?.forEach((input) => {
             input.addEventListener("input", async () => {
                 this.compendiumSearchQuery = String(input.value ?? "");
+                this.render(false);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='add-hidden-panel']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const picker = this.element?.querySelector("[data-action='select-hidden-panel']");
+                const panelId = picker?.value;
+                if (!panelId) return;
+
+                const panelDef = PANEL_LIBRARY.find((panel) => panel.id === panelId);
+                if (!panelDef) return;
+
+                const nextLayout = this.layoutEngine.restorePanel(panelDef);
+                await this.stateStore?.setUserLayout?.(nextLayout);
                 this.render(false);
             });
         });
@@ -746,6 +783,53 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #isDockOccupied(dock) {
         return Boolean(dock?.stacks?.some((stack) => (stack?.panels?.length ?? 0) > 0));
+    }
+
+    #enforceRequiredDocking() {
+        const mapPanel = PANEL_LIBRARY.find((panel) => panel.id === "map");
+        const compendiumPanel = PANEL_LIBRARY.find((panel) => panel.id === "compendium");
+        if (!mapPanel || !compendiumPanel) return null;
+
+        let changed = false;
+        const initialLayout = this.layoutEngine.getLayout();
+        if (!this.#dockHasPanel(initialLayout, "centerDock", "map")) {
+            this.layoutEngine.applyDropIntent(mapPanel, { kind: "edge", dockId: "centerDock" });
+            changed = true;
+        }
+
+        const nextLayout = this.layoutEngine.getLayout();
+        if (!this.#dockHasPanel(nextLayout, "rightDock", "compendium")) {
+            this.layoutEngine.applyDropIntent(compendiumPanel, { kind: "edge", dockId: "rightDock" });
+            changed = true;
+        }
+
+        return changed ? this.layoutEngine.getLayout() : null;
+    }
+
+    #dockHasPanel(layout, dockId, panelId) {
+        const dock = layout?.root?.[dockId];
+        if (!dock?.stacks?.length) return false;
+
+        return dock.stacks.some((stack) => (stack?.panels ?? []).some((panel) => panel.id === panelId));
+    }
+
+    #getVisiblePanelIds(layout) {
+        const visible = new Set();
+
+        for (const dockId of WORKSPACE_V2_DOCK_IDS) {
+            const dock = layout?.root?.[dockId];
+            for (const stack of dock?.stacks ?? []) {
+                for (const panel of stack?.panels ?? []) {
+                    if (panel?.id) visible.add(panel.id);
+                }
+            }
+        }
+
+        for (const window of layout?.root?.floatingWindows ?? []) {
+            if (window?.panel?.id) visible.add(window.panel.id);
+        }
+
+        return visible;
     }
 
     async #getUnifiedCompendiumItems() {

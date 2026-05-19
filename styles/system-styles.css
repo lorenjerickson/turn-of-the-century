@@ -1103,6 +1103,10 @@ body.totc-v2-active #ui-right {
     display: none !important;
 }
 
+body.totc-v2-active #board {
+    display: none !important;
+}
+
 .totc-workspace-v2-root-app {
     inset: 0 !important;
     height: 100vh !important;
@@ -1123,21 +1127,68 @@ body.totc-v2-active #ui-right {
     width: 100% !important;
 }
 
+.turn-of-the-century .totc-workspace-v2-root {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    width: 100%;
+}
+
 .turn-of-the-century .totc-workspace-v2-shell {
     background: linear-gradient(180deg, #1a1d21 0%, #20252b 100%);
     color: #e5e7eb;
     display: grid;
     gap: 0;
+    grid-template-rows: minmax(0, 1fr);
     height: 100%;
     min-height: 100%;
     overflow: hidden;
     padding: 0;
     position: relative;
+    width: 100%;
 }
 
 .turn-of-the-century .totc-workspace-v2-shell__main {
+    height: 100%;
     min-height: 0;
+    overflow: hidden;
     padding: 0;
+}
+
+.turn-of-the-century .totc-v2-panel-picker {
+    align-items: center;
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 8px;
+    display: inline-flex;
+    gap: 0.35rem;
+    left: 0.85rem;
+    padding: 0.35rem;
+    position: absolute;
+    top: 0.85rem;
+    z-index: 20;
+}
+
+.turn-of-the-century .totc-v2-panel-picker select {
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.42);
+    border-radius: 6px;
+    color: #e2e8f0;
+    font-size: 0.78rem;
+    max-width: 12.5rem;
+    padding: 0.28rem 0.38rem;
+}
+
+.turn-of-the-century .totc-v2-panel-picker button {
+    background: rgba(59, 130, 246, 0.24);
+    border: 1px solid rgba(147, 197, 253, 0.5);
+    border-radius: 6px;
+    color: #dbeafe;
+    cursor: pointer;
+    font-size: 0.76rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0.34rem 0.5rem;
 }
 
 .turn-of-the-century .totc-workspace-v2-shell__emergency {
