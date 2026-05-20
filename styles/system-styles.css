@@ -1321,6 +1321,7 @@ body.totc-v2-active #board {
     border-radius: 0;
     display: grid;
     gap: 0;
+    grid-template-rows: auto auto 1fr;
     min-height: 0;
     min-width: 0;
     padding: 0;
@@ -1414,7 +1415,10 @@ body.totc-v2-active #board {
     border: none;
     border-radius: 0;
     color: #dbeafe;
-    min-height: 42px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
     overflow: hidden;
     padding: 0.45rem;
 }
