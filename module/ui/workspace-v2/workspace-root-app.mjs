@@ -79,7 +79,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.render(false);
             }
         };
+        this._compendiumRefreshHandler = () => {
+            // Clear cache and refresh the compendium panel when game becomes ready
+            this._compendiumItemEntries = null;
+            if (this.rendered) {
+                this.render(false);
+            }
+        };
         this._sceneHooksBound = false;
+        this._compendiumHooksBound = false;
     }
 
     async _prepareContext() {
@@ -176,6 +184,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async _onRender(context, options) {
         await super._onRender(context, options);
         this.#bindSceneHooks();
+        this.#bindCompendiumHooks();
 
         this.element?.querySelectorAll("[data-action='totc-v2-exit-world']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
@@ -198,9 +207,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     clearTimeout(this._compendiumSearchTimeout);
                 }
                 // Set a new timeout with 300ms delay before updating search
-                this._compendiumSearchTimeout = setTimeout(() => {
+                this._compendiumSearchTimeout = setTimeout(async () => {
                     this.compendiumSearchQuery = String(input.value ?? "");
-                    this.render(false);
+                    await this.render(false);
+                    // Restore focus to the search input after render
+                    this.element?.querySelector("[data-action='compendium-search']")?.focus();
                     this._compendiumSearchTimeout = null;
                 }, 300);
             });
@@ -516,6 +527,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         Hooks.on("createScene", this._sceneRefreshHandler);
         Hooks.on("deleteScene", this._sceneRefreshHandler);
         this._sceneHooksBound = true;
+    }
+
+    #bindCompendiumHooks() {
+        if (this._compendiumHooksBound) return;
+        // Refresh compendium data when the game becomes ready (packs are loaded)
+        Hooks.once("ready", this._compendiumRefreshHandler);
+        this._compendiumHooksBound = true;
     }
 
     #unbindSceneHooks() {
