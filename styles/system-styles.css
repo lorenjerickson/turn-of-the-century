@@ -1344,19 +1344,19 @@ body.totc-v2-active #board {
 }
 
 .turn-of-the-century .totc-v2-stack-splitter {
-    background: rgba(148, 163, 184, 0.9);
+    background: rgba(59, 130, 246, 0.4);
     border-radius: 0;
     flex: 0 0 auto;
 }
 
 .turn-of-the-century .totc-v2-stack-splitter.is-horizontal {
     cursor: col-resize;
-    width: 2px;
+    width: 3px;
 }
 
 .turn-of-the-century .totc-v2-stack-splitter.is-vertical {
     cursor: row-resize;
-    height: 2px;
+    height: 3px;
 }
 
 .turn-of-the-century .totc-v2-stack__tabs {
@@ -1613,7 +1613,7 @@ body.totc-v2-active #board {
 }
 
 .turn-of-the-century .totc-v2-layout [data-action='dock-resizer'] {
-    background: rgba(148, 163, 184, 0.9);
+    background: rgba(59, 130, 246, 0.4);
     position: absolute;
     z-index: 3;
 }
@@ -1622,7 +1622,7 @@ body.totc-v2-active #board {
 .turn-of-the-century .totc-v2-dock-resizer--right {
     bottom: 0;
     top: 0;
-    width: 2px;
+    width: 3px;
 }
 
 .turn-of-the-century .totc-v2-dock-resizer--left {
@@ -1637,7 +1637,7 @@ body.totc-v2-active #board {
 
 .turn-of-the-century .totc-v2-dock-resizer--top,
 .turn-of-the-century .totc-v2-dock-resizer--bottom {
-    height: 2px;
+    height: 3px;
     left: 0;
     right: 0;
 }

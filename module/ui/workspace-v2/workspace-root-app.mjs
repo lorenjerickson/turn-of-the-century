@@ -73,6 +73,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.compendiumSearchQuery = "";
         this._compendiumItemEntries = null;
         this._resizeSession = null;
+        this._compendiumSearchTimeout = null;
         this._sceneRefreshHandler = () => {
             if (this.rendered) {
                 this.render(false);
@@ -192,8 +193,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.element?.querySelectorAll("[data-action='compendium-search']")?.forEach((input) => {
             input.addEventListener("input", async () => {
-                this.compendiumSearchQuery = String(input.value ?? "");
-                this.render(false);
+                // Clear any existing timeout
+                if (this._compendiumSearchTimeout) {
+                    clearTimeout(this._compendiumSearchTimeout);
+                }
+                // Set a new timeout with 300ms delay before updating search
+                this._compendiumSearchTimeout = setTimeout(() => {
+                    this.compendiumSearchQuery = String(input.value ?? "");
+                    this.render(false);
+                    this._compendiumSearchTimeout = null;
+                }, 300);
             });
         });
 
@@ -650,7 +659,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #beginResizeSession(session) {
-        this._resizeSession = session;
+        this._resizeSession = {
+            ...session,
+            accumulatedDeltaX: 0,
+            accumulatedDeltaY: 0
+        };
         this._onResizePointerMove = this._onResizePointerMove?.bind(this) ?? this.#onResizePointerMove.bind(this);
         this._onResizePointerUp = this._onResizePointerUp?.bind(this) ?? this.#onResizePointerUp.bind(this);
         document.addEventListener("pointermove", this._onResizePointerMove);
@@ -672,20 +685,40 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         if (this._resizeSession.type === "dock") {
             const current = this._resizeSession.startWeights;
-            const stepX = deltaX / Math.max(hostBounds?.width ?? window.innerWidth, 1);
-            const stepY = deltaY / Math.max(hostBounds?.height ?? window.innerHeight, 1);
-            if (this._resizeSession.dockId === "leftDock") {
-                this.layoutEngine.setDockWeight("leftDock", current.left + stepX);
-            } else if (this._resizeSession.dockId === "rightDock") {
-                this.layoutEngine.setDockWeight("rightDock", current.right - stepX);
-            } else if (this._resizeSession.dockId === "topDock") {
-                this.layoutEngine.setDockWeight("topDock", current.top + stepY);
-            } else if (this._resizeSession.dockId === "bottomDock") {
-                this.layoutEngine.setDockWeight("bottomDock", current.bottom - stepY);
-            }
+            const viewportWidth = Math.max(hostBounds?.width ?? window.innerWidth, 1);
+            const viewportHeight = Math.max(hostBounds?.height ?? window.innerHeight, 1);
+            const accumulatedX = this._resizeSession.accumulatedDeltaX + deltaX;
+            const accumulatedY = this._resizeSession.accumulatedDeltaY + deltaY;
 
-            void this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
-            this.#syncDockGridAndSplitters();
+            if (this._resizeSession.dockId === "leftDock" || this._resizeSession.dockId === "rightDock") {
+                const pixelThreshold = 1;
+                if (Math.abs(accumulatedX) >= pixelThreshold) {
+                    const appliedDeltaX = Math.floor(accumulatedX);
+                    const stepX = appliedDeltaX / viewportWidth;
+                    if (this._resizeSession.dockId === "leftDock") {
+                        this.layoutEngine.setDockWeight("leftDock", current.left + stepX);
+                    } else {
+                        this.layoutEngine.setDockWeight("rightDock", current.right - stepX);
+                    }
+                    this._resizeSession.accumulatedDeltaX = accumulatedX - appliedDeltaX;
+                    void this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
+                    this.#syncDockGridAndSplitters();
+                }
+            } else if (this._resizeSession.dockId === "topDock" || this._resizeSession.dockId === "bottomDock") {
+                const pixelThreshold = 1;
+                if (Math.abs(accumulatedY) >= pixelThreshold) {
+                    const appliedDeltaY = Math.floor(accumulatedY);
+                    const stepY = appliedDeltaY / viewportHeight;
+                    if (this._resizeSession.dockId === "topDock") {
+                        this.layoutEngine.setDockWeight("topDock", current.top + stepY);
+                    } else {
+                        this.layoutEngine.setDockWeight("bottomDock", current.bottom - stepY);
+                    }
+                    this._resizeSession.accumulatedDeltaY = accumulatedY - appliedDeltaY;
+                    void this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
+                    this.#syncDockGridAndSplitters();
+                }
+            }
             return;
         }
 
@@ -696,30 +729,58 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             if (!leading || !trailing) return;
 
             const orientation = dock.orientation ?? "vertical";
-            const delta = orientation === "horizontal" ? deltaX / 100 : deltaY / 100;
-            this.layoutEngine.resizeStack(this._resizeSession.dockId, leading.id, delta, trailing.id);
-            void this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
-            this.render(false);
+            const accumulatedDelta = orientation === "horizontal" ? this._resizeSession.accumulatedDeltaX + deltaX : this._resizeSession.accumulatedDeltaY + deltaY;
+            const pixelThreshold = 1;
+            if (Math.abs(accumulatedDelta) >= pixelThreshold) {
+                const appliedDelta = Math.floor(accumulatedDelta);
+                const delta = appliedDelta / 100;
+                this.layoutEngine.resizeStack(this._resizeSession.dockId, leading.id, delta, trailing.id);
+                if (orientation === "horizontal") {
+                    this._resizeSession.accumulatedDeltaX = accumulatedDelta - appliedDelta;
+                } else {
+                    this._resizeSession.accumulatedDeltaY = accumulatedDelta - appliedDelta;
+                }
+                void this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
+                this.render(false);
+            }
             return;
         }
 
         if (this._resizeSession.type === "floating-move") {
-            const nextLayout = this.layoutEngine.updateFloatingWindow(this._resizeSession.floatingId, {
-                x: this._resizeSession.original.x + deltaX,
-                y: this._resizeSession.original.y + deltaY
-            });
-            void this.stateStore?.setUserLayout?.(nextLayout);
-            this.#syncFloatingElementStyle(this._resizeSession.floatingId, nextLayout.root.floatingWindows.find((entry) => entry.id === this._resizeSession.floatingId));
+            const accumulatedX = this._resizeSession.accumulatedDeltaX + deltaX;
+            const accumulatedY = this._resizeSession.accumulatedDeltaY + deltaY;
+            const pixelThreshold = 1;
+            if (Math.abs(accumulatedX) >= pixelThreshold || Math.abs(accumulatedY) >= pixelThreshold) {
+                const appliedDeltaX = Math.abs(accumulatedX) >= pixelThreshold ? Math.floor(accumulatedX) : 0;
+                const appliedDeltaY = Math.abs(accumulatedY) >= pixelThreshold ? Math.floor(accumulatedY) : 0;
+                const nextLayout = this.layoutEngine.updateFloatingWindow(this._resizeSession.floatingId, {
+                    x: this._resizeSession.original.x + appliedDeltaX,
+                    y: this._resizeSession.original.y + appliedDeltaY
+                });
+                this._resizeSession.accumulatedDeltaX = accumulatedX - appliedDeltaX;
+                this._resizeSession.accumulatedDeltaY = accumulatedY - appliedDeltaY;
+                void this.stateStore?.setUserLayout?.(nextLayout);
+                this.#syncFloatingElementStyle(this._resizeSession.floatingId, nextLayout.root.floatingWindows.find((entry) => entry.id === this._resizeSession.floatingId));
+            }
             return;
         }
 
         if (this._resizeSession.type === "floating-resize") {
-            const nextLayout = this.layoutEngine.updateFloatingWindow(this._resizeSession.floatingId, {
-                width: Math.max(MIN_FLOAT_WIDTH, this._resizeSession.original.width + deltaX),
-                height: Math.max(MIN_FLOAT_HEIGHT, this._resizeSession.original.height + deltaY)
-            });
-            void this.stateStore?.setUserLayout?.(nextLayout);
-            this.#syncFloatingElementStyle(this._resizeSession.floatingId, nextLayout.root.floatingWindows.find((entry) => entry.id === this._resizeSession.floatingId));
+            const accumulatedX = this._resizeSession.accumulatedDeltaX + deltaX;
+            const accumulatedY = this._resizeSession.accumulatedDeltaY + deltaY;
+            const pixelThreshold = 1;
+            if (Math.abs(accumulatedX) >= pixelThreshold || Math.abs(accumulatedY) >= pixelThreshold) {
+                const appliedDeltaX = Math.abs(accumulatedX) >= pixelThreshold ? Math.floor(accumulatedX) : 0;
+                const appliedDeltaY = Math.abs(accumulatedY) >= pixelThreshold ? Math.floor(accumulatedY) : 0;
+                const nextLayout = this.layoutEngine.updateFloatingWindow(this._resizeSession.floatingId, {
+                    width: Math.max(MIN_FLOAT_WIDTH, this._resizeSession.original.width + appliedDeltaX),
+                    height: Math.max(MIN_FLOAT_HEIGHT, this._resizeSession.original.height + appliedDeltaY)
+                });
+                this._resizeSession.accumulatedDeltaX = accumulatedX - appliedDeltaX;
+                this._resizeSession.accumulatedDeltaY = accumulatedY - appliedDeltaY;
+                void this.stateStore?.setUserLayout?.(nextLayout);
+                this.#syncFloatingElementStyle(this._resizeSession.floatingId, nextLayout.root.floatingWindows.find((entry) => entry.id === this._resizeSession.floatingId));
+            }
         }
     }
 
