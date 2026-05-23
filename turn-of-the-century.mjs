@@ -388,11 +388,20 @@ async function maybeRunAutomatedMigrations() {
         });
 
         await game.settings.set("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING, result.toVersion);
+
+        const refreshedStarterCompendiums = Array.isArray(result.applied)
+            && result.applied.some((step) => step.key === "starter-compendiums" || step.key === "starter-compendiums-refresh");
+        if (refreshedStarterCompendiums) {
+            await game.settings.set("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING, true);
+        }
+
+        return result;
     } catch (error) {
         console.error("[turn-of-the-century] Failed to run automated migrations.", error);
         ui.notifications?.error(
             "Turn of the Century failed to run world migrations. Run `await game.turnOfTheCentury.migrations.run()` as a GM after checking console errors."
         );
+        return null;
     }
 }
 
@@ -616,6 +625,11 @@ Hooks.once("ready", async () => {
             return result;
         }
     };
+
+    // Run migrations and starter seeding in sequence before booting Workspace V2
+    // so compendium-backed panels read stable data on first world load after updates.
+    await maybeRunAutomatedMigrations();
+    await maybeSeedStarterCompendiums();
 
     workspaceV2Coordinator = new WorkspaceV2Coordinator({
         systemId: "turn-of-the-century"
@@ -960,8 +974,6 @@ Hooks.once("ready", async () => {
 
     maybePromptInitiativeRolls(game.combat);
 
-    void maybeRunAutomatedMigrations();
-    void maybeSeedStarterCompendiums();
 });
 
 Hooks.on("updateCombat", (combat) => {

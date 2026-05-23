@@ -94,6 +94,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.render(false);
             }
         };
+        this._compendiumDocumentMutationHandler = (document, change, options = {}) => {
+            const pack = options?.pack ?? document?.pack ?? document?.parent?.collection ?? null;
+            if (!pack) return;
+            this._compendiumRefreshHandler();
+        };
         this._sceneHooksBound = false;
         this._compendiumHooksBound = false;
     }
@@ -372,6 +377,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     async close(options = {}) {
         this.#unbindSceneHooks();
+        this.#unbindCompendiumHooks();
         this.#endMapPanSession();
         return await super.close?.(options);
     }
@@ -591,6 +597,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         // Refresh compendium cache when pack metadata changes.
         Hooks.on("createCompendium", this._compendiumRefreshHandler);
         Hooks.on("deleteCompendium", this._compendiumRefreshHandler);
+        Hooks.on("createItem", this._compendiumDocumentMutationHandler);
+        Hooks.on("updateItem", this._compendiumDocumentMutationHandler);
+        Hooks.on("deleteItem", this._compendiumDocumentMutationHandler);
         this._compendiumHooksBound = true;
     }
 
@@ -601,6 +610,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         Hooks.off("createScene", this._sceneRefreshHandler);
         Hooks.off("deleteScene", this._sceneRefreshHandler);
         this._sceneHooksBound = false;
+    }
+
+    #unbindCompendiumHooks() {
+        if (!this._compendiumHooksBound) return;
+        Hooks.off("createCompendium", this._compendiumRefreshHandler);
+        Hooks.off("deleteCompendium", this._compendiumRefreshHandler);
+        Hooks.off("createItem", this._compendiumDocumentMutationHandler);
+        Hooks.off("updateItem", this._compendiumDocumentMutationHandler);
+        Hooks.off("deleteItem", this._compendiumDocumentMutationHandler);
+        this._compendiumHooksBound = false;
     }
 
     #wireMapInteractionHandlers() {
