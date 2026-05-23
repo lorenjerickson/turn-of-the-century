@@ -74,6 +74,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._compendiumItemEntries = null;
         this._resizeSession = null;
         this._compendiumSearchTimeout = null;
+        this._mapViewportState = {
+            scale: null,
+            offsetX: 0,
+            offsetY: 0
+        };
+        this._mapPanSession = null;
         this._sceneRefreshHandler = () => {
             if (this.rendered) {
                 this.render(false);
@@ -356,12 +362,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.#wireMapInteractionHandlers();
+
         this.#wireInteractionHandlers();
         this.#wireResizeHandlers();
     }
 
     async close(options = {}) {
         this.#unbindSceneHooks();
+        this.#endMapPanSession();
         return await super.close?.(options);
     }
 
@@ -495,7 +504,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             const dimensions = [context.scene?.width, context.scene?.height].filter((value) => Number.isFinite(value) && value > 0);
             const dimensionLabel = dimensions.length === 2 ? `${dimensions[0]} × ${dimensions[1]}` : "Scene map";
             const imageMarkup = mapSrc
-                ? `<img class="totc-v2-map-panel__image" src="${this.#escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false">`
+                ? `<div class="totc-v2-map-panel__viewport" data-action="map-viewport" data-map-viewport="true">
+                    <img class="totc-v2-map-panel__image" src="${this.#escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false" data-action="map-image">
+                </div>`
                 : `<div class="totc-v2-map-panel__empty">No active scene map available</div>`;
 
             return `
@@ -579,6 +590,56 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         Hooks.off("createScene", this._sceneRefreshHandler);
         Hooks.off("deleteScene", this._sceneRefreshHandler);
         this._sceneHooksBound = false;
+    }
+
+    #wireMapInteractionHandlers() {
+        const viewports = [...(this.element?.querySelectorAll("[data-action='map-viewport']") ?? [])];
+        if (!viewports.length) return;
+
+        for (const viewport of viewports) {
+            const image = viewport.querySelector("[data-action='map-image']");
+            if (!(image instanceof HTMLImageElement)) continue;
+
+            viewport.addEventListener("contextmenu", (event) => {
+                event.preventDefault();
+            });
+
+            viewport.addEventListener("pointerdown", (event) => {
+                if (event.button !== 2) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+                this._mapPanSession = {
+                    pointerId: event.pointerId,
+                    viewport,
+                    image,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    startOffsetX: this._mapViewportState.offsetX,
+                    startOffsetY: this._mapViewportState.offsetY
+                };
+
+                this._onMapPanPointerMove ??= this.#onMapPanPointerMove.bind(this);
+                this._onMapPanPointerUp ??= this.#onMapPanPointerUp.bind(this);
+                document.addEventListener("pointermove", this._onMapPanPointerMove);
+                document.addEventListener("pointerup", this._onMapPanPointerUp);
+                viewport.classList.add("is-panning");
+            });
+
+            viewport.addEventListener("wheel", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.#applyMapWheelZoom(viewport, image, event);
+            }, { passive: false });
+
+            if (image.complete && Number.isFinite(image.naturalWidth) && image.naturalWidth > 0) {
+                this.#syncMapViewportTransform(viewport, image, { initializeScale: true });
+            } else {
+                image.addEventListener("load", () => {
+                    this.#syncMapViewportTransform(viewport, image, { initializeScale: true });
+                }, { once: true });
+            }
+        }
     }
 
     #wireInteractionHandlers() {
@@ -934,6 +995,154 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (rightHandle) rightHandle.style.left = `${rightBoundary}%`;
         if (topHandle) topHandle.style.top = `${topBoundary}%`;
         if (bottomHandle) bottomHandle.style.top = `${bottomBoundary}%`;
+
+        this.#syncMapViewportTransforms({ initializeScale: false });
+    }
+
+    #syncMapViewportTransforms({ initializeScale = false } = {}) {
+        const viewports = [...(this.element?.querySelectorAll("[data-action='map-viewport']") ?? [])];
+        for (const viewport of viewports) {
+            const image = viewport.querySelector("[data-action='map-image']");
+            if (!(image instanceof HTMLImageElement)) continue;
+            if (!image.complete || !Number.isFinite(image.naturalWidth) || image.naturalWidth <= 0) continue;
+            this.#syncMapViewportTransform(viewport, image, { initializeScale });
+        }
+    }
+
+    #syncMapViewportTransform(viewport, image, { initializeScale = false } = {}) {
+        const viewportRect = viewport.getBoundingClientRect();
+        const viewportWidth = Math.max(1, Math.round(viewportRect.width));
+        const viewportHeight = Math.max(1, Math.round(viewportRect.height));
+        const imageWidth = Math.max(1, image.naturalWidth);
+        const imageHeight = Math.max(1, image.naturalHeight);
+
+        const minScale = Math.min(viewportWidth / imageWidth, viewportHeight / imageHeight);
+        const maxScale = Math.max(minScale, 8);
+
+        if (initializeScale || !Number.isFinite(this._mapViewportState.scale)) {
+            this._mapViewportState.scale = minScale;
+            this._mapViewportState.offsetX = (viewportWidth - (imageWidth * minScale)) / 2;
+            this._mapViewportState.offsetY = (viewportHeight - (imageHeight * minScale)) / 2;
+        }
+
+        this._mapViewportState.scale = this.#clamp(this._mapViewportState.scale, minScale, maxScale);
+
+        const clampedOffsets = this.#clampMapOffsets({
+            viewportWidth,
+            viewportHeight,
+            imageWidth,
+            imageHeight,
+            scale: this._mapViewportState.scale,
+            offsetX: this._mapViewportState.offsetX,
+            offsetY: this._mapViewportState.offsetY
+        });
+        this._mapViewportState.offsetX = clampedOffsets.offsetX;
+        this._mapViewportState.offsetY = clampedOffsets.offsetY;
+
+        image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
+    }
+
+    #applyMapWheelZoom(viewport, image, event) {
+        const viewportRect = viewport.getBoundingClientRect();
+        const viewportWidth = Math.max(1, Math.round(viewportRect.width));
+        const viewportHeight = Math.max(1, Math.round(viewportRect.height));
+        const imageWidth = Math.max(1, image.naturalWidth);
+        const imageHeight = Math.max(1, image.naturalHeight);
+
+        const minScale = Math.min(viewportWidth / imageWidth, viewportHeight / imageHeight);
+        const maxScale = Math.max(minScale, 8);
+        const currentScale = Number.isFinite(this._mapViewportState.scale) ? this._mapViewportState.scale : minScale;
+        const zoomStep = event.deltaY < 0 ? 1.08 : 0.92;
+        const nextScale = this.#clamp(currentScale * zoomStep, minScale, maxScale);
+        if (Math.abs(nextScale - currentScale) < 0.0001) {
+            this.#syncMapViewportTransform(viewport, image, { initializeScale: false });
+            return;
+        }
+
+        const cursorX = event.clientX - viewportRect.left;
+        const cursorY = event.clientY - viewportRect.top;
+        const imageSpaceX = (cursorX - this._mapViewportState.offsetX) / currentScale;
+        const imageSpaceY = (cursorY - this._mapViewportState.offsetY) / currentScale;
+
+        const nextOffsetX = cursorX - (imageSpaceX * nextScale);
+        const nextOffsetY = cursorY - (imageSpaceY * nextScale);
+        const clampedOffsets = this.#clampMapOffsets({
+            viewportWidth,
+            viewportHeight,
+            imageWidth,
+            imageHeight,
+            scale: nextScale,
+            offsetX: nextOffsetX,
+            offsetY: nextOffsetY
+        });
+
+        this._mapViewportState.scale = nextScale;
+        this._mapViewportState.offsetX = clampedOffsets.offsetX;
+        this._mapViewportState.offsetY = clampedOffsets.offsetY;
+        image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
+    }
+
+    #onMapPanPointerMove(event) {
+        if (!this._mapPanSession) return;
+        if (event.pointerId !== this._mapPanSession.pointerId) return;
+
+        const { viewport, image, startX, startY, startOffsetX, startOffsetY } = this._mapPanSession;
+        const viewportRect = viewport.getBoundingClientRect();
+        const viewportWidth = Math.max(1, Math.round(viewportRect.width));
+        const viewportHeight = Math.max(1, Math.round(viewportRect.height));
+        const imageWidth = Math.max(1, image.naturalWidth);
+        const imageHeight = Math.max(1, image.naturalHeight);
+
+        const nextOffsetX = startOffsetX + (event.clientX - startX);
+        const nextOffsetY = startOffsetY + (event.clientY - startY);
+        const clampedOffsets = this.#clampMapOffsets({
+            viewportWidth,
+            viewportHeight,
+            imageWidth,
+            imageHeight,
+            scale: this._mapViewportState.scale,
+            offsetX: nextOffsetX,
+            offsetY: nextOffsetY
+        });
+
+        this._mapViewportState.offsetX = clampedOffsets.offsetX;
+        this._mapViewportState.offsetY = clampedOffsets.offsetY;
+        image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
+    }
+
+    #onMapPanPointerUp(event) {
+        if (!this._mapPanSession) return;
+        if (event.pointerId !== this._mapPanSession.pointerId) return;
+
+        this.#endMapPanSession();
+    }
+
+    #endMapPanSession() {
+        this._mapPanSession?.viewport?.classList?.remove("is-panning");
+        this._mapPanSession = null;
+        document.removeEventListener("pointermove", this._onMapPanPointerMove);
+        document.removeEventListener("pointerup", this._onMapPanPointerUp);
+    }
+
+    #clampMapOffsets({ viewportWidth, viewportHeight, imageWidth, imageHeight, scale, offsetX, offsetY }) {
+        const scaledWidth = imageWidth * scale;
+        const scaledHeight = imageHeight * scale;
+
+        const minX = scaledWidth > viewportWidth ? viewportWidth - scaledWidth : (viewportWidth - scaledWidth) / 2;
+        const maxX = scaledWidth > viewportWidth ? 0 : (viewportWidth - scaledWidth) / 2;
+        const minY = scaledHeight > viewportHeight ? viewportHeight - scaledHeight : (viewportHeight - scaledHeight) / 2;
+        const maxY = scaledHeight > viewportHeight ? 0 : (viewportHeight - scaledHeight) / 2;
+
+        return {
+            offsetX: this.#clamp(offsetX, minX, maxX),
+            offsetY: this.#clamp(offsetY, minY, maxY)
+        };
+    }
+
+    #clamp(value, min, max) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return min;
+        return Math.min(max, Math.max(min, numeric));
     }
 
     #isDockOccupied(dock) {

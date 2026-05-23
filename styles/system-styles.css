@@ -1504,19 +1504,35 @@ body.totc-v2-active #board {
 .turn-of-the-century .totc-v2-map-panel {
     display: grid;
     gap: 0.45rem;
+    grid-template-rows: minmax(0, 1fr) auto;
     height: 100%;
     margin: 0;
     min-height: 0;
 }
 
-.turn-of-the-century .totc-v2-map-panel__image {
+.turn-of-the-century .totc-v2-map-panel__viewport {
     background: #0f172a;
     border: 1px solid rgba(148, 163, 184, 0.25);
     border-radius: 6px;
+    cursor: default;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.turn-of-the-century .totc-v2-map-panel__viewport.is-panning {
+    cursor: grabbing;
+}
+
+.turn-of-the-century .totc-v2-map-panel__image {
     display: block;
-    height: 100%;
-    object-fit: cover;
-    width: 100%;
+    left: 0;
+    max-width: none;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    transform-origin: 0 0;
+    user-select: none;
 }
 
 .turn-of-the-century .totc-v2-map-panel__empty {
