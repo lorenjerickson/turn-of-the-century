@@ -37,7 +37,8 @@ const GM_PANEL_STATE_KEY = "gmPanelState";
 const GM_PANEL_DEFAULT_STATE = Object.freeze({
     collapsedGroupIds: [],
     actionSearchQuery: "",
-    allActionsExpanded: false
+    allActionsExpanded: false,
+    contextDebug: false
 });
 
 const GM_ACTION_MODELS = Object.freeze([
@@ -79,6 +80,14 @@ const GM_ACTION_MODELS = Object.freeze([
         description: "Pause or resume the world clock and actions.",
         groupId: "scene-flow",
         keywords: ["pause", "resume", "world", "time"],
+        isRelevant: () => true
+    },
+    {
+        id: "gm-toggle-context-debug",
+        label: "Toggle Context Debug",
+        description: "Show or hide context scoring diagnostics inside the Gamemaster panel.",
+        groupId: "scene-flow",
+        keywords: ["debug", "context", "diagnostic", "priority"],
         isRelevant: () => true
     },
     {
@@ -201,7 +210,8 @@ function normalizeGamemasterPanelState(value = {}) {
     return {
         collapsedGroupIds,
         actionSearchQuery: String(value?.actionSearchQuery ?? GM_PANEL_DEFAULT_STATE.actionSearchQuery),
-        allActionsExpanded: Boolean(value?.allActionsExpanded ?? GM_PANEL_DEFAULT_STATE.allActionsExpanded)
+        allActionsExpanded: Boolean(value?.allActionsExpanded ?? GM_PANEL_DEFAULT_STATE.allActionsExpanded),
+        contextDebug: Boolean(value?.contextDebug ?? GM_PANEL_DEFAULT_STATE.contextDebug)
     };
 }
 
@@ -274,7 +284,18 @@ function buildGamemasterPanelModel({ snapshot, panelState }) {
         allActions,
         allActionsExpanded: Boolean(panelState.allActionsExpanded),
         actionSearchQuery: panelState.actionSearchQuery,
-        totalActionCount: actions.length
+        totalActionCount: actions.length,
+        contextDebug: Boolean(panelState.contextDebug),
+        debugRows: [
+            { label: "Scene", value: snapshot.sceneName ?? "No active scene" },
+            { label: "Active Combat", value: snapshot.hasActiveCombat ? "Yes" : "No" },
+            { label: "Controlled Tokens", value: String(snapshot.controlledCount ?? 0) },
+            { label: "World Paused", value: snapshot.paused ? "Yes" : "No" },
+            {
+                label: "Group Scores",
+                value: groups.map((group) => `${group.title}: ${group.priorityScore}`).join(" | ") || "None"
+            }
+        ]
     };
 }
 
@@ -1011,6 +1032,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         const allActionsMarkup = (gmPanel.allActions ?? []).map((action) => `
             <button type="button" data-action="gm-execute-action" data-gm-action-id="${this.#escapeHTML(action.id)}" title="${this.#escapeHTML(action.description)}">${this.#escapeHTML(action.label)}</button>`).join("");
+        const debugRowsMarkup = (gmPanel.debugRows ?? []).map((row) => `
+            <div class="totc-v2-gm-panel__debug-row">
+                <span>${this.#escapeHTML(row.label)}</span>
+                <span>${this.#escapeHTML(row.value)}</span>
+            </div>`).join("");
 
         return `
         <section class="totc-v2-gm-panel">
@@ -1020,6 +1046,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 <p><strong>World:</strong> ${gmSnapshot.paused ? "Paused" : "Running"}</p>
                 <p><strong>Combat:</strong> ${this.#escapeHTML(combatSummary)}</p>
                 <p><strong>Selection:</strong> ${this.#escapeHTML(controlledSummary)}</p>
+                ${gmPanel.contextDebug ? `<div class="totc-v2-gm-panel__debug">${debugRowsMarkup}</div>` : ""}
             </article>
             <section class="totc-v2-gm-panel__groups">
                 ${groupsMarkup || `<div class="totc-v2-gm-panel__empty">No context groups are active right now.</div>`}
@@ -1107,14 +1134,33 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 }
                 break;
             }
-            case "gm-generate-town":
-            case "gm-generate-market":
-            case "gm-generate-mob":
-            case "gm-generate-poi":
-            case "gm-atmosphere-clear-weather":
+            case "gm-generate-town": {
+                await this.#generateGamemasterHook("town");
+                break;
+            }
+            case "gm-generate-market": {
+                await this.#generateGamemasterHook("market");
+                break;
+            }
+            case "gm-generate-mob": {
+                await this.#generateGamemasterHook("mob");
+                break;
+            }
+            case "gm-generate-poi": {
+                await this.#generateGamemasterHook("poi");
+                break;
+            }
+            case "gm-atmosphere-clear-weather": {
+                await this.#setGamemasterAtmospherePreset("clear");
+                break;
+            }
             case "gm-atmosphere-storm": {
-                const action = GM_ACTION_MODELS.find((entry) => entry.id === actionId);
-                ui.notifications?.info(action?.description ?? "Action executed.");
+                await this.#setGamemasterAtmospherePreset("storm");
+                break;
+            }
+            case "gm-toggle-context-debug": {
+                const current = this.#getGamemasterPanelState();
+                await this.#setGamemasterPanelStatePatch({ contextDebug: !current.contextDebug });
                 break;
             }
             default:
@@ -1123,6 +1169,95 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }
 
         this.render(false);
+    }
+
+    async #generateGamemasterHook(kind) {
+        const seedsApi = game.turnOfTheCentury?.seeds;
+        const factionMap = seedsApi?.factionMetadata ?? {};
+        const factionKeys = Object.keys(factionMap);
+        const fallbackFaction = "frontier-raiders";
+        const factionKey = this.#randomFrom(factionKeys) ?? fallbackFaction;
+        const narrative = seedsApi?.getNarrative?.(factionKey) ?? {};
+        const faction = seedsApi?.getFaction?.(factionKey) ?? { name: factionKey };
+
+        const promptByKind = {
+            town: `Town lead: ${narrative.preEncounter ?? "A settlement asks for immediate aid."}`,
+            market: `Market lead: ${narrative.victory ?? "A broker offers scarce goods at a risky premium."}`,
+            mob: `Mob lead: ${narrative.combat ?? "Crowd unrest spills into the streets."}`,
+            poi: `Point of interest: ${narrative.defeat ?? "A marked site hints at unresolved danger."}`
+        };
+
+        const titleByKind = {
+            town: "Town Hook Generated",
+            market: "Market Hook Generated",
+            mob: "Mob Hook Generated",
+            poi: "Point of Interest Generated"
+        };
+
+        const lines = [
+            `Faction: ${faction?.name ?? factionKey}`,
+            promptByKind[kind] ?? "Narrative hook generated."
+        ];
+
+        await this.#announceGamemasterGeneratedContent({
+            title: titleByKind[kind] ?? "GM Hook Generated",
+            lines
+        });
+    }
+
+    async #setGamemasterAtmospherePreset(preset) {
+        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
+        if (!scene) {
+            ui.notifications?.warn("No active scene is available for atmosphere controls.");
+            return;
+        }
+
+        const data = {
+            preset,
+            updatedBy: game.user?.id ?? null,
+            updatedAt: Date.now()
+        };
+
+        await scene.setFlag?.(game.system?.id ?? "turn-of-the-century", "gmAtmosphere", data);
+
+        const title = preset === "storm" ? "Atmosphere Set: Storm" : "Atmosphere Set: Clear";
+        const description = preset === "storm"
+            ? "Wind and thunder cues are now the active scene tone."
+            : "Clear-weather cues are now the active scene tone.";
+
+        await this.#announceGamemasterGeneratedContent({
+            title,
+            lines: [
+                `Scene: ${scene.name ?? "Unknown scene"}`,
+                description
+            ]
+        });
+    }
+
+    async #announceGamemasterGeneratedContent({ title, lines = [] } = {}) {
+        const safeTitle = String(title ?? "Gamemaster Output");
+        const safeLines = Array.isArray(lines)
+            ? lines.map((line) => String(line ?? "").trim()).filter(Boolean)
+            : [];
+
+        const content = `<h3>${this.#escapeHTML(safeTitle)}</h3>${safeLines.map((line) => `<p>${this.#escapeHTML(line)}</p>`).join("")}`;
+        const whisperRecipients = ChatMessage?.getWhisperRecipients?.("GM")?.map((user) => user.id).filter(Boolean) ?? [];
+
+        if (typeof ChatMessage?.create === "function") {
+            await ChatMessage.create({
+                content,
+                whisper: whisperRecipients.length ? whisperRecipients : undefined,
+                speaker: ChatMessage.getSpeaker?.({ alias: "Gamemaster Panel" })
+            });
+        }
+
+        ui.notifications?.info(safeTitle);
+    }
+
+    #randomFrom(items = []) {
+        if (!Array.isArray(items) || !items.length) return null;
+        const index = Math.floor(Math.random() * items.length);
+        return items[index];
     }
 
     #wireMapInteractionHandlers() {
