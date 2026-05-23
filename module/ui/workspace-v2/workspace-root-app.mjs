@@ -47,6 +47,14 @@ const MARKET_PANEL_DEFAULT_STATE = Object.freeze({
     selectedBuyerActorId: ""
 });
 
+const MARKET_TRADABLE_ITEM_TYPES = Object.freeze(new Set([
+    "armor",
+    "weapon",
+    "equipment",
+    "consumable",
+    "item"
+]));
+
 const GM_ACTION_MODELS = Object.freeze([
     {
         id: "gm-start-encounter",
@@ -1591,7 +1599,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     currency: String(offer?.currency ?? "pounds"),
                     stock: Math.max(0, Math.floor(Number(offer?.stock ?? 0)))
                 }))
-                .filter((offer) => offer.id && offer.stock > 0)
+                .filter((offer) => offer.id && offer.stock > 0 && this.#isMarketTradableItemType(offer.type))
             : [];
         if (!offers.length) return null;
 
@@ -1617,7 +1625,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     #getMarketSellableItems(actor, marketState) {
         if (!actor) return [];
         const sellRate = Math.max(0, Number(marketState?.sellRate ?? 0.55));
-        const items = actor.items?.contents ?? [];
+        const items = (actor.items?.contents ?? []).filter((item) => this.#isMarketTradableItemType(item?.type));
 
         return items
             .map((item) => {
@@ -1660,7 +1668,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     async #buildGeneratedMarketOffers() {
         const items = await this.#getUnifiedCompendiumItems();
-        const pool = [...items];
+        const pool = items.filter((entry) => this.#isMarketTradableItemType(entry?.type));
         for (let i = pool.length - 1; i > 0; i -= 1) {
             const j = Math.floor(Math.random() * (i + 1));
             [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -1679,6 +1687,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 type = String(document?.type ?? type);
             } catch (error) {
                 console.warn("[turn-of-the-century] Failed to resolve market item uuid", entry?.uuid, error);
+            }
+
+            if (!this.#isMarketTradableItemType(type)) {
+                continue;
             }
 
             const buyPrice = Math.max(1, Math.round(basePrice * (1.1 + Math.random() * 0.45) * 100) / 100);
@@ -1731,6 +1743,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const offer = marketState.offers.find((entry) => entry.id === offerId);
         if (!offer) {
             ui.notifications?.warn("This market offer is no longer available.");
+            return;
+        }
+        if (!this.#isMarketTradableItemType(offer.type)) {
+            ui.notifications?.warn("This market offer is not a tradable item type.");
             return;
         }
 
@@ -1816,6 +1832,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const item = actor.items?.get?.(itemId) ?? null;
         if (!item) {
             ui.notifications?.warn("This item is no longer available on the selected actor.");
+            return;
+        }
+        if (!this.#isMarketTradableItemType(item.type)) {
+            ui.notifications?.warn("Only physical goods can be sold at the market.");
             return;
         }
 
@@ -2584,6 +2604,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const existingLabel = String(existing?.packLabel ?? "").toLowerCase();
         const candidateLabel = String(candidate?.packLabel ?? "").toLowerCase();
         return candidateLabel < existingLabel;
+    }
+
+    #isMarketTradableItemType(itemType) {
+        const normalizedType = String(itemType ?? "").trim().toLowerCase();
+        return MARKET_TRADABLE_ITEM_TYPES.has(normalizedType);
     }
 
     #showGhost(rect, label) {
