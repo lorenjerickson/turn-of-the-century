@@ -386,7 +386,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const stackItemsMarkup = (dock?.stacks ?? [])
             .map((stack, index, stacks) => {
                 const stackMarkup = this.#renderStackMarkup(dockId, stack, context, {
-                    includeDockLabel: index === 0,
+                    includeDockLabel: false,
                     dockLabel: DOCK_LABELS[dockId] ?? dockId
                 });
                 const splitterMarkup = index < stacks.length - 1

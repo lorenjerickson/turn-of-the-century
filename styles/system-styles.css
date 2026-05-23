@@ -1438,7 +1438,7 @@ body.totc-v2-active #board {
     min-height: 34px;
     gap: 0.3rem;
     padding: 0.35rem 0.35rem 0;
-    padding-left: 5.9rem;
+    padding-left: 0.45rem;
 }
 
 .turn-of-the-century .totc-v2-dock-label-inline {
