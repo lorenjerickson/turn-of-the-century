@@ -412,12 +412,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const rightBoundary = ((left + centerX) / totalX) * 100;
         const topBoundary = (top / totalY) * 100;
         const bottomBoundary = ((top + centerY) / totalY) * 100;
+        const centerLeftBoundary = `${leftBoundary}%`;
+        const centerRightBoundary = `${100 - rightBoundary}%`;
 
         return `
         <div class="totc-v2-dock-resizer totc-v2-dock-resizer--left" style="left:${leftBoundary}%;" data-action="dock-resizer" data-dock-id="leftDock" data-axis="x" title="Resize dock"></div>
         <div class="totc-v2-dock-resizer totc-v2-dock-resizer--right" style="left:${rightBoundary}%;" data-action="dock-resizer" data-dock-id="rightDock" data-axis="x" title="Resize dock"></div>
-        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--top" style="top:${topBoundary}%;" data-action="dock-resizer" data-dock-id="topDock" data-axis="y" title="Resize dock"></div>
-        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--bottom" style="top:${bottomBoundary}%;" data-action="dock-resizer" data-dock-id="bottomDock" data-axis="y" title="Resize dock"></div>`;
+        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--top" style="top:${topBoundary}%;--totc-v2-center-left:${centerLeftBoundary};--totc-v2-center-right:${centerRightBoundary};" data-action="dock-resizer" data-dock-id="topDock" data-axis="y" title="Resize dock"></div>
+        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--bottom" style="top:${bottomBoundary}%;--totc-v2-center-left:${centerLeftBoundary};--totc-v2-center-right:${centerRightBoundary};" data-action="dock-resizer" data-dock-id="bottomDock" data-axis="y" title="Resize dock"></div>`;
     }
 
     #renderFloatingWindowsMarkup(floatingWindows = []) {

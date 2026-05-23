@@ -1243,9 +1243,9 @@ body.totc-v2-active #board {
     display: grid;
     gap: 0;
     grid-template-areas:
-        "top top top"
+        "left top right"
         "left center right"
-        "bottom bottom bottom";
+        "left bottom right";
     grid-template-columns: minmax(180px, 1fr) minmax(320px, 2fr) minmax(180px, 1fr);
     grid-template-rows: minmax(80px, auto) minmax(250px, auto) minmax(80px, auto);
     height: 100%;
@@ -1642,8 +1642,8 @@ body.totc-v2-active #board {
 .turn-of-the-century .totc-v2-dock-resizer--top,
 .turn-of-the-century .totc-v2-dock-resizer--bottom {
     height: 3px;
-    left: 0;
-    right: 0;
+    left: var(--totc-v2-center-left, 0%);
+    right: var(--totc-v2-center-right, 0%);
 }
 
 .turn-of-the-century .totc-v2-dock-resizer--top {
