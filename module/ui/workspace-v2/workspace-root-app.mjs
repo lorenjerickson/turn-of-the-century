@@ -555,7 +555,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.stopPropagation();
                 const offerId = String(button.dataset.offerId ?? "").trim();
                 if (!offerId) return;
-                await this.#handleMarketBuy(offerId);
+                const quantityInput = button.closest(".totc-v2-market-panel__entry-actions")?.querySelector("[data-action='market-buy-quantity']");
+                const quantity = this.#parseMarketQuantityInput(quantityInput, {
+                    fallback: 1,
+                    max: Number(button.dataset.maxQuantity ?? 1)
+                });
+                await this.#handleMarketBuy(offerId, quantity);
             });
         });
 
@@ -565,7 +570,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.stopPropagation();
                 const itemId = String(button.dataset.itemId ?? "").trim();
                 if (!itemId) return;
-                await this.#handleMarketSell(itemId);
+                const quantityInput = button.closest(".totc-v2-market-panel__entry-actions")?.querySelector("[data-action='market-sell-quantity']");
+                const quantity = this.#parseMarketQuantityInput(quantityInput, {
+                    fallback: 1,
+                    max: Number(button.dataset.maxQuantity ?? 1)
+                });
+                await this.#handleMarketSell(itemId, quantity);
             });
         });
 
@@ -995,7 +1005,25 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 </div>
                 <div class="totc-v2-market-panel__entry-actions">
                     <span class="totc-v2-market-panel__price">${this.#escapeHTML(offer.priceLabel)}</span>
-                    <button type="button" data-action="market-buy-item" data-offer-id="${this.#escapeHTML(offer.id)}" ${offer.canBuy ? "" : "disabled"} title="${this.#escapeHTML(offer.buyHint)}">Buy</button>
+                    <div class="totc-v2-market-panel__trade-controls">
+                        <input
+                            type="number"
+                            class="totc-v2-market-panel__quantity-input"
+                            data-action="market-buy-quantity"
+                            min="1"
+                            max="${Math.max(1, Number(offer.maxBuyQty ?? 1))}"
+                            value="1"
+                            step="1"
+                            ${offer.canBuy ? "" : "disabled"}
+                            aria-label="Buy quantity for ${this.#escapeHTML(offer.name)}">
+                        <button
+                            type="button"
+                            data-action="market-buy-item"
+                            data-offer-id="${this.#escapeHTML(offer.id)}"
+                            data-max-quantity="${Math.max(1, Number(offer.maxBuyQty ?? 1))}"
+                            ${offer.canBuy ? "" : "disabled"}
+                            title="${this.#escapeHTML(offer.buyHint)}">Buy</button>
+                    </div>
                 </div>
             </article>`).join("");
 
@@ -1007,7 +1035,25 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 </div>
                 <div class="totc-v2-market-panel__entry-actions">
                     <span class="totc-v2-market-panel__price">${this.#escapeHTML(entry.sellPriceLabel)}</span>
-                    <button type="button" data-action="market-sell-item" data-item-id="${this.#escapeHTML(entry.id)}" ${entry.canSell ? "" : "disabled"} title="${this.#escapeHTML(entry.sellHint)}">Sell</button>
+                    <div class="totc-v2-market-panel__trade-controls">
+                        <input
+                            type="number"
+                            class="totc-v2-market-panel__quantity-input"
+                            data-action="market-sell-quantity"
+                            min="1"
+                            max="${Math.max(1, Number(entry.maxSellQty ?? 1))}"
+                            value="1"
+                            step="1"
+                            ${entry.canSell ? "" : "disabled"}
+                            aria-label="Sell quantity for ${this.#escapeHTML(entry.name)}">
+                        <button
+                            type="button"
+                            data-action="market-sell-item"
+                            data-item-id="${this.#escapeHTML(entry.id)}"
+                            data-max-quantity="${Math.max(1, Number(entry.maxSellQty ?? 1))}"
+                            ${entry.canSell ? "" : "disabled"}
+                            title="${this.#escapeHTML(entry.sellHint)}">Sell</button>
+                    </div>
                 </div>
             </article>`).join("");
 
@@ -1464,18 +1510,26 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             const price = Number(offer.price ?? 0);
             const stock = Math.max(0, Number(offer.stock ?? 0));
             const hasActor = Boolean(selectedActor);
-            const canAfford = wallet >= price;
-            const canBuy = hasActor && stock > 0 && canAfford;
+            const maxAffordableQty = price > 0
+                ? Math.max(0, Math.floor(wallet / price))
+                : stock;
+            const maxBuyQty = hasActor ? Math.max(0, Math.min(stock, maxAffordableQty || (price <= 0 ? stock : 0))) : 0;
+            const canBuy = hasActor && maxBuyQty > 0;
             return {
                 id: String(offer.id),
                 name: String(offer.name ?? "Unnamed Item"),
                 packLabel: String(offer.packLabel ?? "Market Stock"),
                 stockLabel: `Stock ${stock}`,
                 priceLabel: this.#formatCurrency(price, offer.currency),
+                maxBuyQty,
                 canBuy,
                 buyHint: !hasActor
                     ? "Select an eligible actor first."
-                    : (stock <= 0 ? "Out of stock." : (canAfford ? "Purchase one unit." : "Not enough funds."))
+                    : (stock <= 0
+                        ? "Out of stock."
+                        : (maxBuyQty <= 0
+                            ? "Not enough funds."
+                            : `Purchase up to ${maxBuyQty} unit${maxBuyQty === 1 ? "" : "s"}.`))
             };
         });
 
@@ -1578,14 +1632,28 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     basePriceLabel: this.#formatCurrency(basePrice, currency),
                     sellPrice,
                     sellPriceLabel: this.#formatCurrency(sellPrice, currency),
+                    maxSellQty: quantity,
                     canSell: quantity > 0 && sellPrice > 0,
                     sellHint: quantity <= 0
                         ? "No quantity available."
-                        : (sellPrice > 0 ? "Sell one unit to the market." : "Item has no sell value.")
+                        : (sellPrice > 0
+                            ? `Sell up to ${quantity} unit${quantity === 1 ? "" : "s"} to the market.`
+                            : "Item has no sell value.")
                 };
             })
             .filter((entry) => entry.id)
             .sort((left, right) => String(left.name).localeCompare(String(right.name), undefined, { sensitivity: "base" }));
+    }
+
+    #parseMarketQuantityInput(input, { fallback = 1, max = 1 } = {}) {
+        const parsed = Math.floor(Number(input?.value ?? fallback));
+        const minValue = 1;
+        const maxValue = Math.max(minValue, Math.floor(Number(max) || minValue));
+        const clamped = Math.min(maxValue, Math.max(minValue, Number.isFinite(parsed) ? parsed : fallback));
+        if (input) {
+            input.value = String(clamped);
+        }
+        return clamped;
     }
 
     async #buildGeneratedMarketOffers() {
@@ -1642,7 +1710,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return Boolean(actor.isOwner);
     }
 
-    async #handleMarketBuy(offerId) {
+    async #handleMarketBuy(offerId, requestedQuantity = 1) {
         const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
         if (!scene) return;
 
@@ -1665,11 +1733,18 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }
 
         const wallet = Math.max(0, Number(buyer.system?.economy?.wallet?.gbp ?? 0));
-        const price = Math.max(0, Number(offer.price ?? 0));
-        if (wallet < price) {
+        const unitPrice = Math.max(0, Number(offer.price ?? 0));
+        const stock = Math.max(0, Math.floor(Number(offer.stock ?? 0)));
+        const maxAffordableQty = unitPrice > 0
+            ? Math.max(0, Math.floor(wallet / unitPrice))
+            : stock;
+        const maxBuyQty = Math.max(0, Math.min(stock, maxAffordableQty || (unitPrice <= 0 ? stock : 0)));
+        if (maxBuyQty <= 0) {
             ui.notifications?.warn(`${buyer.name} does not have enough funds.`);
             return;
         }
+        const quantityToBuy = Math.max(1, Math.min(Math.floor(Number(requestedQuantity) || 1), maxBuyQty));
+        const totalPrice = unitPrice * quantityToBuy;
 
         let itemData = null;
         if (offer.uuid) {
@@ -1698,29 +1773,29 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         itemData.system ??= {};
         itemData.system.physical ??= {};
         itemData.system.value ??= {};
-        itemData.system.physical.quantity = 1;
-        itemData.system.value.price = Math.max(0, Number(itemData.system.value.price ?? offer.basePrice ?? price));
+        itemData.system.physical.quantity = quantityToBuy;
+        itemData.system.value.price = Math.max(0, Number(itemData.system.value.price ?? offer.basePrice ?? unitPrice));
         itemData.system.value.currency = String(itemData.system.value.currency ?? offer.currency ?? "pounds");
 
         const existing = buyer.items?.find?.((item) => item.name === itemData.name && item.type === itemData.type);
         if (existing) {
             const quantity = Math.max(0, Math.floor(Number(existing.system?.physical?.quantity ?? 1)));
-            await existing.update({ "system.physical.quantity": quantity + 1 });
+            await existing.update({ "system.physical.quantity": quantity + quantityToBuy });
         } else {
             await buyer.createEmbeddedDocuments("Item", [itemData]);
         }
 
-        await buyer.update({ "system.economy.wallet.gbp": Math.max(0, wallet - price) });
+        await buyer.update({ "system.economy.wallet.gbp": Math.max(0, wallet - totalPrice) });
 
-        offer.stock = Math.max(0, offer.stock - 1);
+        offer.stock = Math.max(0, offer.stock - quantityToBuy);
         marketState.offers = marketState.offers.filter((entry) => entry.stock > 0);
         await scene.setFlag?.(game.system?.id ?? "turn-of-the-century", MARKET_SCENE_FLAG_KEY, marketState.offers.length ? marketState : null);
 
-        ui.notifications?.info(`${buyer.name} purchased ${offer.name} for ${this.#formatCurrency(price, offer.currency)}.`);
+        ui.notifications?.info(`${buyer.name} purchased ${quantityToBuy} ${offer.name} for ${this.#formatCurrency(totalPrice, offer.currency)}.`);
         this.render(false);
     }
 
-    async #handleMarketSell(itemId) {
+    async #handleMarketSell(itemId, requestedQuantity = 1) {
         const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
         if (!scene) return;
 
@@ -1746,24 +1821,26 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const basePrice = Math.max(0, Number(item.system?.value?.price ?? 0));
         const currency = String(item.system?.value?.currency ?? "pounds");
         const sellRate = Math.max(0, Number(marketState.sellRate ?? 0.55));
-        const sellPrice = Math.max(0, Math.round(basePrice * sellRate * 100) / 100);
-        if (quantity <= 0 || sellPrice <= 0) {
+        const unitSellPrice = Math.max(0, Math.round(basePrice * sellRate * 100) / 100);
+        if (quantity <= 0 || unitSellPrice <= 0) {
             ui.notifications?.warn("This item cannot be sold.");
             return;
         }
+        const quantityToSell = Math.max(1, Math.min(Math.floor(Number(requestedQuantity) || 1), quantity));
+        const totalSellPrice = Math.round(unitSellPrice * quantityToSell * 100) / 100;
 
-        if (quantity <= 1) {
+        if (quantity <= quantityToSell) {
             await item.delete();
         } else {
-            await item.update({ "system.physical.quantity": quantity - 1 });
+            await item.update({ "system.physical.quantity": quantity - quantityToSell });
         }
 
         const wallet = Math.max(0, Number(actor.system?.economy?.wallet?.gbp ?? 0));
-        await actor.update({ "system.economy.wallet.gbp": wallet + sellPrice });
+        await actor.update({ "system.economy.wallet.gbp": wallet + totalSellPrice });
 
         const existingOffer = marketState.offers.find((offer) => offer.name === item.name && offer.type === item.type && offer.currency === currency && Math.abs(Number(offer.basePrice ?? 0) - basePrice) < 0.001);
         if (existingOffer) {
-            existingOffer.stock = Math.max(0, Number(existingOffer.stock ?? 0) + 1);
+            existingOffer.stock = Math.max(0, Number(existingOffer.stock ?? 0) + quantityToSell);
         } else {
             const buyPrice = Math.max(1, Math.round(basePrice * Math.max(1, Number(marketState.buyMarkup ?? 1.2)) * 100) / 100);
             marketState.offers.push({
@@ -1775,12 +1852,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 price: buyPrice,
                 basePrice,
                 currency,
-                stock: 1
+                stock: quantityToSell
             });
         }
 
         await scene.setFlag?.(game.system?.id ?? "turn-of-the-century", MARKET_SCENE_FLAG_KEY, marketState);
-        ui.notifications?.info(`${actor.name} sold ${item.name} for ${this.#formatCurrency(sellPrice, currency)}.`);
+        ui.notifications?.info(`${actor.name} sold ${quantityToSell} ${item.name} for ${this.#formatCurrency(totalSellPrice, currency)}.`);
         this.render(false);
     }
 

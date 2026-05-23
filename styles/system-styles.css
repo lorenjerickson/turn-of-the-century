@@ -1770,6 +1770,29 @@ body.totc-v2-active #board {
     justify-items: end;
 }
 
+.turn-of-the-century .totc-v2-market-panel__trade-controls {
+    align-items: center;
+    display: grid;
+    gap: 0.3rem;
+    grid-template-columns: 3.5rem auto;
+}
+
+.turn-of-the-century .totc-v2-market-panel__quantity-input {
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 4px;
+    color: #e2e8f0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.24rem 0.32rem;
+    text-align: right;
+    width: 100%;
+}
+
+.turn-of-the-century .totc-v2-market-panel__quantity-input:disabled {
+    opacity: 0.45;
+}
+
 .turn-of-the-century .totc-v2-market-panel__price {
     color: #fbbf24;
     font-size: 0.76rem;
