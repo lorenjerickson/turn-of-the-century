@@ -814,13 +814,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         return `
         <article class="totc-v2-stack" data-dock-id="${dockId}" data-stack-id="${stack.id}" style="flex-grow:${Number(stack.size) || 1};">
-            <div class="totc-v2-stack__tabs">
-                ${options.includeDockLabel ? `<span class="totc-v2-dock-label-inline">${this.#escapeHTML(options.dockLabel ?? dockId)}</span>` : ""}
-                ${tabsMarkup}
-            </div>
-            <div class="totc-v2-stack__actions">
-                <button type="button" data-action="close-panel" data-dock-id="${dockId}" data-stack-id="${stack.id}" data-panel-id="${activePanel?.id ?? ""}">Close</button>
-                <button type="button" data-action="undock-panel" data-dock-id="${dockId}" data-stack-id="${stack.id}" data-panel-id="${activePanel?.id ?? ""}">Undock</button>
+            <div class="totc-v2-stack__header">
+                <div class="totc-v2-stack__tabs">
+                    ${options.includeDockLabel ? `<span class="totc-v2-dock-label-inline">${this.#escapeHTML(options.dockLabel ?? dockId)}</span>` : ""}
+                    ${tabsMarkup}
+                </div>
+                <div class="totc-v2-stack__actions">
+                    <button type="button" data-action="close-panel" data-dock-id="${dockId}" data-stack-id="${stack.id}" data-panel-id="${activePanel?.id ?? ""}">Close</button>
+                    <button type="button" data-action="undock-panel" data-dock-id="${dockId}" data-stack-id="${stack.id}" data-panel-id="${activePanel?.id ?? ""}">Undock</button>
+                </div>
             </div>
             <div class="totc-v2-stack__content">${panelContent}</div>
         </article>`;

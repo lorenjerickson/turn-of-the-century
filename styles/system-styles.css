@@ -1389,17 +1389,28 @@ body.totc-v2-active #board {
     border-radius: 0;
     display: grid;
     gap: 0;
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: auto 1fr;
     min-height: 0;
     min-width: 0;
     padding: 0;
 }
 
-.turn-of-the-century .totc-v2-stack__actions {
+.turn-of-the-century .totc-v2-stack__header {
+    align-items: flex-end;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.24);
     display: flex;
+    gap: 0.35rem;
+    min-height: 34px;
+    padding: 0.2rem 0.35rem 0;
+}
+
+.turn-of-the-century .totc-v2-stack__actions {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
     gap: 0.3rem;
     justify-content: flex-end;
-    padding: 0.2rem 0.35rem 0.2rem;
+    padding: 0 0 0.2rem;
 }
 
 .turn-of-the-century .totc-v2-stack__actions button {
@@ -1430,15 +1441,15 @@ body.totc-v2-active #board {
 
 .turn-of-the-century .totc-v2-stack__tabs {
     align-items: flex-end;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.24);
     display: flex;
+    flex: 1 1 auto;
     flex-wrap: nowrap;
     overflow-x: auto;
     position: relative;
     min-height: 34px;
     gap: 0.3rem;
-    padding: 0.35rem 0.35rem 0;
-    padding-left: 0.45rem;
+    padding: 0 0.1rem 0;
+    padding-left: 0.1rem;
 }
 
 .turn-of-the-century .totc-v2-dock-label-inline {
