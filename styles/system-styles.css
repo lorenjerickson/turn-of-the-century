@@ -1457,14 +1457,15 @@ body.totc-v2-active #board {
 }
 
 .turn-of-the-century .totc-v2-stack__tab {
-    background: rgba(30, 41, 59, 0.9);
-    border: 1px solid rgba(100, 116, 139, 0.7);
-    border-bottom: none;
-    border-radius: 7px 7px 0 0;
+    appearance: none;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
     color: #cbd5e1;
     cursor: pointer;
     font-size: 0.74rem;
-    font-weight: 700;
+    font-weight: 500;
     padding: 0.3rem 0.55rem;
     position: relative;
     white-space: nowrap;
@@ -1472,9 +1473,9 @@ body.totc-v2-active #board {
 }
 
 .turn-of-the-century .totc-v2-stack__tab.is-active {
-    background: rgba(59, 130, 246, 0.26);
-    border-color: rgba(147, 197, 253, 0.95);
-    color: #eff6ff;
+    border-bottom-color: #f59e0b;
+    color: #f59e0b;
+    font-weight: 700;
     z-index: 1;
 }
 
