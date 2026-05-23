@@ -1304,7 +1304,7 @@ body.totc-v2-active #board {
     border: 1px solid rgba(148, 163, 184, 0.24);
     border-radius: 0;
     display: grid;
-    gap: 0;
+    gap: 4px;
     grid-template-areas:
         "left top right"
         "left center right"
@@ -1321,7 +1321,7 @@ body.totc-v2-active #board {
 
 .turn-of-the-century .totc-v2-dock {
     background: rgba(2, 6, 23, 0.42);
-    border: 1px solid rgba(148, 163, 184, 0.3);
+    border: 1px solid rgba(59, 130, 246, 0.75);
     border-radius: 0;
     display: grid;
     gap: 0;
@@ -1702,7 +1702,7 @@ body.totc-v2-active #board {
 }
 
 .turn-of-the-century .totc-v2-layout [data-action='dock-resizer'] {
-    background: rgba(59, 130, 246, 0.4);
+    background: transparent;
     position: absolute;
     z-index: 3;
 }
@@ -1711,7 +1711,7 @@ body.totc-v2-active #board {
 .turn-of-the-century .totc-v2-dock-resizer--right {
     bottom: 0;
     top: 0;
-    width: 3px;
+    width: 4px;
 }
 
 .turn-of-the-century .totc-v2-dock-resizer--left {
@@ -1726,7 +1726,7 @@ body.totc-v2-active #board {
 
 .turn-of-the-century .totc-v2-dock-resizer--top,
 .turn-of-the-century .totc-v2-dock-resizer--bottom {
-    height: 3px;
+    height: 4px;
     left: var(--totc-v2-center-left, 0%);
     right: var(--totc-v2-center-right, 0%);
 }
