@@ -1881,6 +1881,58 @@ body.totc-v2-active #board {
     }
 }
 
+/* Strong scrollbar overrides to ensure amber theme wins against core defaults. */
+.turn-of-the-century,
+.turn-of-the-century * {
+    scrollbar-color: rgba(253, 224, 140, 0.96) rgba(56, 39, 12, 0.42) !important;
+    scrollbar-width: thin;
+}
+
+.turn-of-the-century::-webkit-scrollbar,
+.turn-of-the-century *::-webkit-scrollbar {
+    height: 12px;
+    width: 12px;
+}
+
+.turn-of-the-century::-webkit-scrollbar-track,
+.turn-of-the-century *::-webkit-scrollbar-track,
+.turn-of-the-century::-webkit-scrollbar-corner,
+.turn-of-the-century *::-webkit-scrollbar-corner {
+    background: rgba(56, 39, 12, 0.42) !important;
+}
+
+.turn-of-the-century::-webkit-scrollbar-thumb,
+.turn-of-the-century *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(255, 238, 174, 0.98) 0%, rgba(253, 224, 140, 0.94) 100%) !important;
+    border: 2px solid rgba(56, 39, 12, 0.32) !important;
+    border-radius: 999px;
+}
+
+.turn-of-the-century::-webkit-scrollbar-thumb:hover,
+.turn-of-the-century *::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(255, 246, 201, 0.99) 0%, rgba(255, 238, 174, 0.96) 100%) !important;
+}
+
+.turn-of-the-century::-webkit-scrollbar-thumb:active,
+.turn-of-the-century *::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, rgba(255, 250, 220, 0.99) 0%, rgba(255, 241, 186, 0.97) 100%) !important;
+}
+
+.turn-of-the-century::-webkit-scrollbar-button,
+.turn-of-the-century *::-webkit-scrollbar-button,
+.turn-of-the-century::-webkit-scrollbar-button:single-button,
+.turn-of-the-century *::-webkit-scrollbar-button:single-button {
+    background-color: rgba(253, 224, 140, 0.82) !important;
+    border-radius: 6px;
+}
+
+.turn-of-the-century::-webkit-scrollbar-button:hover,
+.turn-of-the-century *::-webkit-scrollbar-button:hover,
+.turn-of-the-century::-webkit-scrollbar-button:single-button:hover,
+.turn-of-the-century *::-webkit-scrollbar-button:single-button:hover {
+    background-color: rgba(255, 238, 174, 0.92) !important;
+}
+
 .turn-of-the-century .totc-v2-gm-panel {
     display: flex;
     flex-direction: column;
