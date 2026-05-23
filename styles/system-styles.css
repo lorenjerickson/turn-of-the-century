@@ -1192,9 +1192,9 @@ body.totc-v2-active #board {
 }
 
 .turn-of-the-century .totc-workspace-v2-shell__emergency {
+    bottom: 0.85rem;
     position: absolute;
     right: 0.85rem;
-    top: 0.85rem;
     z-index: 20;
 }
 
@@ -1205,13 +1205,13 @@ body.totc-v2-active #board {
     box-shadow: 0 16px 30px rgba(15, 23, 42, 0.42);
     display: grid;
     gap: 0;
-    margin-top: 0.45rem;
+    margin-bottom: 0.45rem;
     min-width: 15rem;
     overflow: hidden;
     padding: 0.35rem;
     position: absolute;
     right: 0;
-    top: 100%;
+    bottom: 100%;
 }
 
 .turn-of-the-century .totc-v2-command-menu[hidden] {
