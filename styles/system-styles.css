@@ -14,17 +14,17 @@
 }
 
 .turn-of-the-century ::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, rgba(254, 226, 149, 0.96) 0%, rgba(252, 211, 120, 0.9) 100%);
+    background: linear-gradient(180deg, rgba(236, 183, 84, 0.62) 0%, rgba(217, 159, 46, 0.58) 100%);
     border: 2px solid rgba(56, 39, 12, 0.28);
     border-radius: 999px;
 }
 
 .turn-of-the-century ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, rgba(255, 238, 174, 0.98) 0%, rgba(253, 224, 140, 0.94) 100%);
+    background: linear-gradient(180deg, rgba(245, 203, 122, 0.68) 0%, rgba(230, 178, 73, 0.64) 100%);
 }
 
 .turn-of-the-century ::-webkit-scrollbar-thumb:active {
-    background: linear-gradient(180deg, rgba(255, 246, 201, 0.98) 0%, rgba(254, 226, 149, 0.95) 100%);
+    background: linear-gradient(180deg, rgba(252, 219, 153, 0.74) 0%, rgba(236, 190, 99, 0.7) 100%);
 }
 
 .turn-of-the-century ::-webkit-scrollbar-button {
@@ -1903,19 +1903,19 @@ body.totc-v2-active #board {
 
 .turn-of-the-century::-webkit-scrollbar-thumb,
 .turn-of-the-century *::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, rgba(255, 238, 174, 0.98) 0%, rgba(253, 224, 140, 0.94) 100%) !important;
+    background: linear-gradient(180deg, rgba(236, 183, 84, 0.62) 0%, rgba(217, 159, 46, 0.58) 100%) !important;
     border: 2px solid rgba(56, 39, 12, 0.32) !important;
     border-radius: 999px;
 }
 
 .turn-of-the-century::-webkit-scrollbar-thumb:hover,
 .turn-of-the-century *::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, rgba(255, 246, 201, 0.99) 0%, rgba(255, 238, 174, 0.96) 100%) !important;
+    background: linear-gradient(180deg, rgba(245, 203, 122, 0.68) 0%, rgba(230, 178, 73, 0.64) 100%) !important;
 }
 
 .turn-of-the-century::-webkit-scrollbar-thumb:active,
 .turn-of-the-century *::-webkit-scrollbar-thumb:active {
-    background: linear-gradient(180deg, rgba(255, 250, 220, 0.99) 0%, rgba(255, 241, 186, 0.97) 100%) !important;
+    background: linear-gradient(180deg, rgba(252, 219, 153, 0.74) 0%, rgba(236, 190, 99, 0.7) 100%) !important;
 }
 
 .turn-of-the-century::-webkit-scrollbar-button,
