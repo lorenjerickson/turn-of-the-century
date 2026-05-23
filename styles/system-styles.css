@@ -1401,6 +1401,7 @@ body.totc-v2-active #board {
     display: flex;
     gap: 0.35rem;
     min-height: 34px;
+    overflow: hidden;
     padding: 0.2rem 0.35rem 0;
 }
 
@@ -1444,7 +1445,8 @@ body.totc-v2-active #board {
     display: flex;
     flex: 1 1 auto;
     flex-wrap: nowrap;
-    overflow-x: auto;
+    min-width: 0;
+    overflow: hidden;
     position: relative;
     min-height: 34px;
     gap: 0.3rem;
@@ -1477,8 +1479,11 @@ body.totc-v2-active #board {
     cursor: pointer;
     font-size: 0.74rem;
     font-weight: 500;
+    max-width: 11rem;
+    overflow: hidden;
     padding: 0.3rem 0.55rem;
     position: relative;
+    text-overflow: ellipsis;
     white-space: nowrap;
     transform: translateY(1px);
 }
