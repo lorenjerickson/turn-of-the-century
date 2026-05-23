@@ -108,7 +108,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             debugGovernance: policy.debugGovernance,
             hasUserLayout: Boolean(this.stateStore?.getUserLayout?.()),
             panels: PANEL_LIBRARY,
-            availablePanels: PANEL_LIBRARY.filter((panel) => !visiblePanels.has(panel.id)),
+            panelVisibility: PANEL_LIBRARY.map((panel) => ({
+                id: panel.id,
+                title: panel.title,
+                visible: visiblePanels.has(panel.id)
+            })),
             layout: activeLayout,
             dockWeights: this.layoutEngine.getDockWeightLayout(),
             compendiumSearchQuery: this.compendiumSearchQuery,
@@ -143,25 +147,29 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const docksMarkup = WORKSPACE_V2_DOCK_IDS
             .map((dockId) => this.#renderDockMarkup(dockId, context.layout.root[dockId], context))
             .join("\n");
-        const availablePanelOptions = (context.availablePanels ?? []).map((panel) =>
-            `<option value="${panel.id}">${this.#escapeHTML(panel.title)}</option>`
-        ).join("");
-        const availablePanelMarkup = availablePanelOptions
-            ? `<div class="totc-v2-panel-picker">
-                <select data-action="select-hidden-panel" aria-label="Add hidden panel">
-                    ${availablePanelOptions}
-                </select>
-                <button type="button" data-action="add-hidden-panel">Add Panel</button>
-            </div>`
-            : "";
+        const panelToggleMarkup = (context.panelVisibility ?? []).map((panel) => `
+            <label class="totc-v2-command-menu__panel-toggle">
+                <input
+                    type="checkbox"
+                    data-action="toggle-panel-visibility"
+                    data-panel-id="${this.#escapeHTML(panel.id)}"
+                    ${panel.visible ? "checked" : ""}>
+                <span>${this.#escapeHTML(panel.title)}</span>
+            </label>`).join("");
 
         root.innerHTML = `
 <section class="totc-workspace-v2-shell">
-    ${availablePanelMarkup}
     <div class="totc-workspace-v2-shell__emergency">
-        <button type="button" class="totc-v2-emergency-button" data-action="totc-v2-exit-world" title="Exit world and return to Foundry setup" aria-label="Exit world and return to Foundry setup">
+        <button type="button" class="totc-v2-emergency-button" data-action="totc-v2-command-menu-toggle" title="Open workspace menu" aria-label="Open workspace menu" aria-expanded="false">
             <i class="fas fa-gear" aria-hidden="true"></i>
         </button>
+        <div class="totc-v2-command-menu" data-command-menu="true" hidden>
+            <button type="button" class="totc-v2-command-menu__item" data-action="totc-v2-exit-world">Return to Setup</button>
+            <div class="totc-v2-command-menu__divider" role="separator" aria-hidden="true"></div>
+            <section class="totc-v2-command-menu__panel-list" aria-label="Panels">
+                ${panelToggleMarkup}
+            </section>
+        </div>
     </div>
     <main class="totc-workspace-v2-shell__main">
         <section class="totc-v2-layout" data-layout-root="true" style="grid-template-columns:${columnTemplate};grid-template-rows:${rowTemplate};">
@@ -217,19 +225,45 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
-        this.element?.querySelectorAll("[data-action='add-hidden-panel']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+        this.element?.querySelectorAll("[data-action='totc-v2-command-menu-toggle']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                const menu = this.element?.querySelector("[data-command-menu='true']");
+                if (!menu) return;
 
-                const picker = this.element?.querySelector("[data-action='select-hidden-panel']");
-                const panelId = picker?.value;
+                const expanded = !menu.hidden;
+                menu.hidden = expanded;
+                button.setAttribute("aria-expanded", expanded ? "false" : "true");
+            });
+        });
+
+        this.element?.addEventListener("click", (event) => {
+            const menu = this.element?.querySelector("[data-command-menu='true']");
+            const toggleButton = this.element?.querySelector("[data-action='totc-v2-command-menu-toggle']");
+            if (!menu || menu.hidden) return;
+
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            if (menu.contains(target)) return;
+            if (toggleButton?.contains(target)) return;
+
+            menu.hidden = true;
+            toggleButton?.setAttribute("aria-expanded", "false");
+        });
+
+        this.element?.querySelectorAll("[data-action='toggle-panel-visibility']")?.forEach((checkbox) => {
+            checkbox.addEventListener("change", async (event) => {
+                event.stopPropagation();
+                const panelId = checkbox.dataset.panelId;
                 if (!panelId) return;
 
                 const panelDef = PANEL_LIBRARY.find((panel) => panel.id === panelId);
                 if (!panelDef) return;
 
-                const nextLayout = this.layoutEngine.restorePanel(panelDef);
+                const nextLayout = checkbox.checked
+                    ? this.layoutEngine.restorePanel(panelDef)
+                    : this.layoutEngine.closePanel(panelId);
                 await this.stateStore?.setUserLayout?.(nextLayout);
                 this.render(false);
             });
@@ -349,7 +383,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return `
         <section class="totc-v2-dock totc-v2-dock--${dockId} ${orientationClass}" data-dock-id="${dockId}">
             <div class="totc-v2-dock__stacks ${orientationClass}" data-dock-stacks="${dockId}">
-                ${stackItemsMarkup || "<div class='totc-v2-dock__empty'>Drop panel here</div>"}
+                ${stackItemsMarkup || `<div class='totc-v2-dock__empty' data-dock-drop-target='${dockId}'>Drop panel here</div>`}
             </div>
         </section>`;
     }
@@ -437,7 +471,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 class="totc-v2-floating"
                 data-floating-id="${floatingWindow.id}"
                 style="left:${floatingWindow.x}px;top:${floatingWindow.y}px;width:${floatingWindow.width}px;height:${floatingWindow.height}px;z-index:${floatingWindow.zIndex};">
-                <header class="totc-v2-floating__header" data-action="floating-move-handle" data-floating-id="${floatingWindow.id}" draggable="true" data-drag-panel-id="${floatingWindow.panel?.id ?? ""}">
+                <header class="totc-v2-floating__header" data-action="floating-move-handle" data-floating-id="${floatingWindow.id}">
                     <span>${title}</span>
                     <div class="totc-v2-floating__buttons">
                         <button type="button" data-action="redock-panel" data-floating-id="${floatingWindow.id}">Redock</button>
@@ -632,6 +666,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.#beginResizeSession({
                     type: "floating-move",
                     floatingId,
+                    panelDef: floatingWindow.panel ? { ...floatingWindow.panel } : null,
                     startX: event.clientX,
                     startY: event.clientY,
                     original: { x: floatingWindow.x, y: floatingWindow.y }
@@ -692,8 +727,24 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     async #onResizePointerUp() {
         document.removeEventListener("pointermove", this._onResizePointerMove);
+        const session = this._resizeSession;
         this._resizeSession = null;
+
+        if (session?.type === "floating-move" && session.panelDef?.id && session.panelDef?.title) {
+            const intent = this.interactionController.getIntent();
+            if (intent) {
+                const droppedLayout = this.layoutEngine.applyDropIntent(session.panelDef, intent);
+                await this.stateStore?.setUserLayout?.(droppedLayout);
+                this.interactionController.clearIntent();
+                this.#hideGhost();
+                this.render(false);
+                return;
+            }
+        }
+
         await this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
+        this.interactionController.clearIntent();
+        this.#hideGhost();
         this.render(false);
     }
 
@@ -781,6 +832,33 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this._resizeSession.accumulatedDeltaY = accumulatedY - appliedDeltaY;
                 void this.stateStore?.setUserLayout?.(nextLayout);
                 this.#syncFloatingElementStyle(this._resizeSession.floatingId, nextLayout.root.floatingWindows.find((entry) => entry.id === this._resizeSession.floatingId));
+            }
+
+            const host = this.element?.querySelector("[data-layout-root='true']");
+            const rootBounds = host?.getBoundingClientRect();
+            const pointerInsideRoot = Boolean(rootBounds)
+                && event.clientX >= rootBounds.left
+                && event.clientX <= rootBounds.right
+                && event.clientY >= rootBounds.top
+                && event.clientY <= rootBounds.bottom;
+
+            if (host && pointerInsideRoot) {
+                const stackElements = [...host.querySelectorAll("[data-stack-id]")];
+                const intent = this.interactionController.computeIntent({
+                    event,
+                    rootElement: host,
+                    stackElements
+                });
+                if (intent) {
+                    const ghostRect = this.interactionController.computeGhostRect({ intent, rootElement: host });
+                    this.#showGhost(ghostRect, intent.label);
+                } else {
+                    this.interactionController.clearIntent();
+                    this.#hideGhost();
+                }
+            } else {
+                this.interactionController.clearIntent();
+                this.#hideGhost();
             }
             return;
         }
