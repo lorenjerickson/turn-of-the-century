@@ -1,7 +1,7 @@
 import { WORKSPACE_V2_DOCK_IDS, WORKSPACE_V2_FLAG_SCOPE } from "./constants.mjs";
 import { InteractionController } from "./interaction-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
-import { buildEncounterPlanner } from "../encounters/planner-context.mjs";
+import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
 
 function getApplicationV2BaseClass() {
     return foundry?.applications?.api?.ApplicationV2 ?? null;
