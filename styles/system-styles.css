@@ -1881,6 +1881,25 @@ body.totc-v2-active #board {
     }
 }
 
+/* Lists should size to content and never stretch rows to fill panel height. */
+.turn-of-the-century [role="list"],
+.turn-of-the-century .totc-v2-command-menu__panel-list,
+.turn-of-the-century .totc-v2-compendium-panel__list,
+.turn-of-the-century .totc-v2-market-panel__list,
+.turn-of-the-century .totc-pack-items {
+    align-content: start;
+    align-items: start;
+}
+
+.turn-of-the-century [role="list"] > *,
+.turn-of-the-century .totc-v2-command-menu__panel-list > *,
+.turn-of-the-century .totc-v2-compendium-panel__list > *,
+.turn-of-the-century .totc-v2-market-panel__list > *,
+.turn-of-the-century .totc-pack-items > * {
+    align-self: start;
+    height: auto;
+}
+
 /* Strong scrollbar overrides to ensure amber theme wins against core defaults. */
 .turn-of-the-century,
 .turn-of-the-century * {
