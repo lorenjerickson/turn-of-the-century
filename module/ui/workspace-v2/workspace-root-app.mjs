@@ -1,4 +1,4 @@
-import { WORKSPACE_V2_DOCK_IDS } from "./constants.mjs";
+import { WORKSPACE_V2_DOCK_IDS, WORKSPACE_V2_FLAG_SCOPE } from "./constants.mjs";
 import { InteractionController } from "./interaction-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
 
@@ -32,6 +32,251 @@ const MIN_FLOAT_WIDTH = 240;
 const MIN_FLOAT_HEIGHT = 160;
 const MIN_TOP_BOTTOM_DOCK_HEIGHT = 128;
 const MIN_LEFT_RIGHT_DOCK_WIDTH = 240;
+const GM_PANEL_STATE_KEY = "gmPanelState";
+
+const GM_PANEL_DEFAULT_STATE = Object.freeze({
+    collapsedGroupIds: [],
+    actionSearchQuery: "",
+    allActionsExpanded: false
+});
+
+const GM_ACTION_MODELS = Object.freeze([
+    {
+        id: "gm-start-encounter",
+        label: "Start Encounter",
+        description: "Start a new encounter from the current scene context.",
+        groupId: "encounter-control",
+        keywords: ["combat", "encounter", "initiative", "start"],
+        isRelevant: (snapshot) => !snapshot.hasActiveCombat
+    },
+    {
+        id: "gm-open-combat-tracker",
+        label: "Open Combat Tracker",
+        description: "Open the combat tracker popout for detailed round control.",
+        groupId: "encounter-control",
+        keywords: ["combat", "tracker", "initiative", "round"],
+        isRelevant: (snapshot) => snapshot.hasActiveCombat
+    },
+    {
+        id: "gm-next-turn",
+        label: "Advance Turn",
+        description: "Advance to the next combat turn.",
+        groupId: "encounter-control",
+        keywords: ["combat", "turn", "next", "round"],
+        isRelevant: (snapshot) => snapshot.hasActiveCombat
+    },
+    {
+        id: "gm-end-combat",
+        label: "End Encounter",
+        description: "End and clear the active encounter.",
+        groupId: "encounter-control",
+        keywords: ["combat", "encounter", "end", "stop"],
+        isRelevant: (snapshot) => snapshot.hasActiveCombat
+    },
+    {
+        id: "gm-toggle-pause",
+        label: "Toggle Pause",
+        description: "Pause or resume the world clock and actions.",
+        groupId: "scene-flow",
+        keywords: ["pause", "resume", "world", "time"],
+        isRelevant: () => true
+    },
+    {
+        id: "gm-focus-controlled",
+        label: "Focus Controlled Tokens",
+        description: "Center the view on currently controlled tokens.",
+        groupId: "selection-tools",
+        keywords: ["token", "selection", "focus", "camera"],
+        isRelevant: (snapshot) => snapshot.controlledCount > 0
+    },
+    {
+        id: "gm-clear-selection",
+        label: "Clear Token Selection",
+        description: "Release all currently controlled tokens.",
+        groupId: "selection-tools",
+        keywords: ["token", "selection", "clear"],
+        isRelevant: (snapshot) => snapshot.controlledCount > 0
+    },
+    {
+        id: "gm-roll-camp-event",
+        label: "Roll Travel Event",
+        description: "Generate a context-aware camp/travel event.",
+        groupId: "travel-generators",
+        keywords: ["travel", "camp", "event", "roll"],
+        isRelevant: (snapshot) => !snapshot.hasActiveCombat
+    },
+    {
+        id: "gm-generate-town",
+        label: "Generate Town Hook",
+        description: "Create a fast narrative hook for a nearby settlement.",
+        groupId: "travel-generators",
+        keywords: ["town", "generator", "travel", "hook"],
+        isRelevant: (snapshot) => !snapshot.hasActiveCombat
+    },
+    {
+        id: "gm-generate-market",
+        label: "Generate Market Hook",
+        description: "Create a market opportunity hook for the current journey.",
+        groupId: "travel-generators",
+        keywords: ["market", "generator", "travel", "hook"],
+        isRelevant: (snapshot) => !snapshot.hasActiveCombat
+    },
+    {
+        id: "gm-generate-mob",
+        label: "Generate Mob Hook",
+        description: "Create a crowd or mob complication hook.",
+        groupId: "travel-generators",
+        keywords: ["mob", "crowd", "generator", "hook"],
+        isRelevant: (snapshot) => !snapshot.hasActiveCombat
+    },
+    {
+        id: "gm-generate-poi",
+        label: "Generate Point of Interest",
+        description: "Create a point-of-interest hook for the current route.",
+        groupId: "travel-generators",
+        keywords: ["poi", "location", "generator", "travel"],
+        isRelevant: (snapshot) => !snapshot.hasActiveCombat
+    },
+    {
+        id: "gm-atmosphere-clear-weather",
+        label: "Set Atmosphere: Clear",
+        description: "Set a clear-weather atmosphere cue for narration.",
+        groupId: "atmosphere",
+        keywords: ["atmosphere", "weather", "audio", "visual"],
+        isRelevant: () => true
+    },
+    {
+        id: "gm-atmosphere-storm",
+        label: "Set Atmosphere: Storm",
+        description: "Set a storm atmosphere cue for narration.",
+        groupId: "atmosphere",
+        keywords: ["atmosphere", "weather", "audio", "visual", "storm"],
+        isRelevant: () => true
+    }
+]);
+
+const GM_GROUP_MODELS = Object.freeze([
+    {
+        id: "encounter-control",
+        title: "Encounter Control",
+        description: "Run or close encounters based on current combat state.",
+        basePriority: 90,
+        isRelevant: (snapshot) => snapshot.hasActiveCombat || !snapshot.hasActiveCombat
+    },
+    {
+        id: "scene-flow",
+        title: "Scene and Flow",
+        description: "World timing and pacing controls.",
+        basePriority: 60,
+        isRelevant: () => true
+    },
+    {
+        id: "selection-tools",
+        title: "Selection Tools",
+        description: "Token-focused controls for current selection.",
+        basePriority: 50,
+        isRelevant: (snapshot) => snapshot.controlledCount > 0
+    },
+    {
+        id: "travel-generators",
+        title: "Travel Generators",
+        description: "Generate narrative travel hooks for towns, markets, mobs, and POIs.",
+        basePriority: 45,
+        isRelevant: (snapshot) => !snapshot.hasActiveCombat
+    },
+    {
+        id: "atmosphere",
+        title: "Audio and Visual Atmosphere",
+        description: "Quick atmosphere cues for scene tone.",
+        basePriority: 35,
+        isRelevant: () => true
+    }
+]);
+
+function normalizeGamemasterPanelState(value = {}) {
+    const collapsedGroupIds = Array.isArray(value?.collapsedGroupIds)
+        ? [...new Set(value.collapsedGroupIds.map((entry) => String(entry ?? "").trim()).filter(Boolean))]
+        : [...GM_PANEL_DEFAULT_STATE.collapsedGroupIds];
+
+    return {
+        collapsedGroupIds,
+        actionSearchQuery: String(value?.actionSearchQuery ?? GM_PANEL_DEFAULT_STATE.actionSearchQuery),
+        allActionsExpanded: Boolean(value?.allActionsExpanded ?? GM_PANEL_DEFAULT_STATE.allActionsExpanded)
+    };
+}
+
+function buildGamemasterContextSnapshot({ scene = null, combat = null, controlledTokens = [] } = {}) {
+    return {
+        isGM: Boolean(game.user?.isGM),
+        paused: Boolean(game.paused),
+        worldTime: Number(game.time?.worldTime ?? 0),
+        sceneName: scene?.name ?? game.scenes?.viewed?.name ?? "No active scene",
+        sceneId: scene?.id ?? game.scenes?.viewed?.id ?? null,
+        hasActiveCombat: Boolean(combat),
+        combat: combat
+            ? {
+                id: combat.id ?? null,
+                started: Boolean(combat.started),
+                round: Number(combat.round ?? 0),
+                turn: Number(combat.turn ?? 0),
+                phase: String(combat.phase ?? "planning"),
+                combatantCount: combat.combatants?.size ?? combat.combatants?.contents?.length ?? 0
+            }
+            : null,
+        controlledCount: controlledTokens.length,
+        controlledNames: controlledTokens.map((token) => token?.name).filter(Boolean)
+    };
+}
+
+function scoreGamemasterGroup(group, snapshot, actions = []) {
+    let score = Number(group.basePriority) || 0;
+    if (group.id === "encounter-control" && snapshot.hasActiveCombat) score += 25;
+    if (group.id === "selection-tools") score += Math.min(15, snapshot.controlledCount * 5);
+    if (group.id === "travel-generators" && !snapshot.hasActiveCombat) score += 15;
+    score += Math.min(10, actions.length * 2);
+    return score;
+}
+
+function buildGamemasterPanelModel({ snapshot, panelState }) {
+    const collapsedSet = new Set(panelState.collapsedGroupIds ?? []);
+    const actions = GM_ACTION_MODELS.map((action) => ({
+        ...action,
+        relevant: action.isRelevant?.(snapshot) ?? true
+    }));
+
+    const groups = GM_GROUP_MODELS
+        .map((group) => {
+            const groupActions = actions.filter((action) => action.groupId === group.id && action.relevant);
+            const relevant = (group.isRelevant?.(snapshot) ?? true) && groupActions.length > 0;
+            const priorityScore = scoreGamemasterGroup(group, snapshot, groupActions);
+            return {
+                ...group,
+                actions: groupActions,
+                relevant,
+                collapsed: collapsedSet.has(group.id),
+                priorityScore
+            };
+        })
+        .filter((group) => group.relevant)
+        .sort((left, right) => right.priorityScore - left.priorityScore);
+
+    const searchQuery = String(panelState.actionSearchQuery ?? "").trim().toLowerCase();
+    const allActions = actions
+        .filter((action) => {
+            if (!searchQuery) return true;
+            const haystack = `${action.label} ${action.description} ${(action.keywords ?? []).join(" ")}`.toLowerCase();
+            return haystack.includes(searchQuery);
+        })
+        .sort((left, right) => String(left.label).localeCompare(String(right.label), undefined, { sensitivity: "base" }));
+
+    return {
+        groups,
+        allActions,
+        allActionsExpanded: Boolean(panelState.allActionsExpanded),
+        actionSearchQuery: panelState.actionSearchQuery,
+        totalActionCount: actions.length
+    };
+}
 
 export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     static get isSupported() {
@@ -100,8 +345,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             if (!pack) return;
             this._compendiumRefreshHandler();
         };
+        this._gamemasterRefreshHandler = () => {
+            if (this.rendered) {
+                this.render(false);
+            }
+        };
         this._sceneHooksBound = false;
         this._compendiumHooksBound = false;
+        this._gamemasterHooksBound = false;
     }
 
     async _prepareContext() {
@@ -117,6 +368,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const scene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
         const combat = game.combats?.active ?? game.combat ?? null;
         const controlledTokens = canvas?.tokens?.controlled ?? [];
+        const gmPanelState = this.#getGamemasterPanelState();
+        const gmSnapshot = buildGamemasterContextSnapshot({ scene, combat, controlledTokens });
+        const gmPanel = buildGamemasterPanelModel({
+            snapshot: gmSnapshot,
+            panelState: gmPanelState
+        });
         const compendiumItems = await this.#getUnifiedCompendiumItems();
 
         return {
@@ -140,24 +397,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 width: Number(scene?.width ?? canvas?.dimensions?.sceneWidth ?? 0),
                 height: Number(scene?.height ?? canvas?.dimensions?.sceneHeight ?? 0)
             },
-            gm: {
-                isGM: Boolean(game.user?.isGM),
-                paused: Boolean(game.paused),
-                worldTime: Number(game.time?.worldTime ?? 0),
-                sceneName: scene?.name ?? game.scenes?.viewed?.name ?? "No active scene",
-                controlledCount: controlledTokens.length,
-                controlledNames: controlledTokens.map((token) => token?.name).filter(Boolean),
-                combat: combat
-                    ? {
-                        id: combat.id ?? null,
-                        started: Boolean(combat.started),
-                        round: Number(combat.round ?? 0),
-                        turn: Number(combat.turn ?? 0),
-                        phase: String(combat.phase ?? "planning"),
-                        combatantCount: combat.combatants?.size ?? combat.combatants?.contents?.length ?? 0
-                    }
-                    : null
-            }
+            gm: gmSnapshot,
+            gmPanel
         };
     }
 
@@ -227,6 +468,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         await super._onRender(context, options);
         this.#bindSceneHooks();
         this.#bindCompendiumHooks();
+        this.#bindGamemasterHooks();
 
         this.element?.querySelectorAll("[data-action='totc-v2-exit-world']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
@@ -390,60 +632,48 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
-        this.element?.querySelectorAll("[data-action='gm-toggle-pause']")?.forEach((button) => {
+        this.element?.querySelectorAll("[data-action='gm-execute-action']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                if (!game.user?.isGM) {
-                    ui.notifications?.warn("Only a GM can pause or resume the world.");
-                    return;
-                }
+                const actionId = button.dataset.gmActionId;
+                if (!actionId) return;
+                await this.#executeGamemasterAction(actionId);
+            });
+        });
 
-                await game.togglePause?.(!game.paused, true);
+        this.element?.querySelectorAll("[data-action='gm-toggle-group']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const groupId = button.dataset.gmGroupId;
+                if (!groupId) return;
+
+                const current = this.#getGamemasterPanelState();
+                const collapsed = new Set(current.collapsedGroupIds ?? []);
+                if (collapsed.has(groupId)) {
+                    collapsed.delete(groupId);
+                } else {
+                    collapsed.add(groupId);
+                }
+                await this.#setGamemasterPanelStatePatch({ collapsedGroupIds: [...collapsed] });
                 this.render(false);
             });
         });
 
-        this.element?.querySelectorAll("[data-action='gm-open-combat-tracker']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (typeof ui.combat?.renderPopout === "function") {
-                    ui.combat.renderPopout(true);
-                    return;
-                }
-                ui.combat?.render?.(true);
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='gm-next-turn']")?.forEach((button) => {
+        this.element?.querySelectorAll("[data-action='gm-toggle-all-actions']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                if (!game.user?.isGM) {
-                    ui.notifications?.warn("Only a GM can advance combat turns.");
-                    return;
-                }
-
-                const combat = game.combats?.active ?? game.combat ?? null;
-                if (!combat) return;
-                await combat.nextTurn?.();
+                const current = this.#getGamemasterPanelState();
+                await this.#setGamemasterPanelStatePatch({ allActionsExpanded: !current.allActionsExpanded });
                 this.render(false);
             });
         });
 
-        this.element?.querySelectorAll("[data-action='gm-end-combat']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (!game.user?.isGM) {
-                    ui.notifications?.warn("Only a GM can end combat.");
-                    return;
-                }
-
-                const combat = game.combats?.active ?? game.combat ?? null;
-                if (!combat) return;
-                await combat.delete?.();
+        this.element?.querySelectorAll("[data-action='gm-search-actions']")?.forEach((input) => {
+            input.addEventListener("input", async () => {
+                await this.#setGamemasterPanelStatePatch({ actionSearchQuery: String(input.value ?? "") });
                 this.render(false);
             });
         });
@@ -457,6 +687,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async close(options = {}) {
         this.#unbindSceneHooks();
         this.#unbindCompendiumHooks();
+        this.#unbindGamemasterHooks();
         this.#endMapPanSession();
         return await super.close?.(options);
     }
@@ -633,8 +864,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }
 
         if (panel.id === "gamemaster") {
-            const gm = context.gm ?? {};
-            if (!gm.isGM) {
+            if (!context.gm?.isGM) {
                 return `
                 <section class="totc-v2-gm-panel">
                     <div class="totc-v2-gm-panel__state">
@@ -644,33 +874,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 </section>`;
             }
 
-            const combat = gm.combat;
-            const combatSummary = combat
-                ? `${combat.combatantCount} combatant${combat.combatantCount === 1 ? "" : "s"} · Round ${Math.max(1, combat.round || 1)} · Turn ${Math.max(1, (combat.turn ?? 0) + 1)}`
-                : "No active combat";
-            const controlledSummary = gm.controlledCount
-                ? gm.controlledNames.slice(0, 3).join(", ")
-                : "No controlled tokens";
-
-            return `
-            <section class="totc-v2-gm-panel">
-                <article class="totc-v2-gm-panel__state">
-                    <h3>Current Context</h3>
-                    <p><strong>Scene:</strong> ${this.#escapeHTML(gm.sceneName ?? "No active scene")}</p>
-                    <p><strong>World:</strong> ${gm.paused ? "Paused" : "Running"}</p>
-                    <p><strong>Combat:</strong> ${this.#escapeHTML(combatSummary)}</p>
-                    <p><strong>Selection:</strong> ${this.#escapeHTML(controlledSummary)}</p>
-                </article>
-                <article class="totc-v2-gm-panel__actions">
-                    <h3>Relevant Actions</h3>
-                    <div class="totc-v2-gm-panel__button-grid">
-                        <button type="button" data-action="gm-toggle-pause">${gm.paused ? "Resume World" : "Pause World"}</button>
-                        <button type="button" data-action="gm-open-combat-tracker">Open Combat Tracker</button>
-                        ${combat ? `<button type="button" data-action="gm-next-turn">Advance Turn</button>` : ""}
-                        ${combat ? `<button type="button" data-action="gm-end-combat">End Combat</button>` : ""}
-                    </div>
-                </article>
-            </section>`;
+            return this.#renderGamemasterPanel(context.gmPanel, context.gm);
         }
 
         return `<div class="totc-v2-panel-placeholder">${this.#escapeHTML(panel.title)}</div>`;
@@ -740,6 +944,185 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         Hooks.off("updateItem", this._compendiumDocumentMutationHandler);
         Hooks.off("deleteItem", this._compendiumDocumentMutationHandler);
         this._compendiumHooksBound = false;
+    }
+
+    #bindGamemasterHooks() {
+        if (this._gamemasterHooksBound) return;
+        Hooks.on("createCombat", this._gamemasterRefreshHandler);
+        Hooks.on("deleteCombat", this._gamemasterRefreshHandler);
+        Hooks.on("updateCombat", this._gamemasterRefreshHandler);
+        Hooks.on("controlToken", this._gamemasterRefreshHandler);
+        Hooks.on("pauseGame", this._gamemasterRefreshHandler);
+        this._gamemasterHooksBound = true;
+    }
+
+    #unbindGamemasterHooks() {
+        if (!this._gamemasterHooksBound) return;
+        Hooks.off("createCombat", this._gamemasterRefreshHandler);
+        Hooks.off("deleteCombat", this._gamemasterRefreshHandler);
+        Hooks.off("updateCombat", this._gamemasterRefreshHandler);
+        Hooks.off("controlToken", this._gamemasterRefreshHandler);
+        Hooks.off("pauseGame", this._gamemasterRefreshHandler);
+        this._gamemasterHooksBound = false;
+    }
+
+    #getGamemasterPanelState() {
+        const workspaceFlags = foundry.utils.deepClone(game.user?.getFlag(game.system?.id, WORKSPACE_V2_FLAG_SCOPE) ?? {});
+        return normalizeGamemasterPanelState(workspaceFlags[GM_PANEL_STATE_KEY] ?? {});
+    }
+
+    async #setGamemasterPanelStatePatch(patch = {}) {
+        const systemId = game.system?.id;
+        const current = foundry.utils.deepClone(game.user?.getFlag(systemId, WORKSPACE_V2_FLAG_SCOPE) ?? {});
+        const merged = normalizeGamemasterPanelState({
+            ...(current[GM_PANEL_STATE_KEY] ?? {}),
+            ...patch
+        });
+        current[GM_PANEL_STATE_KEY] = merged;
+        await game.user?.setFlag(systemId, WORKSPACE_V2_FLAG_SCOPE, current);
+        return merged;
+    }
+
+    #renderGamemasterPanel(gmPanel = {}, gmSnapshot = {}) {
+        const combat = gmSnapshot.combat;
+        const combatSummary = combat
+            ? `${combat.combatantCount} combatant${combat.combatantCount === 1 ? "" : "s"} · Round ${Math.max(1, combat.round || 1)} · Turn ${Math.max(1, (combat.turn ?? 0) + 1)}`
+            : "No active combat";
+        const controlledSummary = gmSnapshot.controlledCount
+            ? gmSnapshot.controlledNames.slice(0, 3).join(", ")
+            : "No controlled tokens";
+
+        const groupsMarkup = (gmPanel.groups ?? []).map((group) => {
+            const actionsMarkup = (group.actions ?? []).map((action) => `
+                <button type="button" data-action="gm-execute-action" data-gm-action-id="${this.#escapeHTML(action.id)}" title="${this.#escapeHTML(action.description)}">${this.#escapeHTML(action.label)}</button>`).join("");
+
+            return `
+            <article class="totc-v2-gm-panel__group ${group.collapsed ? "is-collapsed" : ""}">
+                <button type="button" class="totc-v2-gm-panel__group-header" data-action="gm-toggle-group" data-gm-group-id="${this.#escapeHTML(group.id)}" aria-expanded="${group.collapsed ? "false" : "true"}">
+                    <span>${this.#escapeHTML(group.title)}</span>
+                    <span class="totc-v2-gm-panel__group-meta">${group.collapsed ? "+" : "-"}</span>
+                </button>
+                <div class="totc-v2-gm-panel__group-description">${this.#escapeHTML(group.description)}</div>
+                <div class="totc-v2-gm-panel__button-grid" ${group.collapsed ? "hidden" : ""}>
+                    ${actionsMarkup}
+                </div>
+            </article>`;
+        }).join("");
+
+        const allActionsMarkup = (gmPanel.allActions ?? []).map((action) => `
+            <button type="button" data-action="gm-execute-action" data-gm-action-id="${this.#escapeHTML(action.id)}" title="${this.#escapeHTML(action.description)}">${this.#escapeHTML(action.label)}</button>`).join("");
+
+        return `
+        <section class="totc-v2-gm-panel">
+            <article class="totc-v2-gm-panel__state">
+                <h3>Current Context</h3>
+                <p><strong>Scene:</strong> ${this.#escapeHTML(gmSnapshot.sceneName ?? "No active scene")}</p>
+                <p><strong>World:</strong> ${gmSnapshot.paused ? "Paused" : "Running"}</p>
+                <p><strong>Combat:</strong> ${this.#escapeHTML(combatSummary)}</p>
+                <p><strong>Selection:</strong> ${this.#escapeHTML(controlledSummary)}</p>
+            </article>
+            <section class="totc-v2-gm-panel__groups">
+                ${groupsMarkup || `<div class="totc-v2-gm-panel__empty">No context groups are active right now.</div>`}
+            </section>
+            <article class="totc-v2-gm-panel__all-actions ${gmPanel.allActionsExpanded ? "is-expanded" : ""}">
+                <button type="button" class="totc-v2-gm-panel__group-header" data-action="gm-toggle-all-actions" aria-expanded="${gmPanel.allActionsExpanded ? "true" : "false"}">
+                    <span>All GM Actions</span>
+                    <span class="totc-v2-gm-panel__group-meta">${gmPanel.allActionsExpanded ? "-" : "+"}</span>
+                </button>
+                <div class="totc-v2-gm-panel__all-actions-body" ${gmPanel.allActionsExpanded ? "" : "hidden"}>
+                    <label class="totc-v2-gm-panel__search">
+                        <span>Search actions</span>
+                        <input type="search" data-action="gm-search-actions" value="${this.#escapeHTML(gmPanel.actionSearchQuery ?? "")}" placeholder="Filter by label, description, or keyword">
+                    </label>
+                    <div class="totc-v2-gm-panel__all-actions-meta">${(gmPanel.allActions ?? []).length} of ${Number(gmPanel.totalActionCount ?? 0)} actions</div>
+                    <div class="totc-v2-gm-panel__button-grid">
+                        ${allActionsMarkup || `<div class="totc-v2-gm-panel__empty">No actions match this search.</div>`}
+                    </div>
+                </div>
+            </article>
+        </section>`;
+    }
+
+    async #executeGamemasterAction(actionId) {
+        if (!game.user?.isGM) {
+            ui.notifications?.warn("Only the GM can run Gamemaster actions.");
+            return;
+        }
+
+        const combat = game.combats?.active ?? game.combat ?? null;
+
+        switch (String(actionId)) {
+            case "gm-toggle-pause": {
+                await game.togglePause?.(!game.paused, true);
+                break;
+            }
+            case "gm-open-combat-tracker": {
+                if (typeof ui.combat?.renderPopout === "function") {
+                    ui.combat.renderPopout(true);
+                } else {
+                    ui.combat?.render?.(true);
+                }
+                break;
+            }
+            case "gm-start-encounter": {
+                let activeCombat = combat;
+                if (!activeCombat && canvas?.scene?.id && typeof Combat?.create === "function") {
+                    activeCombat = await Combat.create({ scene: canvas.scene.id });
+                }
+                if (activeCombat?.initializeEncounterRound) {
+                    await activeCombat.initializeEncounterRound();
+                }
+                break;
+            }
+            case "gm-next-turn": {
+                if (!combat) break;
+                await combat.nextTurn?.();
+                break;
+            }
+            case "gm-end-combat": {
+                if (!combat) break;
+                await combat.delete?.();
+                break;
+            }
+            case "gm-focus-controlled": {
+                const controlled = canvas?.tokens?.controlled ?? [];
+                if (!controlled.length) break;
+                const anchor = controlled[0];
+                await canvas?.animatePan?.({ x: anchor.center?.x ?? anchor.x, y: anchor.center?.y ?? anchor.y, scale: canvas.stage?.scale?.x ?? 1 });
+                break;
+            }
+            case "gm-clear-selection": {
+                const controlled = canvas?.tokens?.controlled ?? [];
+                for (const token of controlled) {
+                    token.release?.();
+                }
+                break;
+            }
+            case "gm-roll-camp-event": {
+                const eventResult = game.turnOfTheCentury?.campEvents?.rollEvent?.({});
+                if (eventResult?.name) {
+                    ui.notifications?.info(`Travel event: ${eventResult.name}`);
+                } else {
+                    ui.notifications?.info("Travel event roll executed.");
+                }
+                break;
+            }
+            case "gm-generate-town":
+            case "gm-generate-market":
+            case "gm-generate-mob":
+            case "gm-generate-poi":
+            case "gm-atmosphere-clear-weather":
+            case "gm-atmosphere-storm": {
+                const action = GM_ACTION_MODELS.find((entry) => entry.id === actionId);
+                ui.notifications?.info(action?.description ?? "Action executed.");
+                break;
+            }
+            default:
+                ui.notifications?.warn(`Unknown Gamemaster action: ${actionId}`);
+                break;
+        }
+
+        this.render(false);
     }
 
     #wireMapInteractionHandlers() {
