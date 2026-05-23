@@ -615,7 +615,48 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._playerHooksBound = false;
     }
 
-    async _prepareContext() {
+    /**
+     * Track which section/group IDs are newly revealed for a given panel.
+     * Returns an array of IDs that are visible now but were not visible last render.
+     */
+    #trackPanelSectionHighlights(panelKey, visibleIds) {
+        if (!this._panelSectionSnapshots) this._panelSectionSnapshots = {};
+        const prev = this._panelSectionSnapshots[panelKey] || new Set();
+        const now = new Set(visibleIds);
+        const revealed = visibleIds.filter((id) => !prev.has(id));
+        this._panelSectionSnapshots[panelKey] = now;
+        return revealed;
+    }
+
+    /**
+     * Render a list of collapsible sections/groups with highlight-on-reveal.
+     * Accepts: sections [{id, title, summary, collapsed, highlighted, ...}],
+     *          opts: { panelId, toggleAction, sectionClass, headerClass, bodyClass, sectionType }
+     */
+    #renderCollapsibleSections(sections, opts = {}) {
+        const {
+            panelId = "panel",
+            toggleAction = "toggle-section",
+            sectionClass = "totc-v2-shared-panel__section",
+            headerClass = "totc-v2-shared-panel__section-header",
+            bodyClass = "totc-v2-shared-panel__section-body",
+            sectionType = "section"
+        } = opts;
+        return (sections ?? []).map((section) => {
+            const collapsed = Boolean(section.collapsed);
+            const revealClass = section.highlighted ? "is-revealed" : "";
+            return `
+            <article class="${sectionClass} ${collapsed ? "is-collapsed" : ""} ${revealClass}" data-${panelId}-${sectionType}-id="${this.#escapeHTML(section.id)}">
+                <button type="button" class="${headerClass}" data-action="${toggleAction}" data-${sectionType}-id="${this.#escapeHTML(section.id)}" aria-expanded="${collapsed ? "false" : "true"}">
+                    <span>${this.#escapeHTML(section.title)}</span>
+                    <span class="${sectionClass}-meta">${this.#escapeHTML(section.summary ?? "")}</span>
+                </button>
+                <div class="${bodyClass}" ${collapsed ? "hidden" : ""}>
+                    ${section.body ?? ""}
+                </div>
+            </article>`;
+        }).join("");
+    }
         const policy = this.stateStore?.getPolicy?.() ?? { enabled: false, debugGovernance: false };
         const userLayout = this.stateStore?.getUserLayout?.() ?? this.layoutEngine.getLayout();
         this.layoutEngine.setLayout(userLayout);
@@ -653,6 +694,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (selectedPlayerActor?.id && selectedPlayerActor.id !== playerPanelState.selectedActorId) {
             await this.#setPlayerPanelStatePatch({ selectedActorId: selectedPlayerActor.id });
         }
+        // Player panel highlight tracking
         const playerPanel = buildPlayerPanelModel({
             actor: selectedPlayerActor,
             combat,
@@ -661,18 +703,24 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             highlightedSectionIds: []
         });
         const playerVisibleSectionIds = playerPanel.sections.map((section) => section.id);
-        const visibleSectionSet = new Set(playerVisibleSectionIds);
-        const highlightedSectionIds = this._playerPanelSectionSnapshotInitialized
-            ? playerVisibleSectionIds.filter((sectionId) => !this._playerPanelVisibleSectionIds.has(sectionId))
-            : [];
-        this._playerPanelVisibleSectionIds = visibleSectionSet;
-        this._playerPanelSectionSnapshotInitialized = true;
+        const playerHighlightedSectionIds = this.#trackPanelSectionHighlights("player", playerVisibleSectionIds);
         const highlightedPlayerPanel = {
             ...playerPanel,
             sections: playerPanel.sections.map((section) => ({
                 ...section,
-                highlighted: highlightedSectionIds.includes(section.id)
+                highlighted: playerHighlightedSectionIds.includes(section.id)
             }))
+        };
+
+        // GM panel highlight tracking (groups)
+        const gmVisibleGroupIds = gmPanel.groups?.map((g) => g.id) ?? [];
+        const gmHighlightedGroupIds = this.#trackPanelSectionHighlights("gm", gmVisibleGroupIds);
+        const highlightedGmPanel = {
+            ...gmPanel,
+            groups: gmPanel.groups?.map((group) => ({
+                ...group,
+                highlighted: gmHighlightedGroupIds.includes(group.id)
+            })) ?? [],
         };
 
         return {
@@ -697,7 +745,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 height: Number(scene?.height ?? canvas?.dimensions?.sceneHeight ?? 0)
             },
             gm: gmSnapshot,
-            gmPanel,
+            gmPanel: highlightedGmPanel,
             marketPanel,
             playerPanel: highlightedPlayerPanel
         };
@@ -1338,7 +1386,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             </section>`;
         }
 
-        const sectionsMarkup = (playerPanel.sections ?? []).map((section) => this.#renderPlayerSection(section, playerPanel)).join("");
+        // Prepare section bodies for shared renderer
+        const sectionsWithBody = (playerPanel.sections ?? []).map((section) => ({
+            ...section,
+            body: this.#renderPlayerSectionBody(section, playerPanel)
+        }));
+        const sectionsMarkup = this.#renderCollapsibleSections(sectionsWithBody, {
+            panelId: "player",
+            toggleAction: "player-toggle-section",
+            sectionClass: "totc-v2-player-panel__section",
+            headerClass: "totc-v2-player-panel__section-header",
+            bodyClass: "totc-v2-player-panel__section-body",
+            sectionType: "section"
+        });
 
         return `
         <section class="totc-v2-player-panel">
@@ -1365,21 +1425,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         </section>`;
     }
 
-    #renderPlayerSection(section, playerPanel = {}) {
-        const collapsed = Boolean(section.collapsed);
-        const revealClass = section.highlighted ? "is-revealed" : "";
-        const body = this.#renderPlayerSectionBody(section, playerPanel);
-        return `
-        <article class="totc-v2-player-panel__section ${collapsed ? "is-collapsed" : ""} ${revealClass}" data-player-section-id="${this.#escapeHTML(section.id)}">
-            <button type="button" class="totc-v2-player-panel__section-header" data-action="player-toggle-section" data-section-id="${this.#escapeHTML(section.id)}" aria-expanded="${collapsed ? "false" : "true"}">
-                <span>${this.#escapeHTML(section.title)}</span>
-                <span class="totc-v2-player-panel__section-meta">${this.#escapeHTML(section.summary ?? "")}</span>
-            </button>
-            <div class="totc-v2-player-panel__section-body" ${collapsed ? "hidden" : ""}>
-                ${body}
-            </div>
-        </article>`;
-    }
+
 
     #renderPlayerSectionBody(section, playerPanel = {}) {
         if (section.id === "status" || section.id === "resources") {
@@ -1782,22 +1828,24 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             ? gmSnapshot.controlledNames.slice(0, 3).join(", ")
             : "No controlled tokens";
 
-        const groupsMarkup = (gmPanel.groups ?? []).map((group) => {
-            const actionsMarkup = (group.actions ?? []).map((action) => `
-                <button type="button" data-action="gm-execute-action" data-gm-action-id="${this.#escapeHTML(action.id)}" title="${this.#escapeHTML(action.description)}">${this.#escapeHTML(action.label)}</button>`).join("");
-
-            return `
-            <article class="totc-v2-gm-panel__group ${group.collapsed ? "is-collapsed" : ""}">
-                <button type="button" class="totc-v2-gm-panel__group-header" data-action="gm-toggle-group" data-gm-group-id="${this.#escapeHTML(group.id)}" aria-expanded="${group.collapsed ? "false" : "true"}">
-                    <span>${this.#escapeHTML(group.title)}</span>
-                    <span class="totc-v2-gm-panel__group-meta">${group.collapsed ? "+" : "-"}</span>
-                </button>
+        // Prepare group bodies for shared renderer
+        const groupsWithBody = (gmPanel.groups ?? []).map((group) => ({
+            ...group,
+            body: `
                 <div class="totc-v2-gm-panel__group-description">${this.#escapeHTML(group.description)}</div>
                 <div class="totc-v2-gm-panel__button-grid" ${group.collapsed ? "hidden" : ""}>
-                    ${actionsMarkup}
-                </div>
-            </article>`;
-        }).join("");
+                    ${(group.actions ?? []).map((action) => `
+                        <button type="button" data-action="gm-execute-action" data-gm-action-id="${this.#escapeHTML(action.id)}" title="${this.#escapeHTML(action.description)}">${this.#escapeHTML(action.label)}</button>`).join("")}
+                </div>`
+        }));
+        const groupsMarkup = this.#renderCollapsibleSections(groupsWithBody, {
+            panelId: "gm",
+            toggleAction: "gm-toggle-group",
+            sectionClass: "totc-v2-gm-panel__group",
+            headerClass: "totc-v2-gm-panel__group-header",
+            bodyClass: "totc-v2-gm-panel__group-body",
+            sectionType: "group"
+        });
 
         const allActionsMarkup = (gmPanel.allActions ?? []).map((action) => `
             <button type="button" data-action="gm-execute-action" data-gm-action-id="${this.#escapeHTML(action.id)}" title="${this.#escapeHTML(action.description)}">${this.#escapeHTML(action.label)}</button>`).join("");
