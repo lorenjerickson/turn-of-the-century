@@ -72,6 +72,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.ghostIntent = null;
         this.compendiumSearchQuery = "";
         this._compendiumItemEntries = null;
+        this._compendiumItemsPromise = null;
         this._resizeSession = null;
         this._compendiumSearchTimeout = null;
         this._mapViewportState = {
@@ -88,6 +89,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._compendiumRefreshHandler = () => {
             // Clear cache and refresh the compendium panel when game becomes ready
             this._compendiumItemEntries = null;
+            this._compendiumItemsPromise = null;
             if (this.rendered) {
                 this.render(false);
             }
@@ -578,8 +580,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #bindCompendiumHooks() {
         if (this._compendiumHooksBound) return;
-        // Refresh compendium data when the game becomes ready (packs are loaded)
-        Hooks.once("ready", this._compendiumRefreshHandler);
+
+        // If app starts after ready has already fired, refresh immediately.
+        if (game.ready) {
+            this._compendiumRefreshHandler();
+        } else {
+            Hooks.once("ready", this._compendiumRefreshHandler);
+        }
+
+        // Refresh compendium cache when pack metadata changes.
+        Hooks.on("createCompendium", this._compendiumRefreshHandler);
+        Hooks.on("deleteCompendium", this._compendiumRefreshHandler);
         this._compendiumHooksBound = true;
     }
 
@@ -1198,10 +1209,26 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     async #getUnifiedCompendiumItems() {
         if (Array.isArray(this._compendiumItemEntries)) return this._compendiumItemEntries;
+        if (this._compendiumItemsPromise) return await this._compendiumItemsPromise;
 
-        const packs = Array.from(game.packs ?? []);
-        const entries = [];
+        this._compendiumItemsPromise = this.#loadUnifiedCompendiumItems();
+        try {
+            const entries = await this._compendiumItemsPromise;
+            this._compendiumItemEntries = entries;
+            return entries;
+        } finally {
+            this._compendiumItemsPromise = null;
+        }
+    }
+
+    async #loadUnifiedCompendiumItems() {
+        const packs = this.#getCompendiumPacks();
+        const dedupedEntries = new Map();
         for (const pack of packs) {
+            if (String(pack?.documentName ?? "").toLowerCase() !== "item") {
+                continue;
+            }
+
             let indexEntries = [];
             try {
                 const index = await pack.getIndex();
@@ -1219,13 +1246,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
             for (const entry of indexEntries) {
                 const entryId = entry?._id ?? entry?.id;
-                entries.push({
-                    uuid: entry?.uuid ?? `Compendium.${pack.collection}.${entryId}`,
+                const uuid = entry?.uuid ?? (entryId ? `Compendium.${pack.collection}.${entryId}` : null);
+                if (!uuid) continue;
+
+                if (dedupedEntries.has(uuid)) continue;
+                dedupedEntries.set(uuid, {
+                    uuid,
                     name: entry?.name ?? "Unnamed Entry",
                     packLabel: pack?.metadata?.label ?? pack?.title ?? pack?.collection ?? "Compendium"
                 });
             }
         }
+
+        const entries = Array.from(dedupedEntries.values());
 
         entries.sort((left, right) => {
             const nameCompare = String(left.name ?? "").localeCompare(String(right.name ?? ""), undefined, { sensitivity: "base" });
@@ -1233,8 +1266,20 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             return String(left.packLabel ?? "").localeCompare(String(right.packLabel ?? ""), undefined, { sensitivity: "base" });
         });
 
-        this._compendiumItemEntries = entries;
         return entries;
+    }
+
+    #getCompendiumPacks() {
+        if (Array.isArray(game?.packs?.contents)) {
+            return game.packs.contents;
+        }
+
+        if (typeof game?.packs?.values === "function") {
+            return Array.from(game.packs.values());
+        }
+
+        const iterablePacks = Array.from(game?.packs ?? []);
+        return iterablePacks.map((pack) => Array.isArray(pack) && pack.length > 1 ? pack[1] : pack);
     }
 
     #showGhost(rect, label) {
