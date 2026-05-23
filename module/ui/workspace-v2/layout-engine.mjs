@@ -250,7 +250,7 @@ export class LayoutEngine {
         return this.getLayout();
     }
 
-    restorePanel(panelDef) {
+    restorePanel(panelDef, { preferredDockId = null } = {}) {
         if (!panelDef?.id || !panelDef?.title) return this.getLayout();
 
         const next = this.getLayout();
@@ -275,6 +275,18 @@ export class LayoutEngine {
                 dockId: memory.dockId,
                 stackId: memory.stackId
             });
+            this.layout = next;
+            return this.getLayout();
+        }
+
+        if (preferredDockId) {
+            this.#composeIntoEdgeDock(next, panelDef, preferredDockId);
+            this.layout = next;
+            return this.getLayout();
+        }
+
+        if (panelDef.defaultDock) {
+            this.#composeIntoEdgeDock(next, panelDef, panelDef.defaultDock);
             this.layout = next;
             return this.getLayout();
         }
