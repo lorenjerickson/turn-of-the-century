@@ -657,6 +657,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             </article>`;
         }).join("");
     }
+
+    async _prepareContext(options) {
         const policy = this.stateStore?.getPolicy?.() ?? { enabled: false, debugGovernance: false };
         const userLayout = this.stateStore?.getUserLayout?.() ?? this.layoutEngine.getLayout();
         this.layoutEngine.setLayout(userLayout);
