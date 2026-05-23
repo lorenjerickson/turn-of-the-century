@@ -72,7 +72,7 @@ function findPanelById(panels, panelId, fallbackIndex = 0) {
 
 export class LayoutEngine {
     static createDefaultLayout({ panels = [] } = {}) {
-        const leftPanel = findPanelById(panels, "travel");
+        const leftPanel = findPanelById(panels, "gamemaster");
         const topPanel = findPanelById(panels, "chat");
         const centerPanel = findPanelById(panels, "map");
         const rightPanel = findPanelById(panels, "compendium");
