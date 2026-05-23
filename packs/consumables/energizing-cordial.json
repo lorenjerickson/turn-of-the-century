@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Energizing Cordial",
+    "type": "consumable",
+    "category": "medicine",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "restoreResource", "target": "grit", "amount": 4},
+      {"type": "custom", "description": "Removes one level of exhaustion."}
+    ],
+    "description": "A small bottle of sweet, invigorating liquid. Used to revive the weary and restore vigor after exertion.",
+    "artwork": {"image": "", "caption": "A glass bottle with a gold label.", "credit": ""},
+    "provenance": "Inspired by period tonics." 
+  }
+]

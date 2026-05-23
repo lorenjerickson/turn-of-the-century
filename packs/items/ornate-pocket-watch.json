@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Ornate Pocket Watch",
+    "type": "item",
+    "category": "personal",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Keeps precise time. Grants advantage on checks to coordinate actions or maintain schedules."}
+    ],
+    "description": "A gold-plated pocket watch with intricate engravings and a chain, prized by the punctual.",
+    "artwork": {"image": "", "caption": "A gold pocket watch with a chain.", "credit": ""},
+    "provenance": "Inspired by period timepieces." 
+  }
+]

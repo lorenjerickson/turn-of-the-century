@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Engraved Cufflinks",
+    "type": "item",
+    "category": "personal",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Adds a touch of elegance. Grants advantage on checks to impress or blend in at formal events."}
+    ],
+    "description": "A pair of silver or gold cufflinks with intricate designs, worn by the fashionable and the ambitious.",
+    "artwork": {"image": "", "caption": "A pair of silver cufflinks with scrollwork.", "credit": ""},
+    "provenance": "Inspired by period jewelry." 
+  }
+]

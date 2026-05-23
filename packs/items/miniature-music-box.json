@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Miniature Music Box",
+    "type": "item",
+    "category": "personal",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Plays a soothing tune. Grants advantage on checks to calm or inspire allies."}
+    ],
+    "description": "A tiny, wind-up music box that plays a gentle melody when opened.",
+    "artwork": {"image": "", "caption": "A small box with a painted lid.", "credit": ""},
+    "provenance": "Inspired by period musical novelties." 
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Engraved Cigarette Case",
+    "type": "item",
+    "category": "personal",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Holds cigarettes or small notes. Grants advantage on checks to conceal small objects."}
+    ],
+    "description": "A slim, silver case with intricate engravings, used by the fashionable and the clandestine alike.",
+    "artwork": {"image": "", "caption": "A silver case with floral engravings.", "credit": ""},
+    "provenance": "Inspired by period accessories." 
+  }
+]

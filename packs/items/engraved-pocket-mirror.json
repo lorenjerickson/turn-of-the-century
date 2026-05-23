@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Engraved Pocket Mirror",
+    "type": "item",
+    "category": "personal",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "A small, silver-framed mirror. Grants advantage on checks to disguise or spot hidden details."}
+    ],
+    "description": "A round mirror with a hinged lid and engraved case, carried by the fashionable and the cautious alike.",
+    "artwork": {"image": "", "caption": "A silver mirror with a floral lid.", "credit": ""},
+    "provenance": "Inspired by period grooming tools." 
+  }
+]

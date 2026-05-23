@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Poisoned Dart",
+    "type": "weapon",
+    "category": "ranged",
+    "quality": "standard",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "damage", "damageType": "piercing", "amount": 1},
+      {"type": "custom", "description": "Target must make a saving throw or suffer additional poison damage."}
+    ],
+    "description": "A small, easily concealed dart coated with a potent toxin. Used by assassins and spies.",
+    "artwork": {"image": "", "caption": "A thin dart with a green-tipped point.", "credit": ""},
+    "provenance": "Inspired by period assassination tools." 
+  }
+]

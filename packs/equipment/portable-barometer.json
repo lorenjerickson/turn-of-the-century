@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Portable Barometer",
+    "type": "equipment",
+    "category": "scientific",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Measures atmospheric pressure. Grants advantage on checks to predict weather or navigate by air pressure."}
+    ],
+    "description": "A brass and glass instrument for forecasting weather, used by explorers and airship crews.",
+    "artwork": {"image": "", "caption": "A round brass barometer with a dial.", "credit": ""},
+    "provenance": "Inspired by period scientific instruments." 
+  }
+]

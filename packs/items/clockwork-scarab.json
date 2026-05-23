@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Clockwork Scarab",
+    "type": "item",
+    "category": "trinket",
+    "quality": "masterwork",
+    "rarity": "rare",
+    "effects": [
+      { "type": "custom", "description": "Can be wound to crawl and deliver a tiny note up to 100 feet away." }
+    ],
+    "description": "A tiny mechanical beetle, exquisitely crafted. Used by spies and romantics alike.",
+    "artwork": { "image": "", "caption": "A brass scarab with jeweled eyes.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Sending Stone'."
+  }
+]

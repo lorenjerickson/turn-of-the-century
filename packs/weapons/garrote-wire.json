@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Garrote Wire",
+    "type": "weapon",
+    "category": "melee",
+    "quality": "standard",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "damage", "damageType": "slashing", "amount": 1},
+      {"type": "custom", "description": "Can be used to silently incapacitate a target from behind."}
+    ],
+    "description": "A length of fine steel wire with wooden handles, favored by assassins and spies for its silence and lethality.",
+    "artwork": {"image": "", "caption": "A coiled wire with two wooden grips.", "credit": ""},
+    "provenance": "Inspired by period espionage tools." 
+  }
+]

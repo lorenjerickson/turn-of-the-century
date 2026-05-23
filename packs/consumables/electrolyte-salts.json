@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Electrolyte Salts",
+    "type": "consumable",
+    "category": "chemical",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "restoreResource", "target": "grit", "amount": 3}
+    ],
+    "description": "A paper packet of mineral salts, dissolved in water to restore stamina and prevent fainting. Used by athletes and explorers.",
+    "artwork": {"image": "", "caption": "A folded paper packet with blue print.", "credit": ""},
+    "provenance": "Inspired by early sports medicine." 
+  }
+]

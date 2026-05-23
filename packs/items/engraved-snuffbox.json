@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Engraved Snuffbox",
+    "type": "item",
+    "category": "personal",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Holds powdered tobacco or medicinal herbs. Grants advantage on checks to resist fatigue or socialize."}
+    ],
+    "description": "A small, ornate box for carrying snuff, often exchanged as a gift among the elite.",
+    "artwork": {"image": "", "caption": "A silver snuffbox with floral engravings.", "credit": ""},
+    "provenance": "Inspired by period accessories." 
+  }
+]

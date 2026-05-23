@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Miniature Portrait",
+    "type": "item",
+    "category": "personal",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "A locket or small painting of a loved one. Grants advantage on checks to resist fear or despair."}
+    ],
+    "description": "A tiny, detailed painting set in a locket or frame, carried as a keepsake or memento.",
+    "artwork": {"image": "", "caption": "A locket with a painted portrait inside.", "credit": ""},
+    "provenance": "Inspired by period keepsakes." 
+  }
+]

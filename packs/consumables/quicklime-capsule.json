@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Quicklime Capsule",
+    "type": "consumable",
+    "category": "chemical",
+    "quality": "experimental",
+    "rarity": "rare",
+    "effects": [
+      {"type": "custom", "description": "Thrown or broken, creates a cloud of caustic dust (area denial, 10-foot radius)."}
+    ],
+    "description": "A glass capsule filled with powdered quicklime, used to blind or deter pursuers. Favored by criminals and constables alike.",
+    "artwork": {"image": "", "caption": "A small glass capsule with white powder inside.", "credit": ""},
+    "provenance": "Inspired by period chemical weapons." 
+  }
+]

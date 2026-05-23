@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Monogrammed Handkerchief",
+    "type": "item",
+    "category": "personal",
+    "quality": "fine",
+    "rarity": "common",
+    "effects": [
+      {"type": "custom", "description": "Can be used to staunch wounds, signal, or as a clue in investigations."}
+    ],
+    "description": "A linen handkerchief embroidered with initials, often exchanged as a token or used in emergencies.",
+    "artwork": {"image": "", "caption": "A white handkerchief with blue embroidery.", "credit": ""},
+    "provenance": "Inspired by period accessories." 
+  }
+]

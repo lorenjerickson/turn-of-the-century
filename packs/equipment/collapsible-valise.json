@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Collapsible Valise of Ingenious Design",
+    "type": "equipment",
+    "category": "container",
+    "quality": "exceptional",
+    "rarity": "rare",
+    "effects": [
+      { "type": "custom", "description": "Can hold up to 10 normal items in a space no larger than a doctor's bag." }
+    ],
+    "description": "A cleverly engineered travel bag with spring-steel supports and hidden compartments. Expands to hold far more than it appears.",
+    "artwork": { "image": "", "caption": "A battered leather valise with brass clasps.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Bag of Holding'."
+  }
+]

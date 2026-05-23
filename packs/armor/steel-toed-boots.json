@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Steel-Toed Boots",
+    "type": "armor",
+    "category": "feet",
+    "quality": "standard",
+    "rarity": "common",
+    "effects": [
+      {"type": "damageReduction", "amount": 1, "damageType": "bludgeoning"}
+    ],
+    "description": "Sturdy leather boots with steel reinforcements in the toes and soles. Favored by laborers and constables.",
+    "artwork": {"image": "", "caption": "A pair of heavy boots with metal caps.", "credit": ""},
+    "provenance": "Inspired by industrial safety gear." 
+  }
+]

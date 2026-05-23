@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Lead-Lined Cape",
+    "type": "armor",
+    "category": "back",
+    "quality": "experimental",
+    "rarity": "rare",
+    "effects": [
+      {"type": "damageReduction", "amount": 1, "damageType": "radiant"}
+    ],
+    "description": "A heavy velvet cape with a thin layer of lead sewn inside, designed to protect against mysterious rays and energies. Used by occultists and scientists.",
+    "artwork": {"image": "", "caption": "A dark cape with reinforced seams.", "credit": ""},
+    "provenance": "Inspired by early experiments with radiation protection." 
+  }
+]

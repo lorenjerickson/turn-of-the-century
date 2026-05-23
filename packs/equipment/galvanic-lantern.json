@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Galvanic Lantern",
+    "type": "equipment",
+    "category": "apparatus",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      { "type": "custom", "description": "Emits bright light in a 30-foot radius for 6 hours on a charge." }
+    ],
+    "description": "A portable electric lantern powered by a replaceable battery cell. Safer than oil, but prone to flicker in damp weather.",
+    "artwork": { "image": "", "caption": "A cylindrical lantern with a glass lens and wire handle.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Driftglobe'."
+  }
+]

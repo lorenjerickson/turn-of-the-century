@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Spyglass",
+    "type": "equipment",
+    "category": "tool",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Allows distant viewing; grants advantage on Perception checks at long range."}
+    ],
+    "description": "A collapsible brass telescope used by scouts, sailors, and detectives.",
+    "artwork": {"image": "", "caption": "A brass spyglass with leather grip.", "credit": ""},
+    "provenance": "Inspired by period optical tools." 
+  }
+]

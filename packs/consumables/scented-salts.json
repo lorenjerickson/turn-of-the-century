@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Scented Salts",
+    "type": "consumable",
+    "category": "medicine",
+    "quality": "fine",
+    "rarity": "common",
+    "effects": [
+      {"type": "custom", "description": "Revives a fainted or stunned character instantly."}
+    ],
+    "description": "A small vial of aromatic salts, used to rouse the unconscious or clear the mind. Carried by nurses and socialites.",
+    "artwork": {"image": "", "caption": "A glass vial with a silver cap and floral label.", "credit": ""},
+    "provenance": "Inspired by period first aid supplies." 
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Portable Anemometer",
+    "type": "equipment",
+    "category": "scientific",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Measures wind speed and direction. Grants advantage on checks to navigate or predict weather."}
+    ],
+    "description": "A handheld device with spinning cups and a dial, used by meteorologists and airship pilots.",
+    "artwork": {"image": "", "caption": "A small device with spinning cups and a gauge.", "credit": ""},
+    "provenance": "Inspired by period meteorological tools." 
+  }
+]

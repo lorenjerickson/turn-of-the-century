@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Steel Corslet",
+    "type": "armor",
+    "category": "body",
+    "quality": "exceptional",
+    "rarity": "rare",
+    "effects": [
+      {"type": "damageReduction", "amount": 2, "damageType": "piercing"}
+    ],
+    "description": "A fitted steel breastplate worn beneath formal attire. Favored by diplomats and high-ranking officials fearing assassination.",
+    "artwork": {"image": "", "caption": "A polished steel plate shaped to the torso.", "credit": ""},
+    "provenance": "Inspired by concealed armor of the late 19th century."
+  }
+]

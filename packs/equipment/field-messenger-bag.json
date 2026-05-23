@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Field Messenger Bag",
+    "type": "equipment",
+    "category": "tool",
+    "quality": "standard",
+    "rarity": "common",
+    "effects": [
+      {"type": "custom", "description": "A sturdy canvas bag for carrying documents, maps, and small tools. Grants advantage on checks to organize or retrieve items quickly."}
+    ],
+    "description": "A rugged shoulder bag used by couriers, scouts, and officers in the field.",
+    "artwork": {"image": "", "caption": "A canvas bag with leather straps.", "credit": ""},
+    "provenance": "Inspired by period military and postal gear." 
+  }
+]

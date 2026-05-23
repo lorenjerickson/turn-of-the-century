@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Insomniac's Mask",
+    "type": "armor",
+    "category": "head",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Blocks out light and muffles sound, granting resistance to sleep and mind-altering effects."}
+    ],
+    "description": "A padded mask with velvet lining and adjustable straps. Used by travelers and those plagued by nightmares.",
+    "artwork": {"image": "", "caption": "A black mask with quilted padding.", "credit": ""},
+    "provenance": "Inspired by sleep masks and occult paraphernalia." 
+  }
+]

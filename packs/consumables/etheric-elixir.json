@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Etheric Elixir",
+    "type": "consumable",
+    "category": "chemical",
+    "quality": "experimental",
+    "rarity": "rare",
+    "effects": [
+      {"type": "restoreResource", "target": "grit", "amount": 5},
+      {"type": "custom", "description": "May cause hallucinations or temporary insight."}
+    ],
+    "description": "A stoppered vial of glowing blue liquid, said to enhance perception and stamina. Used by mediums and scientists.",
+    "artwork": {"image": "", "caption": "A glass vial with a faintly glowing liquid.", "credit": ""},
+    "provenance": "Inspired by D&D 5e 'Potion of Heroism', reimagined for science." 
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Engraved Flask",
+    "type": "item",
+    "category": "personal",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Holds spirits or medicinal tonics. Grants advantage on checks to resist cold or boost morale."}
+    ],
+    "description": "A metal hip flask with ornate engravings, often carried by travelers and officers.",
+    "artwork": {"image": "", "caption": "A silver flask with scrollwork.", "credit": ""},
+    "provenance": "Inspired by period drinking vessels." 
+  }
+]

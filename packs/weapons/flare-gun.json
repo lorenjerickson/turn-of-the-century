@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Flare Gun",
+    "type": "weapon",
+    "category": "ranged",
+    "quality": "standard",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "damage", "damageType": "fire", "amount": 1},
+      {"type": "custom", "description": "Can illuminate a 60-foot radius or signal for help."}
+    ],
+    "description": "A single-shot pistol designed to fire bright flares, used for signaling or as a last-resort weapon.",
+    "artwork": {"image": "", "caption": "A short-barreled pistol with a red flare cartridge.", "credit": ""},
+    "provenance": "Inspired by period maritime equipment." 
+  }
+]

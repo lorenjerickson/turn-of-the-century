@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Engraved Cane Handle",
+    "type": "item",
+    "category": "tool",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Can be attached to a walking stick or used as a bludgeon. Grants advantage on checks to intimidate or impress."}
+    ],
+    "description": "A decorative handle, often made of silver or ivory, designed to fit atop a gentleman's cane.",
+    "artwork": {"image": "", "caption": "A silver handle with scrollwork.", "credit": ""},
+    "provenance": "Inspired by period walking sticks." 
+  }
+]

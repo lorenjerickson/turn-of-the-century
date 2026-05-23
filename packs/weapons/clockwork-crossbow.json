@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Clockwork Crossbow",
+    "type": "weapon",
+    "category": "ranged",
+    "quality": "masterwork",
+    "rarity": "rare",
+    "effects": [
+      {"type": "damage", "damageType": "piercing", "amount": 2},
+      {"type": "custom", "description": "Automatically reloads after each shot."}
+    ],
+    "description": "A compact crossbow with a winding mechanism, capable of rapid fire. Favored by spies and assassins.",
+    "artwork": {"image": "", "caption": "A crossbow with visible gears and a brass crank.", "credit": ""},
+    "provenance": "Inspired by D&D 5e 'Hand Crossbow', reimagined for period technology." 
+  }
+]

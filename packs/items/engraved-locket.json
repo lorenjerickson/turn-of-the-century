@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Engraved Locket",
+    "type": "item",
+    "category": "personal",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Holds a tiny portrait or lock of hair. Grants advantage on checks to resist despair or homesickness."}
+    ],
+    "description": "A delicate silver locket with floral engravings, worn on a chain around the neck.",
+    "artwork": {"image": "", "caption": "A silver locket with a hinged lid.", "credit": ""},
+    "provenance": "Inspired by period jewelry." 
+  }
+]

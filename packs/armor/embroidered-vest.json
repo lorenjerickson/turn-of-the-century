@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Embroidered Vest",
+    "type": "armor",
+    "category": "body",
+    "quality": "fine",
+    "rarity": "common",
+    "effects": [
+      {"type": "custom", "description": "Grants advantage on social checks at formal events; offers minor protection against stabbing."}
+    ],
+    "description": "A stylish vest with hidden layers of silk and horsehair. Favored by gamblers and diplomats.",
+    "artwork": {"image": "", "caption": "A brocade vest with gold thread.", "credit": ""},
+    "provenance": "Inspired by fashionable period attire." 
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Ivory Letter Opener",
+    "type": "item",
+    "category": "tool",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Opens letters cleanly; can be used as an improvised weapon or for delicate tasks."}
+    ],
+    "description": "A slender blade of polished ivory, often found on the desks of the well-to-do.",
+    "artwork": {"image": "", "caption": "A white letter opener with a carved handle.", "credit": ""},
+    "provenance": "Inspired by period desk tools." 
+  }
+]

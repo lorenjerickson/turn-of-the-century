@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Field Cooking Set",
+    "type": "equipment",
+    "category": "tool",
+    "quality": "standard",
+    "rarity": "common",
+    "effects": [
+      {"type": "custom", "description": "Contains pots, pans, utensils, and a folding stove. Grants advantage on checks to prepare meals in the field."}
+    ],
+    "description": "A compact kit for preparing hot meals while traveling, used by soldiers and explorers.",
+    "artwork": {"image": "", "caption": "A canvas roll with metal cookware.", "credit": ""},
+    "provenance": "Inspired by period military and expedition gear." 
+  }
+]

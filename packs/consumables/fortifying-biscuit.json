@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Fortifying Biscuit",
+    "type": "consumable",
+    "category": "food",
+    "quality": "standard",
+    "rarity": "common",
+    "effects": [
+      {"type": "restoreResource", "target": "grit", "amount": 2}
+    ],
+    "description": "A dense, long-lasting biscuit that restores stamina and wards off hunger. Standard issue for soldiers and explorers.",
+    "artwork": {"image": "", "caption": "A hard, square biscuit in wax paper.", "credit": ""},
+    "provenance": "Inspired by period military rations." 
+  }
+]

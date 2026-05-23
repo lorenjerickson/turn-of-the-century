@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Insulated Gauntlets",
+    "type": "equipment",
+    "category": "protective",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Protects against electrical shock and burns. Grants resistance to lightning damage."}
+    ],
+    "description": "A pair of thick, rubberized gloves used by engineers and scientists working with dangerous apparatus.",
+    "artwork": {"image": "", "caption": "Heavy gloves with reinforced cuffs.", "credit": ""},
+    "provenance": "Inspired by period electrical safety gear." 
+  }
+]

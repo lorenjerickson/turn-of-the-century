@@ -1,4 +1,6 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 8;
+export const TOTC_WORLD_SCHEMA_VERSION = 9;
+
+import { migrateTotcItems } from "./items.mjs";
 
 export async function runTotcMigrations({
     currentVersion = 0,
@@ -154,6 +156,21 @@ export async function runTotcMigrations({
         appliedVersion = 8;
     }
 
+    if (appliedVersion < 9) {
+        const report = await migrateTotcItems({
+            dryRun: false,
+            notify: false,
+            includeCompendiums: true
+        });
+
+        appliedSteps.push({
+            version: 9,
+            key: "totc-items",
+            report
+        });
+        appliedVersion = 9;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -183,6 +200,10 @@ export async function runTotcMigrations({
 
                 if (step.key === "actor-economy") {
                     return `${step.key}: ${step.report.actorsUpdated} actors updated`;
+                }
+
+                if (step.key === "totc-items") {
+                    return `${step.key}: ${step.report.actorsUpdated} actors and ${step.report.itemsUpdated} items updated`;
                 }
 
                 return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;

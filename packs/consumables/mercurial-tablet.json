@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Mercurial Tablet",
+    "type": "consumable",
+    "category": "chemical",
+    "quality": "experimental",
+    "rarity": "rare",
+    "effects": [
+      {"type": "custom", "description": "Temporarily boosts resistance to toxins, but may cause side effects."}
+    ],
+    "description": "A silvery tablet dissolved in water before use. Used by explorers venturing into hazardous environments.",
+    "artwork": {"image": "", "caption": "A metallic tablet in a small tin.", "credit": ""},
+    "provenance": "Inspired by period chemical remedies." 
+  }
+]

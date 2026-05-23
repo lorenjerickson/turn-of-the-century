@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Engraved Paperweight",
+    "type": "item",
+    "category": "tool",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Keeps papers in place; can be used as an improvised weapon. Grants advantage on checks to organize or intimidate."}
+    ],
+    "description": "A heavy, decorative object for holding down documents, often bearing a family crest or motto.",
+    "artwork": {"image": "", "caption": "A brass paperweight with an engraved crest.", "credit": ""},
+    "provenance": "Inspired by period desk accessories." 
+  }
+]

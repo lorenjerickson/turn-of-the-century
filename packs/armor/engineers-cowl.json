@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Engineer's Cowl",
+    "type": "armor",
+    "category": "head",
+    "quality": "standard",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Protects against smoke and sparks; grants advantage on checks to repair machinery."}
+    ],
+    "description": "A close-fitting hood made of fire-resistant fabric, with a detachable face shield. Worn by machinists and inventors.",
+    "artwork": {"image": "", "caption": "A fitted hood with a glass visor.", "credit": ""},
+    "provenance": "Inspired by industrial safety gear." 
+  }
+]

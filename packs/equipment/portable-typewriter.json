@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Portable Typewriter",
+    "type": "equipment",
+    "category": "tool",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Allows rapid documentation and coded communication. Grants advantage on checks to create or decipher written codes."}
+    ],
+    "description": "A compact, mechanical typewriter in a carrying case, used by journalists and spies.",
+    "artwork": {"image": "", "caption": "A small typewriter with round keys.", "credit": ""},
+    "provenance": "Inspired by period writing technology." 
+  }
+]

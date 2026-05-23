@@ -1,0 +1,16 @@
+[
+  {
+    "name": "St. Elmo’s Rod",
+    "type": "weapon",
+    "category": "tool",
+    "quality": "exceptional",
+    "rarity": "veryRare",
+    "effects": [
+      { "type": "damage", "damageType": "electric", "amount": 2 },
+      { "type": "custom", "description": "Can be used to jump-start machinery or revive a stunned ally once per day." }
+    ],
+    "description": "A copper rod topped with a glass sphere. Sparks leap from its tip when activated.",
+    "artwork": { "image": "", "caption": "A copper rod with a glass globe at one end.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Staff of Thunder and Lightning'."
+  }
+]

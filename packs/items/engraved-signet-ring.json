@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Engraved Signet Ring",
+    "type": "item",
+    "category": "personal",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Used to seal documents or prove identity. Grants advantage on Persuasion checks involving social status."}
+    ],
+    "description": "A silver ring bearing a unique family crest, often worn by nobility or officials.",
+    "artwork": {"image": "", "caption": "A silver ring with an engraved crest.", "credit": ""},
+    "provenance": "Inspired by period personal effects." 
+  }
+]

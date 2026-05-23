@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Miniature Inkwell",
+    "type": "item",
+    "category": "tool",
+    "quality": "standard",
+    "rarity": "common",
+    "effects": [
+      {"type": "custom", "description": "A small glass or metal inkwell. Grants advantage on checks to write, forge, or decipher documents."}
+    ],
+    "description": "A tiny, portable inkwell for use with quills or fountain pens, favored by writers and forgers.",
+    "artwork": {"image": "", "caption": "A glass inkwell with a brass lid.", "credit": ""},
+    "provenance": "Inspired by period writing tools." 
+  }
+]

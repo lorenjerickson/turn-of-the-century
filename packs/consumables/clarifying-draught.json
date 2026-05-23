@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Clarifying Draught",
+    "type": "consumable",
+    "category": "chemical",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Removes confusion or mental fog; grants advantage on mental skill checks for 1 hour."}
+    ],
+    "description": "A clear, bitter liquid in a small glass vial. Used by scholars and investigators to sharpen the mind.",
+    "artwork": {"image": "", "caption": "A tiny vial of clear liquid.", "credit": ""},
+    "provenance": "Inspired by period cognitive tonics." 
+  }
+]

@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Antiseptic Salve",
+    "type": "consumable",
+    "category": "medicine",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "restoreResource", "target": "health", "amount": 5},
+      {"type": "custom", "description": "Prevents infection and speeds wound closure."}
+    ],
+    "description": "A tin of thick, white salve used to treat wounds and prevent infection. Standard in any field medic's kit.",
+    "artwork": {"image": "", "caption": "A small tin of white ointment.", "credit": ""},
+    "provenance": "Inspired by period antiseptics." 
+  }
+]

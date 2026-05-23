@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Engraved Tobacco Pipe",
+    "type": "item",
+    "category": "personal",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Used for smoking tobacco or herbs. Grants advantage on checks to relax or socialize."}
+    ],
+    "description": "A wooden pipe with intricate carvings, favored by scholars and detectives.",
+    "artwork": {"image": "", "caption": "A carved wooden pipe with a curved stem.", "credit": ""},
+    "provenance": "Inspired by period smoking accessories." 
+  }
+]

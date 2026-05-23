@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Steamproof Apron",
+    "type": "armor",
+    "category": "body",
+    "quality": "standard",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "damageReduction", "amount": 1, "damageType": "fire"}
+    ],
+    "description": "A thick leather apron treated with special oils, designed to protect against scalding steam and sparks. Essential for engineers and machinists.",
+    "artwork": {"image": "", "caption": "A heavy, oil-stained apron with metal buckles.", "credit": ""},
+    "provenance": "Inspired by industrial safety gear." 
+  }
+]

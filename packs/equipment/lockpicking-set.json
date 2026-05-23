@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Lockpicking Set",
+    "type": "equipment",
+    "category": "tool",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Contains picks, tension wrenches, and shims. Grants advantage on checks to open locks."}
+    ],
+    "description": "A roll of precision tools used by locksmiths, detectives, and burglars alike.",
+    "artwork": {"image": "", "caption": "A set of slender metal tools in a leather pouch.", "credit": ""},
+    "provenance": "Inspired by period locksmith tools." 
+  }
+]

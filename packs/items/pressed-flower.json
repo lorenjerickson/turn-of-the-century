@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Pressed Flower",
+    "type": "item",
+    "category": "personal",
+    "quality": "standard",
+    "rarity": "common",
+    "effects": [
+      {"type": "custom", "description": "A keepsake from a loved one or a distant place. Grants advantage on checks to recall memories or calm nerves."}
+    ],
+    "description": "A delicate flower, carefully pressed and preserved between the pages of a book or locket.",
+    "artwork": {"image": "", "caption": "A dried flower in a paper slip.", "credit": ""},
+    "provenance": "Inspired by period mementos." 
+  }
+]

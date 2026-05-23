@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Miniature Sketchbook",
+    "type": "item",
+    "category": "personal",
+    "quality": "standard",
+    "rarity": "common",
+    "effects": [
+      {"type": "custom", "description": "Contains blank pages for drawing or notes. Grants advantage on checks to record observations or create art."}
+    ],
+    "description": "A pocket-sized sketchbook with thick paper, used by artists and investigators alike.",
+    "artwork": {"image": "", "caption": "A small book with a pencil attached.", "credit": ""},
+    "provenance": "Inspired by period art supplies." 
+  }
+]

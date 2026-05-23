@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Kevlar Scarf",
+    "type": "armor",
+    "category": "neck",
+    "quality": "experimental",
+    "rarity": "rare",
+    "effects": [
+      {"type": "damageReduction", "amount": 1, "damageType": "piercing"}
+    ],
+    "description": "A stylish scarf woven with early synthetic fibers, offering surprising protection against stabbing attacks. Popular among spies and couriers.",
+    "artwork": {"image": "", "caption": "A patterned scarf with a subtle sheen.", "credit": ""},
+    "provenance": "Inspired by early synthetic textiles." 
+  }
+]

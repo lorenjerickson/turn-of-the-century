@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Handwritten Journal",
+    "type": "item",
+    "category": "personal",
+    "quality": "standard",
+    "rarity": "common",
+    "effects": [
+      {"type": "custom", "description": "Contains personal notes, sketches, or secrets. Grants advantage on checks to recall information or resist mind-altering effects."}
+    ],
+    "description": "A leather-bound book filled with pages of writing, sketches, and observations.",
+    "artwork": {"image": "", "caption": "A worn journal with a leather strap.", "credit": ""},
+    "provenance": "Inspired by period diaries and field notes." 
+  }
+]

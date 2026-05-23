@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Etheric Syringe",
+    "type": "consumable",
+    "category": "chemical",
+    "quality": "experimental",
+    "rarity": "rare",
+    "effects": [
+      { "type": "restoreResource", "target": "grit", "amount": 5 },
+      { "type": "custom", "description": "May cause vivid hallucinations or temporary insight." }
+    ],
+    "description": "A glass-and-steel syringe containing a glowing blue liquid. Used in desperate circumstances.",
+    "artwork": { "image": "", "caption": "A syringe filled with blue fluid.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Potion of Heroism'."
+  }
+]

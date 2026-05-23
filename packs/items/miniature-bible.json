@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Miniature Bible",
+    "type": "item",
+    "category": "personal",
+    "quality": "standard",
+    "rarity": "common",
+    "effects": [
+      {"type": "custom", "description": "A pocket-sized holy book. Grants advantage on checks to resist fear or inspire hope."}
+    ],
+    "description": "A tiny, leather-bound Bible carried for comfort and spiritual strength.",
+    "artwork": {"image": "", "caption": "A small black book with gold edges.", "credit": ""},
+    "provenance": "Inspired by period religious items." 
+  }
+]

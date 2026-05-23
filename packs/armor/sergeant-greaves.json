@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Sergeant's Greaves",
+    "type": "armor",
+    "category": "legs",
+    "quality": "standard",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "damageReduction", "amount": 1, "damageType": "bludgeoning"}
+    ],
+    "description": "Steel shin guards issued to city watch sergeants, protecting against truncheons and debris.",
+    "artwork": {"image": "", "caption": "A pair of steel greaves with leather straps.", "credit": ""},
+    "provenance": "Inspired by police and military gear." 
+  }
+]

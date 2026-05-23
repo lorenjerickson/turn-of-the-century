@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Silvered Dagger",
+    "type": "weapon",
+    "category": "melee",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "damage", "damageType": "piercing", "amount": 1},
+      {"type": "custom", "description": "Deals extra damage to supernatural creatures vulnerable to silver."}
+    ],
+    "description": "A slender dagger with a silver-plated blade, used in rituals and for hunting the unnatural.",
+    "artwork": {"image": "", "caption": "A gleaming dagger with ornate engravings.", "credit": ""},
+    "provenance": "Inspired by folklore and period superstition." 
+  }
+]

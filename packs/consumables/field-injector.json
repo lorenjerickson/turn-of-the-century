@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Field Injector",
+    "type": "consumable",
+    "category": "medical device",
+    "quality": "experimental",
+    "rarity": "rare",
+    "effects": [
+      {"type": "restoreResource", "target": "health", "amount": 7},
+      {"type": "custom", "description": "Can be used instantly in combat to stabilize a dying ally."}
+    ],
+    "description": "A spring-loaded syringe pre-filled with a potent restorative compound. Used by medics in emergencies.",
+    "artwork": {"image": "", "caption": "A brass and glass syringe device.", "credit": ""},
+    "provenance": "Inspired by period medical innovations." 
+  }
+]

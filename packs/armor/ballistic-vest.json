@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Ballistic Vest",
+    "type": "armor",
+    "category": "body",
+    "quality": "standard",
+    "rarity": "rare",
+    "effects": [
+      {"type": "damageReduction", "amount": 2, "damageType": "ballistic"}
+    ],
+    "description": "A reinforced vest lined with layers of silk and steel plates, designed to stop small-caliber bullets. Favored by detectives and journalists in dangerous districts.",
+    "artwork": {"image": "", "caption": "A heavy vest with visible stitching and metal inserts.", "credit": ""},
+    "provenance": "Inspired by early 20th-century bulletproof vests."
+  }
+]

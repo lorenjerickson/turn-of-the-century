@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Field Telegraph",
+    "type": "equipment",
+    "category": "communication",
+    "quality": "fine",
+    "rarity": "rare",
+    "effects": [
+      {"type": "custom", "description": "Allows sending and receiving coded messages over wire. Grants advantage on checks to send or decipher Morse code."}
+    ],
+    "description": "A portable telegraph set in a wooden case, used by military and journalists for rapid communication.",
+    "artwork": {"image": "", "caption": "A wooden box with wires and a telegraph key.", "credit": ""},
+    "provenance": "Inspired by period communication devices." 
+  }
+]

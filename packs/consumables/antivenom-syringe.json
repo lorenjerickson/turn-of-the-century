@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Antivenom Syringe",
+    "type": "consumable",
+    "category": "medicine",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Neutralizes poison in the bloodstream; grants advantage on saves vs. poison for 1 hour."}
+    ],
+    "description": "A pre-filled glass syringe containing a potent antivenom. Used by explorers and doctors in dangerous locales.",
+    "artwork": {"image": "", "caption": "A syringe with a greenish liquid and metal plunger.", "credit": ""},
+    "provenance": "Inspired by early antitoxin research." 
+  }
+]

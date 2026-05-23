@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Throwing Hatchet",
+    "type": "weapon",
+    "category": "melee",
+    "quality": "standard",
+    "rarity": "common",
+    "effects": [
+      {"type": "damage", "damageType": "slashing", "amount": 1},
+      {"type": "custom", "description": "Can be thrown up to 20 feet."}
+    ],
+    "description": "A small, well-balanced axe designed for throwing, favored by hunters and trappers.",
+    "artwork": {"image": "", "caption": "A compact hatchet with a leather-wrapped handle.", "credit": ""},
+    "provenance": "Inspired by period hunting tools." 
+  }
+]

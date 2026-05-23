@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Chainmail Mantle",
+    "type": "armor",
+    "category": "shoulders",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "damageReduction", "amount": 1, "damageType": "slashing"}
+    ],
+    "description": "A short cape of interlinked steel rings, worn over coats to protect against blades. Popular among bodyguards and duelists.",
+    "artwork": {"image": "", "caption": "A draped chainmail cape with leather trim.", "credit": ""},
+    "provenance": "Inspired by D&D 5e 'Chain Shirt', adapted for period style."
+  }
+]

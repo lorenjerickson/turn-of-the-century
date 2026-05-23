@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Mesmerist’s Pocket Watch",
+    "type": "item",
+    "category": "trinket",
+    "quality": "fine",
+    "rarity": "rare",
+    "effects": [
+      { "type": "custom", "description": "Advantage on social checks to persuade or calm when used as a focus." }
+    ],
+    "description": "A silver watch with a swirling pattern on its face. Used by mesmerists and charlatans alike.",
+    "artwork": { "image": "", "caption": "A silver pocket watch on a chain.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Ring of Mind Shielding'."
+  }
+]

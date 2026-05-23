@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Engineer's Toolbox",
+    "type": "equipment",
+    "category": "tool",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "custom", "description": "Contains wrenches, screwdrivers, pliers, and measuring devices. Grants advantage on Engineering checks."}
+    ],
+    "description": "A sturdy metal box filled with essential tools for mechanical repairs and inventions.",
+    "artwork": {"image": "", "caption": "A metal toolbox with various tools.", "credit": ""},
+    "provenance": "Inspired by period engineering kits." 
+  }
+]

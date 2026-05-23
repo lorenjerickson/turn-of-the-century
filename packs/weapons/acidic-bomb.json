@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Acidic Bomb",
+    "type": "weapon",
+    "category": "explosive",
+    "quality": "experimental",
+    "rarity": "rare",
+    "effects": [
+      {"type": "damage", "damageType": "acid", "amount": 2, "area": "10-foot radius"}
+    ],
+    "description": "A glass sphere filled with volatile acid, shattering on impact to corrode armor and flesh alike. Used by saboteurs and anarchists.",
+    "artwork": {"image": "", "caption": "A green-tinted glass bomb with a wax seal.", "credit": ""},
+    "provenance": "Inspired by D&D 5e 'Acid Splash', reimagined for period science." 
+  }
+]

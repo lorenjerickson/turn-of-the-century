@@ -1,0 +1,134 @@
+[
+  {
+    "name": "Dr. Blackwell’s Restorative Tonic",
+    "type": "consumable",
+    "category": "medicine",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      { "type": "restoreResource", "target": "health", "amount": 10 }
+    ],
+    "description": "A bottled patent medicine, widely advertised as a panacea. Restores a modest amount of health, but tastes of camphor and iron.",
+    "artwork": { "image": "", "caption": "A brown glass bottle with a faded label.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Potion of Healing'."
+  },
+  {
+    "name": "Collapsible Valise of Ingenious Design",
+    "type": "equipment",
+    "category": "container",
+    "quality": "exceptional",
+    "rarity": "rare",
+    "effects": [
+      { "type": "custom", "description": "Can hold up to 10 normal items in a space no larger than a doctor's bag." }
+    ],
+    "description": "A cleverly engineered travel bag with spring-steel supports and hidden compartments. Expands to hold far more than it appears.",
+    "artwork": { "image": "", "caption": "A battered leather valise with brass clasps.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Bag of Holding'."
+  },
+  {
+    "name": "Galvanic Lantern",
+    "type": "equipment",
+    "category": "apparatus",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      { "type": "custom", "description": "Emits bright light in a 30-foot radius for 6 hours on a charge." }
+    ],
+    "description": "A portable electric lantern powered by a replaceable battery cell. Safer than oil, but prone to flicker in damp weather.",
+    "artwork": { "image": "", "caption": "A cylindrical lantern with a glass lens and wire handle.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Driftglobe'."
+  },
+  {
+    "name": "Aetheric Detector",
+    "type": "equipment",
+    "category": "apparatus",
+    "quality": "experimental",
+    "rarity": "rare",
+    "effects": [
+      { "type": "custom", "description": "Detects invisible gases, vapors, and some supernatural phenomena within 10 feet." }
+    ],
+    "description": "A brass-and-glass device with spinning needles and a faint hum. Used by investigators to reveal hidden dangers.",
+    "artwork": { "image": "", "caption": "A palm-sized device with dials and a cloudy glass dome.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Wand of Secrets'."
+  },
+  {
+    "name": "Phlogiston Grenade",
+    "type": "weapon",
+    "category": "explosive",
+    "quality": "standard",
+    "rarity": "uncommon",
+    "effects": [
+      { "type": "damage", "damageType": "fire", "amount": 3, "area": "10-foot radius" }
+    ],
+    "description": "A glass sphere filled with volatile chemicals. When thrown, it bursts into a brief but intense fireball.",
+    "artwork": { "image": "", "caption": "A red-tinted glass sphere with a wax seal.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Alchemist's Fire'."
+  },
+  {
+    "name": "Mesmerist’s Pocket Watch",
+    "type": "item",
+    "category": "trinket",
+    "quality": "fine",
+    "rarity": "rare",
+    "effects": [
+      { "type": "custom", "description": "Advantage on social checks to persuade or calm when used as a focus." }
+    ],
+    "description": "A silver watch with a swirling pattern on its face. Used by mesmerists and charlatans alike.",
+    "artwork": { "image": "", "caption": "A silver pocket watch on a chain.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Ring of Mind Shielding'."
+  },
+  {
+    "name": "St. Elmo’s Rod",
+    "type": "weapon",
+    "category": "tool",
+    "quality": "exceptional",
+    "rarity": "veryRare",
+    "effects": [
+      { "type": "damage", "damageType": "electric", "amount": 2 },
+      { "type": "custom", "description": "Can be used to jump-start machinery or revive a stunned ally once per day." }
+    ],
+    "description": "A copper rod topped with a glass sphere. Sparks leap from its tip when activated.",
+    "artwork": { "image": "", "caption": "A copper rod with a glass globe at one end.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Staff of Thunder and Lightning'."
+  },
+  {
+    "name": "Mourner’s Veil",
+    "type": "armor",
+    "category": "clothing",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      { "type": "custom", "description": "Wearer is less likely to be noticed or remembered in crowds." }
+    ],
+    "description": "A black lace veil traditionally worn at funerals. Said to grant a subtle anonymity to the grieving.",
+    "artwork": { "image": "", "caption": "A delicate black veil with intricate patterns.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Cloak of Elvenkind'."
+  },
+  {
+    "name": "Etheric Syringe",
+    "type": "consumable",
+    "category": "chemical",
+    "quality": "experimental",
+    "rarity": "rare",
+    "effects": [
+      { "type": "restoreResource", "target": "grit", "amount": 5 },
+      { "type": "custom", "description": "May cause vivid hallucinations or temporary insight." }
+    ],
+    "description": "A glass-and-steel syringe containing a glowing blue liquid. Used in desperate circumstances.",
+    "artwork": { "image": "", "caption": "A syringe filled with blue fluid.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Potion of Heroism'."
+  },
+  {
+    "name": "Clockwork Scarab",
+    "type": "item",
+    "category": "trinket",
+    "quality": "masterwork",
+    "rarity": "rare",
+    "effects": [
+      { "type": "custom", "description": "Can be wound to crawl and deliver a tiny note up to 100 feet away." }
+    ],
+    "description": "A tiny mechanical beetle, exquisitely crafted. Used by spies and romantics alike.",
+    "artwork": { "image": "", "caption": "A brass scarab with jeweled eyes.", "credit": "" },
+    "provenance": "Inspired by D&D 5e 'Sending Stone'."
+  }
+]

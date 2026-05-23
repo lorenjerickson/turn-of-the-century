@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Clockwork Bracers",
+    "type": "armor",
+    "category": "arms",
+    "quality": "masterwork",
+    "rarity": "rare",
+    "effects": [
+      {"type": "custom", "description": "Can be triggered to lock and stiffen, granting resistance to being grappled or restrained for 1 minute."}
+    ],
+    "description": "A pair of articulated bracers with hidden gears and springs. Used by escape artists and inventors.",
+    "artwork": {"image": "", "caption": "Intricate metal bracers with visible gears.", "credit": ""},
+    "provenance": "Inspired by D&D 5e 'Bracers of Defense', reimagined for science." 
+  }
+]

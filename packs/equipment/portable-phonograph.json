@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Portable Phonograph",
+    "type": "equipment",
+    "category": "tool",
+    "quality": "fine",
+    "rarity": "rare",
+    "effects": [
+      {"type": "custom", "description": "Can play wax cylinders; may be used to record or play back evidence, music, or coded messages."}
+    ],
+    "description": "A hand-cranked phonograph in a sturdy case, used for entertainment or clandestine communication.",
+    "artwork": {"image": "", "caption": "A compact phonograph with a brass horn.", "credit": ""},
+    "provenance": "Inspired by period audio technology." 
+  }
+]

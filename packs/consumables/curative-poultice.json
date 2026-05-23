@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Curative Poultice",
+    "type": "consumable",
+    "category": "medicine",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "effects": [
+      {"type": "restoreResource", "target": "health", "amount": 6},
+      {"type": "custom", "description": "Reduces swelling and speeds recovery from wounds."}
+    ],
+    "description": "A cloth packet filled with herbs and clay, applied to wounds to speed healing. Used by field medics and herbalists.",
+    "artwork": {"image": "", "caption": "A green poultice wrapped in linen.", "credit": ""},
+    "provenance": "Inspired by period folk remedies." 
+  }
+]
