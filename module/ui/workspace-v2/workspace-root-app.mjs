@@ -1243,8 +1243,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async #loadUnifiedCompendiumItems() {
         const packs = this.#getCompendiumPacks();
         const dedupedEntries = new Map();
+        const semanticEntries = new Map();
         for (const pack of packs) {
             if (String(pack?.documentName ?? "").toLowerCase() !== "item") {
+                continue;
+            }
+            if (this.#isAggregateCompendiumPack(pack)) {
                 continue;
             }
 
@@ -1269,15 +1273,31 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (!uuid) continue;
 
                 if (dedupedEntries.has(uuid)) continue;
-                dedupedEntries.set(uuid, {
+                const itemEntry = {
                     uuid,
                     name: entry?.name ?? "Unnamed Entry",
+                    type: String(entry?.type ?? "item"),
                     packLabel: pack?.metadata?.label ?? pack?.title ?? pack?.collection ?? "Compendium"
-                });
+                };
+                dedupedEntries.set(uuid, itemEntry);
+
+                const semanticKey = this.#buildCompendiumSemanticKey(itemEntry);
+                if (!semanticKey) continue;
+                const existing = semanticEntries.get(semanticKey);
+                if (!existing) {
+                    semanticEntries.set(semanticKey, itemEntry);
+                    continue;
+                }
+
+                if (this.#isBetterSemanticCompendiumEntry(itemEntry, existing)) {
+                    semanticEntries.set(semanticKey, itemEntry);
+                }
             }
         }
 
-        const entries = Array.from(dedupedEntries.values());
+        const entries = semanticEntries.size
+            ? Array.from(semanticEntries.values())
+            : Array.from(dedupedEntries.values());
 
         entries.sort((left, right) => {
             const nameCompare = String(left.name ?? "").localeCompare(String(right.name ?? ""), undefined, { sensitivity: "base" });
@@ -1299,6 +1319,30 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         const iterablePacks = Array.from(game?.packs ?? []);
         return iterablePacks.map((pack) => Array.isArray(pack) && pack.length > 1 ? pack[1] : pack);
+    }
+
+    #isAggregateCompendiumPack(pack) {
+        const collection = String(pack?.collection ?? "").toLowerCase();
+        return collection.endsWith(".starter-items") || collection.endsWith(".starter-actors");
+    }
+
+    #buildCompendiumSemanticKey(entry) {
+        const type = String(entry?.type ?? "").trim().toLowerCase();
+        const name = String(entry?.name ?? "").trim().toLowerCase();
+        if (!name) return null;
+        return `${type}|${name}`;
+    }
+
+    #isBetterSemanticCompendiumEntry(candidate, existing) {
+        const existingAggregate = /starter library/i.test(String(existing?.packLabel ?? ""));
+        const candidateAggregate = /starter library/i.test(String(candidate?.packLabel ?? ""));
+        if (existingAggregate !== candidateAggregate) {
+            return !candidateAggregate;
+        }
+
+        const existingLabel = String(existing?.packLabel ?? "").toLowerCase();
+        const candidateLabel = String(candidate?.packLabel ?? "").toLowerCase();
+        return candidateLabel < existingLabel;
     }
 
     #showGhost(rect, label) {
