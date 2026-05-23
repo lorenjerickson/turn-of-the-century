@@ -1637,6 +1637,173 @@ body.totc-v2-active #board {
     text-align: center;
 }
 
+.turn-of-the-century .totc-v2-market-panel {
+    display: grid;
+    gap: 0.45rem;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+}
+
+.turn-of-the-century .totc-v2-market-panel__state,
+.turn-of-the-century .totc-v2-market-panel__controls,
+.turn-of-the-century .totc-v2-market-panel__column {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 6px;
+    padding: 0.5rem 0.6rem;
+}
+
+.turn-of-the-century .totc-v2-market-panel__state h3,
+.turn-of-the-century .totc-v2-market-panel__column h3 {
+    color: #fde68a;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin: 0 0 0.35rem;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-market-panel__state p {
+    color: #cbd5e1;
+    font-size: 0.8rem;
+    margin: 0.2rem 0;
+}
+
+.turn-of-the-century .totc-v2-market-panel__state button {
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(147, 197, 253, 0.42);
+    border-radius: 4px;
+    color: #dbeafe;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-top: 0.35rem;
+    padding: 0.35rem 0.5rem;
+}
+
+.turn-of-the-century .totc-v2-market-panel__controls {
+    align-items: end;
+    display: grid;
+    gap: 0.45rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.turn-of-the-century .totc-v2-market-panel__buyer-select {
+    color: #cbd5e1;
+    display: grid;
+    font-size: 0.72rem;
+    font-weight: 700;
+    gap: 0.2rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-market-panel__buyer-select select {
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 6px;
+    color: #e2e8f0;
+    font-size: 0.82rem;
+    padding: 0.36rem 0.44rem;
+}
+
+.turn-of-the-century .totc-v2-market-panel__wallet {
+    color: #fde68a;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.turn-of-the-century .totc-v2-market-panel__columns {
+    display: grid;
+    gap: 0.45rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-height: 0;
+}
+
+.turn-of-the-century .totc-v2-market-panel__column {
+    display: grid;
+    gap: 0.35rem;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 0;
+}
+
+.turn-of-the-century .totc-v2-market-panel__list {
+    display: grid;
+    gap: 0.3rem;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 0.1rem;
+}
+
+.turn-of-the-century .totc-v2-market-panel__entry,
+.turn-of-the-century .totc-v2-market-panel__empty {
+    background: rgba(15, 23, 42, 0.48);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 6px;
+    padding: 0.42rem 0.48rem;
+}
+
+.turn-of-the-century .totc-v2-market-panel__entry {
+    align-items: center;
+    display: grid;
+    gap: 0.35rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.turn-of-the-century .totc-v2-market-panel__entry-name {
+    color: #e2e8f0;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.turn-of-the-century .totc-v2-market-panel__entry-meta {
+    color: #94a3b8;
+    font-size: 0.72rem;
+    margin-top: 0.12rem;
+}
+
+.turn-of-the-century .totc-v2-market-panel__entry-actions {
+    align-items: center;
+    display: grid;
+    gap: 0.22rem;
+    justify-items: end;
+}
+
+.turn-of-the-century .totc-v2-market-panel__price {
+    color: #fbbf24;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.turn-of-the-century .totc-v2-market-panel__entry-actions button {
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(147, 197, 253, 0.42);
+    border-radius: 4px;
+    color: #dbeafe;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.26rem 0.45rem;
+}
+
+.turn-of-the-century .totc-v2-market-panel__entry-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.turn-of-the-century .totc-v2-market-panel__empty {
+    color: #94a3b8;
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+@media (max-width: 900px) {
+    .turn-of-the-century .totc-v2-market-panel__columns {
+        grid-template-columns: 1fr;
+    }
+}
+
 .turn-of-the-century .totc-v2-gm-panel {
     display: flex;
     flex-direction: column;

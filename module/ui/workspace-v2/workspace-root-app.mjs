@@ -33,12 +33,18 @@ const MIN_FLOAT_HEIGHT = 160;
 const MIN_TOP_BOTTOM_DOCK_HEIGHT = 128;
 const MIN_LEFT_RIGHT_DOCK_WIDTH = 240;
 const GM_PANEL_STATE_KEY = "gmPanelState";
+const MARKET_PANEL_STATE_KEY = "marketPanelState";
+const MARKET_SCENE_FLAG_KEY = "workspaceV2Market";
 
 const GM_PANEL_DEFAULT_STATE = Object.freeze({
     collapsedGroupIds: [],
     actionSearchQuery: "",
     allActionsExpanded: false,
     contextDebug: false
+});
+
+const MARKET_PANEL_DEFAULT_STATE = Object.freeze({
+    selectedBuyerActorId: ""
 });
 
 const GM_ACTION_MODELS = Object.freeze([
@@ -212,6 +218,12 @@ function normalizeGamemasterPanelState(value = {}) {
         actionSearchQuery: String(value?.actionSearchQuery ?? GM_PANEL_DEFAULT_STATE.actionSearchQuery),
         allActionsExpanded: Boolean(value?.allActionsExpanded ?? GM_PANEL_DEFAULT_STATE.allActionsExpanded),
         contextDebug: Boolean(value?.contextDebug ?? GM_PANEL_DEFAULT_STATE.contextDebug)
+    };
+}
+
+function normalizeMarketPanelState(value = {}) {
+    return {
+        selectedBuyerActorId: String(value?.selectedBuyerActorId ?? MARKET_PANEL_DEFAULT_STATE.selectedBuyerActorId)
     };
 }
 
@@ -396,6 +408,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             panelState: gmPanelState
         });
         const compendiumItems = await this.#getUnifiedCompendiumItems();
+        const marketPanelState = this.#getMarketPanelState();
+        const marketPanel = await this.#buildMarketPanelModel({
+            scene,
+            controlledTokens,
+            panelState: marketPanelState,
+            compendiumItems
+        });
 
         return {
             enabled: policy.enabled,
@@ -419,7 +438,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 height: Number(scene?.height ?? canvas?.dimensions?.sceneHeight ?? 0)
             },
             gm: gmSnapshot,
-            gmPanel
+            gmPanel,
+            marketPanel
         };
     }
 
@@ -519,6 +539,33 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     this.element?.querySelector("[data-action='compendium-search']")?.focus();
                     this._compendiumSearchTimeout = null;
                 }, 300);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='market-select-buyer']")?.forEach((input) => {
+            input.addEventListener("change", async () => {
+                await this.#setMarketPanelStatePatch({ selectedBuyerActorId: String(input.value ?? "") });
+                this.render(false);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='market-buy-item']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const offerId = String(button.dataset.offerId ?? "").trim();
+                if (!offerId) return;
+                await this.#handleMarketBuy(offerId);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='market-sell-item']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const itemId = String(button.dataset.itemId ?? "").trim();
+                if (!itemId) return;
+                await this.#handleMarketSell(itemId);
             });
         });
 
@@ -884,6 +931,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             </section>`;
         }
 
+        if (panel.id === "market") {
+            return this.#renderMarketPanel(context.marketPanel ?? {});
+        }
+
         if (panel.id === "gamemaster") {
             if (!context.gm?.isGM) {
                 return `
@@ -918,6 +969,79 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             .replaceAll(">", "&gt;")
             .replaceAll('"', "&quot;")
             .replaceAll("'", "&#39;");
+    }
+
+    #renderMarketPanel(marketPanel = {}) {
+        const actorOptionsMarkup = (marketPanel.actors ?? []).map((actor) => `
+            <option value="${this.#escapeHTML(actor.id)}" ${actor.selected ? "selected" : ""}>${this.#escapeHTML(actor.name)}</option>`).join("");
+
+        if (!marketPanel.hasMarket) {
+            return `
+            <section class="totc-v2-market-panel">
+                <article class="totc-v2-market-panel__state">
+                    <h3>Market</h3>
+                    <p>No generated market is active for this scene.</p>
+                    ${marketPanel.canGenerate ? `
+                    <button type="button" data-action="gm-execute-action" data-gm-action-id="gm-generate-market">Generate Market</button>` : ""}
+                </article>
+            </section>`;
+        }
+
+        const offersMarkup = (marketPanel.offers ?? []).map((offer) => `
+            <article class="totc-v2-market-panel__entry">
+                <div class="totc-v2-market-panel__entry-main">
+                    <div class="totc-v2-market-panel__entry-name">${this.#escapeHTML(offer.name)}</div>
+                    <div class="totc-v2-market-panel__entry-meta">${this.#escapeHTML(offer.stockLabel)} · ${this.#escapeHTML(offer.packLabel)}</div>
+                </div>
+                <div class="totc-v2-market-panel__entry-actions">
+                    <span class="totc-v2-market-panel__price">${this.#escapeHTML(offer.priceLabel)}</span>
+                    <button type="button" data-action="market-buy-item" data-offer-id="${this.#escapeHTML(offer.id)}" ${offer.canBuy ? "" : "disabled"} title="${this.#escapeHTML(offer.buyHint)}">Buy</button>
+                </div>
+            </article>`).join("");
+
+        const sellMarkup = (marketPanel.sellableItems ?? []).map((entry) => `
+            <article class="totc-v2-market-panel__entry">
+                <div class="totc-v2-market-panel__entry-main">
+                    <div class="totc-v2-market-panel__entry-name">${this.#escapeHTML(entry.name)}</div>
+                    <div class="totc-v2-market-panel__entry-meta">Qty ${entry.quantity} · Base ${this.#escapeHTML(entry.basePriceLabel)}</div>
+                </div>
+                <div class="totc-v2-market-panel__entry-actions">
+                    <span class="totc-v2-market-panel__price">${this.#escapeHTML(entry.sellPriceLabel)}</span>
+                    <button type="button" data-action="market-sell-item" data-item-id="${this.#escapeHTML(entry.id)}" ${entry.canSell ? "" : "disabled"} title="${this.#escapeHTML(entry.sellHint)}">Sell</button>
+                </div>
+            </article>`).join("");
+
+        return `
+        <section class="totc-v2-market-panel">
+            <article class="totc-v2-market-panel__state">
+                <h3>${this.#escapeHTML(marketPanel.title ?? "Market")}</h3>
+                <p>${this.#escapeHTML(marketPanel.summary ?? "")}</p>
+                <p><strong>Updated:</strong> ${this.#escapeHTML(marketPanel.updatedLabel ?? "")}</p>
+            </article>
+            <section class="totc-v2-market-panel__controls">
+                <label class="totc-v2-market-panel__buyer-select">
+                    <span>Buyer/Seller</span>
+                    <select data-action="market-select-buyer" ${marketPanel.actors?.length ? "" : "disabled"}>
+                        ${actorOptionsMarkup || `<option value="">No eligible actor</option>`}
+                    </select>
+                </label>
+                <div class="totc-v2-market-panel__wallet">Wallet: ${this.#escapeHTML(marketPanel.walletLabel ?? "-")}</div>
+            </section>
+            <section class="totc-v2-market-panel__columns">
+                <article class="totc-v2-market-panel__column">
+                    <h3>Buy</h3>
+                    <div class="totc-v2-market-panel__list">
+                        ${offersMarkup || `<div class="totc-v2-market-panel__empty">No market offers available.</div>`}
+                    </div>
+                </article>
+                <article class="totc-v2-market-panel__column">
+                    <h3>Sell</h3>
+                    <div class="totc-v2-market-panel__list">
+                        ${sellMarkup || `<div class="totc-v2-market-panel__empty">No sellable inventory on selected actor.</div>`}
+                    </div>
+                </article>
+            </section>
+        </section>`;
     }
 
     #bindSceneHooks() {
@@ -992,6 +1116,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return normalizeGamemasterPanelState(workspaceFlags[GM_PANEL_STATE_KEY] ?? {});
     }
 
+    #getMarketPanelState() {
+        const workspaceFlags = foundry.utils.deepClone(game.user?.getFlag(game.system?.id, WORKSPACE_V2_FLAG_SCOPE) ?? {});
+        return normalizeMarketPanelState(workspaceFlags[MARKET_PANEL_STATE_KEY] ?? {});
+    }
+
     async #setGamemasterPanelStatePatch(patch = {}) {
         const systemId = game.system?.id;
         const current = foundry.utils.deepClone(game.user?.getFlag(systemId, WORKSPACE_V2_FLAG_SCOPE) ?? {});
@@ -1000,6 +1129,18 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             ...patch
         });
         current[GM_PANEL_STATE_KEY] = merged;
+        await game.user?.setFlag(systemId, WORKSPACE_V2_FLAG_SCOPE, current);
+        return merged;
+    }
+
+    async #setMarketPanelStatePatch(patch = {}) {
+        const systemId = game.system?.id;
+        const current = foundry.utils.deepClone(game.user?.getFlag(systemId, WORKSPACE_V2_FLAG_SCOPE) ?? {});
+        const merged = normalizeMarketPanelState({
+            ...(current[MARKET_PANEL_STATE_KEY] ?? {}),
+            ...patch
+        });
+        current[MARKET_PANEL_STATE_KEY] = merged;
         await game.user?.setFlag(systemId, WORKSPACE_V2_FLAG_SCOPE, current);
         return merged;
     }
@@ -1139,7 +1280,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 break;
             }
             case "gm-generate-market": {
-                await this.#generateGamemasterHook("market");
+                await this.#generateMarketOfferBoard();
                 break;
             }
             case "gm-generate-mob": {
@@ -1205,6 +1346,51 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
     }
 
+    async #generateMarketOfferBoard() {
+        if (!game.user?.isGM) {
+            ui.notifications?.warn("Only the GM can generate market boards.");
+            return;
+        }
+
+        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
+        if (!scene) {
+            ui.notifications?.warn("No active scene is available for market generation.");
+            return;
+        }
+
+        const offers = await this.#buildGeneratedMarketOffers();
+        if (!offers.length) {
+            ui.notifications?.warn("Unable to generate market offers from compendium items.");
+            return;
+        }
+
+        const seedsApi = game.turnOfTheCentury?.seeds;
+        const factionMap = seedsApi?.factionMetadata ?? {};
+        const factionKeys = Object.keys(factionMap);
+        const fallbackFaction = "frontier-raiders";
+        const factionKey = this.#randomFrom(factionKeys) ?? fallbackFaction;
+        const narrative = seedsApi?.getNarrative?.(factionKey) ?? {};
+
+        const marketState = {
+            id: foundry?.utils?.randomID?.() ?? Math.random().toString(36).slice(2, 10),
+            title: `${scene.name ?? "Current Scene"} Market`,
+            summary: narrative.victory ?? "A broker offers scarce goods at a risky premium.",
+            generatedAt: Date.now(),
+            generatedBy: game.user?.id ?? null,
+            buyMarkup: 1.2,
+            sellRate: 0.55,
+            offers
+        };
+
+        await scene.setFlag?.(game.system?.id ?? "turn-of-the-century", MARKET_SCENE_FLAG_KEY, marketState);
+
+        const lines = [
+            `Scene: ${scene.name ?? "Unknown scene"}`,
+            `${offers.length} offers are now available in the Market panel.`
+        ];
+        await this.#announceGamemasterGeneratedContent({ title: "Market Generated", lines });
+    }
+
     async #setGamemasterAtmospherePreset(preset) {
         const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
         if (!scene) {
@@ -1258,6 +1444,344 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (!Array.isArray(items) || !items.length) return null;
         const index = Math.floor(Math.random() * items.length);
         return items[index];
+    }
+
+    async #buildMarketPanelModel({ scene = null, controlledTokens = [], panelState = {}, compendiumItems = [] } = {}) {
+        const actors = this.#getMarketEligibleActors(controlledTokens);
+        const requestedActorId = String(panelState?.selectedBuyerActorId ?? "");
+        const selectedActor = actors.find((actor) => actor.id === requestedActorId)
+            ?? actors[0]
+            ?? null;
+        if (selectedActor?.id && selectedActor.id !== requestedActorId) {
+            await this.#setMarketPanelStatePatch({ selectedBuyerActorId: selectedActor.id });
+        }
+
+        const marketState = this.#normalizeSceneMarketState(scene?.getFlag?.(game.system?.id, MARKET_SCENE_FLAG_KEY) ?? null);
+        const walletValue = Number(selectedActor?.system?.economy?.wallet?.gbp ?? 0);
+        const wallet = Number.isFinite(walletValue) ? walletValue : 0;
+
+        const offers = (marketState?.offers ?? []).map((offer) => {
+            const price = Number(offer.price ?? 0);
+            const stock = Math.max(0, Number(offer.stock ?? 0));
+            const hasActor = Boolean(selectedActor);
+            const canAfford = wallet >= price;
+            const canBuy = hasActor && stock > 0 && canAfford;
+            return {
+                id: String(offer.id),
+                name: String(offer.name ?? "Unnamed Item"),
+                packLabel: String(offer.packLabel ?? "Market Stock"),
+                stockLabel: `Stock ${stock}`,
+                priceLabel: this.#formatCurrency(price, offer.currency),
+                canBuy,
+                buyHint: !hasActor
+                    ? "Select an eligible actor first."
+                    : (stock <= 0 ? "Out of stock." : (canAfford ? "Purchase one unit." : "Not enough funds."))
+            };
+        });
+
+        const sellableItems = this.#getMarketSellableItems(selectedActor, marketState);
+        const fallbackSummary = compendiumItems.length
+            ? `${compendiumItems.length} compendium items are available for market generation.`
+            : "Generate a market from the GM panel to begin trading.";
+
+        return {
+            hasMarket: Boolean(marketState),
+            canGenerate: Boolean(game.user?.isGM),
+            title: marketState?.title ?? "Market",
+            summary: marketState?.summary ?? fallbackSummary,
+            updatedLabel: marketState?.generatedAt ? new Date(marketState.generatedAt).toLocaleString() : "Not generated",
+            walletLabel: this.#formatCurrency(wallet, "pounds"),
+            actors: actors.map((actor) => ({
+                id: actor.id,
+                name: actor.name ?? "Unnamed Actor",
+                selected: actor.id === selectedActor?.id
+            })),
+            offers,
+            sellableItems
+        };
+    }
+
+    #getMarketEligibleActors(controlledTokens = []) {
+        const controlledActorIds = new Set((controlledTokens ?? []).map((token) => token?.actor?.id).filter(Boolean));
+        const allActors = game.actors?.contents ?? [];
+        const visibleActors = allActors.filter((actor) => {
+            if (!actor) return false;
+            if (game.user?.isGM) return true;
+            return actor.isOwner;
+        });
+
+        const sorted = [...visibleActors].sort((left, right) => String(left?.name ?? "").localeCompare(String(right?.name ?? ""), undefined, { sensitivity: "base" }));
+        sorted.sort((left, right) => {
+            const leftControlled = controlledActorIds.has(left.id) ? 0 : 1;
+            const rightControlled = controlledActorIds.has(right.id) ? 0 : 1;
+            return leftControlled - rightControlled;
+        });
+
+        return sorted;
+    }
+
+    #normalizeSceneMarketState(value) {
+        if (!value || typeof value !== "object") return null;
+        const offers = Array.isArray(value.offers)
+            ? value.offers
+                .map((offer) => ({
+                    id: String(offer?.id ?? ""),
+                    uuid: String(offer?.uuid ?? ""),
+                    name: String(offer?.name ?? "Unnamed Item"),
+                    type: String(offer?.type ?? "item"),
+                    packLabel: String(offer?.packLabel ?? "Market Stock"),
+                    price: Math.max(0, Number(offer?.price ?? 0)),
+                    basePrice: Math.max(0, Number(offer?.basePrice ?? offer?.price ?? 0)),
+                    currency: String(offer?.currency ?? "pounds"),
+                    stock: Math.max(0, Math.floor(Number(offer?.stock ?? 0)))
+                }))
+                .filter((offer) => offer.id && offer.stock > 0)
+            : [];
+        if (!offers.length) return null;
+
+        return {
+            id: String(value.id ?? foundry?.utils?.randomID?.() ?? "market"),
+            title: String(value.title ?? "Market"),
+            summary: String(value.summary ?? ""),
+            generatedAt: Number(value.generatedAt ?? Date.now()),
+            generatedBy: value.generatedBy ?? null,
+            buyMarkup: Math.max(1, Number(value.buyMarkup ?? 1.2)),
+            sellRate: Math.max(0, Number(value.sellRate ?? 0.55)),
+            offers
+        };
+    }
+
+    #formatCurrency(value, currency = "pounds") {
+        const amount = Number.isFinite(Number(value)) ? Number(value) : 0;
+        const rounded = Math.round(amount * 100) / 100;
+        const suffix = String(currency ?? "pounds");
+        return `${rounded.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${suffix}`;
+    }
+
+    #getMarketSellableItems(actor, marketState) {
+        if (!actor) return [];
+        const sellRate = Math.max(0, Number(marketState?.sellRate ?? 0.55));
+        const items = actor.items?.contents ?? [];
+
+        return items
+            .map((item) => {
+                const basePrice = Math.max(0, Number(item?.system?.value?.price ?? 0));
+                const currency = String(item?.system?.value?.currency ?? "pounds");
+                const quantity = Math.max(0, Math.floor(Number(item?.system?.physical?.quantity ?? 1)));
+                const sellPrice = Math.max(0, Math.round(basePrice * sellRate * 100) / 100);
+                return {
+                    id: String(item?.id ?? ""),
+                    name: String(item?.name ?? "Unnamed Item"),
+                    quantity,
+                    basePrice,
+                    currency,
+                    basePriceLabel: this.#formatCurrency(basePrice, currency),
+                    sellPrice,
+                    sellPriceLabel: this.#formatCurrency(sellPrice, currency),
+                    canSell: quantity > 0 && sellPrice > 0,
+                    sellHint: quantity <= 0
+                        ? "No quantity available."
+                        : (sellPrice > 0 ? "Sell one unit to the market." : "Item has no sell value.")
+                };
+            })
+            .filter((entry) => entry.id)
+            .sort((left, right) => String(left.name).localeCompare(String(right.name), undefined, { sensitivity: "base" }));
+    }
+
+    async #buildGeneratedMarketOffers() {
+        const items = await this.#getUnifiedCompendiumItems();
+        const pool = [...items];
+        for (let i = pool.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+
+        const selected = pool.slice(0, Math.min(10, pool.length));
+        const offers = [];
+        for (const entry of selected) {
+            let basePrice = 1;
+            let currency = "pounds";
+            let type = String(entry?.type ?? "item");
+            try {
+                const document = await fromUuid(entry.uuid);
+                basePrice = Math.max(0, Number(document?.system?.value?.price ?? basePrice));
+                currency = String(document?.system?.value?.currency ?? currency);
+                type = String(document?.type ?? type);
+            } catch (error) {
+                console.warn("[turn-of-the-century] Failed to resolve market item uuid", entry?.uuid, error);
+            }
+
+            const buyPrice = Math.max(1, Math.round(basePrice * (1.1 + Math.random() * 0.45) * 100) / 100);
+            const stock = 1 + Math.floor(Math.random() * 4);
+            offers.push({
+                id: foundry?.utils?.randomID?.() ?? Math.random().toString(36).slice(2, 10),
+                uuid: String(entry?.uuid ?? ""),
+                name: String(entry?.name ?? "Unnamed Item"),
+                type,
+                packLabel: String(entry?.packLabel ?? "Market Stock"),
+                basePrice,
+                price: buyPrice,
+                currency,
+                stock
+            });
+        }
+
+        return offers;
+    }
+
+    #resolveSelectedMarketActor() {
+        const panelState = this.#getMarketPanelState();
+        const actorId = String(panelState?.selectedBuyerActorId ?? "");
+        if (!actorId) return null;
+        return game.actors?.get?.(actorId) ?? null;
+    }
+
+    #canUserManageMarketActor(actor) {
+        if (!actor) return false;
+        if (game.user?.isGM) return true;
+        return Boolean(actor.isOwner);
+    }
+
+    async #handleMarketBuy(offerId) {
+        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
+        if (!scene) return;
+
+        const marketState = this.#normalizeSceneMarketState(scene.getFlag?.(game.system?.id, MARKET_SCENE_FLAG_KEY) ?? null);
+        if (!marketState) {
+            ui.notifications?.warn("No generated market is active in this scene.");
+            return;
+        }
+
+        const buyer = this.#resolveSelectedMarketActor();
+        if (!this.#canUserManageMarketActor(buyer)) {
+            ui.notifications?.warn("Select an actor you can manage before buying.");
+            return;
+        }
+
+        const offer = marketState.offers.find((entry) => entry.id === offerId);
+        if (!offer) {
+            ui.notifications?.warn("This market offer is no longer available.");
+            return;
+        }
+
+        const wallet = Math.max(0, Number(buyer.system?.economy?.wallet?.gbp ?? 0));
+        const price = Math.max(0, Number(offer.price ?? 0));
+        if (wallet < price) {
+            ui.notifications?.warn(`${buyer.name} does not have enough funds.`);
+            return;
+        }
+
+        let itemData = null;
+        if (offer.uuid) {
+            try {
+                const document = await fromUuid(offer.uuid);
+                if (document?.toObject) {
+                    itemData = document.toObject();
+                }
+            } catch (error) {
+                console.warn("[turn-of-the-century] Failed to import market item", offer.uuid, error);
+            }
+        }
+
+        if (!itemData) {
+            itemData = {
+                name: offer.name,
+                type: offer.type || "item",
+                system: {
+                    physical: { quantity: 1 },
+                    value: { price: offer.basePrice, currency: offer.currency }
+                }
+            };
+        }
+
+        delete itemData._id;
+        itemData.system ??= {};
+        itemData.system.physical ??= {};
+        itemData.system.value ??= {};
+        itemData.system.physical.quantity = 1;
+        itemData.system.value.price = Math.max(0, Number(itemData.system.value.price ?? offer.basePrice ?? price));
+        itemData.system.value.currency = String(itemData.system.value.currency ?? offer.currency ?? "pounds");
+
+        const existing = buyer.items?.find?.((item) => item.name === itemData.name && item.type === itemData.type);
+        if (existing) {
+            const quantity = Math.max(0, Math.floor(Number(existing.system?.physical?.quantity ?? 1)));
+            await existing.update({ "system.physical.quantity": quantity + 1 });
+        } else {
+            await buyer.createEmbeddedDocuments("Item", [itemData]);
+        }
+
+        await buyer.update({ "system.economy.wallet.gbp": Math.max(0, wallet - price) });
+
+        offer.stock = Math.max(0, offer.stock - 1);
+        marketState.offers = marketState.offers.filter((entry) => entry.stock > 0);
+        await scene.setFlag?.(game.system?.id ?? "turn-of-the-century", MARKET_SCENE_FLAG_KEY, marketState.offers.length ? marketState : null);
+
+        ui.notifications?.info(`${buyer.name} purchased ${offer.name} for ${this.#formatCurrency(price, offer.currency)}.`);
+        this.render(false);
+    }
+
+    async #handleMarketSell(itemId) {
+        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
+        if (!scene) return;
+
+        const marketState = this.#normalizeSceneMarketState(scene.getFlag?.(game.system?.id, MARKET_SCENE_FLAG_KEY) ?? null);
+        if (!marketState) {
+            ui.notifications?.warn("No generated market is active in this scene.");
+            return;
+        }
+
+        const actor = this.#resolveSelectedMarketActor();
+        if (!this.#canUserManageMarketActor(actor)) {
+            ui.notifications?.warn("Select an actor you can manage before selling.");
+            return;
+        }
+
+        const item = actor.items?.get?.(itemId) ?? null;
+        if (!item) {
+            ui.notifications?.warn("This item is no longer available on the selected actor.");
+            return;
+        }
+
+        const quantity = Math.max(0, Math.floor(Number(item.system?.physical?.quantity ?? 1)));
+        const basePrice = Math.max(0, Number(item.system?.value?.price ?? 0));
+        const currency = String(item.system?.value?.currency ?? "pounds");
+        const sellRate = Math.max(0, Number(marketState.sellRate ?? 0.55));
+        const sellPrice = Math.max(0, Math.round(basePrice * sellRate * 100) / 100);
+        if (quantity <= 0 || sellPrice <= 0) {
+            ui.notifications?.warn("This item cannot be sold.");
+            return;
+        }
+
+        if (quantity <= 1) {
+            await item.delete();
+        } else {
+            await item.update({ "system.physical.quantity": quantity - 1 });
+        }
+
+        const wallet = Math.max(0, Number(actor.system?.economy?.wallet?.gbp ?? 0));
+        await actor.update({ "system.economy.wallet.gbp": wallet + sellPrice });
+
+        const existingOffer = marketState.offers.find((offer) => offer.name === item.name && offer.type === item.type && offer.currency === currency && Math.abs(Number(offer.basePrice ?? 0) - basePrice) < 0.001);
+        if (existingOffer) {
+            existingOffer.stock = Math.max(0, Number(existingOffer.stock ?? 0) + 1);
+        } else {
+            const buyPrice = Math.max(1, Math.round(basePrice * Math.max(1, Number(marketState.buyMarkup ?? 1.2)) * 100) / 100);
+            marketState.offers.push({
+                id: foundry?.utils?.randomID?.() ?? Math.random().toString(36).slice(2, 10),
+                uuid: "",
+                name: String(item.name ?? "Sold Item"),
+                type: String(item.type ?? "item"),
+                packLabel: "Party Stock",
+                price: buyPrice,
+                basePrice,
+                currency,
+                stock: 1
+            });
+        }
+
+        await scene.setFlag?.(game.system?.id ?? "turn-of-the-century", MARKET_SCENE_FLAG_KEY, marketState);
+        ui.notifications?.info(`${actor.name} sold ${item.name} for ${this.#formatCurrency(sellPrice, currency)}.`);
+        this.render(false);
     }
 
     #wireMapInteractionHandlers() {
