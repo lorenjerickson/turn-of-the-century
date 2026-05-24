@@ -1,6 +1,7 @@
 import { WORKSPACE_V2_DOCK_IDS, WORKSPACE_V2_FLAG_SCOPE } from "./constants.mjs";
 import { InteractionController } from "./interaction-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
+import { WorkspacePanelRegistry } from "./panel-registry.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
 
 function getApplicationV2BaseClass() {
@@ -8,19 +9,6 @@ function getApplicationV2BaseClass() {
 }
 
 const ApplicationV2Base = getApplicationV2BaseClass();
-
-const PANEL_LIBRARY = Object.freeze([
-    { id: "gamemaster", title: "Gamemaster" },
-    { id: "map", title: "Map" },
-    { id: "travel", title: "Travel" },
-    { id: "encounter", title: "Encounter Planner" },
-    { id: "market", title: "Market" },
-    { id: "player", title: "Player Panel", defaultDock: "rightDock" },
-    { id: "compendium", title: "Unified Compendium" },
-    { id: "camp", title: "Camp" },
-    { id: "chat", title: "Chat and Messages" },
-    { id: "tracker", title: "Turn Tracker" }
-]);
 
 const DOCK_LABELS = Object.freeze({
     leftDock: "Left Dock",
@@ -562,9 +550,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         super();
         this.stateStore = stateStore;
         this.governor = governor;
+        this.panelRegistry = new WorkspacePanelRegistry();
+        this.panels = this.panelRegistry.getAll();
         this.layoutEngine = new LayoutEngine({
             layout: this.stateStore?.getUserLayout?.(),
-            panels: PANEL_LIBRARY
+            panels: this.panels
         });
         this.interactionController = new InteractionController();
         this.ghostIntent = null;
@@ -729,12 +719,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             enabled: policy.enabled,
             debugGovernance: policy.debugGovernance,
             hasUserLayout: Boolean(this.stateStore?.getUserLayout?.()),
-            panels: PANEL_LIBRARY,
-            panelVisibility: PANEL_LIBRARY.map((panel) => ({
-                id: panel.id,
-                title: panel.title,
-                visible: visiblePanels.has(panel.id)
-            })),
+            panels: this.panels,
+            panelVisibility: this.panelRegistry.getVisibilityModel(visiblePanels),
             layout: activeLayout,
             dockWeights: this.layoutEngine.getDockWeightLayout(),
             compendiumSearchQuery: this.compendiumSearchQuery,
@@ -1011,7 +997,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const panelId = checkbox.dataset.panelId;
                 if (!panelId) return;
 
-                const panelDef = PANEL_LIBRARY.find((panel) => panel.id === panelId);
+                const panelDef = this.panelRegistry.get(panelId);
                 if (!panelDef) return;
 
                 const nextLayout = checkbox.checked
@@ -1038,7 +1024,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 const panelId = button.dataset.panelId;
-                const panelDef = PANEL_LIBRARY.find((panel) => panel.id === panelId);
+                const panelDef = this.panelRegistry.get(panelId);
                 if (!panelDef) return;
 
                 const nextLayout = this.layoutEngine.floatPanel(panelDef);
@@ -2597,7 +2583,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         host.addEventListener("drop", async (event) => {
             event.preventDefault();
             const panelId = event.dataTransfer?.getData("text/plain");
-            const panelDef = PANEL_LIBRARY.find((panel) => panel.id === panelId);
+            const panelDef = this.panelRegistry.get(panelId);
             if (!panelDef) {
                 this.#hideGhost();
                 return;
@@ -3063,8 +3049,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #enforceRequiredDocking() {
-        const mapPanel = PANEL_LIBRARY.find((panel) => panel.id === "map");
-        const compendiumPanel = PANEL_LIBRARY.find((panel) => panel.id === "compendium");
+        const mapPanel = this.panelRegistry.get("map");
+        const compendiumPanel = this.panelRegistry.get("compendium");
         if (!mapPanel || !compendiumPanel) return null;
 
         let changed = false;
