@@ -1,9 +1,11 @@
 {
   "name": "turn-of-the-century",
-  "version": "0.0.96",
+  "version": "0.0.97",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test \"test/**/*.test.mjs\""
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "syntax-check": "node scripts/syntax-check.mjs",
+    "validate": "node scripts/syntax-check.mjs && node --test \"test/**/*.test.mjs\""
   }
 }

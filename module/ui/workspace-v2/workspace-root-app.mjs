@@ -19,6 +19,10 @@ import {
     renderInspectorPanel
 } from "./panels/inspector-panel.mjs";
 import { WorkspaceDesignActionRegistry } from "./design-action-registry.mjs";
+import {
+    buildDesignIssuesPanelModel,
+    renderDesignIssuesPanel
+} from "./panels/design-issues-panel.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
 
 function getApplicationV2BaseClass() {
@@ -620,10 +624,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.render(false);
             }
         };
+        this._designIssuesRefreshHandler = () => {
+            if (this.rendered) this.render(false);
+        };
         this._sceneHooksBound = false;
         this._compendiumHooksBound = false;
         this._gamemasterHooksBound = false;
         this._playerHooksBound = false;
+        this._designIssuesHooksBound = false;
     }
 
     /**
@@ -749,6 +757,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             })) ?? [],
         };
 
+        const worldActors = Array.from(game.actors?.contents ?? []);
+        const designIssuesPanel = buildDesignIssuesPanelModel({
+            scene,
+            actors: worldActors,
+            combat
+        });
+
         return {
             enabled: policy.enabled,
             debugGovernance: policy.debugGovernance,
@@ -778,7 +793,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             gm: gmSnapshot,
             gmPanel: highlightedGmPanel,
             marketPanel,
-            playerPanel: highlightedPlayerPanel
+            playerPanel: highlightedPlayerPanel,
+            designIssuesPanel
         };
     }
 
@@ -854,6 +870,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#bindCompendiumHooks();
         this.#bindGamemasterHooks();
         this.#bindPlayerHooks();
+        this.#bindDesignIssuesHooks();
 
         this.element?.querySelectorAll("[data-action='totc-v2-exit-world']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
@@ -1074,6 +1091,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.element?.querySelectorAll("[data-action='navigate-design-issue']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const navigateAction = String(button.dataset.navigateAction ?? "").trim();
+                const subjectId = String(button.dataset.subjectId ?? "").trim();
+                const subjectType = String(button.dataset.subjectType ?? "").trim();
+                await this.#executeDesignIssueNavigation(navigateAction, { subjectId, subjectType });
+            });
+        });
+
         this.element?.querySelectorAll("[data-action='totc-v2-command-menu-toggle']")?.forEach((button) => {
             button.addEventListener("click", (event) => {
                 event.preventDefault();
@@ -1269,6 +1297,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#unbindCompendiumHooks();
         this.#unbindGamemasterHooks();
         this.#unbindPlayerHooks();
+        this.#unbindDesignIssuesHooks();
         this.#endMapPanSession();
         return await super.close?.(options);
     }
@@ -1475,6 +1504,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         if (panel.id === "inspector") {
             return renderInspectorPanel(context.inspectorPanel ?? {}, {
+                escapeHTML: (value) => this.#escapeHTML(value)
+            });
+        }
+
+        if (panel.id === "design-issues") {
+            if (!context.gm?.isGM) {
+                return `<section class="totc-v2-issues-panel"><p class="totc-v2-issues-panel__access-denied">This panel is only available to the active Gamemaster.</p></section>`;
+            }
+            return renderDesignIssuesPanel(context.designIssuesPanel ?? {}, {
                 escapeHTML: (value) => this.#escapeHTML(value)
             });
         }
@@ -1858,6 +1896,53 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         Hooks.off("controlToken", this._gamemasterRefreshHandler);
         Hooks.off("pauseGame", this._gamemasterRefreshHandler);
         this._gamemasterHooksBound = false;
+    }
+
+    #bindDesignIssuesHooks() {
+        if (this._designIssuesHooksBound) return;
+        // Scene-level changes: background, walls, lights, tokens
+        Hooks.on("updateScene", this._designIssuesRefreshHandler);
+        Hooks.on("canvasReady", this._designIssuesRefreshHandler);
+        Hooks.on("createWall", this._designIssuesRefreshHandler);
+        Hooks.on("deleteWall", this._designIssuesRefreshHandler);
+        Hooks.on("createAmbientLight", this._designIssuesRefreshHandler);
+        Hooks.on("deleteAmbientLight", this._designIssuesRefreshHandler);
+        Hooks.on("createToken", this._designIssuesRefreshHandler);
+        Hooks.on("updateToken", this._designIssuesRefreshHandler);
+        Hooks.on("deleteToken", this._designIssuesRefreshHandler);
+        // Actor-level changes: portrait, profession items
+        Hooks.on("createActor", this._designIssuesRefreshHandler);
+        Hooks.on("updateActor", this._designIssuesRefreshHandler);
+        Hooks.on("deleteActor", this._designIssuesRefreshHandler);
+        Hooks.on("createItem", this._designIssuesRefreshHandler);
+        Hooks.on("deleteItem", this._designIssuesRefreshHandler);
+        // Encounter-level changes: initiative rolls
+        Hooks.on("createCombatant", this._designIssuesRefreshHandler);
+        Hooks.on("updateCombatant", this._designIssuesRefreshHandler);
+        Hooks.on("deleteCombatant", this._designIssuesRefreshHandler);
+        this._designIssuesHooksBound = true;
+    }
+
+    #unbindDesignIssuesHooks() {
+        if (!this._designIssuesHooksBound) return;
+        Hooks.off("updateScene", this._designIssuesRefreshHandler);
+        Hooks.off("canvasReady", this._designIssuesRefreshHandler);
+        Hooks.off("createWall", this._designIssuesRefreshHandler);
+        Hooks.off("deleteWall", this._designIssuesRefreshHandler);
+        Hooks.off("createAmbientLight", this._designIssuesRefreshHandler);
+        Hooks.off("deleteAmbientLight", this._designIssuesRefreshHandler);
+        Hooks.off("createToken", this._designIssuesRefreshHandler);
+        Hooks.off("updateToken", this._designIssuesRefreshHandler);
+        Hooks.off("deleteToken", this._designIssuesRefreshHandler);
+        Hooks.off("createActor", this._designIssuesRefreshHandler);
+        Hooks.off("updateActor", this._designIssuesRefreshHandler);
+        Hooks.off("deleteActor", this._designIssuesRefreshHandler);
+        Hooks.off("createItem", this._designIssuesRefreshHandler);
+        Hooks.off("deleteItem", this._designIssuesRefreshHandler);
+        Hooks.off("createCombatant", this._designIssuesRefreshHandler);
+        Hooks.off("updateCombatant", this._designIssuesRefreshHandler);
+        Hooks.off("deleteCombatant", this._designIssuesRefreshHandler);
+        this._designIssuesHooksBound = false;
     }
 
     #unbindPlayerHooks() {
@@ -3246,6 +3331,46 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         } catch (error) {
             console.error("[turn-of-the-century] Design action failed", { actionId, error });
             ui.notifications?.error(error?.message ?? `${action.label} failed.`);
+        }
+    }
+
+    /**
+     * Navigate the GM to the entity or layer implicated by a design issue.
+     * Each navigateAction key maps to a lightweight Foundry API call.
+     */
+    async #executeDesignIssueNavigation(navigateAction, { subjectId = "", subjectType = "" } = {}) {
+        try {
+            switch (navigateAction) {
+                case "navigate.actor": {
+                    const actor = subjectId ? game.actors?.get(subjectId) : null;
+                    if (actor) actor.sheet?.render(true);
+                    else ui.notifications?.warn("Actor not found.");
+                    break;
+                }
+                case "navigate.scene.config": {
+                    const scene = subjectId ? game.scenes?.get(subjectId) : (canvas?.scene ?? null);
+                    if (scene) scene.sheet?.render(true);
+                    else ui.notifications?.warn("Scene not found.");
+                    break;
+                }
+                case "navigate.scene.walls":
+                    canvas?.walls?.activate?.();
+                    break;
+                case "navigate.scene.lights":
+                    canvas?.lighting?.activate?.();
+                    break;
+                case "navigate.scene.tokens":
+                    canvas?.tokens?.activate?.();
+                    break;
+                case "navigate.combat":
+                    ui.combat?.render?.(true);
+                    break;
+                default:
+                    console.warn("[turn-of-the-century] Unknown navigate action:", navigateAction);
+            }
+        } catch (error) {
+            console.error("[turn-of-the-century] Design issue navigation failed", { navigateAction, subjectId, error });
+            ui.notifications?.error("Navigation failed — see console for details.");
         }
     }
 
