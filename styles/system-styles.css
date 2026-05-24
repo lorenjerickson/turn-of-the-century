@@ -1453,23 +1453,21 @@ body.totc-v2-active #board {
     flex: 0 0 auto;
     gap: 0.3rem;
     justify-content: flex-end;
-    padding: 0 0 0.2rem;
+    padding: 0;
 }
 
 .turn-of-the-century .totc-v2-stack__actions button {
     align-items: center;
-    background: rgba(59, 130, 246, 0.18);
-    border: 1px solid rgba(147, 197, 253, 0.45);
+    background: none;
+    border: none;
     border-radius: 4px;
     color: #dbeafe;
     cursor: pointer;
     display: inline-flex;
     font-size: 0.72rem;
-    height: 1.55rem;
     justify-content: center;
     line-height: 1;
-    padding: 0;
-    width: 1.55rem;
+    padding: 0.2rem;
 }
 
 .turn-of-the-century .totc-v2-design-command-palette {
@@ -1657,7 +1655,7 @@ body.totc-v2-active #board {
     font-weight: 500;
     max-width: 11rem;
     overflow: hidden;
-    padding: 0.3rem 0.55rem;
+    padding: 0.3rem 0.55rem 0.55rem;
     position: relative;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2948,10 +2946,13 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-floating__body {
 }
 
 body.totc-theme-victorian .turn-of-the-century .totc-v2-panel-chip,
-body.totc-theme-victorian .turn-of-the-century .totc-v2-command-menu__item,
-body.totc-theme-victorian .turn-of-the-century .totc-v2-stack__actions button {
+body.totc-theme-victorian .turn-of-the-century .totc-v2-command-menu__item {
     background: rgba(72, 49, 31, 0.78);
     border-color: rgba(215, 169, 79, 0.5);
+    color: #f4ddb0;
+}
+
+body.totc-theme-victorian .turn-of-the-century .totc-v2-stack__actions button {
     color: #f4ddb0;
 }
 
