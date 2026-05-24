@@ -1980,6 +1980,123 @@ body.totc-v2-active #board {
     text-align: center;
 }
 
+.turn-of-the-century .totc-v2-inspector-panel {
+    display: grid;
+    gap: 0.55rem;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__header {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+    padding-bottom: 0.45rem;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__eyebrow {
+    color: #94a3b8;
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__header h3 {
+    color: #e5e7eb;
+    font-size: 1rem;
+    line-height: 1.2;
+    margin: 0.1rem 0 0;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__details {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__detail {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 6px;
+    display: grid;
+    gap: 0.18rem;
+    padding: 0.45rem 0.55rem;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__detail dt {
+    color: #94a3b8;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__detail dd {
+    color: #e2e8f0;
+    font-size: 0.86rem;
+    margin: 0;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__actions {
+    display: grid;
+    gap: 0.4rem;
+    min-height: 0;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__actions h4 {
+    color: #cbd5e1;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__action-list {
+    display: grid;
+    gap: 0.35rem;
+    min-height: 0;
+    overflow: auto;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__action,
+.turn-of-the-century .totc-v2-inspector-panel__empty {
+    background: rgba(30, 41, 59, 0.64);
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 6px;
+    color: #e2e8f0;
+    padding: 0.5rem 0.6rem;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__action {
+    cursor: pointer;
+    display: grid;
+    gap: 0.15rem;
+    text-align: left;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__action:hover {
+    background: rgba(59, 130, 246, 0.22);
+    border-color: rgba(147, 197, 253, 0.62);
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__action span {
+    font-size: 0.86rem;
+    font-weight: 800;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__action small {
+    color: #94a3b8;
+    font-size: 0.68rem;
+}
+
+.turn-of-the-century .totc-v2-inspector-panel__empty {
+    color: #94a3b8;
+    font-size: 0.82rem;
+    text-align: center;
+}
+
 .turn-of-the-century .totc-v2-market-panel {
     display: grid;
     gap: 0.45rem;
@@ -2905,6 +3022,29 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-design-command-palette__
 }
 
 body.totc-theme-victorian .turn-of-the-century .totc-v2-design-command-palette__action:hover {
+    background: rgba(88, 60, 34, 0.82);
+    border-color: rgba(215, 169, 79, 0.62);
+}
+
+body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__header {
+    border-bottom-color: rgba(183, 146, 82, 0.42);
+}
+
+body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__header h3,
+body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__actions h4 {
+    color: #f4ddb0;
+    font-family: Georgia, "Times New Roman", serif;
+}
+
+body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__detail,
+body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action,
+body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__empty {
+    background: rgba(31, 22, 15, 0.82);
+    border-color: rgba(183, 146, 82, 0.36);
+    box-shadow: inset 0 0 0 1px rgba(246, 226, 176, 0.06);
+}
+
+body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:hover {
     background: rgba(88, 60, 34, 0.82);
     border-color: rgba(215, 169, 79, 0.62);
 }

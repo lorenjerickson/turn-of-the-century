@@ -14,6 +14,10 @@ import {
     buildDesignCommandPaletteModel,
     renderDesignCommandPalette
 } from "./panels/design-command-palette.mjs";
+import {
+    buildInspectorPanelModel,
+    renderInspectorPanel
+} from "./panels/inspector-panel.mjs";
 import { WorkspaceDesignActionRegistry } from "./design-action-registry.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
 
@@ -690,6 +694,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             messages: game.messages?.contents ?? game.messages ?? [],
             limit: 20
         });
+        const inspectorPanel = buildInspectorPanelModel({
+            activePanel: activeWorkspacePanel,
+            scene,
+            combat,
+            controlledTokens,
+            isGM: Boolean(game.user?.isGM),
+            registry: this.designActionRegistry
+        });
         const marketPanelState = this.#getMarketPanelState();
         const marketPanel = await this.#buildMarketPanelModel({
             scene,
@@ -755,6 +767,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             compendiumSearchQuery: this.compendiumSearchQuery,
             compendiumItems,
             diceRollFeedPanel,
+            inspectorPanel,
             scene: {
                 id: scene?.id ?? null,
                 name: scene?.name ?? game.scenes?.viewed?.name ?? "Current Scene",
@@ -1048,6 +1061,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.designCommandPaletteOpen = false;
                 this.designCommandPaletteQuery = "";
                 this.render(false);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='inspector-design-action']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const actionId = String(button.dataset.designActionId ?? "").trim();
+                const panelId = String(button.dataset.panelId ?? "").trim();
+                await this.#executeDesignAction(actionId, { panelId });
             });
         });
 
@@ -1448,6 +1471,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         if (panel.id === "market") {
             return this.#renderMarketPanel(context.marketPanel ?? {});
+        }
+
+        if (panel.id === "inspector") {
+            return renderInspectorPanel(context.inspectorPanel ?? {}, {
+                escapeHTML: (value) => this.#escapeHTML(value)
+            });
         }
 
         if (panel.id === "roll-feed") {

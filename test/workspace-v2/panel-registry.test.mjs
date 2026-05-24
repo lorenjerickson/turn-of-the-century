@@ -39,6 +39,18 @@ describe("WorkspacePanelRegistry", () => {
         });
     });
 
+    it("registers the GM inspector panel for right-dock restoration", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.deepEqual(registry.get("inspector"), {
+            id: "inspector",
+            title: "Inspector",
+            defaultDock: "rightDock",
+            roleAccess: { gmOnly: true },
+            contextTags: ["gm", "design", "inspection"]
+        });
+    });
+
     it("builds visibility models in registry order", () => {
         const registry = new WorkspacePanelRegistry({
             panels: [
