@@ -15,7 +15,19 @@ describe("Design lens panel", () => {
             "scene.walls",
             "scene.lights",
             "scene.tokens",
-            "scene.notes"
+            "scene.notes",
+            "inspect.context",
+            "design.issues"
+        ]);
+    });
+
+    it("uses injected registries for action lookup", () => {
+        const registry = {
+            getApplicableActions: ({ panelId, isGM }) => [{ id: `${panelId}:${isGM}`, label: "Injected", description: "Injected action." }]
+        };
+
+        assert.deepEqual(getDesignLensActions("map", { registry, isGM: true }), [
+            { id: "map:true", label: "Injected", description: "Injected action." }
         ]);
     });
 
