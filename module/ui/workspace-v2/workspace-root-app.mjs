@@ -2,6 +2,10 @@ import { WORKSPACE_V2_DOCK_IDS, WORKSPACE_V2_FLAG_SCOPE } from "./constants.mjs"
 import { InteractionController } from "./interaction-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
 import { WorkspacePanelRegistry } from "./panel-registry.mjs";
+import {
+    buildDiceRollFeedPanelModel,
+    renderDiceRollFeedPanel
+} from "./panels/dice-roll-feed-panel.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
 
 function getApplicationV2BaseClass() {
@@ -668,6 +672,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             panelState: gmPanelState
         });
         const compendiumItems = await this.#getUnifiedCompendiumItems();
+        const diceRollFeedPanel = buildDiceRollFeedPanelModel({
+            messages: game.messages?.contents ?? game.messages ?? [],
+            limit: 20
+        });
         const marketPanelState = this.#getMarketPanelState();
         const marketPanel = await this.#buildMarketPanelModel({
             scene,
@@ -725,6 +733,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             dockWeights: this.layoutEngine.getDockWeightLayout(),
             compendiumSearchQuery: this.compendiumSearchQuery,
             compendiumItems,
+            diceRollFeedPanel,
             scene: {
                 id: scene?.id ?? null,
                 name: scene?.name ?? game.scenes?.viewed?.name ?? "Current Scene",
@@ -1331,6 +1340,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         if (panel.id === "market") {
             return this.#renderMarketPanel(context.marketPanel ?? {});
+        }
+
+        if (panel.id === "roll-feed") {
+            return renderDiceRollFeedPanel(context.diceRollFeedPanel ?? {}, {
+                escapeHTML: (value) => this.#escapeHTML(value)
+            });
         }
 
         if (panel.id === "player") {

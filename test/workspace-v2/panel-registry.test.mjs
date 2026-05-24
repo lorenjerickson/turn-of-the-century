@@ -28,6 +28,17 @@ describe("WorkspacePanelRegistry", () => {
         assert.equal(registry.getAvailability({ isGM: true }).some((panel) => panel.id === "gamemaster"), true);
     });
 
+    it("registers the dice and roll feed panel for bottom-dock restoration", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.deepEqual(registry.get("roll-feed"), {
+            id: "roll-feed",
+            title: "Dice and Roll Feed",
+            defaultDock: "bottomDock",
+            contextTags: ["dice", "rolls", "messages"]
+        });
+    });
+
     it("builds visibility models in registry order", () => {
         const registry = new WorkspacePanelRegistry({
             panels: [
