@@ -6,6 +6,10 @@ import {
     buildDiceRollFeedPanelModel,
     renderDiceRollFeedPanel
 } from "./panels/dice-roll-feed-panel.mjs";
+import {
+    buildDesignLensModel,
+    renderDesignLensSurface
+} from "./panels/design-lens-panel.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
 
 function getApplicationV2BaseClass() {
@@ -562,6 +566,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
         this.interactionController = new InteractionController();
         this.ghostIntent = null;
+        this.activeDesignLensPanelIds = new Set();
         this.compendiumSearchQuery = "";
         this._compendiumItemEntries = null;
         this._compendiumItemsPromise = null;
@@ -973,6 +978,28 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.element?.querySelectorAll("[data-action='toggle-design-lens']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const panelId = String(button.dataset.panelId ?? "").trim();
+                if (!panelId || !game.user?.isGM) return;
+
+                if (this.activeDesignLensPanelIds.has(panelId)) this.activeDesignLensPanelIds.delete(panelId);
+                else this.activeDesignLensPanelIds.add(panelId);
+                this.render(false);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='design-lens-action']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const actionId = String(button.dataset.designActionId ?? "").trim();
+                ui.notifications?.info(`${button.textContent?.trim() || actionId} design action is not wired yet.`);
+            });
+        });
+
         this.element?.querySelectorAll("[data-action='totc-v2-command-menu-toggle']")?.forEach((button) => {
             button.addEventListener("click", (event) => {
                 event.preventDefault();
@@ -1206,6 +1233,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         const activePanel = (stack?.panels ?? []).find((panel) => panel.id === stack.activePanelId) ?? stack?.panels?.[0];
         const panelContent = this.#renderPanelContent(activePanel, context);
+        const designLensActive = this.#isDesignLensActive(activePanel?.id);
+        const designButtonTitle = designLensActive ? "Close design lens" : "Open design lens";
 
         return `
         <article class="totc-v2-stack" data-dock-id="${dockId}" data-stack-id="${stack.id}" style="flex-grow:${Number(stack.size) || 1};">
@@ -1215,8 +1244,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     ${tabsMarkup}
                 </div>
                 <div class="totc-v2-stack__actions">
-                    <button type="button" data-action="close-panel" data-dock-id="${dockId}" data-stack-id="${stack.id}" data-panel-id="${activePanel?.id ?? ""}">Close</button>
-                    <button type="button" data-action="undock-panel" data-dock-id="${dockId}" data-stack-id="${stack.id}" data-panel-id="${activePanel?.id ?? ""}">Undock</button>
+                    ${game.user?.isGM ? `<button type="button" class="${designLensActive ? "is-active" : ""}" data-action="toggle-design-lens" data-panel-id="${activePanel?.id ?? ""}" title="${designButtonTitle}" aria-label="${designButtonTitle}" aria-pressed="${designLensActive ? "true" : "false"}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>` : ""}
+                    <button type="button" data-action="undock-panel" data-dock-id="${dockId}" data-stack-id="${stack.id}" data-panel-id="${activePanel?.id ?? ""}" title="Undock panel" aria-label="Undock panel"><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i></button>
+                    <button type="button" data-action="close-panel" data-dock-id="${dockId}" data-stack-id="${stack.id}" data-panel-id="${activePanel?.id ?? ""}" title="Close panel" aria-label="Close panel"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                 </div>
             </div>
             <div class="totc-v2-stack__content">${panelContent}</div>
@@ -1261,6 +1291,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     #renderFloatingWindowsMarkup(floatingWindows = []) {
         return floatingWindows.map((floatingWindow) => {
             const title = this.#escapeHTML(floatingWindow.panel?.title ?? "Floating Panel");
+            const designLensActive = this.#isDesignLensActive(floatingWindow.panel?.id);
+            const designButtonTitle = designLensActive ? "Close design lens" : "Open design lens";
             const content = this.#renderPanelContent(floatingWindow.panel, {
                 scene: {
                     name: game.scenes?.viewed?.name ?? "Current Scene",
@@ -1276,8 +1308,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 <header class="totc-v2-floating__header" data-action="floating-move-handle" data-floating-id="${floatingWindow.id}">
                     <span>${title}</span>
                     <div class="totc-v2-floating__buttons">
-                        <button type="button" data-action="redock-panel" data-floating-id="${floatingWindow.id}">Redock</button>
-                        <button type="button" data-action="floating-close" data-floating-id="${floatingWindow.id}">Close</button>
+                        ${game.user?.isGM ? `<button type="button" class="${designLensActive ? "is-active" : ""}" data-action="toggle-design-lens" data-panel-id="${floatingWindow.panel?.id ?? ""}" title="${designButtonTitle}" aria-label="${designButtonTitle}" aria-pressed="${designLensActive ? "true" : "false"}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>` : ""}
+                        <button type="button" data-action="redock-panel" data-floating-id="${floatingWindow.id}" title="Redock panel" aria-label="Redock panel"><i class="fa-solid fa-compress" aria-hidden="true"></i></button>
+                        <button type="button" data-action="floating-close" data-floating-id="${floatingWindow.id}" title="Close panel" aria-label="Close panel"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                     </div>
                 </header>
                 <section class="totc-v2-floating__body">${content}</section>
@@ -1287,6 +1320,22 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #renderPanelContent(panel, context = {}) {
+        const content = this.#renderPanelBodyContent(panel, context);
+        const designLensModel = buildDesignLensModel({
+            panel,
+            active: this.#isDesignLensActive(panel?.id),
+            isGM: Boolean(game.user?.isGM)
+        });
+        const designLens = renderDesignLensSurface(designLensModel, {
+            escapeHTML: (value) => this.#escapeHTML(value)
+        });
+
+        return designLens
+            ? `<div class="totc-v2-panel-with-design-lens">${designLens}<div class="totc-v2-panel-with-design-lens__body">${content}</div></div>`
+            : content;
+    }
+
+    #renderPanelBodyContent(panel, context = {}) {
         if (!panel) {
             return `<div class="totc-v2-panel-placeholder">Empty</div>`;
         }
@@ -3057,6 +3106,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const numeric = Number(value);
         if (!Number.isFinite(numeric)) return min;
         return Math.min(max, Math.max(min, numeric));
+    }
+
+    #isDesignLensActive(panelId) {
+        return Boolean(panelId && this.activeDesignLensPanelIds.has(panelId));
     }
 
     #isDockOccupied(dock) {
