@@ -1,0 +1,7 @@
+interface:
+  display_name: "Require Unit Tests"
+  short_description: "Require focused tests for repo changes"
+  default_prompt: "Use $require-unit-tests when changing this repo so new behavior gets focused unit coverage."
+
+policy:
+  allow_implicit_invocation: true
