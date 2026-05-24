@@ -16,14 +16,16 @@ Use this skill when a user asks for a task that results in one or more meaningfu
 5. If the user says yes, ask whether the release should be a major, minor, or patch update.
 6. Default to patch if the user does not specify a version bump type.
 7. Update the semantic version in system.json accordingly.
-8. Commit the system.json version bump as a separate commit before pushing.
-9. Push the committed changes to origin on the current branch.
+8. Keep the package.json version in sync with system.json whenever both files exist.
+9. Commit the system.json and package.json version bump as a separate commit before pushing.
+10. Push the committed changes to origin on the current branch.
 
 ## Rules
 
 - The first commit after a completed task should summarize the task changes, not the push process.
 - Version bumps are only required when the user approves an immediate push.
 - The version bump commit must happen after the task commit and before the push.
+- Version values in system.json and package.json must match whenever package.json exists.
 - Do not push without asking the user first.
 - Pushes always target the current branch on origin; do not prompt for a different branch.
 - Do not assume a major or minor bump; ask unless the user already chose one.
