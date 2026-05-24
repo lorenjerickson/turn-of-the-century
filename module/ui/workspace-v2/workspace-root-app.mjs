@@ -10,6 +10,11 @@ import {
     buildDesignLensModel,
     renderDesignLensSurface
 } from "./panels/design-lens-panel.mjs";
+import {
+    buildDesignCommandPaletteModel,
+    renderDesignCommandPalette
+} from "./panels/design-command-palette.mjs";
+import { WorkspaceDesignActionRegistry } from "./design-action-registry.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
 
 function getApplicationV2BaseClass() {
@@ -559,6 +564,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.stateStore = stateStore;
         this.governor = governor;
         this.panelRegistry = new WorkspacePanelRegistry();
+        this.designActionRegistry = new WorkspaceDesignActionRegistry();
         this.panels = this.panelRegistry.getAll();
         this.layoutEngine = new LayoutEngine({
             layout: this.stateStore?.getUserLayout?.(),
@@ -567,6 +573,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.interactionController = new InteractionController();
         this.ghostIntent = null;
         this.activeDesignLensPanelIds = new Set();
+        this.designCommandPaletteOpen = false;
+        this.designCommandPaletteQuery = "";
         this.compendiumSearchQuery = "";
         this._compendiumItemEntries = null;
         this._compendiumItemsPromise = null;
@@ -667,6 +675,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }
         const activeLayout = this.layoutEngine.getLayout();
         const visiblePanels = this.#getVisiblePanelIds(activeLayout);
+        const activeWorkspacePanel = this.#getPrimaryActivePanel(activeLayout);
         const scene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
         const combat = game.combats?.active ?? game.combat ?? null;
         const controlledTokens = canvas?.tokens?.controlled ?? [];
@@ -734,6 +743,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             hasUserLayout: Boolean(this.stateStore?.getUserLayout?.()),
             panels: this.panels,
             panelVisibility: this.panelRegistry.getVisibilityModel(visiblePanels),
+            designCommandPalette: buildDesignCommandPaletteModel({
+                active: this.designCommandPaletteOpen,
+                activePanel: activeWorkspacePanel,
+                isGM: Boolean(game.user?.isGM),
+                query: this.designCommandPaletteQuery,
+                registry: this.designActionRegistry
+            }),
             layout: activeLayout,
             dockWeights: this.layoutEngine.getDockWeightLayout(),
             compendiumSearchQuery: this.compendiumSearchQuery,
@@ -786,6 +802,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         root.innerHTML = `
 <section class="totc-workspace-v2-shell">
     <div class="totc-workspace-v2-shell__emergency">
+        ${game.user?.isGM ? `<button type="button" class="totc-v2-emergency-button" data-action="toggle-design-command-palette" title="Open design command palette" aria-label="Open design command palette" aria-expanded="${context.designCommandPalette?.active ? "true" : "false"}">
+            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+        </button>` : ""}
         <button type="button" class="totc-v2-emergency-button" data-action="totc-v2-command-menu-toggle" title="Open workspace menu" aria-label="Open workspace menu" aria-expanded="false">
             <i class="fas fa-gear" aria-hidden="true"></i>
         </button>
@@ -796,6 +815,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 ${panelToggleMarkup}
             </section>
         </div>
+        ${renderDesignCommandPalette(context.designCommandPalette ?? {}, { escapeHTML: (value) => this.#escapeHTML(value) })}
     </div>
     <main class="totc-workspace-v2-shell__main">
         <section class="totc-v2-layout" data-layout-root="true" style="grid-template-columns:${columnTemplate};grid-template-rows:${rowTemplate};">
@@ -992,11 +1012,40 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
 
         this.element?.querySelectorAll("[data-action='design-lens-action']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
+            button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 const actionId = String(button.dataset.designActionId ?? "").trim();
-                ui.notifications?.info(`${button.textContent?.trim() || actionId} design action is not wired yet.`);
+                await this.#executeDesignAction(actionId);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='toggle-design-command-palette']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.designCommandPaletteOpen = !this.designCommandPaletteOpen;
+                if (!this.designCommandPaletteOpen) this.designCommandPaletteQuery = "";
+                this.render(false);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='design-command-palette-search']")?.forEach((input) => {
+            input.addEventListener("input", () => {
+                this.designCommandPaletteQuery = String(input.value ?? "");
+                this.render(false);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='design-command-palette-execute']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const actionId = String(button.dataset.designActionId ?? "").trim();
+                await this.#executeDesignAction(actionId);
+                this.designCommandPaletteOpen = false;
+                this.designCommandPaletteQuery = "";
+                this.render(false);
             });
         });
 
@@ -1016,15 +1065,22 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.element?.addEventListener("click", (event) => {
             const menu = this.element?.querySelector("[data-command-menu='true']");
             const toggleButton = this.element?.querySelector("[data-action='totc-v2-command-menu-toggle']");
-            if (!menu || menu.hidden) return;
+            const commandPalette = this.element?.querySelector("[data-design-command-palette='true']");
+            const commandPaletteToggle = this.element?.querySelector("[data-action='toggle-design-command-palette']");
 
             const target = event.target;
             if (!(target instanceof Node)) return;
-            if (menu.contains(target)) return;
-            if (toggleButton?.contains(target)) return;
 
-            menu.hidden = true;
-            toggleButton?.setAttribute("aria-expanded", "false");
+            if (menu && !menu.hidden && !menu.contains(target) && !toggleButton?.contains(target)) {
+                menu.hidden = true;
+                toggleButton?.setAttribute("aria-expanded", "false");
+            }
+
+            if (this.designCommandPaletteOpen && commandPalette && !commandPalette.contains(target) && !commandPaletteToggle?.contains(target)) {
+                this.designCommandPaletteOpen = false;
+                this.designCommandPaletteQuery = "";
+                this.render(false);
+            }
         });
 
         this.element?.querySelectorAll("[data-action='toggle-panel-visibility']")?.forEach((checkbox) => {
@@ -1324,7 +1380,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const designLensModel = buildDesignLensModel({
             panel,
             active: this.#isDesignLensActive(panel?.id),
-            isGM: Boolean(game.user?.isGM)
+            isGM: Boolean(game.user?.isGM),
+            registry: this.designActionRegistry
         });
         const designLens = renderDesignLensSurface(designLensModel, {
             escapeHTML: (value) => this.#escapeHTML(value)
@@ -3110,6 +3167,38 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #isDesignLensActive(panelId) {
         return Boolean(panelId && this.activeDesignLensPanelIds.has(panelId));
+    }
+
+    #getPrimaryActivePanel(layout = this.layoutEngine.getLayout()) {
+        const centerDock = layout?.root?.centerDock;
+        const centerStack = centerDock?.stacks?.[0];
+        const activePanelId = centerStack?.activePanelId;
+        const activePanel = centerStack?.panels?.find((panel) => panel.id === activePanelId) ?? centerStack?.panels?.[0];
+        if (activePanel) return activePanel;
+
+        for (const dockId of WORKSPACE_V2_DOCK_IDS) {
+            const stack = layout?.root?.[dockId]?.stacks?.[0];
+            const fallbackActiveId = stack?.activePanelId;
+            const fallbackPanel = stack?.panels?.find((panel) => panel.id === fallbackActiveId) ?? stack?.panels?.[0];
+            if (fallbackPanel) return fallbackPanel;
+        }
+
+        return null;
+    }
+
+    async #executeDesignAction(actionId) {
+        const action = this.designActionRegistry.get(actionId);
+        if (!action) return;
+
+        await action.execute({
+            app: this,
+            panel: this.#getPrimaryActivePanel(),
+            scene: canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null,
+            combat: game.combats?.active ?? game.combat ?? null,
+            controlledTokens: canvas?.tokens?.controlled ?? []
+        });
+
+        ui.notifications?.info(`${action.label} design action is not wired yet.`);
     }
 
     #isDockOccupied(dock) {
