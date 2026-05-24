@@ -1016,7 +1016,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.preventDefault();
                 event.stopPropagation();
                 const actionId = String(button.dataset.designActionId ?? "").trim();
-                await this.#executeDesignAction(actionId);
+                const panelId = String(button.dataset.panelId ?? "").trim();
+                await this.#executeDesignAction(actionId, { panelId });
             });
         });
 
@@ -1042,7 +1043,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.preventDefault();
                 event.stopPropagation();
                 const actionId = String(button.dataset.designActionId ?? "").trim();
-                await this.#executeDesignAction(actionId);
+                const panelId = String(button.dataset.panelId ?? "").trim();
+                await this.#executeDesignAction(actionId, { panelId });
                 this.designCommandPaletteOpen = false;
                 this.designCommandPaletteQuery = "";
                 this.render(false);
@@ -3186,19 +3188,25 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return null;
     }
 
-    async #executeDesignAction(actionId) {
+    async #executeDesignAction(actionId, { panelId = "" } = {}) {
         const action = this.designActionRegistry.get(actionId);
         if (!action) return;
+        const sourcePanel = panelId ? this.panelRegistry.get(panelId) : this.#getPrimaryActivePanel();
 
-        await action.execute({
+        const result = await action.execute({
             app: this,
             panel: this.#getPrimaryActivePanel(),
+            sourcePanel,
             scene: canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null,
             combat: game.combats?.active ?? game.combat ?? null,
             controlledTokens: canvas?.tokens?.controlled ?? []
         });
 
-        ui.notifications?.info(`${action.label} design action is not wired yet.`);
+        if (result?.name) {
+            ui.notifications?.info(`Created ${result.name}.`);
+        } else {
+            ui.notifications?.info(`${action.label} design action is not wired yet.`);
+        }
     }
 
     #isDockOccupied(dock) {

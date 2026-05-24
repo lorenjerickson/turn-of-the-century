@@ -1,3 +1,5 @@
+import { createNpcDesignActor } from "./design-actions/actor-actions.mjs";
+
 const DEFAULT_RELEVANCE = 50;
 
 function normalizeStringArray(value = []) {
@@ -102,7 +104,10 @@ export const DEFAULT_DESIGN_ACTIONS = Object.freeze([
         description: "Create a supporting character from the current actor context.",
         domain: "actor",
         contexts: ["player", "encounter", "tracker"],
-        relevance: 86
+        relevance: 86,
+        execute: async (context = {}) => createNpcDesignActor({
+            sourcePanelId: context.sourcePanel?.id ?? context.panel?.id ?? ""
+        })
     },
     {
         id: "actor.tokenDefaults",

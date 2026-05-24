@@ -29,6 +29,7 @@ export function renderDesignLensSurface(model = {}, { escapeHTML = (value) => St
                     class="totc-v2-design-lens__action"
                     data-action="design-lens-action"
                     data-design-action-id="${escapeHTML(action.id)}"
+                    data-panel-id="${escapeHTML(model.panelId)}"
                     role="listitem"
                     title="${escapeHTML(action.description)}">
                     <span>${escapeHTML(action.label)}</span>

@@ -65,6 +65,7 @@ export function renderDesignCommandPalette(model = {}, { escapeHTML = (value) =>
                     class="totc-v2-design-command-palette__action"
                     data-action="design-command-palette-execute"
                     data-design-action-id="${escapeHTML(action.id)}"
+                    data-panel-id="${escapeHTML(model.activePanelId)}"
                     role="listitem"
                     title="${escapeHTML(action.description)}">
                     <span class="totc-v2-design-command-palette__action-label">${escapeHTML(action.label)}</span>

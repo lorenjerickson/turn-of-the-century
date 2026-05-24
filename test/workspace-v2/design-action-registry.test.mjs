@@ -1,10 +1,18 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, describe, it } from "node:test";
 
 import {
     DEFAULT_DESIGN_ACTION_REGISTRY,
     WorkspaceDesignActionRegistry
 } from "../../module/ui/workspace-v2/design-action-registry.mjs";
+
+const originalActor = globalThis.Actor;
+const originalGame = globalThis.game;
+
+afterEach(() => {
+    globalThis.Actor = originalActor;
+    globalThis.game = originalGame;
+});
 
 describe("WorkspaceDesignActionRegistry", () => {
     it("returns defensive copies of registered actions", () => {
@@ -57,5 +65,25 @@ describe("WorkspaceDesignActionRegistry", () => {
                 { id: "duplicate", label: "Second" }
             ]
         }), /Duplicate design action id/);
+    });
+
+    it("executes the default NPC creation action", async () => {
+        let createdData = null;
+        globalThis.Actor = {
+            create: async (data) => {
+                createdData = data;
+                return { name: data.name };
+            }
+        };
+        globalThis.game = {
+            actors: [{ name: "New NPC" }]
+        };
+
+        const action = DEFAULT_DESIGN_ACTION_REGISTRY.get("actor.createNpc");
+        const actor = await action.execute({ sourcePanel: { id: "encounter" } });
+
+        assert.equal(actor.name, "New NPC 2");
+        assert.equal(createdData.type, "pawn");
+        assert.equal(createdData.flags["turn-of-the-century"].sourcePanelId, "encounter");
     });
 });
