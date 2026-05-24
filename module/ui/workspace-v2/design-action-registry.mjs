@@ -1,4 +1,5 @@
 import { createNpcDesignActor } from "./design-actions/actor-actions.mjs";
+import { activateSceneWallDesignMode } from "./design-actions/scene-actions.mjs";
 
 const DEFAULT_RELEVANCE = 50;
 
@@ -48,7 +49,8 @@ export const DEFAULT_DESIGN_ACTIONS = Object.freeze([
         description: "Draw or revise scene boundaries.",
         domain: "scene",
         contexts: ["map"],
-        relevance: 95
+        relevance: 95,
+        execute: async (context = {}) => activateSceneWallDesignMode(context)
     },
     {
         id: "scene.lights",

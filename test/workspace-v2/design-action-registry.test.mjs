@@ -8,10 +8,14 @@ import {
 
 const originalActor = globalThis.Actor;
 const originalGame = globalThis.game;
+const originalCanvas = globalThis.canvas;
+const originalUi = globalThis.ui;
 
 afterEach(() => {
     globalThis.Actor = originalActor;
     globalThis.game = originalGame;
+    globalThis.canvas = originalCanvas;
+    globalThis.ui = originalUi;
 });
 
 describe("WorkspaceDesignActionRegistry", () => {
@@ -85,5 +89,26 @@ describe("WorkspaceDesignActionRegistry", () => {
         assert.equal(actor.name, "New NPC 2");
         assert.equal(createdData.type, "pawn");
         assert.equal(createdData.flags["turn-of-the-century"].sourcePanelId, "encounter");
+    });
+
+    it("executes the default scene wall action", async () => {
+        let initializedWith = null;
+        globalThis.canvas = {
+            ready: true,
+            scene: { id: "scene-1" }
+        };
+        globalThis.ui = {
+            controls: {
+                initialize: async (payload) => {
+                    initializedWith = payload;
+                }
+            }
+        };
+
+        const action = DEFAULT_DESIGN_ACTION_REGISTRY.get("scene.walls");
+        const result = await action.execute({ scene: globalThis.canvas.scene });
+
+        assert.deepEqual(initializedWith, { control: "walls", tool: "walls" });
+        assert.equal(result.ok, true);
     });
 });

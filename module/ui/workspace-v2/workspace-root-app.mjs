@@ -3193,19 +3193,30 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (!action) return;
         const sourcePanel = panelId ? this.panelRegistry.get(panelId) : this.#getPrimaryActivePanel();
 
-        const result = await action.execute({
-            app: this,
-            panel: this.#getPrimaryActivePanel(),
-            sourcePanel,
-            scene: canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null,
-            combat: game.combats?.active ?? game.combat ?? null,
-            controlledTokens: canvas?.tokens?.controlled ?? []
-        });
+        try {
+            const result = await action.execute({
+                app: this,
+                panel: this.#getPrimaryActivePanel(),
+                sourcePanel,
+                scene: canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null,
+                canvas,
+                ui,
+                combat: game.combats?.active ?? game.combat ?? null,
+                controlledTokens: canvas?.tokens?.controlled ?? []
+            });
 
-        if (result?.name) {
-            ui.notifications?.info(`Created ${result.name}.`);
-        } else {
-            ui.notifications?.info(`${action.label} design action is not wired yet.`);
+            if (result?.level === "warn") {
+                ui.notifications?.warn(result.message ?? `${action.label} is not available right now.`);
+            } else if (result?.message) {
+                ui.notifications?.info(result.message);
+            } else if (result?.name) {
+                ui.notifications?.info(`Created ${result.name}.`);
+            } else {
+                ui.notifications?.info(`${action.label} design action is not wired yet.`);
+            }
+        } catch (error) {
+            console.error("[turn-of-the-century] Design action failed", { actionId, error });
+            ui.notifications?.error(error?.message ?? `${action.label} failed.`);
         }
     }
 
