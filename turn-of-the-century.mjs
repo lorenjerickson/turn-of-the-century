@@ -56,6 +56,11 @@ import {
     registerWorkspaceV2PolicySettings
 } from "./module/ui/workspace-v2/index.mjs";
 import {
+    TOTC_THEME_SETTING,
+    applyTotcTheme,
+    registerTotcThemeSetting
+} from "./module/ui/theme-manager.mjs";
+import {
     ADVERSARY_PROFILES,
     FACTION_METADATA,
     TERRAIN_FEATURES,
@@ -574,6 +579,8 @@ Hooks.once("init", () => {
         default: true
     });
 
+    registerTotcThemeSetting("turn-of-the-century");
+
     registerWorkspaceV2PolicySettings("turn-of-the-century", {
         onEnabledChange: async (enabled) => {
             if (!workspaceV2Coordinator) return;
@@ -592,6 +599,7 @@ Hooks.once("init", () => {
 
 Hooks.once("ready", async () => {
     await ensureTotcLocalizationLoaded();
+    applyTotcTheme(game.settings.get("turn-of-the-century", TOTC_THEME_SETTING));
 
     game.turnOfTheCentury ??= {};
     game.turnOfTheCentury.sampleContent = {
