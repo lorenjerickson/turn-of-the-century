@@ -33,7 +33,6 @@ import {
     migrateTotcActorEconomy,
     migrateTotcEncounterActions,
     migrateTotcModifiers,
-    migrateTotcStarterCompendiums,
     migrateTotcEquipmentSlots,
     runTotcMigrations
 } from "./module/migrations.mjs";
@@ -388,17 +387,10 @@ async function maybeRunAutomatedMigrations() {
             migrateEquipmentSlots: migrateTotcEquipmentSlots,
             migrateEncounterActions: migrateTotcEncounterActions,
             migrateModifiers: migrateTotcModifiers,
-            migrateStarterCompendiums: migrateTotcStarterCompendiums,
             notify: true
         });
 
         await game.settings.set("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING, result.toVersion);
-
-        const refreshedStarterCompendiums = Array.isArray(result.applied)
-            && result.applied.some((step) => step.key === "starter-compendiums" || step.key === "starter-compendiums-refresh");
-        if (refreshedStarterCompendiums) {
-            await game.settings.set("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING, true);
-        }
 
         return result;
     } catch (error) {
@@ -626,7 +618,6 @@ Hooks.once("ready", async () => {
                 migrateEquipmentSlots: migrateTotcEquipmentSlots,
                 migrateEncounterActions: migrateTotcEncounterActions,
                 migrateModifiers: migrateTotcModifiers,
-                migrateStarterCompendiums: migrateTotcStarterCompendiums,
                 notify: true
             });
             await game.settings.set("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING, result.toVersion);
