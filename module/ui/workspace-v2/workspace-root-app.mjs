@@ -30,6 +30,7 @@ import {
     renderGridCalibrationDialog,
     cornersToCellSize,
     cornersToGridOffset,
+    buildGridCalibrationOverlayModel,
     GRID_CAL_PHASE_HINTS
 } from "./panels/grid-calibration.mjs";
 import {
@@ -618,7 +619,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._mapViewportState = {
             scale: null,
             offsetX: 0,
-            offsetY: 0
+            offsetY: 0,
+            source: ""
         };
         this._mapPanSession = null;
         this._gridCalibrationState = null;
@@ -3207,15 +3209,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const viewportHeight = Math.max(1, Math.round(viewportRect.height));
         const imageWidth = Math.max(1, image.naturalWidth);
         const imageHeight = Math.max(1, image.naturalHeight);
+        const imageSource = String(image.currentSrc || image.src || "");
+        const sourceChanged = Boolean(imageSource && this._mapViewportState.source !== imageSource);
+        const preserveCalibrationView = Boolean(this._gridCalibrationState?.active && Number.isFinite(this._mapViewportState.scale) && !sourceChanged);
 
         const minScale = Math.min(viewportWidth / imageWidth, viewportHeight / imageHeight);
         const maxScale = Math.max(minScale, 8);
 
-        if (initializeScale || !Number.isFinite(this._mapViewportState.scale)) {
+        if ((initializeScale && !preserveCalibrationView) || !Number.isFinite(this._mapViewportState.scale) || sourceChanged) {
             this._mapViewportState.scale = minScale;
             this._mapViewportState.offsetX = (viewportWidth - (imageWidth * minScale)) / 2;
             this._mapViewportState.offsetY = (viewportHeight - (imageHeight * minScale)) / 2;
         }
+        this._mapViewportState.source = imageSource;
 
         this._mapViewportState.scale = this.#clamp(this._mapViewportState.scale, minScale, maxScale);
 
@@ -3273,6 +3279,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._mapViewportState.offsetX = clampedOffsets.offsetX;
         this._mapViewportState.offsetY = clampedOffsets.offsetY;
         image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
+        if (this._gridCalibrationState?.active) this.#drawGridCalibrationOverlay();
     }
 
     #onMapPanPointerMove(event) {
@@ -3301,6 +3308,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._mapViewportState.offsetX = clampedOffsets.offsetX;
         this._mapViewportState.offsetY = clampedOffsets.offsetY;
         image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
+        if (this._gridCalibrationState?.active) this.#drawGridCalibrationOverlay();
     }
 
     #onMapPanPointerUp(event) {
@@ -3500,6 +3508,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 state.cellH = cellH || (state.cellH ?? 100);
                 state.offsetX = offsetX;
                 state.offsetY = offsetY;
+                this.#drawGridCalibrationOverlay();
                 // Full render to show the adjust controls
                 this.render(false);
             }
@@ -3525,13 +3534,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const W = vRect.width;
         const H = vRect.height;
 
-        const { scale, offsetX: imgX, offsetY: imgY } = this._mapViewportState;
-        const cellW = state?.cellW ?? 0;
-        const cellH = state?.cellH ?? 0;
-        const gridOffX = state?.offsetX ?? 0;
-        const gridOffY = state?.offsetY ?? 0;
-        const corner1 = state?.corner1 ?? null;
-        const corner2 = state?.corner2 ?? null;
+        const { scale, offsetX, offsetY } = this._mapViewportState;
+        const overlayModel = buildGridCalibrationOverlayModel({
+            state,
+            viewport: { width: W, height: H },
+            transform: { scale, offsetX, offsetY }
+        });
 
         overlay.setAttribute("width", W);
         overlay.setAttribute("height", H);
@@ -3541,41 +3549,25 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         // Grid lines — only shown once both corners have been picked and we
         // have a valid cell size.
-        if (corner2 && cellW >= 4 && cellH >= 4) {
-            // Vertical lines: viewport-x = imgX + (gridOffX + n*cellW) * scale
-            const xStep = cellW * scale;
-            const xBase = imgX + gridOffX * scale;
-            const nXStart = Math.floor(-xBase / xStep) - 1;
-            const nXEnd   = Math.ceil((W - xBase) / xStep) + 1;
-            for (let n = nXStart; n <= nXEnd; n++) {
-                const x = (xBase + n * xStep).toFixed(1);
-                inner += `<line x1="${x}" y1="0" x2="${x}" y2="${H}" class="totc-v2-grid-overlay__vline"/>`;
-            }
+        for (const x of overlayModel.verticalLines) {
+            const rounded = x.toFixed(1);
+            inner += `<line x1="${rounded}" y1="0" x2="${rounded}" y2="${H}" class="totc-v2-grid-overlay__vline"/>`;
+        }
 
-            // Horizontal lines
-            const yStep = cellH * scale;
-            const yBase = imgY + gridOffY * scale;
-            const nYStart = Math.floor(-yBase / yStep) - 1;
-            const nYEnd   = Math.ceil((H - yBase) / yStep) + 1;
-            for (let n = nYStart; n <= nYEnd; n++) {
-                const y = (yBase + n * yStep).toFixed(1);
-                inner += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" class="totc-v2-grid-overlay__hline"/>`;
-            }
+        for (const y of overlayModel.horizontalLines) {
+            const rounded = y.toFixed(1);
+            inner += `<line x1="0" y1="${rounded}" x2="${W}" y2="${rounded}" class="totc-v2-grid-overlay__hline"/>`;
+        }
 
-            // Highlight the reference cell the user picked
-            const x1 = (imgX + Math.min(corner1.x, corner2.x) * scale).toFixed(1);
-            const y1 = (imgY + Math.min(corner1.y, corner2.y) * scale).toFixed(1);
-            const cw = (Math.abs(corner2.x - corner1.x) * scale).toFixed(1);
-            const ch = (Math.abs(corner2.y - corner1.y) * scale).toFixed(1);
-            inner += `<rect x="${x1}" y="${y1}" width="${cw}" height="${ch}" class="totc-v2-grid-overlay__cell-ref"/>`;
+        if (overlayModel.cellRef) {
+            inner += `<rect x="${overlayModel.cellRef.x.toFixed(1)}" y="${overlayModel.cellRef.y.toFixed(1)}" width="${overlayModel.cellRef.width.toFixed(1)}" height="${overlayModel.cellRef.height.toFixed(1)}" class="totc-v2-grid-overlay__cell-ref"/>`;
         }
 
         // Corner markers
-        for (const corner of [corner1, corner2]) {
-            if (!corner) continue;
-            const cx = (imgX + corner.x * scale).toFixed(1);
-            const cy = (imgY + corner.y * scale).toFixed(1);
-                        inner += `<circle cx="${cx}" cy="${cy}" r="7" class="totc-v2-grid-overlay__corner-ring"/>`;
+        for (const corner of overlayModel.corners) {
+            const cx = corner.x.toFixed(1);
+            const cy = corner.y.toFixed(1);
+            inner += `<circle cx="${cx}" cy="${cy}" r="7" class="totc-v2-grid-overlay__corner-ring"/>`;
             inner += `<circle cx="${cx}" cy="${cy}" r="2.5" class="totc-v2-grid-overlay__corner-dot"/>`;
         }
 

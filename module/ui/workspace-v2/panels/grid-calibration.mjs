@@ -71,6 +71,104 @@ export function cornersToGridOffset(corner1, corner2, { cellW, cellH }) {
     };
 }
 
+/**
+ * Build the SVG overlay geometry for the current calibration view.
+ *
+ * The returned coordinates are viewport pixels.  The source calibration values
+ * remain in image pixels, so changing the map zoom only changes the rendered
+ * overlay geometry, not the measured grid values.
+ *
+ * @param {object} opts
+ * @param {GridCalibrationState|null} opts.state
+ * @param {{ width: number, height: number }} opts.viewport
+ * @param {{ scale: number, offsetX: number, offsetY: number }} opts.transform
+ * @returns {{
+ *   active: boolean,
+ *   width: number,
+ *   height: number,
+ *   verticalLines: number[],
+ *   horizontalLines: number[],
+ *   cellRef: { x: number, y: number, width: number, height: number }|null,
+ *   corners: { x: number, y: number }[]
+ * }}
+ */
+export function buildGridCalibrationOverlayModel({ state = null, viewport = {}, transform = {} } = {}) {
+    const width = Math.max(0, Number(viewport.width ?? 0));
+    const height = Math.max(0, Number(viewport.height ?? 0));
+    const scale = Number(transform.scale);
+    const imgX = Number(transform.offsetX ?? 0);
+    const imgY = Number(transform.offsetY ?? 0);
+
+    const empty = {
+        active: false,
+        width,
+        height,
+        verticalLines: [],
+        horizontalLines: [],
+        cellRef: null,
+        corners: []
+    };
+
+    if (!state?.active || width <= 0 || height <= 0 || !Number.isFinite(scale) || scale <= 0) return empty;
+
+    const corner1 = state.corner1 ?? null;
+    const corner2 = state.corner2 ?? null;
+    const corners = [corner1, corner2]
+        .filter(Boolean)
+        .map((corner) => ({
+            x: imgX + (Number(corner.x) * scale),
+            y: imgY + (Number(corner.y) * scale)
+        }));
+
+    const cellW = Number(state.cellW ?? 0);
+    const cellH = Number(state.cellH ?? 0);
+    const gridOffX = Number(state.offsetX ?? 0);
+    const gridOffY = Number(state.offsetY ?? 0);
+    const canDrawGrid = Boolean(corner1 && corner2 && cellW >= 4 && cellH >= 4);
+
+    if (!canDrawGrid) {
+        return {
+            ...empty,
+            active: true,
+            corners
+        };
+    }
+
+    const verticalLines = [];
+    const horizontalLines = [];
+    const xStep = cellW * scale;
+    const yStep = cellH * scale;
+
+    if (xStep > 0) {
+        const xBase = imgX + (gridOffX * scale);
+        const nXStart = Math.floor(-xBase / xStep) - 1;
+        const nXEnd = Math.ceil((width - xBase) / xStep) + 1;
+        for (let n = nXStart; n <= nXEnd; n++) verticalLines.push(xBase + (n * xStep));
+    }
+
+    if (yStep > 0) {
+        const yBase = imgY + (gridOffY * scale);
+        const nYStart = Math.floor(-yBase / yStep) - 1;
+        const nYEnd = Math.ceil((height - yBase) / yStep) + 1;
+        for (let n = nYStart; n <= nYEnd; n++) horizontalLines.push(yBase + (n * yStep));
+    }
+
+    return {
+        active: true,
+        width,
+        height,
+        verticalLines,
+        horizontalLines,
+        cellRef: {
+            x: imgX + (Math.min(corner1.x, corner2.x) * scale),
+            y: imgY + (Math.min(corner1.y, corner2.y) * scale),
+            width: Math.abs(corner2.x - corner1.x) * scale,
+            height: Math.abs(corner2.y - corner1.y) * scale
+        },
+        corners
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Model builder
 // ---------------------------------------------------------------------------

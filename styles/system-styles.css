@@ -1914,7 +1914,7 @@ body.totc-v2-active.totc-v2-native-settings-open #settings {
 
 /* Crosshair cursor while picking corners */
 .turn-of-the-century .totc-v2-map-panel__viewport.is-calibrating {
-    cursor: crosshair;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='25' height='25' viewBox='0 0 25 25'%3E%3Cpath d='M12.5 1v23M1 12.5h23' stroke='black' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M12.5 1v23M1 12.5h23' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='12.5' cy='12.5' r='3.5' fill='none' stroke='black' stroke-width='3'/%3E%3Ccircle cx='12.5' cy='12.5' r='3.5' fill='none' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E") 12 12, crosshair;
 }
 
 /* SVG overlay — sits above the image, passes pointer events through */
@@ -1929,29 +1929,29 @@ body.totc-v2-active.totc-v2-native-settings-open #settings {
 /* Grid lines */
 .turn-of-the-century .totc-v2-grid-overlay__vline,
 .turn-of-the-century .totc-v2-grid-overlay__hline {
-    stroke: rgba(250, 204, 21, 0.55);
+    stroke: rgba(255, 255, 255, 0.68);
     stroke-width: 1;
     vector-effect: non-scaling-stroke;
 }
 
 /* Reference cell highlight */
 .turn-of-the-century .totc-v2-grid-overlay__cell-ref {
-    fill: rgba(250, 204, 21, 0.12);
-    stroke: rgba(250, 204, 21, 0.9);
-    stroke-width: 1.5;
+    fill: rgba(255, 255, 255, 0.16);
+    stroke: #ffffff;
+    stroke-width: 2.5;
     vector-effect: non-scaling-stroke;
 }
 
 /* Corner markers */
 .turn-of-the-century .totc-v2-grid-overlay__corner-ring {
     fill: none;
-    stroke: #fbbf24;
-    stroke-width: 2;
+    stroke: #ffffff;
+    stroke-width: 2.5;
     vector-effect: non-scaling-stroke;
 }
 
 .turn-of-the-century .totc-v2-grid-overlay__corner-dot {
-    fill: #fef08a;
+    fill: #ffffff;
 }
 
 /* Calibration dialog — floats in the bottom-right of the map figure */
