@@ -45,6 +45,19 @@ function actorHasProfession(actor) {
     return items.some((item) => String(item.type ?? "") === "profession");
 }
 
+function sceneDarknessLevel(scene) {
+    const environmentDarkness = Number(scene?.environment?.darknessLevel);
+    if (Number.isFinite(environmentDarkness)) return environmentDarkness;
+
+    const sourceEnvironmentDarkness = Number(scene?._source?.environment?.darknessLevel);
+    if (Number.isFinite(sourceEnvironmentDarkness)) return sourceEnvironmentDarkness;
+
+    const legacySourceDarkness = Number(scene?._source?.darkness);
+    if (Number.isFinite(legacySourceDarkness)) return legacySourceDarkness;
+
+    return Number(scene?.darkness ?? 0);
+}
+
 // ---------------------------------------------------------------------------
 // Scene issues
 // ---------------------------------------------------------------------------
@@ -86,7 +99,7 @@ function scanSceneIssues(scene) {
     }
 
     // Scene is dark but has no light sources placed
-    const darkness = Number(scene.darkness ?? 0);
+    const darkness = sceneDarknessLevel(scene);
     if (darkness > 0 && collectionSize(scene.lights) === 0) {
         issues.push({
             id: "scene.dark-no-lights",

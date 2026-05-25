@@ -134,6 +134,24 @@ describe("scanDesignIssues — scene checks", () => {
         assert.equal(issue.navigateAction, "navigate.scene.lights");
     });
 
+    it("uses environment.darknessLevel without touching deprecated scene.darkness", () => {
+        const scene = makeScene({
+            environment: { darknessLevel: 0.7 },
+            lights: { size: 0 }
+        });
+        Object.defineProperty(scene, "darkness", {
+            get() {
+                throw new Error("deprecated darkness getter was accessed");
+            }
+        });
+
+        const issues = scanDesignIssues({ scene });
+        const issue = issues.find((i) => i.id === "scene.dark-no-lights");
+
+        assert.ok(issue, "expected scene.dark-no-lights");
+        assert.match(issue.detail, /70%/);
+    });
+
     it("does not flag darkness if lights are placed", () => {
         const scene = makeScene({ darkness: 0.8, lights: { size: 3 } });
         const issues = scanDesignIssues({ scene });
