@@ -2,6 +2,7 @@ import { WORKSPACE_V2_DOCK_IDS, WORKSPACE_V2_FLAG_SCOPE } from "./constants.mjs"
 import { InteractionController } from "./interaction-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
 import { WorkspacePanelRegistry } from "./panel-registry.mjs";
+import { openFoundrySettingsView } from "./workspace-system-menu.mjs";
 import {
     buildDiceRollFeedPanelModel,
     renderDiceRollFeedPanel
@@ -864,6 +865,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             <i class="fas fa-gear" aria-hidden="true"></i>
         </button>
         <div class="totc-v2-command-menu" data-command-menu="true" hidden>
+            <button type="button" class="totc-v2-command-menu__item" data-action="totc-v2-open-foundry-settings">Foundry Settings</button>
             <button type="button" class="totc-v2-command-menu__item" data-action="totc-v2-exit-world">Return to Setup</button>
             <div class="totc-v2-command-menu__divider" role="separator" aria-hidden="true"></div>
             <section class="totc-v2-command-menu__panel-list" aria-label="Panels">
@@ -909,6 +911,18 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 }
 
                 await game.shutDown?.();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='totc-v2-open-foundry-settings']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                openFoundrySettingsView({ game, ui, foundry });
+                const menu = this.element?.querySelector("[data-command-menu='true']");
+                const toggleButton = this.element?.querySelector("[data-action='totc-v2-command-menu-toggle']");
+                if (menu) menu.hidden = true;
+                toggleButton?.setAttribute("aria-expanded", "false");
             });
         });
 
