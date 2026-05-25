@@ -32,6 +32,7 @@ import {
     cornersToGridOffset,
     buildGridCalibrationSceneUpdate,
     buildGridCalibrationOverlayModel,
+    buildSceneGridOverlayState,
     GRID_CAL_PHASE_HINTS
 } from "./panels/grid-calibration.mjs";
 import {
@@ -1498,12 +1499,18 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 scene: context.scene
             });
             const calActive = calModel.active;
+            const sceneGridOverlayActive = Boolean(!calActive && this.#isDesignLensActive(panel.id) && buildSceneGridOverlayState(context.scene));
+            const gridOverlayActive = calActive || sceneGridOverlayActive;
             const calDialog = renderGridCalibrationDialog(calModel, { escapeHTML: (v) => this.#escapeHTML(v) });
 
             const imageMarkup = mapSrc
-                ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true">
+                ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true"
+                    data-grid-type="${this.#escapeHTML(context.scene?.grid?.type ?? "")}"
+                    data-grid-size="${this.#escapeHTML(context.scene?.grid?.size ?? "")}"
+                    data-grid-shift-x="${this.#escapeHTML(context.scene?.shiftX ?? 0)}"
+                    data-grid-shift-y="${this.#escapeHTML(context.scene?.shiftY ?? 0)}">
                     <img class="totc-v2-map-panel__image" src="${this.#escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false" data-action="map-image">
-                    ${calActive ? `<svg class="totc-v2-map-panel__grid-overlay" data-grid-overlay="true" aria-hidden="true"></svg>` : ""}
+                    ${gridOverlayActive ? `<svg class="totc-v2-map-panel__grid-overlay" data-grid-overlay="true" aria-hidden="true"></svg>` : ""}
                 </div>`
                 : `<div class="totc-v2-map-panel__empty">No active scene map available</div>`;
 
@@ -3235,7 +3242,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._mapViewportState.offsetY = clampedOffsets.offsetY;
 
         image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
-        if (this._gridCalibrationState?.active) this.#drawGridCalibrationOverlay();
+        this.#drawGridCalibrationOverlay();
     }
 
     #applyMapWheelZoom(viewport, image, event) {
@@ -3276,7 +3283,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._mapViewportState.offsetX = clampedOffsets.offsetX;
         this._mapViewportState.offsetY = clampedOffsets.offsetY;
         image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
-        if (this._gridCalibrationState?.active) this.#drawGridCalibrationOverlay();
+        this.#drawGridCalibrationOverlay();
     }
 
     #onMapPanPointerMove(event) {
@@ -3305,7 +3312,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._mapViewportState.offsetX = clampedOffsets.offsetX;
         this._mapViewportState.offsetY = clampedOffsets.offsetY;
         image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
-        if (this._gridCalibrationState?.active) this.#drawGridCalibrationOverlay();
+        this.#drawGridCalibrationOverlay();
     }
 
     #onMapPanPointerUp(event) {
@@ -3520,12 +3527,25 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
      * Called after corner picks and after each input change.
      */
     #drawGridCalibrationOverlay() {
-        const state = this._gridCalibrationState;
         const overlay = this.element?.querySelector("[data-grid-overlay='true']");
         if (!(overlay instanceof SVGElement)) return;
 
         const viewport = overlay.closest("[data-map-viewport='true']");
         if (!viewport) return;
+        const state = this._gridCalibrationState?.active
+            ? this._gridCalibrationState
+            : buildSceneGridOverlayState({
+                shiftX: Number(viewport.dataset.gridShiftX ?? 0),
+                shiftY: Number(viewport.dataset.gridShiftY ?? 0),
+                grid: {
+                    type: Number(viewport.dataset.gridType ?? 0),
+                    size: Number(viewport.dataset.gridSize ?? 0)
+                }
+            });
+        if (!state?.active) {
+            overlay.innerHTML = "";
+            return;
+        }
 
         const vRect = viewport.getBoundingClientRect();
         const W = vRect.width;

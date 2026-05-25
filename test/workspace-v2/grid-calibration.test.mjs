@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
     buildGridCalibrationOverlayModel,
     buildGridCalibrationSceneUpdate,
+    buildSceneGridOverlayState,
     cornersToCellSize,
     cornersToGridOffset
 } from "../../module/ui/workspace-v2/panels/grid-calibration.mjs";
@@ -78,6 +79,40 @@ describe("Grid calibration", () => {
         assert.equal(zoomed.cellRef.height, base.cellRef.height * 2);
         assert.equal(zoomed.corners[0].x, base.corners[0].x * 2);
         assert.equal(zoomed.corners[0].y, base.corners[0].y * 2);
+    });
+
+    it("renders persisted scene grid lines without active calibration corners", () => {
+        const state = buildSceneGridOverlayState({
+            shiftX: -24,
+            shiftY: -18,
+            grid: {
+                type: 1,
+                size: 100
+            }
+        });
+
+        const model = buildGridCalibrationOverlayModel({
+            state,
+            viewport: { width: 500, height: 400 },
+            transform: { scale: 1.5, offsetX: 20, offsetY: -10 }
+        });
+
+        assert.equal(model.active, true);
+        assert.equal(model.cellRef, null);
+        assert.deepEqual(model.corners, []);
+        assert.ok(model.verticalLines.length > 0);
+        assert.ok(model.horizontalLines.length > 0);
+        assert.equal(model.verticalLines.includes(56), true);
+        assert.equal(model.horizontalLines.includes(17), true);
+    });
+
+    it("does not create a persisted overlay state for gridless scenes", () => {
+        assert.equal(buildSceneGridOverlayState({
+            grid: {
+                type: 0,
+                size: 100
+            }
+        }), null);
     });
 
     it("builds a Foundry V14 scene update using background shift fields", () => {

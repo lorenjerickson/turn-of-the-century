@@ -82,6 +82,22 @@ export function buildGridCalibrationSceneUpdate({ cellW = 100, offsetX = 0, offs
     };
 }
 
+export function buildSceneGridOverlayState(scene = null) {
+    const gridType = Number(scene?.grid?.type ?? GRID_TYPES.GRIDLESS);
+    const cellSize = Math.max(0, Number(scene?.grid?.size ?? 0));
+    if (gridType === GRID_TYPES.GRIDLESS || cellSize < 4) return null;
+
+    return {
+        active: true,
+        corner1: null,
+        corner2: null,
+        cellW: cellSize,
+        cellH: cellSize,
+        offsetX: Math.max(0, -Number(scene?.shiftX ?? 0)),
+        offsetY: Math.max(0, -Number(scene?.shiftY ?? 0))
+    };
+}
+
 /**
  * Build the SVG overlay geometry for the current calibration view.
  *
@@ -135,7 +151,7 @@ export function buildGridCalibrationOverlayModel({ state = null, viewport = {}, 
     const cellH = Number(state.cellH ?? 0);
     const gridOffX = Number(state.offsetX ?? 0);
     const gridOffY = Number(state.offsetY ?? 0);
-    const canDrawGrid = Boolean(corner1 && corner2 && cellW >= 4 && cellH >= 4);
+    const canDrawGrid = Boolean(cellW >= 4 && cellH >= 4);
 
     if (!canDrawGrid) {
         return {
@@ -170,12 +186,12 @@ export function buildGridCalibrationOverlayModel({ state = null, viewport = {}, 
         height,
         verticalLines,
         horizontalLines,
-        cellRef: {
+        cellRef: corner1 && corner2 ? {
             x: imgX + (Math.min(corner1.x, corner2.x) * scale),
             y: imgY + (Math.min(corner1.y, corner2.y) * scale),
             width: Math.abs(corner2.x - corner1.x) * scale,
             height: Math.abs(corner2.y - corner1.y) * scale
-        },
+        } : null,
         corners
     };
 }
