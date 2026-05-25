@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { scanDesignIssues } from "../../module/ui/workspace-v2/panels/design-issues-scanner.mjs";
+import {
+    DesignIssueScanner,
+    scanDesignIssues
+} from "../../module/ui/workspace-v2/panels/design-issues-scanner.mjs";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -74,6 +77,16 @@ describe("scanDesignIssues — empty inputs", () => {
     });
 });
 
+describe("DesignIssueScanner", () => {
+    it("exposes category-specific scan methods for future rule expansion", () => {
+        const scanner = new DesignIssueScanner();
+
+        assert.equal(scanner.scanSceneIssues(makeScene()).length, 0);
+        assert.equal(scanner.scanActorIssues([makeActor()]).length, 0);
+        assert.equal(scanner.scanEncounterIssues(makeCombat()).length, 0);
+    });
+});
+
 // ---------------------------------------------------------------------------
 // Scene issues — background, walls, lighting
 // ---------------------------------------------------------------------------
@@ -103,10 +116,15 @@ describe("scanDesignIssues — scene checks", () => {
         assert.ok(issues.some((i) => i.id === "scene.no-background"));
     });
 
-    it("accepts a scene with img fallback as background", () => {
-        const scene = makeScene({ background: null, img: "scenes/fallback.webp" });
+    it("accepts an old source img fallback as background without touching the Scene img getter", () => {
+        const scene = makeScene({ background: null, _source: { img: "scenes/fallback.webp" } });
+        Object.defineProperty(scene, "img", {
+            get() {
+                throw new Error("deprecated Scene#img getter was touched");
+            }
+        });
         const issues = scanDesignIssues({ scene });
-        assert.ok(!issues.some((i) => i.id === "scene.no-background"), "should not flag img fallback");
+        assert.ok(!issues.some((i) => i.id === "scene.no-background"), "should not flag source img fallback");
     });
 
     it("flags a scene with no walls", () => {
@@ -125,7 +143,7 @@ describe("scanDesignIssues — scene checks", () => {
     });
 
     it("flags a dark scene with no lights", () => {
-        const scene = makeScene({ darkness: 0.6, lights: { size: 0 } });
+        const scene = makeScene({ environment: { darknessLevel: 0.6 }, lights: { size: 0 } });
         const issues = scanDesignIssues({ scene });
         assert.ok(issues.some((i) => i.id === "scene.dark-no-lights"), "expected scene.dark-no-lights");
         const issue = issues.find((i) => i.id === "scene.dark-no-lights");

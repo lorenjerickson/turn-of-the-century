@@ -1,6 +1,8 @@
-import { WORKSPACE_V2_DOCK_IDS, WORKSPACE_V2_FLAG_SCOPE } from "./constants.mjs";
+import { WORKSPACE_V2_DOCK_IDS } from "./constants.mjs";
 import { InteractionController } from "./interaction-controller.mjs";
+import { GridCalibrationController } from "./grid-calibration-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
+import { MapViewportController } from "./map-viewport-controller.mjs";
 import { WorkspacePanelRegistry } from "./panel-registry.mjs";
 import { openFoundrySettingsView } from "./workspace-system-menu.mjs";
 import { isWorkspaceDebouncedTextInputTarget } from "./workspace-text-inputs.mjs";
@@ -28,17 +30,11 @@ import {
 import {
     buildGridCalibrationModel,
     renderGridCalibrationDialog,
-    cornersToCellSize,
-    cornersToGridOffset,
     buildGridCalibrationSceneUpdate,
     buildGridCalibrationOverlayModel,
     buildSceneGridOverlayState,
     GRID_CAL_PHASE_HINTS
 } from "./panels/grid-calibration.mjs";
-import {
-    buildPersistedMapViewportState,
-    buildRestoredMapViewportTransform
-} from "./panels/map-viewport-state.mjs";
 import {
     buildSceneBackgroundUploadTarget,
     buildScenePropertiesPanelModel,
@@ -624,15 +620,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._compendiumItemsPromise = null;
         this._resizeSession = null;
         this._textInputDebounceTimers = new Map();
-        this._mapViewportState = {
-            scale: null,
-            offsetX: 0,
-            offsetY: 0,
-            source: "",
-            mapKey: ""
-        };
-        this._mapPanSession = null;
-        this._gridCalibrationState = null;
+        this.mapViewportController = new MapViewportController({
+            stateStore: this.stateStore,
+            onTransformChange: () => this.#drawGridCalibrationOverlay()
+        });
+        this.gridCalibrationController = new GridCalibrationController({
+            sceneResolver: (state) => state.sceneId
+                ? game.scenes?.get(state.sceneId)
+                : (canvas?.scene ?? game.scenes?.viewed ?? null),
+            notifications: globalThis.ui?.notifications,
+            logger: console
+        });
         this._scenePropertiesState = {
             sceneName: "",
             selectedFilename: "",
@@ -1340,7 +1338,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#unbindPlayerHooks();
         this.#unbindDesignIssuesHooks();
         this.#endMapPanSession();
-        this._gridCalibrationState = null;
+        this.gridCalibrationController.close();
         return await super.close?.(options);
     }
 
@@ -1500,7 +1498,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             const dimensionLabel = dimensions.length === 2 ? `${dimensions[0]} × ${dimensions[1]}` : "Scene map";
 
             const calModel = buildGridCalibrationModel({
-                state: this._gridCalibrationState,
+                state: this.gridCalibrationController.state,
                 scene: context.scene
             });
             const calActive = calModel.active;
@@ -2026,54 +2024,30 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #getGamemasterPanelState() {
-        const workspaceFlags = foundry.utils.deepClone(game.user?.getFlag(game.system?.id, WORKSPACE_V2_FLAG_SCOPE) ?? {});
-        return normalizeGamemasterPanelState(workspaceFlags[GM_PANEL_STATE_KEY] ?? {});
+        return this.stateStore?.getUserScopedState?.(GM_PANEL_STATE_KEY, normalizeGamemasterPanelState)
+            ?? normalizeGamemasterPanelState();
     }
 
     #getMarketPanelState() {
-        const workspaceFlags = foundry.utils.deepClone(game.user?.getFlag(game.system?.id, WORKSPACE_V2_FLAG_SCOPE) ?? {});
-        return normalizeMarketPanelState(workspaceFlags[MARKET_PANEL_STATE_KEY] ?? {});
+        return this.stateStore?.getUserScopedState?.(MARKET_PANEL_STATE_KEY, normalizeMarketPanelState)
+            ?? normalizeMarketPanelState();
     }
 
     #getPlayerPanelState() {
-        const workspaceFlags = foundry.utils.deepClone(game.user?.getFlag(game.system?.id, WORKSPACE_V2_FLAG_SCOPE) ?? {});
-        return normalizePlayerPanelState(workspaceFlags[PLAYER_PANEL_STATE_KEY] ?? {});
+        return this.stateStore?.getUserScopedState?.(PLAYER_PANEL_STATE_KEY, normalizePlayerPanelState)
+            ?? normalizePlayerPanelState();
     }
 
     async #setGamemasterPanelStatePatch(patch = {}) {
-        const systemId = game.system?.id;
-        const current = foundry.utils.deepClone(game.user?.getFlag(systemId, WORKSPACE_V2_FLAG_SCOPE) ?? {});
-        const merged = normalizeGamemasterPanelState({
-            ...(current[GM_PANEL_STATE_KEY] ?? {}),
-            ...patch
-        });
-        current[GM_PANEL_STATE_KEY] = merged;
-        await game.user?.setFlag(systemId, WORKSPACE_V2_FLAG_SCOPE, current);
-        return merged;
+        return await this.stateStore?.setUserScopedStatePatch?.(GM_PANEL_STATE_KEY, patch, normalizeGamemasterPanelState);
     }
 
     async #setMarketPanelStatePatch(patch = {}) {
-        const systemId = game.system?.id;
-        const current = foundry.utils.deepClone(game.user?.getFlag(systemId, WORKSPACE_V2_FLAG_SCOPE) ?? {});
-        const merged = normalizeMarketPanelState({
-            ...(current[MARKET_PANEL_STATE_KEY] ?? {}),
-            ...patch
-        });
-        current[MARKET_PANEL_STATE_KEY] = merged;
-        await game.user?.setFlag(systemId, WORKSPACE_V2_FLAG_SCOPE, current);
-        return merged;
+        return await this.stateStore?.setUserScopedStatePatch?.(MARKET_PANEL_STATE_KEY, patch, normalizeMarketPanelState);
     }
 
     async #setPlayerPanelStatePatch(patch = {}) {
-        const systemId = game.system?.id;
-        const current = foundry.utils.deepClone(game.user?.getFlag(systemId, WORKSPACE_V2_FLAG_SCOPE) ?? {});
-        const merged = normalizePlayerPanelState({
-            ...(current[PLAYER_PANEL_STATE_KEY] ?? {}),
-            ...patch
-        });
-        current[PLAYER_PANEL_STATE_KEY] = merged;
-        await game.user?.setFlag(systemId, WORKSPACE_V2_FLAG_SCOPE, current);
-        return merged;
+        return await this.stateStore?.setUserScopedStatePatch?.(PLAYER_PANEL_STATE_KEY, patch, normalizePlayerPanelState);
     }
 
     #getPlayerPanelActors(controlledTokens = []) {
@@ -2813,34 +2787,31 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 event.preventDefault();
                 event.stopPropagation();
-                this._mapPanSession = {
+                this.mapViewportController.beginPan({
                     pointerId: event.pointerId,
                     viewport,
                     image,
-                    startX: event.clientX,
-                    startY: event.clientY,
-                    startOffsetX: this._mapViewportState.offsetX,
-                    startOffsetY: this._mapViewportState.offsetY
-                };
+                    clientX: event.clientX,
+                    clientY: event.clientY
+                });
 
                 this._onMapPanPointerMove ??= this.#onMapPanPointerMove.bind(this);
                 this._onMapPanPointerUp ??= this.#onMapPanPointerUp.bind(this);
                 document.addEventListener("pointermove", this._onMapPanPointerMove);
                 document.addEventListener("pointerup", this._onMapPanPointerUp);
-                viewport.classList.add("is-panning");
             });
 
             viewport.addEventListener("wheel", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                this.#applyMapWheelZoom(viewport, image, event);
+                this.mapViewportController.applyWheelZoom(viewport, image, event);
             }, { passive: false });
 
             if (image.complete && Number.isFinite(image.naturalWidth) && image.naturalWidth > 0) {
-                this.#syncMapViewportTransform(viewport, image, { initializeScale: true });
+                this.mapViewportController.syncViewport(viewport, image);
             } else {
                 image.addEventListener("load", () => {
-                    this.#syncMapViewportTransform(viewport, image, { initializeScale: true });
+                    this.mapViewportController.syncViewport(viewport, image);
                 }, { once: true });
             }
         }
@@ -3200,198 +3171,32 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (topHandle) topHandle.style.top = `${topBoundary}%`;
         if (bottomHandle) bottomHandle.style.top = `${bottomBoundary}%`;
 
-        this.#syncMapViewportTransforms({ initializeScale: false });
+        this.#syncMapViewportTransforms();
     }
 
-    #syncMapViewportTransforms({ initializeScale = false } = {}) {
+    #syncMapViewportTransforms() {
         const viewports = [...(this.element?.querySelectorAll("[data-action='map-viewport']") ?? [])];
         for (const viewport of viewports) {
             const image = viewport.querySelector("[data-action='map-image']");
             if (!(image instanceof HTMLImageElement)) continue;
             if (!image.complete || !Number.isFinite(image.naturalWidth) || image.naturalWidth <= 0) continue;
-            this.#syncMapViewportTransform(viewport, image, { initializeScale });
+            this.mapViewportController.syncViewport(viewport, image);
         }
-    }
-
-    #syncMapViewportTransform(viewport, image, { initializeScale = false } = {}) {
-        const viewportRect = viewport.getBoundingClientRect();
-        const viewportWidth = Math.max(1, Math.round(viewportRect.width));
-        const viewportHeight = Math.max(1, Math.round(viewportRect.height));
-        const imageWidth = Math.max(1, image.naturalWidth);
-        const imageHeight = Math.max(1, image.naturalHeight);
-        const imageSource = String(image.currentSrc || image.src || "");
-        const mapKey = String(viewport.dataset.mapKey || imageSource || "").trim();
-        const sourceChanged = Boolean(imageSource && this._mapViewportState.source !== imageSource);
-        const mapChanged = Boolean(mapKey && this._mapViewportState.mapKey !== mapKey);
-
-        const minScale = Math.min(viewportWidth / imageWidth, viewportHeight / imageHeight);
-        const maxScale = Math.max(minScale, 8);
-
-        if (sourceChanged || mapChanged || !Number.isFinite(this._mapViewportState.scale)) {
-            const saved = this.stateStore?.getUserMapViewport?.(mapKey);
-            const restored = buildRestoredMapViewportTransform({
-                saved,
-                viewportWidth,
-                viewportHeight,
-                imageWidth,
-                imageHeight,
-                minScale
-            });
-            this._mapViewportState.scale = restored.scale;
-            this._mapViewportState.offsetX = restored.offsetX;
-            this._mapViewportState.offsetY = restored.offsetY;
-        }
-        this._mapViewportState.source = imageSource;
-        this._mapViewportState.mapKey = mapKey;
-
-        this._mapViewportState.scale = this.#clamp(this._mapViewportState.scale, minScale, maxScale);
-
-        const clampedOffsets = this.#clampMapOffsets({
-            viewportWidth,
-            viewportHeight,
-            imageWidth,
-            imageHeight,
-            scale: this._mapViewportState.scale,
-            offsetX: this._mapViewportState.offsetX,
-            offsetY: this._mapViewportState.offsetY
-        });
-        this._mapViewportState.offsetX = clampedOffsets.offsetX;
-        this._mapViewportState.offsetY = clampedOffsets.offsetY;
-
-        image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
-        this.#drawGridCalibrationOverlay();
-    }
-
-    #applyMapWheelZoom(viewport, image, event) {
-        const viewportRect = viewport.getBoundingClientRect();
-        const viewportWidth = Math.max(1, Math.round(viewportRect.width));
-        const viewportHeight = Math.max(1, Math.round(viewportRect.height));
-        const imageWidth = Math.max(1, image.naturalWidth);
-        const imageHeight = Math.max(1, image.naturalHeight);
-
-        const minScale = Math.min(viewportWidth / imageWidth, viewportHeight / imageHeight);
-        const maxScale = Math.max(minScale, 8);
-        const currentScale = Number.isFinite(this._mapViewportState.scale) ? this._mapViewportState.scale : minScale;
-        const zoomStep = event.deltaY < 0 ? 1.08 : 0.92;
-        const nextScale = this.#clamp(currentScale * zoomStep, minScale, maxScale);
-        if (Math.abs(nextScale - currentScale) < 0.0001) {
-            this.#syncMapViewportTransform(viewport, image, { initializeScale: false });
-            return;
-        }
-
-        const cursorX = event.clientX - viewportRect.left;
-        const cursorY = event.clientY - viewportRect.top;
-        const imageSpaceX = (cursorX - this._mapViewportState.offsetX) / currentScale;
-        const imageSpaceY = (cursorY - this._mapViewportState.offsetY) / currentScale;
-
-        const nextOffsetX = cursorX - (imageSpaceX * nextScale);
-        const nextOffsetY = cursorY - (imageSpaceY * nextScale);
-        const clampedOffsets = this.#clampMapOffsets({
-            viewportWidth,
-            viewportHeight,
-            imageWidth,
-            imageHeight,
-            scale: nextScale,
-            offsetX: nextOffsetX,
-            offsetY: nextOffsetY
-        });
-
-        this._mapViewportState.scale = nextScale;
-        this._mapViewportState.offsetX = clampedOffsets.offsetX;
-        this._mapViewportState.offsetY = clampedOffsets.offsetY;
-        image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
-        void this.#persistMapViewportState(viewport, image);
-        this.#drawGridCalibrationOverlay();
     }
 
     #onMapPanPointerMove(event) {
-        if (!this._mapPanSession) return;
-        if (event.pointerId !== this._mapPanSession.pointerId) return;
-
-        const { viewport, image, startX, startY, startOffsetX, startOffsetY } = this._mapPanSession;
-        const viewportRect = viewport.getBoundingClientRect();
-        const viewportWidth = Math.max(1, Math.round(viewportRect.width));
-        const viewportHeight = Math.max(1, Math.round(viewportRect.height));
-        const imageWidth = Math.max(1, image.naturalWidth);
-        const imageHeight = Math.max(1, image.naturalHeight);
-
-        const nextOffsetX = startOffsetX + (event.clientX - startX);
-        const nextOffsetY = startOffsetY + (event.clientY - startY);
-        const clampedOffsets = this.#clampMapOffsets({
-            viewportWidth,
-            viewportHeight,
-            imageWidth,
-            imageHeight,
-            scale: this._mapViewportState.scale,
-            offsetX: nextOffsetX,
-            offsetY: nextOffsetY
-        });
-
-        this._mapViewportState.offsetX = clampedOffsets.offsetX;
-        this._mapViewportState.offsetY = clampedOffsets.offsetY;
-        image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
-        this.#drawGridCalibrationOverlay();
+        this.mapViewportController.movePan(event);
     }
 
     #onMapPanPointerUp(event) {
-        if (!this._mapPanSession) return;
-        if (event.pointerId !== this._mapPanSession.pointerId) return;
-
+        if (event.pointerId !== this.mapViewportController.panSession?.pointerId) return;
         this.#endMapPanSession();
     }
 
     #endMapPanSession() {
-        const { viewport, image } = this._mapPanSession ?? {};
-        this._mapPanSession?.viewport?.classList?.remove("is-panning");
-        this._mapPanSession = null;
+        this.mapViewportController.endPan();
         document.removeEventListener("pointermove", this._onMapPanPointerMove);
         document.removeEventListener("pointerup", this._onMapPanPointerUp);
-        if (viewport && image) void this.#persistMapViewportState(viewport, image);
-    }
-
-    async #persistMapViewportState(viewport, image) {
-        const mapKey = String(viewport?.dataset?.mapKey || this._mapViewportState.mapKey || "").trim();
-        const scale = Number(this._mapViewportState.scale);
-        if (!mapKey || !Number.isFinite(scale) || scale <= 0) return;
-
-        const viewportRect = viewport.getBoundingClientRect();
-        const viewportWidth = Math.max(1, Math.round(viewportRect.width));
-        const viewportHeight = Math.max(1, Math.round(viewportRect.height));
-        const imageWidth = Math.max(1, image?.naturalWidth ?? 1);
-        const imageHeight = Math.max(1, image?.naturalHeight ?? 1);
-        const persisted = buildPersistedMapViewportState({
-            scale,
-            offsetX: this._mapViewportState.offsetX,
-            offsetY: this._mapViewportState.offsetY,
-            viewportWidth,
-            viewportHeight,
-            imageWidth,
-            imageHeight
-        });
-        if (!persisted) return;
-
-        await this.stateStore?.setUserMapViewport?.(mapKey, persisted);
-    }
-
-    #clampMapOffsets({ viewportWidth, viewportHeight, imageWidth, imageHeight, scale, offsetX, offsetY }) {
-        const scaledWidth = imageWidth * scale;
-        const scaledHeight = imageHeight * scale;
-
-        const minX = scaledWidth > viewportWidth ? viewportWidth - scaledWidth : (viewportWidth - scaledWidth) / 2;
-        const maxX = scaledWidth > viewportWidth ? 0 : (viewportWidth - scaledWidth) / 2;
-        const minY = scaledHeight > viewportHeight ? viewportHeight - scaledHeight : (viewportHeight - scaledHeight) / 2;
-        const maxY = scaledHeight > viewportHeight ? 0 : (viewportHeight - scaledHeight) / 2;
-
-        return {
-            offsetX: this.#clamp(offsetX, minX, maxX),
-            offsetY: this.#clamp(offsetY, minY, maxY)
-        };
-    }
-
-    #clamp(value, min, max) {
-        const numeric = Number(value);
-        if (!Number.isFinite(numeric)) return min;
-        return Math.min(max, Math.max(min, numeric));
     }
 
     #isDesignLensActive(panelId) {
@@ -3427,22 +3232,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
      */
     _openGridCalibration({ scene = null } = {}) {
         const liveScene = scene ?? canvas?.scene ?? game.scenes?.viewed ?? null;
-        this._gridCalibrationState = {
-            active: true,
-            sceneId: String(liveScene?.id ?? ""),
-            corner1: null,
-            corner2: null,
-            cellW: null,
-            cellH: null,
-            offsetX: null,
-            offsetY: null
-        };
+        this.gridCalibrationController.open({ scene: liveScene });
         this.render({ force: false });
     }
 
     /** Close and tear down the grid calibration tool without saving. */
     #closeGridCalibration() {
-        this._gridCalibrationState = null;
+        this.gridCalibrationController.close();
         this.render({ force: false });
     }
 
@@ -3465,10 +3261,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             btn.addEventListener("click", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                if (!this._gridCalibrationState) return;
-                this._gridCalibrationState.corner1 = null;
-                this._gridCalibrationState.corner2 = null;
-                // cellW/cellH/offsets are kept so the user can re-confirm with minor tweaks
+                this.gridCalibrationController.resetCorners();
                 this.render({ force: false });
             });
         });
@@ -3476,38 +3269,28 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         // Number inputs update state + redraw the overlay without a full render
         this.element?.querySelectorAll("[data-action='grid-cal-cell-w']")?.forEach((input) => {
             input.addEventListener("input", () => {
-                const v = Math.max(4, Number(input.value) || 4);
-                if (!this._gridCalibrationState) return;
-                this._gridCalibrationState.cellW = v;
-                // Square grids mirror width to height
-                if (this._gridCalibrationState.isSquare ?? true) {
-                    this._gridCalibrationState.cellH = v;
-                }
+                this.gridCalibrationController.setCellWidth(input.value);
                 this.#drawGridCalibrationOverlay();
             });
         });
 
         this.element?.querySelectorAll("[data-action='grid-cal-cell-h']")?.forEach((input) => {
             input.addEventListener("input", () => {
-                const v = Math.max(4, Number(input.value) || 4);
-                if (!this._gridCalibrationState) return;
-                this._gridCalibrationState.cellH = v;
+                this.gridCalibrationController.setCellHeight(input.value);
                 this.#drawGridCalibrationOverlay();
             });
         });
 
         this.element?.querySelectorAll("[data-action='grid-cal-offset-x']")?.forEach((input) => {
             input.addEventListener("input", () => {
-                if (!this._gridCalibrationState) return;
-                this._gridCalibrationState.offsetX = Math.max(0, Number(input.value) || 0);
+                this.gridCalibrationController.setOffsetX(input.value);
                 this.#drawGridCalibrationOverlay();
             });
         });
 
         this.element?.querySelectorAll("[data-action='grid-cal-offset-y']")?.forEach((input) => {
             input.addEventListener("input", () => {
-                if (!this._gridCalibrationState) return;
-                this._gridCalibrationState.offsetY = Math.max(0, Number(input.value) || 0);
+                this.gridCalibrationController.setOffsetY(input.value);
                 this.#drawGridCalibrationOverlay();
             });
         });
@@ -3521,7 +3304,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
 
         // Map viewport corner-picking ------------------------------------------
-        if (!this._gridCalibrationState?.active) return;
+        if (!this.gridCalibrationController.active) return;
 
         const viewport = this.element?.querySelector("[data-map-viewport='true']");
         if (!viewport) return;
@@ -3529,33 +3312,26 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         viewport.addEventListener("pointerdown", (event) => {
             // Only intercept left-button clicks while in corner-picking phase
             if (event.button !== 0) return;
-            const state = this._gridCalibrationState;
+            const state = this.gridCalibrationController.state;
             if (!state?.active || (state.corner1 && state.corner2)) return;
 
             event.preventDefault();
             event.stopPropagation();
 
             const vRect = viewport.getBoundingClientRect();
-            const { scale, offsetX: imgX, offsetY: imgY } = this._mapViewportState;
+            const { scale, offsetX: imgX, offsetY: imgY } = this.mapViewportController.state;
             const point = {
                 x: Math.round((event.clientX - vRect.left - imgX) / scale),
                 y: Math.round((event.clientY - vRect.top  - imgY) / scale)
             };
 
-            if (!state.corner1) {
-                state.corner1 = point;
+            const pickResult = this.gridCalibrationController.pickCorner(point);
+            if (pickResult.phase === "pick-second") {
                 // Imperatively update the hint text — avoids a full re-render
                 const hint = this.element?.querySelector(".totc-v2-grid-cal__hint");
                 if (hint) hint.innerHTML = GRID_CAL_PHASE_HINTS["pick-second"];
                 this.#drawGridCalibrationOverlay();
-            } else {
-                state.corner2 = point;
-                const { cellW, cellH } = cornersToCellSize(state.corner1, state.corner2);
-                const { offsetX, offsetY } = cornersToGridOffset(state.corner1, state.corner2, { cellW, cellH });
-                state.cellW = cellW || (state.cellW ?? 100);
-                state.cellH = cellH || (state.cellH ?? 100);
-                state.offsetX = offsetX;
-                state.offsetY = offsetY;
+            } else if (pickResult.phase === "adjust") {
                 this.#drawGridCalibrationOverlay();
                 // Full render to show the adjust controls
                 this.render({ force: false });
@@ -3576,8 +3352,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         const viewport = overlay.closest("[data-map-viewport='true']");
         if (!viewport) return;
-        const state = this._gridCalibrationState?.active
-            ? this._gridCalibrationState
+        const state = this.gridCalibrationController.active
+            ? this.gridCalibrationController.state
             : buildSceneGridOverlayState({
                 shiftX: Number(viewport.dataset.gridShiftX ?? 0),
                 shiftY: Number(viewport.dataset.gridShiftY ?? 0),
@@ -3595,7 +3371,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const W = vRect.width;
         const H = vRect.height;
 
-        const { scale, offsetX, offsetY } = this._mapViewportState;
+        const { scale, offsetX, offsetY } = this.mapViewportController.state;
         const overlayModel = buildGridCalibrationOverlayModel({
             state,
             viewport: { width: W, height: H },
@@ -3640,7 +3416,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
      * close the calibration tool.
      */
     async #applyGridCalibration() {
-        const state = this._gridCalibrationState;
+        const state = this.gridCalibrationController.state;
         if (!state?.active) return;
 
         const scene = state.sceneId
@@ -3668,7 +3444,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             return;
         }
 
-        this._gridCalibrationState = null;
+        this.gridCalibrationController.close();
         this.render({ force: false });
     }
 

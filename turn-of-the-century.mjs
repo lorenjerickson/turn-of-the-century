@@ -12,14 +12,6 @@ import {
     WeaponDataModel
 } from "./module/data-models.mjs";
 import {
-    TOTC_SAMPLE_ACTORS,
-    TOTC_SAMPLE_COMPENDIUMS,
-    TOTC_SAMPLE_ITEMS,
-    TOTC_SAMPLE_LIBRARY_STATS,
-    createTotcSampleContent,
-    publishTotcSampleCompendiums
-} from "./module/sample-content.mjs";
-import {
     getActionPointBudget,
     getBaseActionCatalog,
     getMovementFeetPerAp,
@@ -101,7 +93,6 @@ import {
     requireItemsCollection
 } from "./module/foundry-v14-runtime.mjs";
 
-const STARTER_CONTENT_SEEDED_SETTING = "starterContentSeeded";
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
 const ENCOUNTER_AP_BUDGET_SETTING = "encounterActionPointBudget";
 const ENCOUNTER_MOVE_FEET_PER_AP_SETTING = "encounterMovementFeetPerAp";
@@ -337,26 +328,6 @@ async function ensureTotcLocalizationLoaded() {
     console.error("[turn-of-the-century] Could not recover missing i18n translations. Check system language files and manifest paths.");
 }
 
-function getIndexCount(pack) {
-    return pack.index?.size ?? pack.index?.length ?? 0;
-}
-
-async function getStarterCompendiumDocumentCount() {
-    const systemId = game.system?.id;
-    const packNames = Object.values(TOTC_SAMPLE_COMPENDIUMS);
-    let total = 0;
-
-    for (const packName of packNames) {
-        const pack = game.packs.get(`${systemId}.${packName}`);
-        if (!pack) continue;
-
-        await pack.getIndex();
-        total += getIndexCount(pack);
-    }
-
-    return total;
-}
-
 async function maybeRunAutomatedMigrations() {
     if (!game?.ready || !game.user?.isGM) return;
 
@@ -384,29 +355,6 @@ async function maybeRunAutomatedMigrations() {
             "Turn of the Century failed to run world migrations. Run `await game.turnOfTheCentury.migrations.run()` as a GM after checking console errors."
         );
         return null;
-    }
-}
-
-async function maybeSeedStarterCompendiums() {
-    if (!game?.ready || !game.user?.isGM) return;
-
-    const isSeeded = game.settings.get("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING);
-    if (isSeeded) {
-        const starterDocumentCount = await getStarterCompendiumDocumentCount();
-        if (starterDocumentCount > 0) return;
-
-        console.warn("[turn-of-the-century] Starter compendium seeded flag is true but packs are empty. Re-seeding starter compendiums.");
-    }
-
-    try {
-        await publishTotcSampleCompendiums({ overwrite: true });
-        await game.settings.set("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING, true);
-        ui.notifications?.info("Turn of the Century starter compendiums were populated for this world.");
-    } catch (error) {
-        console.error("[turn-of-the-century] Failed to auto-populate starter compendiums.", error);
-        ui.notifications?.warn(
-            "Turn of the Century starter compendiums could not be auto-populated. Run `await game.turnOfTheCentury.sampleContent.publishToCompendiums()` in the console as a GM."
-        );
     }
 }
 
@@ -478,15 +426,6 @@ Hooks.once("init", () => {
         types: ["pawn"],
         makeDefault: true,
         label: "Turn of the Century Pawn Sheet"
-    });
-
-    game.settings.register("turn-of-the-century", STARTER_CONTENT_SEEDED_SETTING, {
-        name: "Starter content seeded",
-        hint: "Internal setting to avoid re-importing starter compendium content repeatedly.",
-        scope: "world",
-        config: false,
-        type: Boolean,
-        default: false
     });
 
     game.settings.register("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING, {
@@ -579,14 +518,6 @@ Hooks.once("ready", async () => {
     applyTotcTheme(game.settings.get("turn-of-the-century", TOTC_THEME_SETTING));
 
     game.turnOfTheCentury ??= {};
-    game.turnOfTheCentury.sampleContent = {
-        actors: TOTC_SAMPLE_ACTORS,
-        items: TOTC_SAMPLE_ITEMS,
-        stats: TOTC_SAMPLE_LIBRARY_STATS,
-        compendiums: TOTC_SAMPLE_COMPENDIUMS,
-        create: createTotcSampleContent,
-        publishToCompendiums: publishTotcSampleCompendiums
-    };
     game.turnOfTheCentury.migrations = {
         migrateActorProfiles: migrateTotcActorProfiles,
         migrateActorProfessions: migrateTotcActorProfessions,
@@ -610,10 +541,7 @@ Hooks.once("ready", async () => {
         }
     };
 
-    // Run migrations and starter seeding in sequence before booting Workspace V2
-    // so compendium-backed panels read stable data on first world load after updates.
     await maybeRunAutomatedMigrations();
-    await maybeSeedStarterCompendiums();
 
     workspaceV2Coordinator = new WorkspaceV2Coordinator({
         systemId: "turn-of-the-century"

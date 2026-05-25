@@ -124,137 +124,159 @@ export function buildSceneCreationData({ backgroundPath = "", name = "", navigat
     };
 }
 
+export class SceneDesignService {
+    constructor(context = {}) {
+        this.context = context;
+    }
+
+    async createFromBackgroundPath({ backgroundPath = "", name = "", navigation = true } = {}) {
+        const SceneClass = getSceneClass(this.context);
+        const notifications = getNotifications(this.context);
+        const worldId = getWorldId(this.context);
+
+        if (!SceneClass || typeof SceneClass.create !== "function") {
+            return {
+                ok: false,
+                level: "warn",
+                message: "Scene creation is not available in this Foundry session."
+            };
+        }
+
+        if (!isSceneBackgroundImagePath(backgroundPath, { worldId })) {
+            return {
+                ok: false,
+                level: "warn",
+                message: `Choose a supported battle-map image from ${SCENE_BACKGROUND_IMAGE_ASSET_PATH}/.`
+            };
+        }
+
+        const sceneData = buildSceneCreationData({ backgroundPath, name, navigation });
+        const scene = await SceneClass.create(sceneData);
+        notifications?.info?.(`Created scene: ${scene?.name ?? sceneData.name}.`);
+        renderFoundryApplication(scene?.sheet, { force: true });
+
+        return {
+            ok: true,
+            scene,
+            name: scene?.name ?? sceneData.name,
+            data: sceneData
+        };
+    }
+
+    async openScenePropertiesPanel() {
+        if (typeof this.context.app?._openScenePropertiesPanel === "function") {
+            await this.context.app._openScenePropertiesPanel();
+            return {
+                ok: true,
+                silent: true,
+                message: "Scene properties opened."
+            };
+        }
+
+        return {
+            ok: false,
+            level: "warn",
+            message: "Scene properties are not available in this workspace session."
+        };
+    }
+
+    async uploadBackgroundFile({ file, target } = {}) {
+        const FilePickerClass = getFilePickerClass(this.context);
+        if (!FilePickerClass || typeof FilePickerClass.upload !== "function") {
+            return {
+                ok: false,
+                level: "warn",
+                message: "Scene background upload is not available in this Foundry session."
+            };
+        }
+
+        if (!file || !target?.valid) {
+            return {
+                ok: false,
+                level: "warn",
+                message: "Enter a scene name and choose a supported image before uploading."
+            };
+        }
+
+        const FileClass = getFileConstructor(this.context);
+        const uploadFile = typeof FileClass === "function"
+            ? new FileClass([file], target.filename, {
+                type: file.type,
+                lastModified: file.lastModified
+            })
+            : file;
+        await ensureFoundryDirectory(FilePickerClass, target.directory);
+        const result = await FilePickerClass.upload("data", target.directory, uploadFile, {
+            notify: true,
+            overwrite: false
+        });
+        const uploadedPath = String(result?.path ?? result ?? target.path);
+
+        return {
+            ok: true,
+            path: uploadedPath || target.path,
+            filename: target.filename
+        };
+    }
+
+    async activateWallDesignMode() {
+        const scene = getScene(this.context);
+        const canvas = getCanvas(this.context);
+        const controls = getControls(this.context);
+
+        if (!scene) {
+            return {
+                ok: false,
+                level: "warn",
+                message: "Open a scene before editing walls."
+            };
+        }
+
+        if (canvas?.ready === false) {
+            return {
+                ok: false,
+                level: "warn",
+                message: "Wait for the canvas to finish loading before editing walls."
+            };
+        }
+
+        if (typeof controls?.initialize === "function") {
+            await controls.initialize({ control: WALL_CONTROL, tool: WALL_TOOL });
+            return {
+                ok: true,
+                message: "Wall design tools activated."
+            };
+        }
+
+        const wallLayer = canvas?.walls;
+        if (typeof wallLayer?.activate === "function") {
+            await wallLayer.activate();
+            return {
+                ok: true,
+                message: "Wall layer activated."
+            };
+        }
+
+        return {
+            ok: false,
+            level: "warn",
+            message: "Wall design tools are not available in this Foundry session."
+        };
+    }
+}
+
 export async function createSceneFromBackgroundPath({ backgroundPath = "", name = "", navigation = true, ...context } = {}) {
-    const SceneClass = getSceneClass(context);
-    const notifications = getNotifications(context);
-    const worldId = getWorldId(context);
-
-    if (!SceneClass || typeof SceneClass.create !== "function") {
-        return {
-            ok: false,
-            level: "warn",
-            message: "Scene creation is not available in this Foundry session."
-        };
-    }
-
-    if (!isSceneBackgroundImagePath(backgroundPath, { worldId })) {
-        return {
-            ok: false,
-            level: "warn",
-            message: `Choose a supported battle-map image from ${SCENE_BACKGROUND_IMAGE_ASSET_PATH}/.`
-        };
-    }
-
-    const sceneData = buildSceneCreationData({ backgroundPath, name, navigation });
-    const scene = await SceneClass.create(sceneData);
-    notifications?.info?.(`Created scene: ${scene?.name ?? sceneData.name}.`);
-    renderFoundryApplication(scene?.sheet, { force: true });
-
-    return {
-        ok: true,
-        scene,
-        name: scene?.name ?? sceneData.name,
-        data: sceneData
-    };
+    return new SceneDesignService(context).createFromBackgroundPath({ backgroundPath, name, navigation });
 }
 
 export async function createSceneDesignScene(context = {}) {
-    if (typeof context.app?._openScenePropertiesPanel === "function") {
-        await context.app._openScenePropertiesPanel();
-        return {
-            ok: true,
-            silent: true,
-            message: "Scene properties opened."
-        };
-    }
-
-    return {
-        ok: false,
-        level: "warn",
-        message: "Scene properties are not available in this workspace session."
-    };
+    return new SceneDesignService(context).openScenePropertiesPanel();
 }
 
 export async function uploadSceneBackgroundFile({ file, target, ...context } = {}) {
-    const FilePickerClass = getFilePickerClass(context);
-    if (!FilePickerClass || typeof FilePickerClass.upload !== "function") {
-        return {
-            ok: false,
-            level: "warn",
-            message: "Scene background upload is not available in this Foundry session."
-        };
-    }
-
-    if (!file || !target?.valid) {
-        return {
-            ok: false,
-            level: "warn",
-            message: "Enter a scene name and choose a supported image before uploading."
-        };
-    }
-
-    const FileClass = getFileConstructor(context);
-    const uploadFile = typeof FileClass === "function"
-        ? new FileClass([file], target.filename, {
-            type: file.type,
-            lastModified: file.lastModified
-        })
-        : file;
-    await ensureFoundryDirectory(FilePickerClass, target.directory);
-    const result = await FilePickerClass.upload("data", target.directory, uploadFile, {
-        notify: true,
-        overwrite: false
-    });
-    const uploadedPath = String(result?.path ?? result ?? target.path);
-
-    return {
-        ok: true,
-        path: uploadedPath || target.path,
-        filename: target.filename
-    };
+    return new SceneDesignService(context).uploadBackgroundFile({ file, target });
 }
 
 export async function activateSceneWallDesignMode(context = {}) {
-    const scene = getScene(context);
-    const canvas = getCanvas(context);
-    const controls = getControls(context);
-
-    if (!scene) {
-        return {
-            ok: false,
-            level: "warn",
-            message: "Open a scene before editing walls."
-        };
-    }
-
-    if (canvas?.ready === false) {
-        return {
-            ok: false,
-            level: "warn",
-            message: "Wait for the canvas to finish loading before editing walls."
-        };
-    }
-
-    if (typeof controls?.initialize === "function") {
-        await controls.initialize({ control: WALL_CONTROL, tool: WALL_TOOL });
-        return {
-            ok: true,
-            message: "Wall design tools activated."
-        };
-    }
-
-    const wallLayer = canvas?.walls;
-    if (typeof wallLayer?.activate === "function") {
-        await wallLayer.activate();
-        return {
-            ok: true,
-            message: "Wall layer activated."
-        };
-    }
-
-    return {
-        ok: false,
-        level: "warn",
-        message: "Wall design tools are not available in this Foundry session."
-    };
+    return new SceneDesignService(context).activateWallDesignMode();
 }

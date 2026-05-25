@@ -93,6 +93,26 @@ export class WorkspaceStateStore {
         await game.user?.setFlag(this.systemId, WORKSPACE_V2_FLAG_SCOPE, current);
         return this.getUserMapViewport(key);
     }
+
+    getUserScopedState(key, normalizer = (value) => value) {
+        const stateKey = String(key ?? "").trim();
+        if (!stateKey) return normalizer(null);
+        const flags = game.user?.getFlag(this.systemId, WORKSPACE_V2_FLAG_SCOPE) ?? {};
+        return normalizer(foundry.utils.deepClone(flags[stateKey] ?? {}));
+    }
+
+    async setUserScopedStatePatch(key, patch = {}, normalizer = (value) => value) {
+        const stateKey = String(key ?? "").trim();
+        if (!stateKey) return normalizer(null);
+
+        const current = foundry.utils.deepClone(game.user?.getFlag(this.systemId, WORKSPACE_V2_FLAG_SCOPE) ?? {});
+        current[stateKey] = normalizer({
+            ...(current[stateKey] ?? {}),
+            ...patch
+        });
+        await game.user?.setFlag(this.systemId, WORKSPACE_V2_FLAG_SCOPE, current);
+        return this.getUserScopedState(stateKey, normalizer);
+    }
 }
 
 export function normalizeMapViewportState(value = null) {

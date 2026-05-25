@@ -8,6 +8,7 @@ import {
     createSceneFromBackgroundPath,
     isSceneBackgroundImagePath,
     SCENE_BACKGROUND_IMAGE_ASSET_PATH,
+    SceneDesignService,
     uploadSceneBackgroundFile
 } from "../../module/ui/workspace-v2/design-actions/scene-actions.mjs";
 
@@ -57,6 +58,26 @@ describe("scene design actions", () => {
         assert.equal(result.ok, true);
         assert.equal(result.name, "Baker Street");
         assert.equal(createdData.background.src, "assets/images/scenes/baker-street.webp");
+    });
+
+    it("encapsulates scene creation behind SceneDesignService", async () => {
+        let createdData = null;
+        const service = new SceneDesignService({
+            SceneClass: {
+                create: async (data) => {
+                    createdData = data;
+                    return { name: data.name };
+                }
+            }
+        });
+
+        const result = await service.createFromBackgroundPath({
+            backgroundPath: "assets/images/scenes/railway-yard.webp"
+        });
+
+        assert.equal(result.ok, true);
+        assert.equal(result.name, "Railway Yard");
+        assert.equal(createdData.background.src, "assets/images/scenes/railway-yard.webp");
     });
 
     it("refuses to create scenes from unorganized media paths", async () => {

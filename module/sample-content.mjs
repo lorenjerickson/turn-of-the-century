@@ -4,8 +4,6 @@ import {
 } from "./foundry-v14-runtime.mjs";
 
 const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha", "san"];
-const ActorDocumentClass = requireActorDocumentClass();
-const ItemDocumentClass = requireItemDocumentClass();
 const SKILL_ABILITY_MAP = {
     acrobatics: "dex",
     animalHandling: "wis",
@@ -3147,6 +3145,8 @@ export async function createTotcSampleContent({
     limitPerType = 0
 } = {}) {
     if (!game?.ready) throw new Error("Game is not ready yet.");
+    const ActorDocumentClass = createActors ? requireActorDocumentClass() : null;
+    const ItemDocumentClass = createItems ? requireItemDocumentClass() : null;
 
     const actorTypeFilter = normalizeSet(actorTypes);
     const itemTypeFilter = normalizeSet(itemTypes);

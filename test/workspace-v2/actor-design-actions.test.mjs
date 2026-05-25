@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+    ActorDesignService,
     buildDesignNpcActorData,
     createNpcDesignActor,
     createUniqueNpcName
@@ -61,5 +62,25 @@ describe("actor design actions", () => {
         assert.equal(createdData.name, "New NPC 2");
         assert.equal(createdData.flags["turn-of-the-century"].sourcePanelId, "tracker");
         assert.deepEqual(sheetRendered, { force: true });
+    });
+
+    it("encapsulates NPC creation behind ActorDesignService", async () => {
+        let createdData = null;
+        const service = new ActorDesignService({
+            actors: [{ name: "New NPC" }, { name: "New NPC 2" }],
+            actorClass: {
+                create: async (data) => {
+                    createdData = data;
+                    return { name: data.name };
+                }
+            },
+            renderApplication: () => {}
+        });
+
+        const actor = await service.createNpc({ sourcePanelId: "inspector", renderSheet: false });
+
+        assert.equal(actor.name, "New NPC 3");
+        assert.equal(createdData.name, "New NPC 3");
+        assert.equal(createdData.flags["turn-of-the-century"].sourcePanelId, "inspector");
     });
 });

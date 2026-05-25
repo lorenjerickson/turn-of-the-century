@@ -58,22 +58,48 @@ export function buildDesignNpcActorData({
     };
 }
 
-export async function createNpcDesignActor({
-    actorClass = null,
-    foundry = globalThis.foundry,
-    actors = globalThis.game?.actors,
-    folderId = null,
-    sourcePanelId = "",
-    renderSheet = true
-} = {}) {
-    actorClass ??= requireActorDocumentClass({ foundry });
-    if (!actorClass?.create) {
-        throw new Error("Actor creation is not available.");
+export class ActorDesignService {
+    constructor({
+        actorClass = null,
+        foundry = globalThis.foundry,
+        actors = globalThis.game?.actors,
+        renderApplication = renderFoundryApplication
+    } = {}) {
+        this.actorClass = actorClass;
+        this.foundry = foundry;
+        this.actors = actors;
+        this.renderApplication = renderApplication;
     }
 
-    const name = createUniqueNpcName(DEFAULT_NPC_NAME, actors);
-    const actorData = buildDesignNpcActorData({ name, folderId, sourcePanelId });
-    const actor = await actorClass.create(actorData);
-    if (renderSheet) renderFoundryApplication(actor?.sheet, { force: true });
-    return actor;
+    createUniqueNpcName(baseName = DEFAULT_NPC_NAME, actors = this.actors) {
+        return createUniqueNpcName(baseName, actors);
+    }
+
+    buildNpcData(options = {}) {
+        return buildDesignNpcActorData(options);
+    }
+
+    async createNpc({
+        actors = this.actors,
+        folderId = null,
+        sourcePanelId = "",
+        renderSheet = true
+    } = {}) {
+        const actorClass = this.#requireActorClass();
+        const name = this.createUniqueNpcName(DEFAULT_NPC_NAME, actors);
+        const actorData = this.buildNpcData({ name, folderId, sourcePanelId });
+        const actor = await actorClass.create(actorData);
+        if (renderSheet) this.renderApplication(actor?.sheet, { force: true });
+        return actor;
+    }
+
+    #requireActorClass() {
+        const actorClass = this.actorClass ?? requireActorDocumentClass({ foundry: this.foundry });
+        if (!actorClass?.create) throw new Error("Actor creation is not available.");
+        return actorClass;
+    }
+}
+
+export async function createNpcDesignActor(options = {}) {
+    return new ActorDesignService(options).createNpc(options);
 }
