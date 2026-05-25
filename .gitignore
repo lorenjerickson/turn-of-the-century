@@ -3,8 +3,10 @@ dist/
 .DS_Store
 node_modules/
 
-packs/**
-!packs/**/*.json
-!packs/**/*.html
-!packs/**/*.js
-!packs/**/*.css
+packs/**/CURRENT
+packs/**/LOCK
+packs/**/LOG
+packs/**/LOG.old
+packs/**/MANIFEST-*
+packs/**/*.ldb
+packs/**/*.log
