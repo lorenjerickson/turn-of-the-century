@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, describe, it } from "node:test";
 
 import {
     activateSceneWallDesignMode,
@@ -9,6 +9,16 @@ import {
     isSceneBackgroundImagePath,
     SCENE_BACKGROUND_IMAGE_ASSET_PATH
 } from "../../module/ui/workspace-v2/design-actions/scene-actions.mjs";
+
+const originalFilePickerDescriptor = Object.getOwnPropertyDescriptor(globalThis, "FilePicker");
+
+afterEach(() => {
+    if (originalFilePickerDescriptor) {
+        Object.defineProperty(globalThis, "FilePicker", originalFilePickerDescriptor);
+    } else {
+        delete globalThis.FilePicker;
+    }
+});
 
 describe("scene design actions", () => {
     it("recognizes organized scene background image paths", () => {
@@ -87,6 +97,41 @@ describe("scene design actions", () => {
         assert.equal(pickerOptions.type, "image");
         assert.equal(pickerOptions.current, SCENE_BACKGROUND_IMAGE_ASSET_PATH);
         assert.equal(typeof pickerOptions.callback, "function");
+    });
+
+    it("prefers the Foundry V14 namespaced FilePicker implementation over the deprecated global", async () => {
+        Object.defineProperty(globalThis, "FilePicker", {
+            configurable: true,
+            get() {
+                throw new Error("Deprecated global FilePicker was accessed.");
+            }
+        });
+
+        let pickerOptions = null;
+        let rendered = false;
+        const result = await createSceneDesignScene({
+            foundry: {
+                applications: {
+                    apps: {
+                        FilePicker: {
+                            implementation: class {
+                                constructor(options) {
+                                    pickerOptions = options;
+                                }
+
+                                render(force) {
+                                    rendered = force;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        assert.equal(result.ok, true);
+        assert.equal(rendered, true);
+        assert.equal(pickerOptions.current, SCENE_BACKGROUND_IMAGE_ASSET_PATH);
     });
 
     it("activates Foundry scene controls for wall editing when available", async () => {

@@ -19,8 +19,19 @@ function getSceneClass(context = {}) {
     return context.SceneClass ?? globalThis.Scene ?? null;
 }
 
+function getFoundry(context = {}) {
+    return context.foundry ?? globalThis.foundry ?? null;
+}
+
 function getFilePickerClass(context = {}) {
-    return context.FilePickerClass ?? globalThis.FilePicker ?? null;
+    if (context.FilePickerClass) return context.FilePickerClass;
+
+    const foundryNamespace = getFoundry(context);
+    const namespacedFilePicker = foundryNamespace?.applications?.apps?.FilePicker;
+    if (namespacedFilePicker?.implementation) return namespacedFilePicker.implementation;
+    if (typeof namespacedFilePicker === "function") return namespacedFilePicker;
+
+    return globalThis.FilePicker ?? null;
 }
 
 function getNotifications(context = {}) {
