@@ -3,6 +3,7 @@ import { InteractionController } from "./interaction-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
 import { WorkspacePanelRegistry } from "./panel-registry.mjs";
 import { openFoundrySettingsView } from "./workspace-system-menu.mjs";
+import { isWorkspaceDebouncedTextInputTarget } from "./workspace-text-inputs.mjs";
 import {
     buildDiceRollFeedPanelModel,
     renderDiceRollFeedPanel
@@ -60,6 +61,7 @@ const MIN_FLOAT_WIDTH = 240;
 const MIN_FLOAT_HEIGHT = 160;
 const MIN_TOP_BOTTOM_DOCK_HEIGHT = 128;
 const MIN_LEFT_RIGHT_DOCK_WIDTH = 240;
+const TEXT_INPUT_DEBOUNCE_MS = 300;
 const GM_PANEL_STATE_KEY = "gmPanelState";
 const MARKET_PANEL_STATE_KEY = "marketPanelState";
 const PLAYER_PANEL_STATE_KEY = "playerPanelState";
@@ -612,7 +614,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._compendiumItemEntries = null;
         this._compendiumItemsPromise = null;
         this._resizeSession = null;
-        this._compendiumSearchTimeout = null;
+        this._textInputDebounceTimers = new Map();
         this._mapViewportState = {
             scale: null,
             offsetX: 0,
@@ -943,22 +945,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
-        this.element?.querySelectorAll("[data-action='compendium-search']")?.forEach((input) => {
-            input.addEventListener("input", async () => {
-                // Clear any existing timeout
-                if (this._compendiumSearchTimeout) {
-                    clearTimeout(this._compendiumSearchTimeout);
-                }
-                // Set a new timeout with 300ms delay before updating search
-                this._compendiumSearchTimeout = setTimeout(async () => {
-                    this.compendiumSearchQuery = String(input.value ?? "");
-                    await this.render(false);
-                    // Restore focus to the search input after render
-                    this.element?.querySelector("[data-action='compendium-search']")?.focus();
-                    this._compendiumSearchTimeout = null;
-                }, 300);
-            });
-        });
+        this.#wireDebouncedTextInputHandlers();
 
         this.element?.querySelectorAll("[data-action='market-select-buyer']")?.forEach((input) => {
             input.addEventListener("change", async () => {
@@ -1114,13 +1101,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.stopPropagation();
                 this.designCommandPaletteOpen = !this.designCommandPaletteOpen;
                 if (!this.designCommandPaletteOpen) this.designCommandPaletteQuery = "";
-                this.render(false);
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='design-command-palette-search']")?.forEach((input) => {
-            input.addEventListener("input", () => {
-                this.designCommandPaletteQuery = String(input.value ?? "");
                 this.render(false);
             });
         });
@@ -1332,13 +1312,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.stopPropagation();
                 const current = this.#getGamemasterPanelState();
                 await this.#setGamemasterPanelStatePatch({ allActionsExpanded: !current.allActionsExpanded });
-                this.render(false);
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='gm-search-actions']")?.forEach((input) => {
-            input.addEventListener("input", async () => {
-                await this.#setGamemasterPanelStatePatch({ actionSearchQuery: String(input.value ?? "") });
                 this.render(false);
             });
         });
@@ -3649,6 +3622,67 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.render(false);
     }
 
+    #wireDebouncedTextInputHandlers() {
+        this.element?.addEventListener("input", (event) => {
+            const input = event.target;
+            if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) return;
+
+            const action = String(input.dataset.action ?? "").trim();
+            if (!action || !isWorkspaceDebouncedTextInputTarget(input)) return;
+
+            const existingTimer = this._textInputDebounceTimers.get(action);
+            if (existingTimer) clearTimeout(existingTimer);
+
+            const value = String(input.value ?? "");
+            const timer = setTimeout(async () => {
+                this._textInputDebounceTimers.delete(action);
+                await this.#handleDebouncedTextInput(action, value);
+            }, TEXT_INPUT_DEBOUNCE_MS);
+            this._textInputDebounceTimers.set(action, timer);
+        });
+    }
+
+    async #handleDebouncedTextInput(action, value) {
+        switch (action) {
+            case "compendium-search": {
+                this.compendiumSearchQuery = value;
+                await this.render(false);
+                this.element?.querySelector("[data-action='compendium-search']")?.focus();
+                break;
+            }
+            case "design-command-palette-search": {
+                this.designCommandPaletteQuery = value;
+                await this.render(false);
+                this.element?.querySelector("[data-action='design-command-palette-search']")?.focus();
+                break;
+            }
+            case "gm-search-actions": {
+                await this.#setGamemasterPanelStatePatch({ actionSearchQuery: value });
+                await this.render(false);
+                this.element?.querySelector("[data-action='gm-search-actions']")?.focus();
+                break;
+            }
+            case "scene-properties-name": {
+                const sceneName = value;
+                this._scenePropertiesState = {
+                    ...this._scenePropertiesState,
+                    sceneName,
+                    selectedFilename: "",
+                    backgroundPath: "",
+                    status: sceneName.trim()
+                        ? "Choose a background image to upload into the world assets folder."
+                        : "Enter a scene name before uploading a background image.",
+                    error: ""
+                };
+                await this.render(false);
+                this.element?.querySelector("[data-action='scene-properties-name']")?.focus();
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
     async _openScenePropertiesPanel() {
         const panelDef = this.panelRegistry.get("scene-properties");
         if (!panelDef) return;
@@ -3667,23 +3701,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #wireScenePropertiesHandlers() {
-        this.element?.querySelectorAll("[data-action='scene-properties-name']")?.forEach((input) => {
-            input.addEventListener("input", () => {
-                const sceneName = String(input.value ?? "");
-                this._scenePropertiesState = {
-                    ...this._scenePropertiesState,
-                    sceneName,
-                    selectedFilename: "",
-                    backgroundPath: "",
-                    status: sceneName.trim()
-                        ? "Choose a background image to upload into the world assets folder."
-                        : "Enter a scene name before uploading a background image.",
-                    error: ""
-                };
-                this.render(false);
-            });
-        });
-
         this.element?.querySelectorAll("[data-action='scene-properties-background-upload']")?.forEach((input) => {
             input.addEventListener("change", async () => {
                 const file = input.files?.[0] ?? null;
