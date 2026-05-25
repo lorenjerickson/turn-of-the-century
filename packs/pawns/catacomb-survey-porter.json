@@ -1,0 +1,933 @@
+{
+  "_id": "08efe8b3fc76b199",
+  "name": "Catacomb Survey Porter",
+  "type": "pawn",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/mystery-man.svg",
+      "caption": "Cabinet portrait",
+      "credit": "Core icon set"
+    },
+    "tokenArtwork": {
+      "image": "icons/svg/mystery-man.svg",
+      "scale": 1,
+      "notes": "Default token"
+    },
+    "profile": {
+      "role": "",
+      "faction": "",
+      "summary": "",
+      "tags": []
+    },
+    "biography": "<p>A burdened guide carrying chalk, rope, and remedies through unstable underworks.</p>",
+    "notes": "<p>Starter actor profile for immediate play.</p>",
+    "classification": {
+      "category": "npc",
+      "species": "Human",
+      "ancestry": "",
+      "profession": "Survey Porter",
+      "size": "med",
+      "origin": "South Tunnel Ward"
+    },
+    "progression": {
+      "level": 1,
+      "proficiencyBonus": 2,
+      "challenge": "",
+      "experience": 0
+    },
+    "hero": {
+      "archetype": "",
+      "rank": "",
+      "renown": 0,
+      "bonds": []
+    },
+    "villain": {
+      "scheme": "",
+      "threatTier": 1,
+      "notoriety": 0,
+      "lieutenants": []
+    },
+    "pawn": {
+      "role": "",
+      "threat": 1,
+      "disposition": "neutral",
+      "squad": ""
+    },
+    "movement": {
+      "walk": 30,
+      "climb": 10,
+      "swim": 10,
+      "fly": 0
+    },
+    "resources": {
+      "health": {
+        "min": 0,
+        "value": 12,
+        "max": 12,
+        "temp": 0,
+        "tempmax": 0
+      },
+      "grit": {
+        "min": 0,
+        "value": 2,
+        "max": 2,
+        "temp": 0,
+        "tempmax": 0
+      }
+    },
+    "abilities": {
+      "str": {
+        "value": 12,
+        "bonus": 1,
+        "save": 0,
+        "proficient": false
+      },
+      "dex": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "con": {
+        "value": 12,
+        "bonus": 1,
+        "save": 0,
+        "proficient": false
+      },
+      "int": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "wis": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "cha": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "san": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      }
+    },
+    "skills": {
+      "acrobatics": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "animalHandling": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "arcana": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "athletics": {
+        "ability": "str",
+        "value": 2,
+        "bonus": 1,
+        "proficiency": 1,
+        "passive": 12
+      },
+      "deception": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "history": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "insight": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "intimidation": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "investigation": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "medicine": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "nature": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "perception": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "performance": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "persuasion": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "religion": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "sleightOfHand": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "stealth": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "survival": {
+        "ability": "wis",
+        "value": 2,
+        "bonus": 0,
+        "proficiency": 2,
+        "passive": 12
+      }
+    },
+    "senses": {
+      "passivePerception": 10,
+      "passiveInsight": 10
+    },
+    "defenses": {
+      "armorClass": 10,
+      "initiative": 0
+    },
+    "inventory": {
+      "equipment": {
+        "head": {
+          "label": "Head",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "neck": {
+          "label": "Neck",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "torso": {
+          "label": "Torso",
+          "capacity": 2,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment",
+            "item"
+          ],
+          "itemIds": []
+        },
+        "hands": {
+          "label": "Hands",
+          "capacity": 2,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "weapon",
+            "tool",
+            "equipment"
+          ],
+          "itemIds": [
+            "ld0b000000000000"
+          ]
+        },
+        "legs": {
+          "label": "Legs",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "feet": {
+          "label": "Feet",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "belt": {
+          "label": "Belt",
+          "capacity": 6,
+          "quality": "exceptional",
+          "allowedTypes": [
+            "weapon",
+            "tool",
+            "equipment",
+            "consumable",
+            "item"
+          ],
+          "itemIds": [
+            "ld0b000000000001",
+            "ld0b000000000002",
+            "ld0b000000000003",
+            "ld0b000000000004",
+            "ld0b000000000005",
+            "ld0b000000000006"
+          ]
+        }
+      },
+      "pack": {
+        "itemIds": [
+          "ld0b000000000007"
+        ],
+        "capacity": 20,
+        "encumbrance": 0
+      },
+      "combat": {
+        "readyWeaponIds": []
+      }
+    },
+    "traits": {
+      "languages": [
+        "english"
+      ],
+      "immunities": [],
+      "resistances": [],
+      "vulnerabilities": []
+    }
+  },
+  "items": [
+    {
+      "name": "Trench Truncheon",
+      "type": "weapon",
+      "img": "icons/weapons/maces/mace-round-steel-black.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/weapons/swords/sword-guard-steel.webp",
+          "caption": "Combat implement",
+          "credit": "Core icon set"
+        },
+        "commonName": "Truncheon",
+        "description": "<p>A weighted baton designed for close restraint and brutal certainty.</p>",
+        "classification": "simpleMelee",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "hands",
+        "damage": {
+          "formula": "1d6",
+          "type": "bludgeoning",
+          "versatileFormula": "",
+          "bonus": 0
+        },
+        "handedness": "oneHanded",
+        "actions": {
+          "defaultActionId": "weaponAttack",
+          "variants": [
+            {
+              "id": "weaponAttack",
+              "label": "Attack",
+              "type": "attack",
+              "apCost": 2,
+              "requiresToHit": true,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "ammunition": {
+          "required": false,
+          "type": "",
+          "capacity": 0,
+          "loaded": 0,
+          "consumedPerAttack": 0
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 0,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiredProficiencies": [],
+          "notes": "<p>Commonly understood handling.</p>"
+        },
+        "physical": {
+          "weight": 1.5,
+          "bulk": 0,
+          "range": {
+            "normal": 5,
+            "long": 5
+          }
+        },
+        "properties": {
+          "tags": [
+            "baton",
+            "police"
+          ],
+          "concealable": true,
+          "noisy": false,
+          "experimental": false
+        }
+      },
+      "_id": "ld0b000000000000"
+    },
+    {
+      "name": "Coiled Hemp Rope",
+      "type": "equipment",
+      "img": "icons/sundries/survival/rope-coiled-brown.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Hemp Rope",
+        "description": "<p>A compact thirty-foot coil with brass clips for harnessing and descent.</p>",
+        "category": "tool",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "athletics",
+            "difficulty": 10,
+            "required": false,
+            "purpose": "<p>Secure climbs and controlled descents.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 3,
+          "bulk": 1,
+          "quantity": 1,
+          "unit": "coil"
+        },
+        "value": {
+          "price": 2,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "climbing",
+            "utility"
+          ],
+          "concealable": false,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0b000000000001"
+    },
+    {
+      "name": "Ritual Chalk Cylinder",
+      "type": "equipment",
+      "img": "icons/commodities/materials/powder-white.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Marking Chalk",
+        "description": "<p>Compressed white chalk for notation on stone, iron, and timber.</p>",
+        "category": "miscellaneous",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 0,
+          "requiresHands": true,
+          "consumedOnUse": true,
+          "skillCheck": {
+            "skill": "arcana",
+            "difficulty": 10,
+            "required": false,
+            "purpose": "<p>Mark warning sigils and directional signs.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.2,
+          "bulk": 0,
+          "quantity": 6,
+          "unit": "stick"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "marking",
+            "ritual"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0b000000000002"
+    },
+    {
+      "name": "Unlit Tallow Torch",
+      "type": "item",
+      "img": "icons/sundries/lights/torch-brown.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Torch",
+        "description": "<p>A resin-wrapped tallow torch carried unlit until needed in tunnels or basements.</p>",
+        "category": "apparatus",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "survival",
+            "difficulty": 8,
+            "required": false,
+            "purpose": "<p>Provide emergency light in dark spaces.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.6,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "torch"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "light",
+            "utility"
+          ],
+          "concealable": false,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0b000000000003"
+    },
+    {
+      "name": "Field Bandage Roll",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Bandage Roll",
+        "description": "<p>Sterile cloth and clasp pins wrapped for rapid field dressing.</p>",
+        "category": "bandage",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "method": "apply",
+          "actionCost": 1,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeItem",
+          "variants": [
+            {
+              "id": "consumeItem",
+              "label": "Consume Item",
+              "type": "consumable",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "quantity": {
+          "value": 3,
+          "max": 3,
+          "unit": "wrap"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "",
+          "recoveryInterval": ""
+        },
+        "effects": [
+          {
+            "label": "Staunch Bleeding",
+            "type": "removePenalty",
+            "target": "bleeding",
+            "formula": "",
+            "value": 1,
+            "condition": "",
+            "notes": "<p>Ends minor ongoing bleed conditions.</p>"
+          }
+        ],
+        "sideEffects": [],
+        "physical": {
+          "weight": 0.4,
+          "bulk": 0,
+          "perishable": false,
+          "shelfLife": "24 months"
+        },
+        "properties": {
+          "tags": [
+            "first-aid"
+          ],
+          "addictive": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0b000000000004"
+    },
+    {
+      "name": "Antitoxin Ampoule",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Antitoxin",
+        "description": "<p>A cloudy serum prepared against common industrial venoms.</p>",
+        "category": "antidote",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "method": "inject",
+          "actionCost": 1,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeItem",
+          "variants": [
+            {
+              "id": "consumeItem",
+              "label": "Consume Item",
+              "type": "consumable",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "max": 1,
+          "unit": "dose"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "",
+          "recoveryInterval": ""
+        },
+        "effects": [
+          {
+            "label": "Counter Poison",
+            "type": "cureCondition",
+            "target": "poisoned",
+            "formula": "",
+            "value": 1,
+            "condition": "",
+            "notes": "<p>Attempts to neutralize ongoing toxins.</p>"
+          }
+        ],
+        "sideEffects": [
+          {
+            "label": "Nausea",
+            "type": "causeCondition",
+            "target": "queasy",
+            "formula": "",
+            "value": 1,
+            "condition": "for 10 minutes",
+            "notes": "<p>Mild nausea follows injection.</p>"
+          }
+        ],
+        "physical": {
+          "weight": 0.1,
+          "bulk": 0,
+          "perishable": false,
+          "shelfLife": "12 months"
+        },
+        "properties": {
+          "tags": [
+            "antidote",
+            "injectable"
+          ],
+          "addictive": false,
+          "experimental": false,
+          "restricted": true
+        }
+      },
+      "_id": "ld0b000000000005"
+    },
+    {
+      "name": "Brass Oil Flask",
+      "type": "item",
+      "img": "icons/consumables/potions/bottle-round-corked-yellow.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Oil Flask",
+        "description": "<p>A stoppered brass flask of lamp oil for torches, lanterns, and burners.</p>",
+        "category": "container",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": true,
+          "skillCheck": {
+            "skill": "investigation",
+            "difficulty": 8,
+            "required": false,
+            "purpose": "<p>Refuel light sources and lubricate mechanisms.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.5,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "flask"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "fuel",
+            "utility"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0b000000000006"
+    },
+    {
+      "name": "Surveyor's Transit",
+      "type": "equipment",
+      "img": "icons/tools/navigation/spyglass-brass.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Transit",
+        "description": "<p>Tripod optics for line-of-sight measurement and distance estimation.</p>",
+        "category": "instrument",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "hands",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "nature",
+            "difficulty": 11,
+            "required": false,
+            "purpose": "<p>Chart terrain and establish bearings.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 5,
+          "bulk": 2,
+          "quantity": 1,
+          "unit": "instrument"
+        },
+        "value": {
+          "price": 15,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "survey",
+            "optics"
+          ],
+          "concealable": false,
+          "fragile": true,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0b000000000007"
+    }
+  ],
+  "flags": {}
+}

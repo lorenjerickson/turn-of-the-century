@@ -1,0 +1,66 @@
+{
+  "_id": "ed18d92672febeae",
+  "name": "Steamworks Negotiation",
+  "type": "skill",
+  "img": "icons/skills/social/diplomacy-peace.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Labor Mediation",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "miscellaneous",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "persuasion",
+        "difficulty": 11,
+        "required": false,
+        "purpose": "<p>Negotiate disputes among crews and foremen.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "training"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "skill",
+        "social"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

@@ -1,0 +1,66 @@
+{
+  "_id": "b26f3ec4c68531a6",
+  "name": "Portable Telegraph Tap",
+  "type": "equipment",
+  "img": "icons/tools/instruments/keyboard-keys-brown.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Telegraph Tap",
+    "description": "<p>A foldable tapping set for line diagnostics and coded dispatches.</p>",
+    "category": "apparatus",
+    "quality": "fine",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "history",
+        "difficulty": 12,
+        "required": false,
+        "purpose": "<p>Decode or send brief line traffic.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 2,
+      "bulk": 1,
+      "quantity": 1,
+      "unit": "set"
+    },
+    "value": {
+      "price": 12,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "communication",
+        "telegraph"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": true
+    }
+  },
+  "flags": {}
+}

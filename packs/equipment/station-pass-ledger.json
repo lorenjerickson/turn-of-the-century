@@ -1,0 +1,66 @@
+{
+  "_id": "7b46f8cf46d21b9e",
+  "name": "Station Pass Ledger",
+  "type": "item",
+  "img": "icons/sundries/books/book-clasp-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Pass Ledger",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "document",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "history",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Verify routes, permits, and signatures.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.6,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "book"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "records",
+        "rail"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

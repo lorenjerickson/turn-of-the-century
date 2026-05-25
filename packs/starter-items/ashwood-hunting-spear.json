@@ -1,0 +1,78 @@
+{
+  "_id": "78f345b1c3a957ed",
+  "name": "Ashwood Hunting Spear",
+  "type": "weapon",
+  "img": "icons/weapons/polearms/spear-simple.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/weapons/swords/sword-guard-steel.webp",
+      "caption": "Combat implement",
+      "credit": "Core icon set"
+    },
+    "commonName": "Spear",
+    "description": "<p>A sturdy ash shaft tipped in hardened steel for boar and worse.</p>",
+    "classification": "martialMelee",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "damage": {
+      "formula": "1d8",
+      "type": "piercing",
+      "versatileFormula": "1d10",
+      "bonus": 0
+    },
+    "handedness": "versatile",
+    "actions": {
+      "defaultActionId": "weaponAttack",
+      "variants": [
+        {
+          "id": "weaponAttack",
+          "label": "Attack",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "ammunition": {
+      "required": false,
+      "type": "",
+      "capacity": 0,
+      "loaded": 0,
+      "consumedPerAttack": 0
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 10,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiredProficiencies": [],
+      "notes": "<p>Commonly understood handling.</p>"
+    },
+    "physical": {
+      "weight": 4,
+      "bulk": 2,
+      "range": {
+        "normal": 10,
+        "long": 30
+      }
+    },
+    "properties": {
+      "tags": [
+        "polearm",
+        "thrown"
+      ],
+      "concealable": false,
+      "noisy": false,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

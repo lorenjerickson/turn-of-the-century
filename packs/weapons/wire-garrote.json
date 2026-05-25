@@ -1,0 +1,78 @@
+{
+  "_id": "2e6687c851d0aaec",
+  "name": "Wire Garrote",
+  "type": "weapon",
+  "img": "icons/weapons/swords/sword-thin-grey.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/weapons/swords/sword-guard-steel.webp",
+      "caption": "Combat implement",
+      "credit": "Core icon set"
+    },
+    "commonName": "Garrote",
+    "description": "<p>A robust instrument for close or distant violence.</p>",
+    "classification": "improvised",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "damage": {
+      "formula": "1d4",
+      "type": "slashing",
+      "versatileFormula": "",
+      "bonus": 0
+    },
+    "handedness": "oneHanded",
+    "actions": {
+      "defaultActionId": "weaponAttack",
+      "variants": [
+        {
+          "id": "weaponAttack",
+          "label": "Attack",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "ammunition": {
+      "required": false,
+      "type": "",
+      "capacity": 0,
+      "loaded": 0,
+      "consumedPerAttack": 0
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiredProficiencies": [],
+      "notes": "<p>Commonly understood handling.</p>"
+    },
+    "physical": {
+      "weight": 0.3,
+      "bulk": 0,
+      "range": {
+        "normal": 5,
+        "long": 5
+      }
+    },
+    "properties": {
+      "tags": [
+        "silent",
+        "wire"
+      ],
+      "concealable": true,
+      "noisy": false,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

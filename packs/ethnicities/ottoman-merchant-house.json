@@ -1,0 +1,34 @@
+{
+  "_id": "7270b1ece54e7148",
+  "name": "Ottoman Merchant House",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A social and linguistic background package.</p>",
+    "nationalIdentity": "ottoman",
+    "languages": {
+      "primary": "ottomanTurkish",
+      "spoken": [
+        "ottomanTurkish",
+        "arabic",
+        "french"
+      ],
+      "literate": [
+        "ottomanTurkish",
+        "french"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "Istanbul and Smyrna",
+      "diaspora": "<p>Trade envoys maintain credit routes linking ports and inland caravans.</p>",
+      "periodContext": "<p>Customs reforms and debt pressure reshape old mercantile privileges.</p>"
+    }
+  },
+  "flags": {}
+}

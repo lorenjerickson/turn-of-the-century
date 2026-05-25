@@ -1,0 +1,66 @@
+{
+  "_id": "655a72164fc709a8",
+  "name": "Folding Pry Hook",
+  "type": "equipment",
+  "img": "icons/tools/hand/crowbar-steel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Pry Hook",
+    "description": "<p>A short folding lever for crates, stuck hatches, and iron hasps.</p>",
+    "category": "tool",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "athletics",
+        "difficulty": 11,
+        "required": false,
+        "purpose": "<p>Force simple barriers and jammed catches.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 1.2,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "tool"
+    },
+    "value": {
+      "price": 3,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "breach",
+        "utility"
+      ],
+      "concealable": true,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

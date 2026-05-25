@@ -1,0 +1,66 @@
+{
+  "_id": "85357a28d15c3757",
+  "name": "Folded Street Atlas",
+  "type": "item",
+  "img": "icons/sundries/documents/map-folded-leather.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Street Atlas",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "document",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "investigation",
+        "difficulty": 9,
+        "required": false,
+        "purpose": "<p>Trace routes and hidden alleys.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.3,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "atlas"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "map",
+        "urban"
+      ],
+      "concealable": true,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

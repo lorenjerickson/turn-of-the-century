@@ -1,0 +1,33 @@
+{
+  "_id": "1b19f96df3bbd38e",
+  "name": "British Exile Circle",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Families displaced by scandal and debt, bound by etiquette and careful silence.</p>",
+    "nationalIdentity": "british",
+    "languages": {
+      "primary": "english",
+      "spoken": [
+        "english",
+        "french"
+      ],
+      "literate": [
+        "english",
+        "latin"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "London and coastal estates",
+      "diaspora": "<p>Exile circles gather in port cities through clubs and private chapels.</p>",
+      "periodContext": "<p>Status is preserved in appearance while fortunes quietly decline.</p>"
+    }
+  },
+  "flags": {}
+}

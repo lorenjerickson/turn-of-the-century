@@ -1,0 +1,52 @@
+{
+  "_id": "23d04cf1ff9cbb56",
+  "name": "Pneumatic Bracer Rig",
+  "type": "armor",
+  "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "caption": "Protective wear",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A forearm assembly of brass cylinders that absorbs impact at the wrist and elbow.</p>",
+    "category": "prosthetic",
+    "quality": "experimental",
+    "rarity": "veryRare",
+    "slot": "hands",
+    "armorClass": {
+      "increment": 1,
+      "appliesWhenWorn": true
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 11,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiresTraining": true,
+      "requiredTrait": "",
+      "notes": "<p>No formal training requirement.</p>"
+    },
+    "encumbrance": {
+      "weight": 5,
+      "bulk": 1,
+      "stealthPenalty": 0,
+      "movementPenalty": 0
+    },
+    "properties": {
+      "tags": [
+        "prosthetic",
+        "pneumatic"
+      ],
+      "concealable": false,
+      "noisy": true,
+      "experimental": true
+    }
+  },
+  "flags": {}
+}

@@ -1,0 +1,77 @@
+{
+  "_id": "e02f8e78c87b70c7",
+  "name": "Measured Breathing",
+  "type": "talent",
+  "img": "icons/magic/life/cross-beam-green.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Measured Breathing",
+    "description": "<p>A clinical breathing sequence for steadier hands during surgery and shooting.</p>",
+    "category": "miscellaneous",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 0,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "medicine",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Reduce panic in high-pressure procedures.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [
+      {
+        "label": "Steady Rhythm",
+        "targetType": "skill",
+        "target": "medicine",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "if uninterrupted for 1 round",
+        "notes": "<p>Only in scenes allowing preparation.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "training"
+    },
+    "value": {
+      "price": 0,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "talent",
+        "discipline"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

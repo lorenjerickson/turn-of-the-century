@@ -1,0 +1,77 @@
+{
+  "_id": "be9b15f47d454b0c",
+  "name": "Furnace Rhythm",
+  "type": "talent",
+  "img": "icons/magic/fire/flame-burning-furnace.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Furnace Rhythm",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "miscellaneous",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 0,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "athletics",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Maintain pace during exhausting labor or combat.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [
+      {
+        "label": "Work Tempo",
+        "targetType": "skill",
+        "target": "athletics",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "during sustained exertion",
+        "notes": "<p>Improves endurance checks.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "training"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "talent",
+        "industrial"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

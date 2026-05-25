@@ -1,0 +1,752 @@
+{
+  "_id": "c163a2401afeebc6",
+  "name": "Sergeant Amos Pike",
+  "type": "hero",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/mystery-man.svg",
+      "caption": "Cabinet portrait",
+      "credit": "Core icon set"
+    },
+    "tokenArtwork": {
+      "image": "icons/svg/mystery-man.svg",
+      "scale": 1,
+      "notes": "Default token"
+    },
+    "profile": {
+      "role": "",
+      "faction": "",
+      "summary": "",
+      "tags": []
+    },
+    "biography": "<p>A veteran constable who believes every alley remembers the men who bled there.</p>",
+    "notes": "<p>Starter actor profile for immediate play.</p>",
+    "classification": {
+      "category": "character",
+      "species": "Human",
+      "ancestry": "",
+      "profession": "Railway Marshal",
+      "size": "med",
+      "origin": "Manchester"
+    },
+    "progression": {
+      "level": 1,
+      "proficiencyBonus": 2,
+      "challenge": "",
+      "experience": 0
+    },
+    "hero": {
+      "archetype": "",
+      "rank": "",
+      "renown": 0,
+      "bonds": []
+    },
+    "villain": {
+      "scheme": "",
+      "threatTier": 1,
+      "notoriety": 0,
+      "lieutenants": []
+    },
+    "pawn": {
+      "role": "",
+      "threat": 1,
+      "disposition": "neutral",
+      "squad": ""
+    },
+    "movement": {
+      "walk": 30,
+      "climb": 10,
+      "swim": 10,
+      "fly": 0
+    },
+    "resources": {
+      "health": {
+        "min": 0,
+        "value": 12,
+        "max": 12,
+        "temp": 0,
+        "tempmax": 0
+      },
+      "grit": {
+        "min": 0,
+        "value": 2,
+        "max": 2,
+        "temp": 0,
+        "tempmax": 0
+      }
+    },
+    "abilities": {
+      "str": {
+        "value": 13,
+        "bonus": 1,
+        "save": 0,
+        "proficient": false
+      },
+      "dex": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "con": {
+        "value": 12,
+        "bonus": 1,
+        "save": 0,
+        "proficient": false
+      },
+      "int": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "wis": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "cha": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "san": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      }
+    },
+    "skills": {
+      "acrobatics": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "animalHandling": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "arcana": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "athletics": {
+        "ability": "str",
+        "value": 2,
+        "bonus": 1,
+        "proficiency": 1,
+        "passive": 12
+      },
+      "deception": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "history": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "insight": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "intimidation": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "investigation": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "medicine": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "nature": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "perception": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "performance": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "persuasion": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "religion": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "sleightOfHand": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "stealth": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "survival": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      }
+    },
+    "senses": {
+      "passivePerception": 10,
+      "passiveInsight": 10
+    },
+    "defenses": {
+      "armorClass": 12,
+      "initiative": 1
+    },
+    "inventory": {
+      "equipment": {
+        "head": {
+          "label": "Head",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": [
+            "ld01000000000002"
+          ]
+        },
+        "neck": {
+          "label": "Neck",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "torso": {
+          "label": "Torso",
+          "capacity": 2,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment",
+            "item"
+          ],
+          "itemIds": [
+            "ld01000000000001"
+          ]
+        },
+        "hands": {
+          "label": "Hands",
+          "capacity": 2,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "weapon",
+            "tool",
+            "equipment"
+          ],
+          "itemIds": [
+            "ld01000000000000"
+          ]
+        },
+        "legs": {
+          "label": "Legs",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "feet": {
+          "label": "Feet",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "belt": {
+          "label": "Belt",
+          "capacity": 2,
+          "quality": "poor",
+          "allowedTypes": [
+            "weapon",
+            "tool",
+            "equipment",
+            "consumable",
+            "item"
+          ],
+          "itemIds": [
+            "ld01000000000003",
+            "ld01000000000004"
+          ]
+        }
+      },
+      "pack": {
+        "itemIds": [
+          "ld01000000000005"
+        ],
+        "capacity": 20,
+        "encumbrance": 0
+      },
+      "combat": {
+        "readyWeaponIds": []
+      }
+    },
+    "traits": {
+      "languages": [
+        "english"
+      ],
+      "immunities": [],
+      "resistances": [],
+      "vulnerabilities": []
+    }
+  },
+  "items": [
+    {
+      "name": "Trench Truncheon",
+      "type": "weapon",
+      "img": "icons/weapons/maces/mace-round-steel-black.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/weapons/swords/sword-guard-steel.webp",
+          "caption": "Combat implement",
+          "credit": "Core icon set"
+        },
+        "commonName": "Truncheon",
+        "description": "<p>A weighted baton designed for close restraint and brutal certainty.</p>",
+        "classification": "simpleMelee",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "hands",
+        "damage": {
+          "formula": "1d6",
+          "type": "bludgeoning",
+          "versatileFormula": "",
+          "bonus": 0
+        },
+        "handedness": "oneHanded",
+        "actions": {
+          "defaultActionId": "weaponAttack",
+          "variants": [
+            {
+              "id": "weaponAttack",
+              "label": "Attack",
+              "type": "attack",
+              "apCost": 2,
+              "requiresToHit": true,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "ammunition": {
+          "required": false,
+          "type": "",
+          "capacity": 0,
+          "loaded": 0,
+          "consumedPerAttack": 0
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 0,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiredProficiencies": [],
+          "notes": "<p>Commonly understood handling.</p>"
+        },
+        "physical": {
+          "weight": 1.5,
+          "bulk": 0,
+          "range": {
+            "normal": 5,
+            "long": 5
+          }
+        },
+        "properties": {
+          "tags": [
+            "baton",
+            "police"
+          ],
+          "concealable": true,
+          "noisy": false,
+          "experimental": false
+        }
+      },
+      "_id": "ld01000000000000"
+    },
+    {
+      "name": "Dockside Leather Jerkin",
+      "type": "armor",
+      "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+          "caption": "Protective wear",
+          "credit": "Core icon set"
+        },
+        "description": "<p>Salt-stiffened leather with extra stitching over ribs and shoulders.</p>",
+        "category": "light",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "torso",
+        "armorClass": {
+          "increment": 1,
+          "appliesWhenWorn": true
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 0,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiresTraining": false,
+          "requiredTrait": "",
+          "notes": "<p>No formal training requirement.</p>"
+        },
+        "encumbrance": {
+          "weight": 6,
+          "bulk": 1,
+          "stealthPenalty": 0,
+          "movementPenalty": 0
+        },
+        "properties": {
+          "tags": [
+            "dockwork"
+          ],
+          "concealable": false,
+          "noisy": false,
+          "experimental": false
+        }
+      },
+      "_id": "ld01000000000001"
+    },
+    {
+      "name": "Asylum Keeper Helm",
+      "type": "armor",
+      "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+          "caption": "Protective wear",
+          "credit": "Core icon set"
+        },
+        "description": "<p>A narrow steel cap with brow guard and leather ear braces.</p>",
+        "category": "medium",
+        "quality": "fine",
+        "rarity": "common",
+        "slot": "head",
+        "armorClass": {
+          "increment": 1,
+          "appliesWhenWorn": true
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 0,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiresTraining": false,
+          "requiredTrait": "",
+          "notes": "<p>No formal training requirement.</p>"
+        },
+        "encumbrance": {
+          "weight": 4,
+          "bulk": 1,
+          "stealthPenalty": -1,
+          "movementPenalty": 0
+        },
+        "properties": {
+          "tags": [
+            "helmet",
+            "institutional"
+          ],
+          "concealable": false,
+          "noisy": true,
+          "experimental": false
+        }
+      },
+      "_id": "ld01000000000002"
+    },
+    {
+      "name": "Locksmith Roll",
+      "type": "equipment",
+      "img": "icons/tools/hand/pick-steel-white.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Locksmith Tools",
+        "description": "<p>Fine picks, torsion bars, and graphite cloth for stubborn wards.</p>",
+        "category": "tool",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "sleightOfHand",
+            "difficulty": 12,
+            "required": false,
+            "purpose": "<p>Manipulate locks and catches.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 1,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "roll"
+        },
+        "value": {
+          "price": 5,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "lockpicking"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": true
+        }
+      },
+      "_id": "ld01000000000003"
+    },
+    {
+      "name": "Smelling Vial",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Smelling Salts",
+        "description": "<p>A sharp ammonia draft to rouse fainted subjects.</p>",
+        "category": "other",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "method": "inhale",
+          "actionCost": 1,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeItem",
+          "variants": [
+            {
+              "id": "consumeItem",
+              "label": "Consume Item",
+              "type": "consumable",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "max": 1,
+          "unit": "dose"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "",
+          "recoveryInterval": ""
+        },
+        "effects": [
+          {
+            "label": "Rouse Subject",
+            "type": "removePenalty",
+            "target": "stunned",
+            "formula": "",
+            "value": 1,
+            "condition": "",
+            "notes": "<p>May end a brief incapacitation.</p>"
+          }
+        ],
+        "sideEffects": [],
+        "physical": {
+          "weight": 0.1,
+          "bulk": 0,
+          "perishable": false,
+          "shelfLife": "12 months"
+        },
+        "properties": {
+          "tags": [
+            "revival"
+          ],
+          "addictive": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld01000000000004"
+    },
+    {
+      "name": "Folding Pry Hook",
+      "type": "equipment",
+      "img": "icons/tools/hand/crowbar-steel.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Pry Hook",
+        "description": "<p>A short folding lever for crates, stuck hatches, and iron hasps.</p>",
+        "category": "tool",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "athletics",
+            "difficulty": 11,
+            "required": false,
+            "purpose": "<p>Force simple barriers and jammed catches.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 1.2,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "tool"
+        },
+        "value": {
+          "price": 3,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "breach",
+            "utility"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld01000000000005"
+    }
+  ],
+  "flags": {}
+}

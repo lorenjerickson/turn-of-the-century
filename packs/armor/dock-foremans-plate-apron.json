@@ -1,0 +1,52 @@
+{
+  "_id": "803adb5c9884f9e0",
+  "name": "Dock Foreman's Plate Apron",
+  "type": "armor",
+  "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "caption": "Protective wear",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Segmented steel apron worn over work leathers in loading yards.</p>",
+    "category": "medium",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "torso",
+    "armorClass": {
+      "increment": 2,
+      "appliesWhenWorn": true
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiresTraining": false,
+      "requiredTrait": "",
+      "notes": "<p>No formal training requirement.</p>"
+    },
+    "encumbrance": {
+      "weight": 10,
+      "bulk": 2,
+      "stealthPenalty": 0,
+      "movementPenalty": -5
+    },
+    "properties": {
+      "tags": [
+        "dock",
+        "industrial"
+      ],
+      "concealable": false,
+      "noisy": true,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

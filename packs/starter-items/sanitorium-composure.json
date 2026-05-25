@@ -1,0 +1,61 @@
+{
+  "_id": "bc98a8546f02377e",
+  "name": "Sanitorium Composure",
+  "type": "effect",
+  "img": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+      "caption": "Condition marker",
+      "credit": "Core icon set"
+    },
+    "name": "Sanitorium Composure",
+    "description": "<p>Sedation and supervised rest create a fragile calm.</p>",
+    "disposition": "beneficial",
+    "category": "medical",
+    "duration": {
+      "value": 8,
+      "unit": "hour",
+      "rounds": 0,
+      "startTime": 0,
+      "expiresOnRest": false
+    },
+    "impacts": [
+      {
+        "label": "Quiet Mind",
+        "targetType": "ability",
+        "target": "san",
+        "path": "",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "",
+        "notes": "<p>Improves sanity checks while active.</p>"
+      }
+    ],
+    "affectedKeys": {
+      "abilities": [
+        "san"
+      ],
+      "skills": [],
+      "actions": []
+    },
+    "removal": {
+      "removable": true,
+      "method": "",
+      "difficulty": 0
+    },
+    "stacking": {
+      "stackable": false,
+      "maxStacks": 1,
+      "stackKey": ""
+    },
+    "source": {
+      "type": "",
+      "itemId": "",
+      "actorId": "",
+      "notes": ""
+    }
+  },
+  "flags": {}
+}

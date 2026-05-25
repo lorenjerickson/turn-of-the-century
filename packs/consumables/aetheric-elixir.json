@@ -1,0 +1,87 @@
+{
+  "_id": "810c7d00dd884a6c",
+  "name": "Aetheric Elixir",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-jug-corked-purple.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Aetheric Elixir",
+    "description": "<p>An iridescent draught rumored to steady the mind near uncanny phenomena.</p>",
+    "category": "drink",
+    "quality": "exceptional",
+    "rarity": "rare",
+    "slot": "belt",
+    "use": {
+      "method": "drink",
+      "actionCost": 2,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeBeltElixir",
+      "variants": [
+        {
+          "id": "consumeBeltElixir",
+          "label": "Consume Belt Elixir",
+          "type": "consumable",
+          "apCost": 2,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": "Retrieve from belt and consume under pressure."
+        }
+      ]
+    },
+    "quantity": {
+      "value": 1,
+      "max": 1,
+      "unit": "dose"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "",
+      "recoveryInterval": ""
+    },
+    "effects": [
+      {
+        "label": "Calm Resolve",
+        "type": "applyModifier",
+        "target": "abilities.san.value",
+        "formula": "",
+        "value": 1,
+        "condition": "for 1 scene",
+        "notes": "<p>A brief buffer against psychic strain.</p>"
+      }
+    ],
+    "sideEffects": [
+      {
+        "label": "Afterglow",
+        "type": "causeCondition",
+        "target": "lightheaded",
+        "formula": "",
+        "value": 1,
+        "condition": "for 10 minutes",
+        "notes": "<p>Vision wavers after the effect fades.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0.1,
+      "bulk": 0,
+      "perishable": false,
+      "shelfLife": "12 months"
+    },
+    "properties": {
+      "tags": [
+        "elixir",
+        "occult"
+      ],
+      "addictive": false,
+      "experimental": true,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

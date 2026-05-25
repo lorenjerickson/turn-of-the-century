@@ -1,0 +1,66 @@
+{
+  "_id": "cd6739875a4820b6",
+  "name": "Subterranean Recon",
+  "type": "skill",
+  "img": "icons/environment/underground/cave-entrance.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Tunnel Recon",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "tool",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "perception",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Read signs and threats in underground passages.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "training"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "skill",
+        "recon"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

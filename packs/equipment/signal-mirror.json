@@ -1,0 +1,66 @@
+{
+  "_id": "43361c95f5ec15b3",
+  "name": "Signal Mirror",
+  "type": "equipment",
+  "img": "icons/tools/navigation/sundial-brass.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Mirror",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "instrument",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "performance",
+        "difficulty": 9,
+        "required": false,
+        "purpose": "<p>Send line-of-sight flashes and warnings.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.2,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "mirror"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "signal",
+        "optical"
+      ],
+      "concealable": true,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

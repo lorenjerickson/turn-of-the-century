@@ -1,0 +1,84 @@
+{
+  "_id": "5c274820ac371063",
+  "name": "Coalbreaker Tonic",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Coalbreaker",
+    "description": "<p>Prepared for field use under uncertain conditions.</p>",
+    "category": "tonic",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "method": "drink",
+      "actionCost": 1,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeItem",
+      "variants": [
+        {
+          "id": "consumeItem",
+          "label": "Consume Item",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "quantity": {
+      "value": 1,
+      "max": 1,
+      "unit": "dose"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "",
+      "recoveryInterval": ""
+    },
+    "effects": [
+      {
+        "label": "Work Surge",
+        "type": "applyModifier",
+        "target": "abilities.str.value",
+        "formula": "",
+        "value": 1,
+        "condition": "for 1 scene",
+        "notes": "<p>Briefly boosts strength tasks.</p>"
+      }
+    ],
+    "sideEffects": [
+      {
+        "label": "Crash",
+        "type": "applyModifier",
+        "target": "abilities.con.value",
+        "formula": "",
+        "value": -1,
+        "condition": "for 10 minutes",
+        "notes": "<p>Fatigue follows the boost.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0.1,
+      "bulk": 0,
+      "perishable": false,
+      "shelfLife": "12 months"
+    },
+    "properties": {
+      "tags": [],
+      "addictive": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

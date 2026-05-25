@@ -1,0 +1,33 @@
+{
+  "_id": "b992f53aee6c1a72",
+  "name": "Lowland Canal Families",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A social and linguistic background package.</p>",
+    "nationalIdentity": "dutch",
+    "languages": {
+      "primary": "dutch",
+      "spoken": [
+        "dutch",
+        "english"
+      ],
+      "literate": [
+        "dutch",
+        "english"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "Rotterdam and inland canals",
+      "diaspora": "<p>Canal pilots and warehouse brokers settle in expanding dock districts.</p>",
+      "periodContext": "<p>Trade precision and guild contracts define status and trust.</p>"
+    }
+  },
+  "flags": {}
+}

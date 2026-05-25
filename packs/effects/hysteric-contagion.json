@@ -1,0 +1,62 @@
+{
+  "_id": "384bec783efed1c2",
+  "name": "Hysteric Contagion",
+  "type": "effect",
+  "img": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+      "caption": "Condition marker",
+      "credit": "Core icon set"
+    },
+    "name": "Hysteric Contagion",
+    "description": "<p>Panic spreads through a crowd like static in telegraph wire.</p>",
+    "disposition": "detrimental",
+    "category": "morale",
+    "duration": {
+      "value": 1,
+      "unit": "scene",
+      "rounds": 0,
+      "startTime": 0,
+      "expiresOnRest": false
+    },
+    "impacts": [
+      {
+        "label": "Fractured Focus",
+        "targetType": "skill",
+        "target": "investigation",
+        "path": "",
+        "operation": "add",
+        "value": -2,
+        "formula": "",
+        "condition": "in crowds",
+        "notes": "<p>Concentration is impaired.</p>"
+      }
+    ],
+    "affectedKeys": {
+      "abilities": [],
+      "skills": [
+        "investigation",
+        "insight"
+      ],
+      "actions": []
+    },
+    "removal": {
+      "removable": true,
+      "method": "",
+      "difficulty": 0
+    },
+    "stacking": {
+      "stackable": true,
+      "maxStacks": 2,
+      "stackKey": "panic"
+    },
+    "source": {
+      "type": "",
+      "itemId": "",
+      "actorId": "",
+      "notes": ""
+    }
+  },
+  "flags": {}
+}

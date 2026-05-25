@@ -1,0 +1,33 @@
+{
+  "_id": "a9744c7831177815",
+  "name": "Unnerving Stare",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A fixed, cold gaze unsettles witnesses and lesser officials.</p>",
+    "source": {
+      "type": "other",
+      "itemId": "",
+      "label": "Personal Reputation"
+    },
+    "effects": [
+      {
+        "label": "Forceful Presence",
+        "targetType": "skill",
+        "target": "intimidation",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "direct eye contact",
+        "appliesWhenEncumbered": false
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

@@ -1,0 +1,77 @@
+{
+  "_id": "7872b1b4391be145",
+  "name": "Battlefield Triage",
+  "type": "talent",
+  "img": "icons/skills/wounds/blood-drip-droplet-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Field Triage",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "miscellaneous",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 0,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "medicine",
+        "difficulty": 11,
+        "required": false,
+        "purpose": "<p>Prioritize and stabilize multiple casualties.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [
+      {
+        "label": "Rapid Stabilize",
+        "targetType": "skill",
+        "target": "medicine",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "during active crisis",
+        "notes": "<p>Improves emergency care checks.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "training"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "talent",
+        "medical"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

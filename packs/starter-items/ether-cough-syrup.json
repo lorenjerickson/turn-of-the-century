@@ -1,0 +1,77 @@
+{
+  "_id": "ee0482bb74998369",
+  "name": "Ether Cough Syrup",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Cough Syrup",
+    "description": "<p>A dark spoonful that eases spasms and dulls panic in crowded wards.</p>",
+    "category": "medicine",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "method": "drink",
+      "actionCost": 1,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeItem",
+      "variants": [
+        {
+          "id": "consumeItem",
+          "label": "Consume Item",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "quantity": {
+      "value": 1,
+      "max": 1,
+      "unit": "dose"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "",
+      "recoveryInterval": ""
+    },
+    "effects": [
+      {
+        "label": "Steady Breath",
+        "type": "relieveSymptom",
+        "target": "respiratory",
+        "formula": "",
+        "value": 1,
+        "condition": "",
+        "notes": "<p>Suppresses cough for one scene.</p>"
+      }
+    ],
+    "sideEffects": [],
+    "physical": {
+      "weight": 0.1,
+      "bulk": 0,
+      "perishable": false,
+      "shelfLife": "12 months"
+    },
+    "properties": {
+      "tags": [
+        "medicine",
+        "ward"
+      ],
+      "addictive": true,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

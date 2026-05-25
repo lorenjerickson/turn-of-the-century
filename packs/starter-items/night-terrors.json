@@ -1,0 +1,64 @@
+{
+  "_id": "665c1f7421ec7410",
+  "name": "Night Terrors",
+  "type": "effect",
+  "img": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+      "caption": "Condition marker",
+      "credit": "Core icon set"
+    },
+    "name": "Night Terrors",
+    "description": "<p>Disturbed sleep and intrusive visions leave the subject uncertain by dawn.</p>",
+    "disposition": "detrimental",
+    "category": "mental",
+    "duration": {
+      "value": 1,
+      "unit": "day",
+      "rounds": 0,
+      "startTime": 0,
+      "expiresOnRest": false
+    },
+    "impacts": [
+      {
+        "label": "Fogged Judgment",
+        "targetType": "ability",
+        "target": "wis",
+        "path": "",
+        "operation": "add",
+        "value": -1,
+        "formula": "",
+        "condition": "until full rest",
+        "notes": "<p>Penalty to Wisdom-based tasks.</p>"
+      }
+    ],
+    "affectedKeys": {
+      "abilities": [
+        "wis"
+      ],
+      "skills": [
+        "insight",
+        "perception"
+      ],
+      "actions": []
+    },
+    "removal": {
+      "removable": true,
+      "method": "Medical care and uninterrupted sleep",
+      "difficulty": 12
+    },
+    "stacking": {
+      "stackable": false,
+      "maxStacks": 1,
+      "stackKey": "night-terrors"
+    },
+    "source": {
+      "type": "haunting",
+      "itemId": "",
+      "actorId": "",
+      "notes": "<p>Often follows exposure to forbidden rites.</p>"
+    }
+  },
+  "flags": {}
+}

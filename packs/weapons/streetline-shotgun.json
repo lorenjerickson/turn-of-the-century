@@ -1,0 +1,77 @@
+{
+  "_id": "e07a366eaf3c4b5a",
+  "name": "Streetline Shotgun",
+  "type": "weapon",
+  "img": "icons/weapons/guns/gun-shotgun.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/weapons/swords/sword-guard-steel.webp",
+      "caption": "Combat implement",
+      "credit": "Core icon set"
+    },
+    "commonName": "Shotgun",
+    "description": "<p>A robust instrument for close or distant violence.</p>",
+    "classification": "firearm",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "damage": {
+      "formula": "1d10",
+      "type": "ballistic",
+      "versatileFormula": "",
+      "bonus": 0
+    },
+    "handedness": "twoHanded",
+    "actions": {
+      "defaultActionId": "weaponAttack",
+      "variants": [
+        {
+          "id": "weaponAttack",
+          "label": "Attack",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "ammunition": {
+      "required": true,
+      "type": "shot-shell",
+      "capacity": 2,
+      "loaded": 2,
+      "consumedPerAttack": 1
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiredProficiencies": [],
+      "notes": "<p>Commonly understood handling.</p>"
+    },
+    "physical": {
+      "weight": 6.5,
+      "bulk": 2,
+      "range": {
+        "normal": 30,
+        "long": 90
+      }
+    },
+    "properties": {
+      "tags": [
+        "shotgun"
+      ],
+      "concealable": false,
+      "noisy": true,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

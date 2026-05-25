@@ -1,0 +1,52 @@
+{
+  "_id": "6f1fb16d143fd922",
+  "name": "Canal Brigand Jack",
+  "type": "armor",
+  "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "caption": "Protective wear",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Layered leather and tarcloth favored by river gangs.</p>",
+    "category": "light",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "torso",
+    "armorClass": {
+      "increment": 1,
+      "appliesWhenWorn": true
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiresTraining": false,
+      "requiredTrait": "",
+      "notes": "<p>No formal training requirement.</p>"
+    },
+    "encumbrance": {
+      "weight": 5,
+      "bulk": 1,
+      "stealthPenalty": 0,
+      "movementPenalty": 0
+    },
+    "properties": {
+      "tags": [
+        "canal",
+        "leather"
+      ],
+      "concealable": false,
+      "noisy": false,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

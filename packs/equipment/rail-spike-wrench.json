@@ -1,0 +1,66 @@
+{
+  "_id": "7c4412b5ca5a8208",
+  "name": "Rail Spike Wrench",
+  "type": "equipment",
+  "img": "icons/tools/hand/wrench-steel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Spike Wrench",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "tool",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "athletics",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Adjust rail fasteners and braces.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 1.4,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "tool"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "rail",
+        "maintenance"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

@@ -1,0 +1,93 @@
+{
+  "_id": "a56c3527a300d642",
+  "name": "Service Revolver",
+  "type": "weapon",
+  "img": "icons/weapons/guns/gun-pistol-brass.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/weapons/swords/sword-guard-steel.webp",
+      "caption": "Combat implement",
+      "credit": "Core icon set"
+    },
+    "commonName": "Revolver",
+    "description": "<p>A six-shot sidearm trusted by inspectors and discreet bodyguards.</p>",
+    "classification": "firearm",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "damage": {
+      "formula": "1d8",
+      "type": "ballistic",
+      "versatileFormula": "",
+      "bonus": 0
+    },
+    "handedness": "oneHanded",
+    "actions": {
+      "defaultActionId": "pistolAimedShot",
+      "variants": [
+        {
+          "id": "pistolQuickShot",
+          "label": "Quick Shot",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": -2,
+          "notes": "Fast draw and fire with reduced accuracy."
+        },
+        {
+          "id": "pistolAimedShot",
+          "label": "Aim and Fire",
+          "type": "attack",
+          "apCost": 3,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "notes": "Deliberate shot with full accuracy."
+        }
+      ]
+    },
+    "ammunition": {
+      "required": true,
+      "type": "revolver-round",
+      "capacity": 6,
+      "loaded": 6,
+      "consumedPerAttack": 1
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 10,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiredProficiencies": [
+        {
+          "type": "firearm",
+          "key": "",
+          "label": "Firearm Training"
+        }
+      ],
+      "notes": "<p>Commonly understood handling.</p>"
+    },
+    "physical": {
+      "weight": 2.5,
+      "bulk": 1,
+      "range": {
+        "normal": 40,
+        "long": 120
+      }
+    },
+    "properties": {
+      "tags": [
+        "sidearm",
+        "firearm"
+      ],
+      "concealable": true,
+      "noisy": true,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

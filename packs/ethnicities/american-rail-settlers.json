@@ -1,0 +1,32 @@
+{
+  "_id": "163e53a2f8a4bbb2",
+  "name": "American Rail Settlers",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A social and linguistic background package.</p>",
+    "nationalIdentity": "american",
+    "languages": {
+      "primary": "english",
+      "spoken": [
+        "english",
+        "spanish"
+      ],
+      "literate": [
+        "english"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "Midwestern rail towns",
+      "diaspora": "<p>Mechanics and surveyors follow overseas concessions and tunneling projects.</p>",
+      "periodContext": "<p>They bring frontier habits into densely policed imperial cities.</p>"
+    }
+  },
+  "flags": {}
+}

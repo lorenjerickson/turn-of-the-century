@@ -1,0 +1,66 @@
+{
+  "_id": "12a76f6d0d962534",
+  "name": "Pocket Reliquary",
+  "type": "item",
+  "img": "icons/commodities/treasure/token-gold-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Reliquary",
+    "description": "<p>A small silver case containing a relic, prayer slip, and lock of hair.</p>",
+    "category": "trinket",
+    "quality": "exceptional",
+    "rarity": "rare",
+    "slot": "neck",
+    "use": {
+      "actionCost": 0,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "religion",
+        "difficulty": 12,
+        "required": false,
+        "purpose": "<p>Calm panic during uncanny encounters.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.2,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "reliquary"
+    },
+    "value": {
+      "price": 9,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "devotional",
+        "ward"
+      ],
+      "concealable": true,
+      "fragile": false,
+      "experimental": false,
+      "restricted": true
+    }
+  },
+  "flags": {}
+}

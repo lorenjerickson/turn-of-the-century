@@ -1,0 +1,66 @@
+{
+  "_id": "b433d0705dda9195",
+  "name": "Cold-Read Etiquette",
+  "type": "talent",
+  "img": "icons/skills/social/thumbsup-approval-like.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Cold-Read",
+    "description": "<p>Reads posture and speech cadence to infer intent behind polite words.</p>",
+    "category": "miscellaneous",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 0,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "insight",
+        "difficulty": 11,
+        "required": false,
+        "purpose": "<p>Estimate hidden motives in formal meetings.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "training"
+    },
+    "value": {
+      "price": 0,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "talent",
+        "social"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

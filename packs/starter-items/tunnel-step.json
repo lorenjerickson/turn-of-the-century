@@ -1,0 +1,33 @@
+{
+  "_id": "89e75ca145e4f5b3",
+  "name": "Tunnel Step",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Footwork adapted for slick stone, rails, and maintenance ladders.</p>",
+    "source": {
+      "type": "profession",
+      "itemId": "",
+      "label": "Canal Inspector"
+    },
+    "effects": [
+      {
+        "label": "Sure Footing",
+        "targetType": "skill",
+        "target": "acrobatics",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "in cramped terrain",
+        "appliesWhenEncumbered": true
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

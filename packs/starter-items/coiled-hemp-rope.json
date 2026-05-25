@@ -1,0 +1,66 @@
+{
+  "_id": "3959393fd3b050ef",
+  "name": "Coiled Hemp Rope",
+  "type": "equipment",
+  "img": "icons/sundries/survival/rope-coiled-brown.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Hemp Rope",
+    "description": "<p>A compact thirty-foot coil with brass clips for harnessing and descent.</p>",
+    "category": "tool",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "athletics",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Secure climbs and controlled descents.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 3,
+      "bulk": 1,
+      "quantity": 1,
+      "unit": "coil"
+    },
+    "value": {
+      "price": 2,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "climbing",
+        "utility"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

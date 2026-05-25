@@ -1,0 +1,87 @@
+{
+  "_id": "73d7abb4f9fb78b0",
+  "name": "Revival Ether",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Revival Ether",
+    "description": "<p>Prepared for field use under uncertain conditions.</p>",
+    "category": "drug",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "method": "inhale",
+      "actionCost": 1,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeItem",
+      "variants": [
+        {
+          "id": "consumeItem",
+          "label": "Consume Item",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "quantity": {
+      "value": 1,
+      "max": 1,
+      "unit": "dose"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "",
+      "recoveryInterval": ""
+    },
+    "effects": [
+      {
+        "label": "Snap Awake",
+        "type": "removePenalty",
+        "target": "stunned",
+        "formula": "",
+        "value": 1,
+        "condition": "",
+        "notes": "<p>Can clear brief incapacitation.</p>"
+      }
+    ],
+    "sideEffects": [
+      {
+        "label": "Fogged Focus",
+        "type": "applyModifier",
+        "target": "skills.investigation.value",
+        "formula": "",
+        "value": -1,
+        "condition": "for 1 scene",
+        "notes": "<p>Sharp analysis suffers briefly.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0.1,
+      "bulk": 0,
+      "perishable": false,
+      "shelfLife": "12 months"
+    },
+    "properties": {
+      "tags": [
+        "ether",
+        "stimulant"
+      ],
+      "addictive": false,
+      "experimental": false,
+      "restricted": true
+    }
+  },
+  "flags": {}
+}

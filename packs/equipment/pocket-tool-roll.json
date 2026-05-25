@@ -1,0 +1,66 @@
+{
+  "_id": "5735d368c5d3bce1",
+  "name": "Pocket Tool Roll",
+  "type": "equipment",
+  "img": "icons/tools/hand/hammer-and-nail.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Tool Roll",
+    "description": "<p>Needles, wire, and a miniature spanner for field adjustments.</p>",
+    "category": "tool",
+    "quality": "fine",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "investigation",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Perform hasty repairs on delicate gear.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.8,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "roll"
+    },
+    "value": {
+      "price": 4,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "repair",
+        "utility"
+      ],
+      "concealable": true,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

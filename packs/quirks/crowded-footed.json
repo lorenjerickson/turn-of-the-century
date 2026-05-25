@@ -1,0 +1,33 @@
+{
+  "_id": "61b23b32358fbcb4",
+  "name": "Crowded-Footed",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Moves deftly in markets and queues, but not in open wilderness.</p>",
+    "source": {
+      "type": "ethnicity",
+      "itemId": "",
+      "label": "Port City Upbringing"
+    },
+    "effects": [
+      {
+        "label": "Urban Pace",
+        "targetType": "speed",
+        "target": "walk",
+        "operation": "add",
+        "value": 5,
+        "path": "",
+        "condition": "in crowded streets",
+        "appliesWhenEncumbered": true
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

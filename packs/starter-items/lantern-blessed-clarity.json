@@ -1,0 +1,61 @@
+{
+  "_id": "4f54f224e3acdf99",
+  "name": "Lantern-Blessed Clarity",
+  "type": "effect",
+  "img": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+      "caption": "Condition marker",
+      "credit": "Core icon set"
+    },
+    "name": "Lantern-Blessed Clarity",
+    "description": "<p>A disciplined breathing exercise under phosphor light steadies perception.</p>",
+    "disposition": "beneficial",
+    "category": "sensory",
+    "duration": {
+      "value": 1,
+      "unit": "hour",
+      "rounds": 0,
+      "startTime": 0,
+      "expiresOnRest": false
+    },
+    "impacts": [
+      {
+        "label": "Clear Observation",
+        "targetType": "skill",
+        "target": "perception",
+        "path": "",
+        "operation": "add",
+        "value": 2,
+        "formula": "",
+        "condition": "in low light",
+        "notes": "<p>Improves perception checks.</p>"
+      }
+    ],
+    "affectedKeys": {
+      "abilities": [],
+      "skills": [
+        "perception"
+      ],
+      "actions": []
+    },
+    "removal": {
+      "removable": true,
+      "method": "",
+      "difficulty": 0
+    },
+    "stacking": {
+      "stackable": false,
+      "maxStacks": 1,
+      "stackKey": ""
+    },
+    "source": {
+      "type": "",
+      "itemId": "",
+      "actorId": "",
+      "notes": ""
+    }
+  },
+  "flags": {}
+}

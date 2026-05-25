@@ -1,0 +1,33 @@
+{
+  "_id": "b88e05c292804a27",
+  "name": "Powder Caution",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Checks vents and seams before discharge, reducing accidents.</p>",
+    "source": {
+      "type": "talent",
+      "itemId": "",
+      "label": "Ballistic Discipline"
+    },
+    "effects": [
+      {
+        "label": "Safe Handling",
+        "targetType": "weaponProficiency",
+        "target": "firearm",
+        "operation": "grant",
+        "value": 1,
+        "path": "",
+        "condition": "with maintained firearms",
+        "appliesWhenEncumbered": false
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

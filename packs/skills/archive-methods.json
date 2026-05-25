@@ -1,0 +1,66 @@
+{
+  "_id": "1d71022ab1faaf87",
+  "name": "Archive Methods",
+  "type": "skill",
+  "img": "icons/sundries/books/book-simple-brown.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Archive Methods",
+    "description": "<p>Cataloguing methods for parish records, guild ledgers, and shipping logs.</p>",
+    "category": "document",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "history",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Locate relevant records quickly.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "training"
+    },
+    "value": {
+      "price": 0,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "skill",
+        "research"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

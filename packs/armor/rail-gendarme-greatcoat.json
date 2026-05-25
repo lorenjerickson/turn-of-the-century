@@ -1,0 +1,52 @@
+{
+  "_id": "0433ea65b3954c3a",
+  "name": "Rail Gendarme Greatcoat",
+  "type": "armor",
+  "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "caption": "Protective wear",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A reinforced wool greatcoat lined with chain mesh at the chest.</p>",
+    "category": "medium",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "torso",
+    "armorClass": {
+      "increment": 2,
+      "appliesWhenWorn": true
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiresTraining": false,
+      "requiredTrait": "",
+      "notes": "<p>No formal training requirement.</p>"
+    },
+    "encumbrance": {
+      "weight": 9,
+      "bulk": 2,
+      "stealthPenalty": 0,
+      "movementPenalty": 0
+    },
+    "properties": {
+      "tags": [
+        "greatcoat",
+        "rail"
+      ],
+      "concealable": false,
+      "noisy": false,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

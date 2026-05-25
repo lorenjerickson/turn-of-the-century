@@ -1,0 +1,33 @@
+{
+  "_id": "689a1b0bdf7821b8",
+  "name": "Boiler Ears",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Can distinguish dangerous valve rhythms from ordinary machinery noise.</p>",
+    "source": {
+      "type": "profession",
+      "itemId": "",
+      "label": "Smokestack Mechanist"
+    },
+    "effects": [
+      {
+        "label": "Machine Listening",
+        "targetType": "skill",
+        "target": "investigation",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "around engines",
+        "appliesWhenEncumbered": false
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

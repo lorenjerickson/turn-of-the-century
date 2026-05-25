@@ -1,0 +1,32 @@
+{
+  "_id": "0ad01ae8ac4b4c8e",
+  "name": "Parisian Industrial Migrants",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A social and linguistic background package.</p>",
+    "nationalIdentity": "french",
+    "languages": {
+      "primary": "french",
+      "spoken": [
+        "french",
+        "english"
+      ],
+      "literate": [
+        "french"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "Paris outskirts",
+      "diaspora": "<p>Workers follow foundry contracts across the Channel and river ports.</p>",
+      "periodContext": "<p>Union ties and rent strikes shape neighborhood politics.</p>"
+    }
+  },
+  "flags": {}
+}

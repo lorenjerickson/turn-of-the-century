@@ -1,0 +1,78 @@
+{
+  "_id": "7153226c38408c96",
+  "name": "Clockwork Derringer",
+  "type": "weapon",
+  "img": "icons/weapons/guns/gun-pistol-doublebarrel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/weapons/swords/sword-guard-steel.webp",
+      "caption": "Combat implement",
+      "credit": "Core icon set"
+    },
+    "commonName": "Derringer",
+    "description": "<p>A robust instrument for close or distant violence.</p>",
+    "classification": "firearm",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "damage": {
+      "formula": "1d6",
+      "type": "ballistic",
+      "versatileFormula": "",
+      "bonus": 0
+    },
+    "handedness": "oneHanded",
+    "actions": {
+      "defaultActionId": "weaponAttack",
+      "variants": [
+        {
+          "id": "weaponAttack",
+          "label": "Attack",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "ammunition": {
+      "required": true,
+      "type": "pistol-round",
+      "capacity": 2,
+      "loaded": 2,
+      "consumedPerAttack": 1
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiredProficiencies": [],
+      "notes": "<p>Commonly understood handling.</p>"
+    },
+    "physical": {
+      "weight": 1.2,
+      "bulk": 0,
+      "range": {
+        "normal": 20,
+        "long": 60
+      }
+    },
+    "properties": {
+      "tags": [
+        "sidearm",
+        "concealed"
+      ],
+      "concealable": true,
+      "noisy": true,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

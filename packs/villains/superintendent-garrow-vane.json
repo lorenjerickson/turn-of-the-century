@@ -1,0 +1,357 @@
+{
+  "_id": "a47dc24ea3d601dd",
+  "name": "Superintendent Garrow Vane",
+  "type": "villain",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/mystery-man.svg",
+      "caption": "Cabinet portrait",
+      "credit": "Core icon set"
+    },
+    "tokenArtwork": {
+      "image": "icons/svg/mystery-man.svg",
+      "scale": 1,
+      "notes": "Default token"
+    },
+    "profile": {
+      "role": "",
+      "faction": "",
+      "summary": "",
+      "tags": []
+    },
+    "biography": "<p>A police administrator who auctions case outcomes to industrial patrons.</p>",
+    "notes": "<p>Starter actor profile for immediate play.</p>",
+    "classification": {
+      "category": "npc",
+      "species": "Human",
+      "ancestry": "",
+      "profession": "Railway Marshal",
+      "size": "med",
+      "origin": "London"
+    },
+    "progression": {
+      "level": 1,
+      "proficiencyBonus": 2,
+      "challenge": "",
+      "experience": 0
+    },
+    "hero": {
+      "archetype": "",
+      "rank": "",
+      "renown": 0,
+      "bonds": []
+    },
+    "villain": {
+      "scheme": "",
+      "threatTier": 1,
+      "notoriety": 0,
+      "lieutenants": []
+    },
+    "pawn": {
+      "role": "",
+      "threat": 1,
+      "disposition": "neutral",
+      "squad": ""
+    },
+    "movement": {
+      "walk": 30,
+      "climb": 10,
+      "swim": 10,
+      "fly": 0
+    },
+    "resources": {
+      "health": {
+        "min": 0,
+        "value": 12,
+        "max": 12,
+        "temp": 0,
+        "tempmax": 0
+      },
+      "grit": {
+        "min": 0,
+        "value": 2,
+        "max": 2,
+        "temp": 0,
+        "tempmax": 0
+      }
+    },
+    "abilities": {
+      "str": {
+        "value": 12,
+        "bonus": 1,
+        "save": 0,
+        "proficient": false
+      },
+      "dex": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "con": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "int": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "wis": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "cha": {
+        "value": 12,
+        "bonus": 1,
+        "save": 0,
+        "proficient": false
+      },
+      "san": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      }
+    },
+    "skills": {
+      "acrobatics": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "animalHandling": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "arcana": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "athletics": {
+        "ability": "str",
+        "value": 2,
+        "bonus": 1,
+        "proficiency": 1,
+        "passive": 12
+      },
+      "deception": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "history": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "insight": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "intimidation": {
+        "ability": "cha",
+        "value": 3,
+        "bonus": 1,
+        "proficiency": 2,
+        "passive": 13
+      },
+      "investigation": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "medicine": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "nature": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "perception": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "performance": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "persuasion": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "religion": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "sleightOfHand": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "stealth": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "survival": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      }
+    },
+    "senses": {
+      "passivePerception": 10,
+      "passiveInsight": 10
+    },
+    "defenses": {
+      "armorClass": 10,
+      "initiative": 0
+    },
+    "inventory": {
+      "equipment": {
+        "head": {
+          "label": "Head",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "neck": {
+          "label": "Neck",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "torso": {
+          "label": "Torso",
+          "capacity": 2,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment",
+            "item"
+          ],
+          "itemIds": []
+        },
+        "hands": {
+          "label": "Hands",
+          "capacity": 2,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "weapon",
+            "tool",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "legs": {
+          "label": "Legs",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "feet": {
+          "label": "Feet",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "belt": {
+          "label": "Belt",
+          "capacity": 4,
+          "quality": "standard",
+          "allowedTypes": [
+            "weapon",
+            "tool",
+            "equipment",
+            "consumable",
+            "item"
+          ],
+          "itemIds": []
+        }
+      },
+      "pack": {
+        "itemIds": [],
+        "capacity": 20,
+        "encumbrance": 0
+      },
+      "combat": {
+        "readyWeaponIds": []
+      }
+    },
+    "traits": {
+      "languages": [
+        "english"
+      ],
+      "immunities": [],
+      "resistances": [],
+      "vulnerabilities": []
+    }
+  },
+  "flags": {}
+}

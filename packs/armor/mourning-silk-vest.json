@@ -1,0 +1,52 @@
+{
+  "_id": "b223dc3a1384f326",
+  "name": "Mourning Silk Vest",
+  "type": "armor",
+  "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "caption": "Protective wear",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Black tailored silk lined with discreet mesh and whale-bone ribs.</p>",
+    "category": "clothing",
+    "quality": "exceptional",
+    "rarity": "rare",
+    "slot": "torso",
+    "armorClass": {
+      "increment": 1,
+      "appliesWhenWorn": true
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiresTraining": false,
+      "requiredTrait": "",
+      "notes": "<p>No formal training requirement.</p>"
+    },
+    "encumbrance": {
+      "weight": 3,
+      "bulk": 0,
+      "stealthPenalty": 0,
+      "movementPenalty": 0
+    },
+    "properties": {
+      "tags": [
+        "formal",
+        "concealed"
+      ],
+      "concealable": true,
+      "noisy": false,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

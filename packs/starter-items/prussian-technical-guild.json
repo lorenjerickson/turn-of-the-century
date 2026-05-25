@@ -1,0 +1,33 @@
+{
+  "_id": "34431fa25a3e3be1",
+  "name": "Prussian Technical Guild",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A social and linguistic background package.</p>",
+    "nationalIdentity": "german",
+    "languages": {
+      "primary": "german",
+      "spoken": [
+        "german",
+        "english"
+      ],
+      "literate": [
+        "german",
+        "english"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "Rhineland workshops",
+      "diaspora": "<p>Guild engineers are prized in rail depots and telegraph houses.</p>",
+      "periodContext": "<p>Apprenticeship records carry social weight beyond the workshop.</p>"
+    }
+  },
+  "flags": {}
+}

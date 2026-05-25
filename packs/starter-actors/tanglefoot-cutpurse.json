@@ -1,0 +1,856 @@
+{
+  "_id": "06cafcce26d39f03",
+  "name": "Tanglefoot Cutpurse",
+  "type": "pawn",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/mystery-man.svg",
+      "caption": "Cabinet portrait",
+      "credit": "Core icon set"
+    },
+    "tokenArtwork": {
+      "image": "icons/svg/mystery-man.svg",
+      "scale": 1,
+      "notes": "Default token"
+    },
+    "profile": {
+      "role": "",
+      "faction": "",
+      "summary": "",
+      "tags": []
+    },
+    "biography": "<p>A nimble alley operative with hidden tools and an encyclopedic memory for routes.</p>",
+    "notes": "<p>Starter actor profile for immediate play.</p>",
+    "classification": {
+      "category": "npc",
+      "species": "Human",
+      "ancestry": "",
+      "profession": "Cutpurse",
+      "size": "med",
+      "origin": "Rookery Lanes"
+    },
+    "progression": {
+      "level": 1,
+      "proficiencyBonus": 2,
+      "challenge": "",
+      "experience": 0
+    },
+    "hero": {
+      "archetype": "",
+      "rank": "",
+      "renown": 0,
+      "bonds": []
+    },
+    "villain": {
+      "scheme": "",
+      "threatTier": 1,
+      "notoriety": 0,
+      "lieutenants": []
+    },
+    "pawn": {
+      "role": "",
+      "threat": 1,
+      "disposition": "neutral",
+      "squad": ""
+    },
+    "movement": {
+      "walk": 30,
+      "climb": 10,
+      "swim": 10,
+      "fly": 0
+    },
+    "resources": {
+      "health": {
+        "min": 0,
+        "value": 12,
+        "max": 12,
+        "temp": 0,
+        "tempmax": 0
+      },
+      "grit": {
+        "min": 0,
+        "value": 2,
+        "max": 2,
+        "temp": 0,
+        "tempmax": 0
+      }
+    },
+    "abilities": {
+      "str": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "dex": {
+        "value": 13,
+        "bonus": 1,
+        "save": 0,
+        "proficient": false
+      },
+      "con": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "int": {
+        "value": 11,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "wis": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "cha": {
+        "value": 11,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "san": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      }
+    },
+    "skills": {
+      "acrobatics": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "animalHandling": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "arcana": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "athletics": {
+        "ability": "str",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "deception": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "history": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "insight": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "intimidation": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "investigation": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "medicine": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "nature": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "perception": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "performance": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "persuasion": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "religion": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "sleightOfHand": {
+        "ability": "dex",
+        "value": 2,
+        "bonus": 1,
+        "proficiency": 1,
+        "passive": 12
+      },
+      "stealth": {
+        "ability": "dex",
+        "value": 3,
+        "bonus": 1,
+        "proficiency": 2,
+        "passive": 13
+      },
+      "survival": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      }
+    },
+    "senses": {
+      "passivePerception": 10,
+      "passiveInsight": 10
+    },
+    "defenses": {
+      "armorClass": 10,
+      "initiative": 0
+    },
+    "inventory": {
+      "equipment": {
+        "head": {
+          "label": "Head",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "neck": {
+          "label": "Neck",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "torso": {
+          "label": "Torso",
+          "capacity": 2,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment",
+            "item"
+          ],
+          "itemIds": []
+        },
+        "hands": {
+          "label": "Hands",
+          "capacity": 2,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "weapon",
+            "tool",
+            "equipment"
+          ],
+          "itemIds": [
+            "ld0a000000000000"
+          ]
+        },
+        "legs": {
+          "label": "Legs",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "feet": {
+          "label": "Feet",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "belt": {
+          "label": "Belt",
+          "capacity": 5,
+          "quality": "fine",
+          "allowedTypes": [
+            "weapon",
+            "tool",
+            "equipment",
+            "consumable",
+            "item"
+          ],
+          "itemIds": [
+            "ld0a000000000001",
+            "ld0a000000000002",
+            "ld0a000000000003",
+            "ld0a000000000004",
+            "ld0a000000000005"
+          ]
+        }
+      },
+      "pack": {
+        "itemIds": [
+          "ld0a000000000006"
+        ],
+        "capacity": 20,
+        "encumbrance": 0
+      },
+      "combat": {
+        "readyWeaponIds": []
+      }
+    },
+    "traits": {
+      "languages": [
+        "english"
+      ],
+      "immunities": [],
+      "resistances": [],
+      "vulnerabilities": []
+    }
+  },
+  "items": [
+    {
+      "name": "Clockmaker's Stiletto",
+      "type": "weapon",
+      "img": "icons/weapons/daggers/dagger-thin-steel.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/weapons/swords/sword-guard-steel.webp",
+          "caption": "Combat implement",
+          "credit": "Core icon set"
+        },
+        "commonName": "Stiletto",
+        "description": "<p>A narrow blade meant for seams in armor and seams in conversation.</p>",
+        "classification": "simpleMelee",
+        "quality": "exceptional",
+        "rarity": "common",
+        "slot": "hands",
+        "damage": {
+          "formula": "1d4",
+          "type": "piercing",
+          "versatileFormula": "",
+          "bonus": 0
+        },
+        "handedness": "oneHanded",
+        "actions": {
+          "defaultActionId": "weaponAttack",
+          "variants": [
+            {
+              "id": "weaponAttack",
+              "label": "Attack",
+              "type": "attack",
+              "apCost": 2,
+              "requiresToHit": true,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "ammunition": {
+          "required": false,
+          "type": "",
+          "capacity": 0,
+          "loaded": 0,
+          "consumedPerAttack": 0
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 0,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiredProficiencies": [],
+          "notes": "<p>Commonly understood handling.</p>"
+        },
+        "physical": {
+          "weight": 0.8,
+          "bulk": 0,
+          "range": {
+            "normal": 5,
+            "long": 20
+          }
+        },
+        "properties": {
+          "tags": [
+            "blade",
+            "thrown"
+          ],
+          "concealable": true,
+          "noisy": false,
+          "experimental": false
+        }
+      },
+      "_id": "ld0a000000000000"
+    },
+    {
+      "name": "Locksmith Roll",
+      "type": "equipment",
+      "img": "icons/tools/hand/pick-steel-white.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Locksmith Tools",
+        "description": "<p>Fine picks, torsion bars, and graphite cloth for stubborn wards.</p>",
+        "category": "tool",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "sleightOfHand",
+            "difficulty": 12,
+            "required": false,
+            "purpose": "<p>Manipulate locks and catches.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 1,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "roll"
+        },
+        "value": {
+          "price": 5,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "lockpicking"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": true
+        }
+      },
+      "_id": "ld0a000000000001"
+    },
+    {
+      "name": "Pocket Tool Roll",
+      "type": "equipment",
+      "img": "icons/tools/hand/hammer-and-nail.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Tool Roll",
+        "description": "<p>Needles, wire, and a miniature spanner for field adjustments.</p>",
+        "category": "tool",
+        "quality": "fine",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "investigation",
+            "difficulty": 10,
+            "required": false,
+            "purpose": "<p>Perform hasty repairs on delicate gear.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.8,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "roll"
+        },
+        "value": {
+          "price": 4,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "repair",
+            "utility"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0a000000000002"
+    },
+    {
+      "name": "Cipher Notebook",
+      "type": "item",
+      "img": "icons/sundries/books/book-red-exclamation.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Pocket Cipher Book",
+        "description": "<p>Wax-sealed pages indexed by private shorthand and witness initials.</p>",
+        "category": "document",
+        "quality": "fine",
+        "rarity": "uncommon",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "history",
+            "difficulty": 11,
+            "required": false,
+            "purpose": "<p>Recover old links across current investigations.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.5,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "book"
+        },
+        "value": {
+          "price": 2,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "document",
+            "cipher"
+          ],
+          "concealable": true,
+          "fragile": true,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0a000000000003"
+    },
+    {
+      "name": "Brass Oil Flask",
+      "type": "item",
+      "img": "icons/consumables/potions/bottle-round-corked-yellow.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Oil Flask",
+        "description": "<p>A stoppered brass flask of lamp oil for torches, lanterns, and burners.</p>",
+        "category": "container",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": true,
+          "skillCheck": {
+            "skill": "investigation",
+            "difficulty": 8,
+            "required": false,
+            "purpose": "<p>Refuel light sources and lubricate mechanisms.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.5,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "flask"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "fuel",
+            "utility"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0a000000000004"
+    },
+    {
+      "name": "Nightwatch Tonic",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-bottle-corked-cyan.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Nightwatch",
+        "description": "<p>A bitter wakefulness tonic favored by watchmen and telegraph operators.</p>",
+        "category": "tonic",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "method": "drink",
+          "actionCost": 1,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeItem",
+          "variants": [
+            {
+              "id": "consumeItem",
+              "label": "Consume Item",
+              "type": "consumable",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "max": 1,
+          "unit": "dose"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "",
+          "recoveryInterval": ""
+        },
+        "effects": [
+          {
+            "label": "Alert Eyes",
+            "type": "applyModifier",
+            "target": "skills.perception.value",
+            "formula": "",
+            "value": 1,
+            "condition": "for 1 scene",
+            "notes": "<p>Perception checks sharpen briefly.</p>"
+          }
+        ],
+        "sideEffects": [
+          {
+            "label": "Jitter",
+            "type": "applyModifier",
+            "target": "skills.stealth.value",
+            "formula": "",
+            "value": -1,
+            "condition": "for 1 scene",
+            "notes": "<p>Fine stealth suffers from tremor.</p>"
+          }
+        ],
+        "physical": {
+          "weight": 0.1,
+          "bulk": 0,
+          "perishable": false,
+          "shelfLife": "12 months"
+        },
+        "properties": {
+          "tags": [
+            "stimulant",
+            "watch"
+          ],
+          "addictive": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0a000000000005"
+    },
+    {
+      "name": "Folding Pry Hook",
+      "type": "equipment",
+      "img": "icons/tools/hand/crowbar-steel.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Pry Hook",
+        "description": "<p>A short folding lever for crates, stuck hatches, and iron hasps.</p>",
+        "category": "tool",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "athletics",
+            "difficulty": 11,
+            "required": false,
+            "purpose": "<p>Force simple barriers and jammed catches.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 1.2,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "tool"
+        },
+        "value": {
+          "price": 3,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "breach",
+            "utility"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0a000000000006"
+    }
+  ],
+  "flags": {}
+}

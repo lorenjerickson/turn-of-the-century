@@ -1,0 +1,33 @@
+{
+  "_id": "d43eef3c11e27fa9",
+  "name": "Gallows Humor",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Dark wit that keeps panic from taking hold in grim company.</p>",
+    "source": {
+      "type": "other",
+      "itemId": "",
+      "label": "Field Experience"
+    },
+    "effects": [
+      {
+        "label": "Morale Lift",
+        "targetType": "skill",
+        "target": "persuasion",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "under stress",
+        "appliesWhenEncumbered": false
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

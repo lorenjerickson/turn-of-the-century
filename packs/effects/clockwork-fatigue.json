@@ -1,0 +1,63 @@
+{
+  "_id": "afd51bb266c107fd",
+  "name": "Clockwork Fatigue",
+  "type": "effect",
+  "img": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+      "caption": "Condition marker",
+      "credit": "Core icon set"
+    },
+    "name": "Clockwork Fatigue",
+    "description": "<p>Exhaustion from prolonged operation of heavy mechanical harness.</p>",
+    "disposition": "detrimental",
+    "category": "physical",
+    "duration": {
+      "value": 2,
+      "unit": "hour",
+      "rounds": 0,
+      "startTime": 0,
+      "expiresOnRest": false
+    },
+    "impacts": [
+      {
+        "label": "Lead Limbs",
+        "targetType": "ability",
+        "target": "str",
+        "path": "",
+        "operation": "add",
+        "value": -1,
+        "formula": "",
+        "condition": "",
+        "notes": "<p>Strength checks suffer.</p>"
+      }
+    ],
+    "affectedKeys": {
+      "abilities": [
+        "str"
+      ],
+      "skills": [
+        "athletics"
+      ],
+      "actions": []
+    },
+    "removal": {
+      "removable": true,
+      "method": "Rest and hydration",
+      "difficulty": 8
+    },
+    "stacking": {
+      "stackable": false,
+      "maxStacks": 1,
+      "stackKey": ""
+    },
+    "source": {
+      "type": "",
+      "itemId": "",
+      "actorId": "",
+      "notes": ""
+    }
+  },
+  "flags": {}
+}

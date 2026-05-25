@@ -1,0 +1,66 @@
+{
+  "_id": "2e38c756f4203996",
+  "name": "Unlit Tallow Torch",
+  "type": "item",
+  "img": "icons/sundries/lights/torch-brown.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Torch",
+    "description": "<p>A resin-wrapped tallow torch carried unlit until needed in tunnels or basements.</p>",
+    "category": "apparatus",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "survival",
+        "difficulty": 8,
+        "required": false,
+        "purpose": "<p>Provide emergency light in dark spaces.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.6,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "torch"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "light",
+        "utility"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

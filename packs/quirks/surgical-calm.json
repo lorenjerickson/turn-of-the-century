@@ -1,0 +1,33 @@
+{
+  "_id": "cb74256eef82ca22",
+  "name": "Surgical Calm",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Maintains precision under blood, shouting, and failing light.</p>",
+    "source": {
+      "type": "profession",
+      "itemId": "",
+      "label": "Field Surgeon"
+    },
+    "effects": [
+      {
+        "label": "Steady Hands",
+        "targetType": "skill",
+        "target": "medicine",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "during active treatment",
+        "appliesWhenEncumbered": false
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

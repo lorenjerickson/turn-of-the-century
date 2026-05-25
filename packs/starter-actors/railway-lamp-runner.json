@@ -1,0 +1,569 @@
+{
+  "_id": "0f224fc868cb086c",
+  "name": "Railway Lamp Runner",
+  "type": "pawn",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/mystery-man.svg",
+      "caption": "Cabinet portrait",
+      "credit": "Core icon set"
+    },
+    "tokenArtwork": {
+      "image": "icons/svg/mystery-man.svg",
+      "scale": 1,
+      "notes": "Default token"
+    },
+    "profile": {
+      "role": "",
+      "faction": "",
+      "summary": "",
+      "tags": []
+    },
+    "biography": "<p>A depot runner who knows every catwalk, signal stair, and emergency hatch by feel.</p>",
+    "notes": "<p>Starter actor profile for immediate play.</p>",
+    "classification": {
+      "category": "npc",
+      "species": "Human",
+      "ancestry": "",
+      "profession": "Railway Runner",
+      "size": "med",
+      "origin": "Kingscross Freight Yard"
+    },
+    "progression": {
+      "level": 1,
+      "proficiencyBonus": 2,
+      "challenge": "",
+      "experience": 0
+    },
+    "hero": {
+      "archetype": "",
+      "rank": "",
+      "renown": 0,
+      "bonds": []
+    },
+    "villain": {
+      "scheme": "",
+      "threatTier": 1,
+      "notoriety": 0,
+      "lieutenants": []
+    },
+    "pawn": {
+      "role": "",
+      "threat": 1,
+      "disposition": "neutral",
+      "squad": ""
+    },
+    "movement": {
+      "walk": 30,
+      "climb": 10,
+      "swim": 10,
+      "fly": 0
+    },
+    "resources": {
+      "health": {
+        "min": 0,
+        "value": 12,
+        "max": 12,
+        "temp": 0,
+        "tempmax": 0
+      },
+      "grit": {
+        "min": 0,
+        "value": 2,
+        "max": 2,
+        "temp": 0,
+        "tempmax": 0
+      }
+    },
+    "abilities": {
+      "str": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "dex": {
+        "value": 12,
+        "bonus": 1,
+        "save": 0,
+        "proficient": false
+      },
+      "con": {
+        "value": 11,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "int": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "wis": {
+        "value": 11,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "cha": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "san": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      }
+    },
+    "skills": {
+      "acrobatics": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "animalHandling": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "arcana": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "athletics": {
+        "ability": "str",
+        "value": 1,
+        "bonus": 0,
+        "proficiency": 1,
+        "passive": 11
+      },
+      "deception": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "history": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "insight": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "intimidation": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "investigation": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "medicine": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "nature": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "perception": {
+        "ability": "wis",
+        "value": 2,
+        "bonus": 0,
+        "proficiency": 1,
+        "passive": 12
+      },
+      "performance": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "persuasion": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "religion": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "sleightOfHand": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "stealth": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "survival": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      }
+    },
+    "senses": {
+      "passivePerception": 10,
+      "passiveInsight": 10
+    },
+    "defenses": {
+      "armorClass": 10,
+      "initiative": 0
+    },
+    "inventory": {
+      "equipment": {
+        "head": {
+          "label": "Head",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "neck": {
+          "label": "Neck",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "torso": {
+          "label": "Torso",
+          "capacity": 2,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment",
+            "item"
+          ],
+          "itemIds": []
+        },
+        "hands": {
+          "label": "Hands",
+          "capacity": 2,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "weapon",
+            "tool",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "legs": {
+          "label": "Legs",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "feet": {
+          "label": "Feet",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "belt": {
+          "label": "Belt",
+          "capacity": 2,
+          "quality": "poor",
+          "allowedTypes": [
+            "weapon",
+            "tool",
+            "equipment",
+            "consumable",
+            "item"
+          ],
+          "itemIds": [
+            "ld09000000000000",
+            "ld09000000000001"
+          ]
+        }
+      },
+      "pack": {
+        "itemIds": [
+          "ld09000000000002"
+        ],
+        "capacity": 20,
+        "encumbrance": 0
+      },
+      "combat": {
+        "readyWeaponIds": []
+      }
+    },
+    "traits": {
+      "languages": [
+        "english"
+      ],
+      "immunities": [],
+      "resistances": [],
+      "vulnerabilities": []
+    }
+  },
+  "items": [
+    {
+      "name": "Unlit Tallow Torch",
+      "type": "item",
+      "img": "icons/sundries/lights/torch-brown.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Torch",
+        "description": "<p>A resin-wrapped tallow torch carried unlit until needed in tunnels or basements.</p>",
+        "category": "apparatus",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "survival",
+            "difficulty": 8,
+            "required": false,
+            "purpose": "<p>Provide emergency light in dark spaces.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.6,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "torch"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "light",
+            "utility"
+          ],
+          "concealable": false,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld09000000000000"
+    },
+    {
+      "name": "Smelling Vial",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Smelling Salts",
+        "description": "<p>A sharp ammonia draft to rouse fainted subjects.</p>",
+        "category": "other",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "method": "inhale",
+          "actionCost": 1,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeItem",
+          "variants": [
+            {
+              "id": "consumeItem",
+              "label": "Consume Item",
+              "type": "consumable",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "max": 1,
+          "unit": "dose"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "",
+          "recoveryInterval": ""
+        },
+        "effects": [
+          {
+            "label": "Rouse Subject",
+            "type": "removePenalty",
+            "target": "stunned",
+            "formula": "",
+            "value": 1,
+            "condition": "",
+            "notes": "<p>May end a brief incapacitation.</p>"
+          }
+        ],
+        "sideEffects": [],
+        "physical": {
+          "weight": 0.1,
+          "bulk": 0,
+          "perishable": false,
+          "shelfLife": "12 months"
+        },
+        "properties": {
+          "tags": [
+            "revival"
+          ],
+          "addictive": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld09000000000001"
+    },
+    {
+      "name": "Brass Oil Flask",
+      "type": "item",
+      "img": "icons/consumables/potions/bottle-round-corked-yellow.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Oil Flask",
+        "description": "<p>A stoppered brass flask of lamp oil for torches, lanterns, and burners.</p>",
+        "category": "container",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": true,
+          "skillCheck": {
+            "skill": "investigation",
+            "difficulty": 8,
+            "required": false,
+            "purpose": "<p>Refuel light sources and lubricate mechanisms.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.5,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "flask"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "fuel",
+            "utility"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld09000000000002"
+    }
+  ],
+  "flags": {}
+}

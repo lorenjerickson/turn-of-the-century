@@ -1,0 +1,78 @@
+{
+  "_id": "c82db0e528b5ac0c",
+  "name": "Factory Cleaver",
+  "type": "weapon",
+  "img": "icons/weapons/swords/shortsword-broad.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/weapons/swords/sword-guard-steel.webp",
+      "caption": "Combat implement",
+      "credit": "Core icon set"
+    },
+    "commonName": "Cleaver",
+    "description": "<p>An improvised blade from the slaughter line, brutal and ill-balanced.</p>",
+    "classification": "improvised",
+    "quality": "poor",
+    "rarity": "common",
+    "slot": "hands",
+    "damage": {
+      "formula": "1d6",
+      "type": "slashing",
+      "versatileFormula": "",
+      "bonus": 0
+    },
+    "handedness": "oneHanded",
+    "actions": {
+      "defaultActionId": "weaponAttack",
+      "variants": [
+        {
+          "id": "weaponAttack",
+          "label": "Attack",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "ammunition": {
+      "required": false,
+      "type": "",
+      "capacity": 0,
+      "loaded": 0,
+      "consumedPerAttack": 0
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiredProficiencies": [],
+      "notes": "<p>Commonly understood handling.</p>"
+    },
+    "physical": {
+      "weight": 2.2,
+      "bulk": 1,
+      "range": {
+        "normal": 5,
+        "long": 5
+      }
+    },
+    "properties": {
+      "tags": [
+        "improvised",
+        "industrial"
+      ],
+      "concealable": false,
+      "noisy": false,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

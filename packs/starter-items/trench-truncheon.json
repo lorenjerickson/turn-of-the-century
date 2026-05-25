@@ -1,0 +1,78 @@
+{
+  "_id": "6f6f387204ee6a6d",
+  "name": "Trench Truncheon",
+  "type": "weapon",
+  "img": "icons/weapons/maces/mace-round-steel-black.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/weapons/swords/sword-guard-steel.webp",
+      "caption": "Combat implement",
+      "credit": "Core icon set"
+    },
+    "commonName": "Truncheon",
+    "description": "<p>A weighted baton designed for close restraint and brutal certainty.</p>",
+    "classification": "simpleMelee",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "damage": {
+      "formula": "1d6",
+      "type": "bludgeoning",
+      "versatileFormula": "",
+      "bonus": 0
+    },
+    "handedness": "oneHanded",
+    "actions": {
+      "defaultActionId": "weaponAttack",
+      "variants": [
+        {
+          "id": "weaponAttack",
+          "label": "Attack",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "ammunition": {
+      "required": false,
+      "type": "",
+      "capacity": 0,
+      "loaded": 0,
+      "consumedPerAttack": 0
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiredProficiencies": [],
+      "notes": "<p>Commonly understood handling.</p>"
+    },
+    "physical": {
+      "weight": 1.5,
+      "bulk": 0,
+      "range": {
+        "normal": 5,
+        "long": 5
+      }
+    },
+    "properties": {
+      "tags": [
+        "baton",
+        "police"
+      ],
+      "concealable": true,
+      "noisy": false,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

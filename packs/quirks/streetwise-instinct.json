@@ -1,0 +1,33 @@
+{
+  "_id": "3395e96bfb5455a5",
+  "name": "Streetwise Instinct",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Years among markets and dock roads make ambushes in crowds less likely.</p>",
+    "source": {
+      "type": "profession",
+      "itemId": "",
+      "label": "Urban Detective"
+    },
+    "effects": [
+      {
+        "label": "Crowd Awareness",
+        "targetType": "skill",
+        "target": "perception",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "in urban scenes",
+        "appliesWhenEncumbered": false
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

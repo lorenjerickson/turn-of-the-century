@@ -1,0 +1,64 @@
+{
+  "_id": "e5f9b2a98f96c6e0",
+  "name": "Electro-Mesmeric Focus",
+  "type": "effect",
+  "img": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+      "caption": "Condition marker",
+      "credit": "Core icon set"
+    },
+    "name": "Electro-Mesmeric Focus",
+    "description": "<p>A calibrated pulse train sharpens concentration on one immediate task.</p>",
+    "disposition": "beneficial",
+    "category": "experimental",
+    "duration": {
+      "value": 10,
+      "unit": "minute",
+      "rounds": 0,
+      "startTime": 0,
+      "expiresOnRest": false
+    },
+    "impacts": [
+      {
+        "label": "Task Focus",
+        "targetType": "skill",
+        "target": "arcana",
+        "path": "",
+        "operation": "add",
+        "value": 2,
+        "formula": "",
+        "condition": "single declared task",
+        "notes": "<p>Only applies to one chosen inquiry.</p>"
+      }
+    ],
+    "affectedKeys": {
+      "abilities": [
+        "int"
+      ],
+      "skills": [
+        "arcana",
+        "history"
+      ],
+      "actions": []
+    },
+    "removal": {
+      "removable": true,
+      "method": "Ends naturally",
+      "difficulty": 0
+    },
+    "stacking": {
+      "stackable": false,
+      "maxStacks": 1,
+      "stackKey": ""
+    },
+    "source": {
+      "type": "procedure",
+      "itemId": "",
+      "actorId": "",
+      "notes": "<p>Developed in private clinics of uncertain legality.</p>"
+    }
+  },
+  "flags": {}
+}

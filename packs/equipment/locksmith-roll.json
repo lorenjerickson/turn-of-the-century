@@ -1,0 +1,65 @@
+{
+  "_id": "b52ddaf5d2313126",
+  "name": "Locksmith Roll",
+  "type": "equipment",
+  "img": "icons/tools/hand/pick-steel-white.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Locksmith Tools",
+    "description": "<p>Fine picks, torsion bars, and graphite cloth for stubborn wards.</p>",
+    "category": "tool",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "sleightOfHand",
+        "difficulty": 12,
+        "required": false,
+        "purpose": "<p>Manipulate locks and catches.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 1,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "roll"
+    },
+    "value": {
+      "price": 5,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "lockpicking"
+      ],
+      "concealable": true,
+      "fragile": false,
+      "experimental": false,
+      "restricted": true
+    }
+  },
+  "flags": {}
+}

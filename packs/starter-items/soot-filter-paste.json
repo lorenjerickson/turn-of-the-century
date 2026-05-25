@@ -1,0 +1,77 @@
+{
+  "_id": "264e7269e720e611",
+  "name": "Soot Filter Paste",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Filter Paste",
+    "description": "<p>Prepared for field use under uncertain conditions.</p>",
+    "category": "chemical",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "method": "apply",
+      "actionCost": 1,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeItem",
+      "variants": [
+        {
+          "id": "consumeItem",
+          "label": "Consume Item",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "quantity": {
+      "value": 1,
+      "max": 1,
+      "unit": "dose"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "",
+      "recoveryInterval": ""
+    },
+    "effects": [
+      {
+        "label": "Air Filter",
+        "type": "grantResistance",
+        "target": "environmental-smoke",
+        "formula": "",
+        "value": 1,
+        "condition": "for 1 scene",
+        "notes": "<p>Improves resilience to smoke.</p>"
+      }
+    ],
+    "sideEffects": [],
+    "physical": {
+      "weight": 0.1,
+      "bulk": 0,
+      "perishable": false,
+      "shelfLife": "12 months"
+    },
+    "properties": {
+      "tags": [
+        "respiratory",
+        "industrial"
+      ],
+      "addictive": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

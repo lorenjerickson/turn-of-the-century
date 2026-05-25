@@ -1,0 +1,66 @@
+{
+  "_id": "0fdbb004584d4ef1",
+  "name": "Mortuary Lantern",
+  "type": "equipment",
+  "img": "icons/sundries/lights/lantern-bullseye-silver.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Lantern",
+    "description": "<p>A shuttered lamp with mirrored housing for low-glare examinations.</p>",
+    "category": "apparatus",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "perception",
+        "difficulty": 9,
+        "required": false,
+        "purpose": "<p>Illuminate close details without flooding a room.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 2,
+      "bulk": 1,
+      "quantity": 1,
+      "unit": "lantern"
+    },
+    "value": {
+      "price": 4,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "light",
+        "forensic"
+      ],
+      "concealable": false,
+      "fragile": true,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

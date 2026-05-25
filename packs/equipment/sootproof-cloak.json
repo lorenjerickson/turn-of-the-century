@@ -1,0 +1,65 @@
+{
+  "_id": "c3dbcd3da511678b",
+  "name": "Sootproof Cloak",
+  "type": "item",
+  "img": "icons/equipment/back/cloak-hooded-black.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Protective Cloak",
+    "description": "<p>A waxed black cloak that sheds rain and light chimney soot.</p>",
+    "category": "clothing",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "torso",
+    "use": {
+      "actionCost": 0,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "survival",
+        "difficulty": 9,
+        "required": false,
+        "purpose": "<p>Reduce exposure in foul weather.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 2,
+      "bulk": 1,
+      "quantity": 1,
+      "unit": "cloak"
+    },
+    "value": {
+      "price": 2,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "weatherproof"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

@@ -1,0 +1,65 @@
+{
+  "_id": "9de70cff63ebebfd",
+  "name": "Brass Calling Whistle",
+  "type": "item",
+  "img": "icons/tools/instruments/whistle-brass.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Signal Whistle",
+    "description": "<p>A sharp whistle carrying over rain, steam, and station noise.</p>",
+    "category": "instrument",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "neck",
+    "use": {
+      "actionCost": 0,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "performance",
+        "difficulty": 8,
+        "required": false,
+        "purpose": "<p>Signal allies over short distances.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.1,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "whistle"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "signal"
+      ],
+      "concealable": true,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

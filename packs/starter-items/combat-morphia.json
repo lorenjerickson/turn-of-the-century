@@ -1,0 +1,87 @@
+{
+  "_id": "72cd83992f140198",
+  "name": "Combat Morphia",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Morphia Dose",
+    "description": "<p>A war-surplus pain suppressant used in desperate surgery.</p>",
+    "category": "drug",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "slot": "belt",
+    "use": {
+      "method": "inject",
+      "actionCost": 1,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeItem",
+      "variants": [
+        {
+          "id": "consumeItem",
+          "label": "Consume Item",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "quantity": {
+      "value": 1,
+      "max": 1,
+      "unit": "dose"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "",
+      "recoveryInterval": ""
+    },
+    "effects": [
+      {
+        "label": "Dull Pain",
+        "type": "applyModifier",
+        "target": "resources.grit",
+        "formula": "",
+        "value": 2,
+        "condition": "",
+        "notes": "<p>Temporary grit increase.</p>"
+      }
+    ],
+    "sideEffects": [
+      {
+        "label": "Dependency Risk",
+        "type": "causeCondition",
+        "target": "withdrawal",
+        "formula": "",
+        "value": 1,
+        "condition": "on repeated use",
+        "notes": "<p>Repeated use may cause dependency.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0.1,
+      "bulk": 0,
+      "perishable": false,
+      "shelfLife": "12 months"
+    },
+    "properties": {
+      "tags": [
+        "analgesic",
+        "surgical"
+      ],
+      "addictive": true,
+      "experimental": false,
+      "restricted": true
+    }
+  },
+  "flags": {}
+}

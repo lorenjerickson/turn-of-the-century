@@ -1,0 +1,66 @@
+{
+  "_id": "57c3ab891e6eb704",
+  "name": "Cipher Notebook",
+  "type": "item",
+  "img": "icons/sundries/books/book-red-exclamation.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Pocket Cipher Book",
+    "description": "<p>Wax-sealed pages indexed by private shorthand and witness initials.</p>",
+    "category": "document",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "history",
+        "difficulty": 11,
+        "required": false,
+        "purpose": "<p>Recover old links across current investigations.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.5,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "book"
+    },
+    "value": {
+      "price": 2,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "document",
+        "cipher"
+      ],
+      "concealable": true,
+      "fragile": true,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

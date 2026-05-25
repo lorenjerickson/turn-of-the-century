@@ -1,0 +1,33 @@
+{
+  "_id": "cc6369dd3e05d9c9",
+  "name": "Cold Telegraph Nerves",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Keeps hands steady while decoding urgent or threatening dispatches.</p>",
+    "source": {
+      "type": "profession",
+      "itemId": "",
+      "label": "Signal Cryptographer"
+    },
+    "effects": [
+      {
+        "label": "Steady Decode",
+        "targetType": "skill",
+        "target": "history",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "during codework",
+        "appliesWhenEncumbered": false
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

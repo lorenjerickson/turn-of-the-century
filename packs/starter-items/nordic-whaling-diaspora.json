@@ -1,0 +1,33 @@
+{
+  "_id": "e6dea6a430678366",
+  "name": "Nordic Whaling Diaspora",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A social and linguistic background package.</p>",
+    "nationalIdentity": "norwegian",
+    "languages": {
+      "primary": "norwegian",
+      "spoken": [
+        "norwegian",
+        "english"
+      ],
+      "literate": [
+        "norwegian",
+        "english"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "North Sea coasts",
+      "diaspora": "<p>Harbor crews move between whaling stations and steamship contracts.</p>",
+      "periodContext": "<p>Maritime labor traditions shape their tight mutual-aid circles.</p>"
+    }
+  },
+  "flags": {}
+}

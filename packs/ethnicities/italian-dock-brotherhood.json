@@ -1,0 +1,32 @@
+{
+  "_id": "acb1e98c34f74746",
+  "name": "Italian Dock Brotherhood",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A social and linguistic background package.</p>",
+    "nationalIdentity": "italian",
+    "languages": {
+      "primary": "italian",
+      "spoken": [
+        "italian",
+        "english"
+      ],
+      "literate": [
+        "italian"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "Liguria and Naples",
+      "diaspora": "<p>Mutual aid halls provide credit, lodging, and legal witness.</p>",
+      "periodContext": "<p>Dock labor and organized crime often compete for the same recruits.</p>"
+    }
+  },
+  "flags": {}
+}

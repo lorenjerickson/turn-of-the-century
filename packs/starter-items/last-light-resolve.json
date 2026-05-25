@@ -1,0 +1,77 @@
+{
+  "_id": "ffbc8f08e698391d",
+  "name": "Last-Light Resolve",
+  "type": "talent",
+  "img": "icons/magic/light/explosion-star-small-yellow.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Last-Light",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "miscellaneous",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 0,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "insight",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Remain focused as allies falter.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [
+      {
+        "label": "Steady Nerve",
+        "targetType": "ability",
+        "target": "san",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "when outnumbered",
+        "notes": "<p>Grants composure in dire scenes.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "training"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "talent",
+        "morale"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

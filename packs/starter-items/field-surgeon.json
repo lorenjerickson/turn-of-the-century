@@ -1,0 +1,116 @@
+{
+  "_id": "e3f9c9ab345ea76b",
+  "name": "Field Surgeon",
+  "type": "profession",
+  "img": "icons/tools/scribal/magnifying-glass.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/tools/scribal/magnifying-glass.webp",
+      "caption": "Trade discipline",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A vocational track with layered expertise.</p>",
+    "category": "medical",
+    "primarySkills": [
+      "medicine",
+      "insight",
+      "investigation"
+    ],
+    "expertiseLevels": [
+      {
+        "rank": "unskilled",
+        "title": "Unskilled",
+        "level": 0,
+        "requiredExperience": 0,
+        "requiredSkillUses": [],
+        "grantedQuirks": [],
+        "description": ""
+      },
+      {
+        "rank": "apprentice",
+        "title": "Apprentice",
+        "level": 1,
+        "requiredExperience": 10,
+        "requiredSkillUses": [],
+        "grantedQuirks": [],
+        "description": ""
+      },
+      {
+        "rank": "journeyman",
+        "title": "Journeyman",
+        "level": 2,
+        "requiredExperience": 25,
+        "requiredSkillUses": [],
+        "grantedQuirks": [],
+        "description": ""
+      },
+      {
+        "rank": "master",
+        "title": "Master",
+        "level": 3,
+        "requiredExperience": 50,
+        "requiredSkillUses": [],
+        "grantedQuirks": [],
+        "description": ""
+      },
+      {
+        "rank": "expert",
+        "title": "Expert",
+        "level": 4,
+        "requiredExperience": 100,
+        "requiredSkillUses": [],
+        "grantedQuirks": [],
+        "description": ""
+      }
+    ],
+    "specializations": [
+      {
+        "key": "triage",
+        "name": "Triage Marshal",
+        "description": "<p>A focused branch within the profession's wider discipline.</p>",
+        "exampleProgression": "Orderly -> Surgeon -> Chief Surgeon -> Hospital Director",
+        "levels": [
+          {
+            "level": 1,
+            "title": "Initiate",
+            "requiredExpertiseRank": "apprentice",
+            "requiredExperience": 5,
+            "requiredSkillUses": [],
+            "grantedQuirks": [],
+            "description": "<p>Learns baseline procedures.</p>"
+          },
+          {
+            "level": 2,
+            "title": "Practitioner",
+            "requiredExpertiseRank": "journeyman",
+            "requiredExperience": 10,
+            "requiredSkillUses": [],
+            "grantedQuirks": [],
+            "description": "<p>Can operate without direct supervision.</p>"
+          },
+          {
+            "level": 3,
+            "title": "Senior",
+            "requiredExpertiseRank": "master",
+            "requiredExperience": 15,
+            "requiredSkillUses": [],
+            "grantedQuirks": [],
+            "description": "<p>Handles high-risk assignments.</p>"
+          },
+          {
+            "level": 4,
+            "title": "Principal",
+            "requiredExpertiseRank": "expert",
+            "requiredExperience": 20,
+            "requiredSkillUses": [],
+            "grantedQuirks": [],
+            "description": "<p>Sets standards and trains others.</p>"
+          }
+        ]
+      }
+    ],
+    "grantedQuirks": [],
+    "advancementNotes": "<p>Advance through successful surgeries under adverse conditions.</p>"
+  },
+  "flags": {}
+}

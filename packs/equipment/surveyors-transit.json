@@ -1,0 +1,66 @@
+{
+  "_id": "f8b6deb99faf4726",
+  "name": "Surveyor's Transit",
+  "type": "equipment",
+  "img": "icons/tools/navigation/spyglass-brass.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Transit",
+    "description": "<p>Tripod optics for line-of-sight measurement and distance estimation.</p>",
+    "category": "instrument",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "nature",
+        "difficulty": 11,
+        "required": false,
+        "purpose": "<p>Chart terrain and establish bearings.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 5,
+      "bulk": 2,
+      "quantity": 1,
+      "unit": "instrument"
+    },
+    "value": {
+      "price": 15,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "survey",
+        "optics"
+      ],
+      "concealable": false,
+      "fragile": true,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

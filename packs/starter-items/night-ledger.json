@@ -1,0 +1,33 @@
+{
+  "_id": "b27850485a1a3d5d",
+  "name": "Night Ledger",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A habit of immediate note-taking preserves details others misremember.</p>",
+    "source": {
+      "type": "feat",
+      "itemId": "",
+      "label": "Casebook Discipline"
+    },
+    "effects": [
+      {
+        "label": "Recorded Details",
+        "targetType": "skill",
+        "target": "history",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "when notes were taken in scene",
+        "appliesWhenEncumbered": false
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

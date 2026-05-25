@@ -1,0 +1,63 @@
+{
+  "_id": "1828e55df13d75cc",
+  "name": "Smog-Lung",
+  "type": "effect",
+  "img": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+      "caption": "Condition marker",
+      "credit": "Core icon set"
+    },
+    "name": "Smog-Lung",
+    "description": "<p>Long exposure to refinery vapors inflames the chest and steals breath.</p>",
+    "disposition": "detrimental",
+    "category": "medical",
+    "duration": {
+      "value": 3,
+      "unit": "day",
+      "rounds": 0,
+      "startTime": 0,
+      "expiresOnRest": false
+    },
+    "impacts": [
+      {
+        "label": "Labored Breathing",
+        "targetType": "movement",
+        "target": "walk",
+        "path": "",
+        "operation": "add",
+        "value": -10,
+        "formula": "",
+        "condition": "",
+        "notes": "<p>Walking speed reduced.</p>"
+      }
+    ],
+    "affectedKeys": {
+      "abilities": [
+        "con"
+      ],
+      "skills": [
+        "athletics"
+      ],
+      "actions": []
+    },
+    "removal": {
+      "removable": true,
+      "method": "Clean air and physician treatment",
+      "difficulty": 11
+    },
+    "stacking": {
+      "stackable": false,
+      "maxStacks": 1,
+      "stackKey": ""
+    },
+    "source": {
+      "type": "",
+      "itemId": "",
+      "actorId": "",
+      "notes": ""
+    }
+  },
+  "flags": {}
+}

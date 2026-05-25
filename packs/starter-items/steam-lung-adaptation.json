@@ -1,0 +1,61 @@
+{
+  "_id": "2182f7b80d508475",
+  "name": "Steam-Lung Adaptation",
+  "type": "effect",
+  "img": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+      "caption": "Condition marker",
+      "credit": "Core icon set"
+    },
+    "name": "Steam-Lung Adaptation",
+    "description": "<p>Repeated exposure grants short-term resilience to fumes.</p>",
+    "disposition": "mixed",
+    "category": "physical",
+    "duration": {
+      "value": 1,
+      "unit": "day",
+      "rounds": 0,
+      "startTime": 0,
+      "expiresOnRest": false
+    },
+    "impacts": [
+      {
+        "label": "Fume Tolerance",
+        "targetType": "resource",
+        "target": "resources.grit",
+        "path": "",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "in polluted zones",
+        "notes": "<p>Improves grit under smog pressure.</p>"
+      }
+    ],
+    "affectedKeys": {
+      "abilities": [
+        "con"
+      ],
+      "skills": [],
+      "actions": []
+    },
+    "removal": {
+      "removable": true,
+      "method": "",
+      "difficulty": 0
+    },
+    "stacking": {
+      "stackable": false,
+      "maxStacks": 1,
+      "stackKey": ""
+    },
+    "source": {
+      "type": "",
+      "itemId": "",
+      "actorId": "",
+      "notes": ""
+    }
+  },
+  "flags": {}
+}

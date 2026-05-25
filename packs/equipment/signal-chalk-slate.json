@@ -1,0 +1,66 @@
+{
+  "_id": "04fde40f44758a8b",
+  "name": "Signal Chalk Slate",
+  "type": "item",
+  "img": "icons/sundries/documents/scroll-plain-white.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Chalk Slate",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "instrument",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "performance",
+        "difficulty": 8,
+        "required": false,
+        "purpose": "<p>Relay silent commands and coded marks.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.4,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "slate"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "signal",
+        "silent"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

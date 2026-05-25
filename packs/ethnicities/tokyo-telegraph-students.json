@@ -1,0 +1,33 @@
+{
+  "_id": "b3f18e082fed216b",
+  "name": "Tokyo Telegraph Students",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A social and linguistic background package.</p>",
+    "nationalIdentity": "japanese",
+    "languages": {
+      "primary": "japanese",
+      "spoken": [
+        "japanese",
+        "english"
+      ],
+      "literate": [
+        "japanese",
+        "english"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "Tokyo",
+      "diaspora": "<p>Students and engineers exchange methods in telegraph and rail academies.</p>",
+      "periodContext": "<p>Rapid modernization produces both prestige and suspicion abroad.</p>"
+    }
+  },
+  "flags": {}
+}

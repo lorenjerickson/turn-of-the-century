@@ -1,0 +1,34 @@
+{
+  "_id": "78c9db572ddfb9e2",
+  "name": "Levantine Print Guild",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A social and linguistic background package.</p>",
+    "nationalIdentity": "levantine",
+    "languages": {
+      "primary": "arabic",
+      "spoken": [
+        "arabic",
+        "french",
+        "english"
+      ],
+      "literate": [
+        "arabic",
+        "french"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "Alexandria and Beirut",
+      "diaspora": "<p>Printers and translators anchor multilingual news routes.</p>",
+      "periodContext": "<p>Press networks mediate both commerce and political agitation.</p>"
+    }
+  },
+  "flags": {}
+}

@@ -1,0 +1,66 @@
+{
+  "_id": "e2426a52d1b5655c",
+  "name": "Basic Fieldcraft",
+  "type": "skill",
+  "img": "icons/tools/navigation/compass-brass-blue-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Fieldcraft",
+    "description": "<p>Route planning, camp routine, and practical hazard checks.</p>",
+    "category": "tool",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "survival",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Plan safe movement through hazardous districts.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "training"
+    },
+    "value": {
+      "price": 0,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "skill",
+        "core"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

@@ -1,0 +1,87 @@
+{
+  "_id": "0b9cb902156be8c8",
+  "name": "Galvanic Stimulant",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-vial-corked-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Stimulant Draught",
+    "description": "<p>A bitter tonic that restores vigor at the cost of trembling hands.</p>",
+    "category": "tonic",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "method": "drink",
+      "actionCost": 1,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeItem",
+      "variants": [
+        {
+          "id": "consumeItem",
+          "label": "Consume Item",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "quantity": {
+      "value": 1,
+      "max": 1,
+      "unit": "dose"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "1 hour",
+      "recoveryInterval": "short rest"
+    },
+    "effects": [
+      {
+        "label": "Restore Health",
+        "type": "restoreResource",
+        "target": "resources.health",
+        "formula": "1d4+1",
+        "value": 0,
+        "condition": "",
+        "notes": "<p>Immediate restoration.</p>"
+      }
+    ],
+    "sideEffects": [
+      {
+        "label": "Hand Tremor",
+        "type": "applyModifier",
+        "target": "skills.sleightOfHand.value",
+        "formula": "",
+        "value": -1,
+        "condition": "for 1 hour",
+        "notes": "<p>Fine motor tasks are impaired.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0.1,
+      "bulk": 0,
+      "perishable": false,
+      "shelfLife": "12 months"
+    },
+    "properties": {
+      "tags": [
+        "medical",
+        "chemical"
+      ],
+      "addictive": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

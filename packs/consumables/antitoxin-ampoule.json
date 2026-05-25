@@ -1,0 +1,87 @@
+{
+  "_id": "900ae674549fc032",
+  "name": "Antitoxin Ampoule",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Antitoxin",
+    "description": "<p>A cloudy serum prepared against common industrial venoms.</p>",
+    "category": "antidote",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "method": "inject",
+      "actionCost": 1,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeItem",
+      "variants": [
+        {
+          "id": "consumeItem",
+          "label": "Consume Item",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "quantity": {
+      "value": 1,
+      "max": 1,
+      "unit": "dose"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "",
+      "recoveryInterval": ""
+    },
+    "effects": [
+      {
+        "label": "Counter Poison",
+        "type": "cureCondition",
+        "target": "poisoned",
+        "formula": "",
+        "value": 1,
+        "condition": "",
+        "notes": "<p>Attempts to neutralize ongoing toxins.</p>"
+      }
+    ],
+    "sideEffects": [
+      {
+        "label": "Nausea",
+        "type": "causeCondition",
+        "target": "queasy",
+        "formula": "",
+        "value": 1,
+        "condition": "for 10 minutes",
+        "notes": "<p>Mild nausea follows injection.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0.1,
+      "bulk": 0,
+      "perishable": false,
+      "shelfLife": "12 months"
+    },
+    "properties": {
+      "tags": [
+        "antidote",
+        "injectable"
+      ],
+      "addictive": false,
+      "experimental": false,
+      "restricted": true
+    }
+  },
+  "flags": {}
+}

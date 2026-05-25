@@ -1,0 +1,66 @@
+{
+  "_id": "53440e5e9c4a60fb",
+  "name": "Boiler Gauge Clamp",
+  "type": "equipment",
+  "img": "icons/tools/hand/clamp-steel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Gauge Clamp",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "tool",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "investigation",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Stabilize and read fluctuating gauges.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 2.3,
+      "bulk": 1,
+      "quantity": 1,
+      "unit": "tool"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "boiler",
+        "inspection"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

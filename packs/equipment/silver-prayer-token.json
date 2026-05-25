@@ -1,0 +1,66 @@
+{
+  "_id": "7ad1e5dc81bbb64a",
+  "name": "Silver Prayer Token",
+  "type": "item",
+  "img": "icons/commodities/treasure/token-silver-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Prayer Token",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "trinket",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "neck",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "religion",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Steady morale in uncanny scenes.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.1,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "token"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "ward",
+        "token"
+      ],
+      "concealable": true,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

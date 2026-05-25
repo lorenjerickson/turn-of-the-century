@@ -1,0 +1,78 @@
+{
+  "_id": "805faac53ae41eac",
+  "name": "Signal Flare Bomb",
+  "type": "weapon",
+  "img": "icons/weapons/thrown/bomb-fuse-black.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/weapons/swords/sword-guard-steel.webp",
+      "caption": "Combat implement",
+      "credit": "Core icon set"
+    },
+    "commonName": "Flare Bomb",
+    "description": "<p>A thrown pyrotechnic cartridge for marking targets or starting panic.</p>",
+    "classification": "explosive",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "damage": {
+      "formula": "1d8",
+      "type": "explosive",
+      "versatileFormula": "",
+      "bonus": 0
+    },
+    "handedness": "thrown",
+    "actions": {
+      "defaultActionId": "weaponAttack",
+      "variants": [
+        {
+          "id": "weaponAttack",
+          "label": "Attack",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "ammunition": {
+      "required": false,
+      "type": "",
+      "capacity": 0,
+      "loaded": 0,
+      "consumedPerAttack": 0
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiredProficiencies": [],
+      "notes": "<p>Commonly understood handling.</p>"
+    },
+    "physical": {
+      "weight": 1,
+      "bulk": 0,
+      "range": {
+        "normal": 20,
+        "long": 60
+      }
+    },
+    "properties": {
+      "tags": [
+        "thrown",
+        "pyrotechnic"
+      ],
+      "concealable": false,
+      "noisy": true,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

@@ -1,0 +1,52 @@
+{
+  "_id": "3928099c66413d11",
+  "name": "Warden's Lamellar Coat",
+  "type": "armor",
+  "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "caption": "Protective wear",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Oilskin over articulated steel scales, favored by constables on night patrol.</p>",
+    "category": "medium",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "slot": "torso",
+    "armorClass": {
+      "increment": 2,
+      "appliesWhenWorn": true
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 10,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiresTraining": false,
+      "requiredTrait": "",
+      "notes": "<p>No formal training requirement.</p>"
+    },
+    "encumbrance": {
+      "weight": 12,
+      "bulk": 2,
+      "stealthPenalty": -1,
+      "movementPenalty": 0
+    },
+    "properties": {
+      "tags": [
+        "city-issue",
+        "layered"
+      ],
+      "concealable": false,
+      "noisy": false,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

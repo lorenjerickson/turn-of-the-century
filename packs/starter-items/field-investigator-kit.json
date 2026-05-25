@@ -1,0 +1,77 @@
+{
+  "_id": "63c1260a4be755e2",
+  "name": "Field Investigator Kit",
+  "type": "equipment",
+  "img": "icons/tools/scribal/lens-glass-brown.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Investigator Kit",
+    "description": "<p>Casebook, lens, gloves, and envelopes for deliberate scene work.</p>",
+    "category": "tool",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "investigation",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Aids structured scene examination.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [
+      {
+        "label": "Documented Scene",
+        "targetType": "skill",
+        "target": "investigation",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "kit present",
+        "notes": "<p>Bonus to scene analysis.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 3,
+      "bulk": 1,
+      "quantity": 1,
+      "unit": "kit"
+    },
+    "value": {
+      "price": 7,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "investigation",
+        "fieldwork"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

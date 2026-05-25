@@ -1,0 +1,52 @@
+{
+  "_id": "9ead7d9de60f8f92",
+  "name": "Refinery Face Shield",
+  "type": "armor",
+  "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "caption": "Protective wear",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A hinged visor and throat guard for furnace operators.</p>",
+    "category": "heavy",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "head",
+    "armorClass": {
+      "increment": 2,
+      "appliesWhenWorn": true
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiresTraining": false,
+      "requiredTrait": "",
+      "notes": "<p>No formal training requirement.</p>"
+    },
+    "encumbrance": {
+      "weight": 7,
+      "bulk": 2,
+      "stealthPenalty": -1,
+      "movementPenalty": 0
+    },
+    "properties": {
+      "tags": [
+        "refinery",
+        "visor"
+      ],
+      "concealable": false,
+      "noisy": true,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

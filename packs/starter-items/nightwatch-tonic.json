@@ -1,0 +1,87 @@
+{
+  "_id": "f02a16acf51ff17d",
+  "name": "Nightwatch Tonic",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-bottle-corked-cyan.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Nightwatch",
+    "description": "<p>A bitter wakefulness tonic favored by watchmen and telegraph operators.</p>",
+    "category": "tonic",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "method": "drink",
+      "actionCost": 1,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeItem",
+      "variants": [
+        {
+          "id": "consumeItem",
+          "label": "Consume Item",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "quantity": {
+      "value": 1,
+      "max": 1,
+      "unit": "dose"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "",
+      "recoveryInterval": ""
+    },
+    "effects": [
+      {
+        "label": "Alert Eyes",
+        "type": "applyModifier",
+        "target": "skills.perception.value",
+        "formula": "",
+        "value": 1,
+        "condition": "for 1 scene",
+        "notes": "<p>Perception checks sharpen briefly.</p>"
+      }
+    ],
+    "sideEffects": [
+      {
+        "label": "Jitter",
+        "type": "applyModifier",
+        "target": "skills.stealth.value",
+        "formula": "",
+        "value": -1,
+        "condition": "for 1 scene",
+        "notes": "<p>Fine stealth suffers from tremor.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0.1,
+      "bulk": 0,
+      "perishable": false,
+      "shelfLife": "12 months"
+    },
+    "properties": {
+      "tags": [
+        "stimulant",
+        "watch"
+      ],
+      "addictive": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

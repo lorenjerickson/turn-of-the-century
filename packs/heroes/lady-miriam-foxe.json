@@ -1,0 +1,1054 @@
+{
+  "_id": "4765a4df4671cea4",
+  "name": "Lady Miriam Foxe",
+  "type": "hero",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/mystery-man.svg",
+      "caption": "Cabinet portrait",
+      "credit": "Core icon set"
+    },
+    "tokenArtwork": {
+      "image": "icons/svg/mystery-man.svg",
+      "scale": 1,
+      "notes": "Default token"
+    },
+    "profile": {
+      "role": "",
+      "faction": "",
+      "summary": "",
+      "tags": []
+    },
+    "biography": "<p>A society patron with a private archive of forbidden correspondence and ruined pedigrees.</p>",
+    "notes": "<p>Starter actor profile for immediate play.</p>",
+    "classification": {
+      "category": "character",
+      "species": "Human",
+      "ancestry": "",
+      "profession": "Occult Natural Philosopher",
+      "size": "med",
+      "origin": "Bath"
+    },
+    "progression": {
+      "level": 1,
+      "proficiencyBonus": 2,
+      "challenge": "",
+      "experience": 0
+    },
+    "hero": {
+      "archetype": "",
+      "rank": "",
+      "renown": 0,
+      "bonds": []
+    },
+    "villain": {
+      "scheme": "",
+      "threatTier": 1,
+      "notoriety": 0,
+      "lieutenants": []
+    },
+    "pawn": {
+      "role": "",
+      "threat": 1,
+      "disposition": "neutral",
+      "squad": ""
+    },
+    "movement": {
+      "walk": 30,
+      "climb": 10,
+      "swim": 10,
+      "fly": 0
+    },
+    "resources": {
+      "health": {
+        "min": 0,
+        "value": 12,
+        "max": 12,
+        "temp": 0,
+        "tempmax": 0
+      },
+      "grit": {
+        "min": 0,
+        "value": 2,
+        "max": 2,
+        "temp": 0,
+        "tempmax": 0
+      }
+    },
+    "abilities": {
+      "str": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "dex": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "con": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "int": {
+        "value": 12,
+        "bonus": 1,
+        "save": 0,
+        "proficient": false
+      },
+      "wis": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      },
+      "cha": {
+        "value": 13,
+        "bonus": 1,
+        "save": 0,
+        "proficient": false
+      },
+      "san": {
+        "value": 10,
+        "bonus": 0,
+        "save": 0,
+        "proficient": false
+      }
+    },
+    "skills": {
+      "acrobatics": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "animalHandling": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "arcana": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "athletics": {
+        "ability": "str",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "deception": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "history": {
+        "ability": "int",
+        "value": 2,
+        "bonus": 1,
+        "proficiency": 1,
+        "passive": 12
+      },
+      "insight": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "intimidation": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "investigation": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "medicine": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "nature": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "perception": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "performance": {
+        "ability": "cha",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "persuasion": {
+        "ability": "cha",
+        "value": 2,
+        "bonus": 1,
+        "proficiency": 1,
+        "passive": 12
+      },
+      "religion": {
+        "ability": "int",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "sleightOfHand": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "stealth": {
+        "ability": "dex",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      },
+      "survival": {
+        "ability": "wis",
+        "value": 0,
+        "bonus": 0,
+        "proficiency": 0,
+        "passive": 10
+      }
+    },
+    "senses": {
+      "passivePerception": 10,
+      "passiveInsight": 10
+    },
+    "defenses": {
+      "armorClass": 10,
+      "initiative": 0
+    },
+    "inventory": {
+      "equipment": {
+        "head": {
+          "label": "Head",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "neck": {
+          "label": "Neck",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "torso": {
+          "label": "Torso",
+          "capacity": 2,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment",
+            "item"
+          ],
+          "itemIds": [
+            "ld02000000000001"
+          ]
+        },
+        "hands": {
+          "label": "Hands",
+          "capacity": 2,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "weapon",
+            "tool",
+            "equipment"
+          ],
+          "itemIds": [
+            "ld02000000000000"
+          ]
+        },
+        "legs": {
+          "label": "Legs",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "feet": {
+          "label": "Feet",
+          "capacity": 1,
+          "quality": "standard",
+          "allowedTypes": [
+            "armor",
+            "equipment"
+          ],
+          "itemIds": []
+        },
+        "belt": {
+          "label": "Belt",
+          "capacity": 6,
+          "quality": "exceptional",
+          "allowedTypes": [
+            "weapon",
+            "tool",
+            "equipment",
+            "consumable",
+            "item"
+          ],
+          "itemIds": [
+            "ld02000000000002",
+            "ld02000000000003",
+            "ld02000000000004",
+            "ld02000000000005",
+            "ld02000000000006",
+            "ld02000000000007"
+          ]
+        }
+      },
+      "pack": {
+        "itemIds": [
+          "ld02000000000008",
+          "ld02000000000009"
+        ],
+        "capacity": 20,
+        "encumbrance": 0
+      },
+      "combat": {
+        "readyWeaponIds": []
+      }
+    },
+    "traits": {
+      "languages": [
+        "english",
+        "latin"
+      ],
+      "immunities": [],
+      "resistances": [],
+      "vulnerabilities": []
+    }
+  },
+  "items": [
+    {
+      "name": "Clockmaker's Stiletto",
+      "type": "weapon",
+      "img": "icons/weapons/daggers/dagger-thin-steel.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/weapons/swords/sword-guard-steel.webp",
+          "caption": "Combat implement",
+          "credit": "Core icon set"
+        },
+        "commonName": "Stiletto",
+        "description": "<p>A narrow blade meant for seams in armor and seams in conversation.</p>",
+        "classification": "simpleMelee",
+        "quality": "exceptional",
+        "rarity": "common",
+        "slot": "hands",
+        "damage": {
+          "formula": "1d4",
+          "type": "piercing",
+          "versatileFormula": "",
+          "bonus": 0
+        },
+        "handedness": "oneHanded",
+        "actions": {
+          "defaultActionId": "weaponAttack",
+          "variants": [
+            {
+              "id": "weaponAttack",
+              "label": "Attack",
+              "type": "attack",
+              "apCost": 2,
+              "requiresToHit": true,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "ammunition": {
+          "required": false,
+          "type": "",
+          "capacity": 0,
+          "loaded": 0,
+          "consumedPerAttack": 0
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 0,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiredProficiencies": [],
+          "notes": "<p>Commonly understood handling.</p>"
+        },
+        "physical": {
+          "weight": 0.8,
+          "bulk": 0,
+          "range": {
+            "normal": 5,
+            "long": 20
+          }
+        },
+        "properties": {
+          "tags": [
+            "blade",
+            "thrown"
+          ],
+          "concealable": true,
+          "noisy": false,
+          "experimental": false
+        }
+      },
+      "_id": "ld02000000000000"
+    },
+    {
+      "name": "Mourning Silk Vest",
+      "type": "armor",
+      "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+          "caption": "Protective wear",
+          "credit": "Core icon set"
+        },
+        "description": "<p>Black tailored silk lined with discreet mesh and whale-bone ribs.</p>",
+        "category": "clothing",
+        "quality": "exceptional",
+        "rarity": "rare",
+        "slot": "torso",
+        "armorClass": {
+          "increment": 1,
+          "appliesWhenWorn": true
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 0,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiresTraining": false,
+          "requiredTrait": "",
+          "notes": "<p>No formal training requirement.</p>"
+        },
+        "encumbrance": {
+          "weight": 3,
+          "bulk": 0,
+          "stealthPenalty": 0,
+          "movementPenalty": 0
+        },
+        "properties": {
+          "tags": [
+            "formal",
+            "concealed"
+          ],
+          "concealable": true,
+          "noisy": false,
+          "experimental": false
+        }
+      },
+      "_id": "ld02000000000001"
+    },
+    {
+      "name": "Lecture Broadsheet Bundle",
+      "type": "item",
+      "img": "icons/sundries/documents/document-sealed-signatures-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Broadsheets",
+        "description": "<p>Folded circulars from engineering societies and scandalous lecture halls.</p>",
+        "category": "document",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "history",
+            "difficulty": 10,
+            "required": false,
+            "purpose": "<p>Identify current theories and rival schools.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.4,
+          "bulk": 0,
+          "quantity": 12,
+          "unit": "sheet"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "academic",
+            "press"
+          ],
+          "concealable": false,
+          "fragile": true,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld02000000000002"
+    },
+    {
+      "name": "Noctilucent Salts",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Luminous Salts",
+        "description": "<p>A pinch of phosphor salts that reveal oils and prints under low light.</p>",
+        "category": "chemical",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "method": "apply",
+          "actionCost": 1,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeItem",
+          "variants": [
+            {
+              "id": "consumeItem",
+              "label": "Consume Item",
+              "type": "consumable",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "max": 1,
+          "unit": "dose"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "",
+          "recoveryInterval": ""
+        },
+        "effects": [
+          {
+            "label": "Reveal Residue",
+            "type": "grantResistance",
+            "target": "evidence-loss",
+            "formula": "",
+            "value": 1,
+            "condition": "in darkness",
+            "notes": "<p>Improves forensic visibility.</p>"
+          }
+        ],
+        "sideEffects": [],
+        "physical": {
+          "weight": 0.1,
+          "bulk": 0,
+          "perishable": true,
+          "shelfLife": "6 months"
+        },
+        "properties": {
+          "tags": [
+            "forensic",
+            "luminous"
+          ],
+          "addictive": false,
+          "experimental": true,
+          "restricted": false
+        }
+      },
+      "_id": "ld02000000000003"
+    },
+    {
+      "name": "Brass Oil Flask",
+      "type": "item",
+      "img": "icons/consumables/potions/bottle-round-corked-yellow.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Oil Flask",
+        "description": "<p>A stoppered brass flask of lamp oil for torches, lanterns, and burners.</p>",
+        "category": "container",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": true,
+          "skillCheck": {
+            "skill": "investigation",
+            "difficulty": 8,
+            "required": false,
+            "purpose": "<p>Refuel light sources and lubricate mechanisms.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.5,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "flask"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "fuel",
+            "utility"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld02000000000004"
+    },
+    {
+      "name": "Ritual Chalk Cylinder",
+      "type": "equipment",
+      "img": "icons/commodities/materials/powder-white.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Marking Chalk",
+        "description": "<p>Compressed white chalk for notation on stone, iron, and timber.</p>",
+        "category": "miscellaneous",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 0,
+          "requiresHands": true,
+          "consumedOnUse": true,
+          "skillCheck": {
+            "skill": "arcana",
+            "difficulty": 10,
+            "required": false,
+            "purpose": "<p>Mark warning sigils and directional signs.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.2,
+          "bulk": 0,
+          "quantity": 6,
+          "unit": "stick"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "marking",
+            "ritual"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld02000000000005"
+    },
+    {
+      "name": "Pocket Tool Roll",
+      "type": "equipment",
+      "img": "icons/tools/hand/hammer-and-nail.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Tool Roll",
+        "description": "<p>Needles, wire, and a miniature spanner for field adjustments.</p>",
+        "category": "tool",
+        "quality": "fine",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "investigation",
+            "difficulty": 10,
+            "required": false,
+            "purpose": "<p>Perform hasty repairs on delicate gear.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.8,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "roll"
+        },
+        "value": {
+          "price": 4,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "repair",
+            "utility"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld02000000000006"
+    },
+    {
+      "name": "Aetheric Elixir",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-jug-corked-purple.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Aetheric Elixir",
+        "description": "<p>An iridescent draught rumored to steady the mind near uncanny phenomena.</p>",
+        "category": "drink",
+        "quality": "exceptional",
+        "rarity": "rare",
+        "slot": "belt",
+        "use": {
+          "method": "drink",
+          "actionCost": 2,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeBeltElixir",
+          "variants": [
+            {
+              "id": "consumeBeltElixir",
+              "label": "Consume Belt Elixir",
+              "type": "consumable",
+              "apCost": 2,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": "Retrieve from belt and consume under pressure."
+            }
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "max": 1,
+          "unit": "dose"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "",
+          "recoveryInterval": ""
+        },
+        "effects": [
+          {
+            "label": "Calm Resolve",
+            "type": "applyModifier",
+            "target": "abilities.san.value",
+            "formula": "",
+            "value": 1,
+            "condition": "for 1 scene",
+            "notes": "<p>A brief buffer against psychic strain.</p>"
+          }
+        ],
+        "sideEffects": [
+          {
+            "label": "Afterglow",
+            "type": "causeCondition",
+            "target": "lightheaded",
+            "formula": "",
+            "value": 1,
+            "condition": "for 10 minutes",
+            "notes": "<p>Vision wavers after the effect fades.</p>"
+          }
+        ],
+        "physical": {
+          "weight": 0.1,
+          "bulk": 0,
+          "perishable": false,
+          "shelfLife": "12 months"
+        },
+        "properties": {
+          "tags": [
+            "elixir",
+            "occult"
+          ],
+          "addictive": false,
+          "experimental": true,
+          "restricted": false
+        }
+      },
+      "_id": "ld02000000000007"
+    },
+    {
+      "name": "Pocket Reliquary",
+      "type": "item",
+      "img": "icons/commodities/treasure/token-gold-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Reliquary",
+        "description": "<p>A small silver case containing a relic, prayer slip, and lock of hair.</p>",
+        "category": "trinket",
+        "quality": "exceptional",
+        "rarity": "rare",
+        "slot": "neck",
+        "use": {
+          "actionCost": 0,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "religion",
+            "difficulty": 12,
+            "required": false,
+            "purpose": "<p>Calm panic during uncanny encounters.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.2,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "reliquary"
+        },
+        "value": {
+          "price": 9,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "devotional",
+            "ward"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": true
+        }
+      },
+      "_id": "ld02000000000008"
+    },
+    {
+      "name": "Unlit Tallow Torch",
+      "type": "item",
+      "img": "icons/sundries/lights/torch-brown.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Torch",
+        "description": "<p>A resin-wrapped tallow torch carried unlit until needed in tunnels or basements.</p>",
+        "category": "apparatus",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "survival",
+            "difficulty": 8,
+            "required": false,
+            "purpose": "<p>Provide emergency light in dark spaces.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.6,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "torch"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "light",
+            "utility"
+          ],
+          "concealable": false,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld02000000000009"
+    }
+  ],
+  "flags": {}
+}

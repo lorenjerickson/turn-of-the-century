@@ -1,0 +1,76 @@
+{
+  "_id": "cfc0b2c25e9304c2",
+  "name": "Smelling Vial",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Smelling Salts",
+    "description": "<p>A sharp ammonia draft to rouse fainted subjects.</p>",
+    "category": "other",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "method": "inhale",
+      "actionCost": 1,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeItem",
+      "variants": [
+        {
+          "id": "consumeItem",
+          "label": "Consume Item",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "quantity": {
+      "value": 1,
+      "max": 1,
+      "unit": "dose"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "",
+      "recoveryInterval": ""
+    },
+    "effects": [
+      {
+        "label": "Rouse Subject",
+        "type": "removePenalty",
+        "target": "stunned",
+        "formula": "",
+        "value": 1,
+        "condition": "",
+        "notes": "<p>May end a brief incapacitation.</p>"
+      }
+    ],
+    "sideEffects": [],
+    "physical": {
+      "weight": 0.1,
+      "bulk": 0,
+      "perishable": false,
+      "shelfLife": "12 months"
+    },
+    "properties": {
+      "tags": [
+        "revival"
+      ],
+      "addictive": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

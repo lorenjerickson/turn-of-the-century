@@ -1,0 +1,33 @@
+{
+  "_id": "aa4fd2f81b8c88d1",
+  "name": "Imperial Russian Refugees",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A social and linguistic background package.</p>",
+    "nationalIdentity": "russian",
+    "languages": {
+      "primary": "russian",
+      "spoken": [
+        "russian",
+        "english"
+      ],
+      "literate": [
+        "russian",
+        "french"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "St. Petersburg and Odessa",
+      "diaspora": "<p>Refugee committees circulate coded news through tea rooms and print shops.</p>",
+      "periodContext": "<p>Political surveillance follows them across borders.</p>"
+    }
+  },
+  "flags": {}
+}

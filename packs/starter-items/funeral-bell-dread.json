@@ -1,0 +1,74 @@
+{
+  "_id": "58c9700819dd38a5",
+  "name": "Funeral Bell Dread",
+  "type": "effect",
+  "img": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+      "caption": "Condition marker",
+      "credit": "Core icon set"
+    },
+    "name": "Funeral Bell Dread",
+    "description": "<p>Repeated tolling from a nearby belfry unsettles even seasoned operatives.</p>",
+    "disposition": "mixed",
+    "category": "mental",
+    "duration": {
+      "value": 1,
+      "unit": "scene",
+      "rounds": 0,
+      "startTime": 0,
+      "expiresOnRest": false
+    },
+    "impacts": [
+      {
+        "label": "Shaken Courage",
+        "targetType": "ability",
+        "target": "san",
+        "path": "",
+        "operation": "add",
+        "value": -1,
+        "formula": "",
+        "condition": "while bell is audible",
+        "notes": "<p>Sanity tests become more difficult.</p>"
+      },
+      {
+        "label": "Heightened Alert",
+        "targetType": "skill",
+        "target": "perception",
+        "path": "",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "while bell is audible",
+        "notes": "<p>Perception rises from anxiety.</p>"
+      }
+    ],
+    "affectedKeys": {
+      "abilities": [
+        "san"
+      ],
+      "skills": [
+        "perception"
+      ],
+      "actions": []
+    },
+    "removal": {
+      "removable": true,
+      "method": "",
+      "difficulty": 0
+    },
+    "stacking": {
+      "stackable": false,
+      "maxStacks": 1,
+      "stackKey": ""
+    },
+    "source": {
+      "type": "",
+      "itemId": "",
+      "actorId": "",
+      "notes": ""
+    }
+  },
+  "flags": {}
+}

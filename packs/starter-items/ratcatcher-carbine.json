@@ -1,0 +1,83 @@
+{
+  "_id": "67860fa5613c22cf",
+  "name": "Ratcatcher Carbine",
+  "type": "weapon",
+  "img": "icons/weapons/guns/gun-rifle-brown.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/weapons/swords/sword-guard-steel.webp",
+      "caption": "Combat implement",
+      "credit": "Core icon set"
+    },
+    "commonName": "Carbine",
+    "description": "<p>A short rifle favored on railways and warehouse roofs.</p>",
+    "classification": "firearm",
+    "quality": "fine",
+    "rarity": "common",
+    "slot": "hands",
+    "damage": {
+      "formula": "1d10",
+      "type": "ballistic",
+      "versatileFormula": "",
+      "bonus": 0
+    },
+    "handedness": "twoHanded",
+    "actions": {
+      "defaultActionId": "weaponAttack",
+      "variants": [
+        {
+          "id": "weaponAttack",
+          "label": "Attack",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "ammunition": {
+      "required": true,
+      "type": "carbine-round",
+      "capacity": 5,
+      "loaded": 5,
+      "consumedPerAttack": 1
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 11,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiredProficiencies": [
+        {
+          "type": "firearm",
+          "key": "",
+          "label": "Longarm Training"
+        }
+      ],
+      "notes": "<p>Commonly understood handling.</p>"
+    },
+    "physical": {
+      "weight": 7,
+      "bulk": 2,
+      "range": {
+        "normal": 90,
+        "long": 240
+      }
+    },
+    "properties": {
+      "tags": [
+        "longarm"
+      ],
+      "concealable": false,
+      "noisy": true,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

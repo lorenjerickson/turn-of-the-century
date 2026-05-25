@@ -1,0 +1,66 @@
+{
+  "_id": "cabc82239a2e26d8",
+  "name": "Pocket Hourglass",
+  "type": "item",
+  "img": "icons/tools/time/hourglass-brown.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Hourglass",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "instrument",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "insight",
+        "difficulty": 9,
+        "required": false,
+        "purpose": "<p>Track short intervals under pressure.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.2,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "glass"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "timing",
+        "forensic"
+      ],
+      "concealable": false,
+      "fragile": true,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

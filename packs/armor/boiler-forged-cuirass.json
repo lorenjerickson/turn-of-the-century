@@ -1,0 +1,52 @@
+{
+  "_id": "68889d3fa827d2fe",
+  "name": "Boiler-Forged Cuirass",
+  "type": "armor",
+  "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "caption": "Protective wear",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Heavy riveted plating for furnace crews and industrial marshals.</p>",
+    "category": "heavy",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "torso",
+    "armorClass": {
+      "increment": 3,
+      "appliesWhenWorn": true
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 12,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiresTraining": true,
+      "requiredTrait": "",
+      "notes": "<p>No formal training requirement.</p>"
+    },
+    "encumbrance": {
+      "weight": 18,
+      "bulk": 3,
+      "stealthPenalty": -2,
+      "movementPenalty": -5
+    },
+    "properties": {
+      "tags": [
+        "industrial",
+        "plated"
+      ],
+      "concealable": false,
+      "noisy": true,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

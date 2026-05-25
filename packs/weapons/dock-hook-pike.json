@@ -1,0 +1,78 @@
+{
+  "_id": "90458f73575efc03",
+  "name": "Dock Hook Pike",
+  "type": "weapon",
+  "img": "icons/weapons/polearms/halberd-simple.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/weapons/swords/sword-guard-steel.webp",
+      "caption": "Combat implement",
+      "credit": "Core icon set"
+    },
+    "commonName": "Hook Pike",
+    "description": "<p>A robust instrument for close or distant violence.</p>",
+    "classification": "martialMelee",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "damage": {
+      "formula": "1d8",
+      "type": "piercing",
+      "versatileFormula": "",
+      "bonus": 0
+    },
+    "handedness": "twoHanded",
+    "actions": {
+      "defaultActionId": "weaponAttack",
+      "variants": [
+        {
+          "id": "weaponAttack",
+          "label": "Attack",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "ammunition": {
+      "required": false,
+      "type": "",
+      "capacity": 0,
+      "loaded": 0,
+      "consumedPerAttack": 0
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiredProficiencies": [],
+      "notes": "<p>Commonly understood handling.</p>"
+    },
+    "physical": {
+      "weight": 5.5,
+      "bulk": 2,
+      "range": {
+        "normal": 10,
+        "long": 20
+      }
+    },
+    "properties": {
+      "tags": [
+        "hook",
+        "polearm"
+      ],
+      "concealable": false,
+      "noisy": false,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

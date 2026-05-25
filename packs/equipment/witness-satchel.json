@@ -1,0 +1,66 @@
+{
+  "_id": "0f1c8fb7a1f5252a",
+  "name": "Witness Satchel",
+  "type": "item",
+  "img": "icons/containers/bags/pack-simple-leather-tan.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Satchel",
+    "description": "<p>A partitioned leather satchel for transcripts, sketches, and sealed evidence.</p>",
+    "category": "container",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "investigation",
+        "difficulty": 8,
+        "required": false,
+        "purpose": "<p>Retrieve stored evidence quickly.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 1.8,
+      "bulk": 1,
+      "quantity": 1,
+      "unit": "satchel"
+    },
+    "value": {
+      "price": 3,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "container",
+        "evidence"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

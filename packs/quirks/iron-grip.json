@@ -1,0 +1,33 @@
+{
+  "_id": "c991f17a6b3e2a78",
+  "name": "Iron Grip",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A crushing hold practiced in docks, mills, and prison yards.</p>",
+    "source": {
+      "type": "profession",
+      "itemId": "",
+      "label": "Railway Marshal"
+    },
+    "effects": [
+      {
+        "label": "Hold Fast",
+        "targetType": "skill",
+        "target": "athletics",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "during grapples",
+        "appliesWhenEncumbered": true
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

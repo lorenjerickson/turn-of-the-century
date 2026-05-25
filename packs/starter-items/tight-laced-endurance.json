@@ -1,0 +1,33 @@
+{
+  "_id": "14ed76c274949ffa",
+  "name": "Tight-Laced Endurance",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Can wear heavy formal layers for hours without complaint.</p>",
+    "source": {
+      "type": "other",
+      "itemId": "",
+      "label": "Social Conditioning"
+    },
+    "effects": [
+      {
+        "label": "Wardrobe Tolerance",
+        "targetType": "encumbrance",
+        "target": "bulk",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "while wearing clothing armor",
+        "appliesWhenEncumbered": false
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

@@ -1,0 +1,76 @@
+{
+  "_id": "0330a7d16b010d1d",
+  "name": "Field Bandage Roll",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Bandage Roll",
+    "description": "<p>Sterile cloth and clasp pins wrapped for rapid field dressing.</p>",
+    "category": "bandage",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "method": "apply",
+      "actionCost": 1,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeItem",
+      "variants": [
+        {
+          "id": "consumeItem",
+          "label": "Consume Item",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "quantity": {
+      "value": 3,
+      "max": 3,
+      "unit": "wrap"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "",
+      "recoveryInterval": ""
+    },
+    "effects": [
+      {
+        "label": "Staunch Bleeding",
+        "type": "removePenalty",
+        "target": "bleeding",
+        "formula": "",
+        "value": 1,
+        "condition": "",
+        "notes": "<p>Ends minor ongoing bleed conditions.</p>"
+      }
+    ],
+    "sideEffects": [],
+    "physical": {
+      "weight": 0.4,
+      "bulk": 0,
+      "perishable": false,
+      "shelfLife": "24 months"
+    },
+    "properties": {
+      "tags": [
+        "first-aid"
+      ],
+      "addictive": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

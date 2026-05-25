@@ -1,0 +1,33 @@
+{
+  "_id": "fb3fd893d337dae4",
+  "name": "Carpathian Mining Houses",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A social and linguistic background package.</p>",
+    "nationalIdentity": "hungarian",
+    "languages": {
+      "primary": "hungarian",
+      "spoken": [
+        "hungarian",
+        "german"
+      ],
+      "literate": [
+        "hungarian",
+        "german"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "Carpathian uplands",
+      "diaspora": "<p>Mine engineers and furnace crews follow metallurgy contracts west.</p>",
+      "periodContext": "<p>Industrial migration strains old regional loyalties.</p>"
+    }
+  },
+  "flags": {}
+}

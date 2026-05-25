@@ -1,0 +1,77 @@
+{
+  "_id": "4b9e18034ac21834",
+  "name": "Nerves of Iron",
+  "type": "talent",
+  "img": "icons/magic/control/fear-fright-monster-purple-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Iron Nerves",
+    "description": "<p>Discipline and grim experience keep the mind ordered under dread.</p>",
+    "category": "miscellaneous",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "slot": "belt",
+    "use": {
+      "actionCost": 0,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "insight",
+        "difficulty": 12,
+        "required": false,
+        "purpose": "<p>Center yourself before fear effects.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [
+      {
+        "label": "Steeled Mind",
+        "targetType": "ability",
+        "target": "san",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "against fear effects",
+        "notes": "<p>Applies to sanity-related tests.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "training"
+    },
+    "value": {
+      "price": 0,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "talent",
+        "mental"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

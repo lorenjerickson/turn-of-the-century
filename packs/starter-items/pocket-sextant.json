@@ -1,0 +1,66 @@
+{
+  "_id": "ee45156070501053",
+  "name": "Pocket Sextant",
+  "type": "equipment",
+  "img": "icons/tools/navigation/compass-plain-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Sextant",
+    "description": "<p>A practical article of the present age.</p>",
+    "category": "instrument",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "nature",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Estimate angle and direction in poor visibility.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.9,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "instrument"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "navigation",
+        "instrument"
+      ],
+      "concealable": false,
+      "fragile": true,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

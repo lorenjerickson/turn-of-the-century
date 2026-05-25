@@ -1,0 +1,33 @@
+{
+  "_id": "2251e8229dc45ee1",
+  "name": "Iberian Signal Corps",
+  "type": "ethnicity",
+  "img": "icons/commodities/treasure/token-engraved-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/commodities/treasure/token-engraved-blue.webp",
+      "caption": "Community marker",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A social and linguistic background package.</p>",
+    "nationalIdentity": "spanish",
+    "languages": {
+      "primary": "spanish",
+      "spoken": [
+        "spanish",
+        "english"
+      ],
+      "literate": [
+        "spanish",
+        "english"
+      ]
+    },
+    "grantedQuirks": [],
+    "culturalNotes": {
+      "homeland": "Madrid and Barcelona",
+      "diaspora": "<p>Telegraph crews circulate between colonial and industrial ports.</p>",
+      "periodContext": "<p>Military signaling methods overlap with civilian rail communications.</p>"
+    }
+  },
+  "flags": {}
+}

@@ -1,0 +1,33 @@
+{
+  "_id": "2cb72d7511c972e6",
+  "name": "Smoke-Honed Eyes",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Can pick movement from haze where others see only soot.</p>",
+    "source": {
+      "type": "other",
+      "itemId": "",
+      "label": "Foundry Exposure"
+    },
+    "effects": [
+      {
+        "label": "Haze Sight",
+        "targetType": "skill",
+        "target": "perception",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "in smoke",
+        "appliesWhenEncumbered": false
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}
