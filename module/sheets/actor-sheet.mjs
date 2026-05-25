@@ -2,11 +2,12 @@ import { TOTC_EQUIPMENT_SLOT_KEYS } from "../models/actor.mjs";
 import { buildEncounterPlanner } from "../encounters/planner-context.mjs";
 import {
     renderFoundryApplication,
-    requireActorSheetV2
+    requireActorSheetV2,
+    requireItemDocumentClass
 } from "../foundry-v14-runtime.mjs";
 
 const BaseActorSheet = requireActorSheetV2();
-const BaseItemDocument = foundry.documents?.Item ?? Item;
+const BaseItemDocument = requireItemDocumentClass();
 
 function toArrayInput(value) {
     if (!Array.isArray(value)) return "";

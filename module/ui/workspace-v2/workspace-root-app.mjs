@@ -46,10 +46,12 @@ import {
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
 import {
     renderFoundryApplication,
-    requireApplicationV2
+    requireApplicationV2,
+    requireCombatDocumentClass
 } from "../../foundry-v14-runtime.mjs";
 
 const ApplicationV2Base = requireApplicationV2();
+const CombatDocumentClass = requireCombatDocumentClass();
 
 const DOCK_LABELS = Object.freeze({
     leftDock: "Left Dock",
@@ -2188,8 +2190,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }
             case "gm-start-encounter": {
                 let activeCombat = combat;
-                if (!activeCombat && canvas?.scene?.id && typeof Combat?.create === "function") {
-                    activeCombat = await Combat.create({ scene: canvas.scene.id });
+                if (!activeCombat && canvas?.scene?.id && typeof CombatDocumentClass?.create === "function") {
+                    activeCombat = await CombatDocumentClass.create({ scene: canvas.scene.id });
                 }
                 if (activeCombat?.initializeEncounterRound) {
                     await activeCombat.initializeEncounterRound();
@@ -3848,7 +3850,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     canvas?.tokens?.activate?.();
                     break;
                 case "navigate.combat":
-                    ui.combat?.render?.(true);
+                    renderFoundryApplication(ui.combat, { force: true });
                     break;
                 default:
                     console.warn("[turn-of-the-century] Unknown navigate action:", navigateAction);

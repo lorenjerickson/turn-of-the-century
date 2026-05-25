@@ -9,6 +9,14 @@ const EXTRA_FILES = ["turn-of-the-century.mjs"];
 const BANNED_PATTERNS = [
     { name: "global FilePicker", pattern: /globalThis\.FilePicker|\bwindow\.FilePicker\b/ },
     { name: "global Scene document class", pattern: /globalThis\.Scene|\bwindow\.Scene\b/ },
+    { name: "global Actor document class", pattern: /globalThis\.Actor|\bwindow\.Actor\b/ },
+    { name: "global Item document class", pattern: /globalThis\.Item|\bwindow\.Item\b/ },
+    { name: "global Combat document class", pattern: /globalThis\.Combat|\bwindow\.Combat\b/ },
+    { name: "global Folder document class", pattern: /globalThis\.Folder|\bwindow\.Folder\b/ },
+    { name: "unqualified Actor.create", pattern: /\bActor\.create\s*\(/ },
+    { name: "unqualified Item.create", pattern: /\bItem\.create\s*\(/ },
+    { name: "unqualified Combat.create", pattern: /\bCombat\.create\s*\(/ },
+    { name: "unqualified Folder.create", pattern: /\bFolder\.create\s*\(/ },
     { name: "Application V1 class", pattern: /\bApplicationV1\b|\bFormApplication\b/ },
     { name: "legacy ActorSheet class", pattern: /foundry\.applications\??\.sheets\??\.ActorSheet(?!V2)/ },
     { name: "legacy ItemSheet class", pattern: /foundry\.applications\??\.sheets\??\.ItemSheet(?!V2)/ },
@@ -18,7 +26,8 @@ const BANNED_PATTERNS = [
     { name: "legacy scene grid offset", pattern: /grid\.offset/ },
     { name: "Application V1 activateListeners", pattern: /\bactivateListeners\s*\(/ },
     { name: "Application V1 getData", pattern: /^\s*(?:async\s+)?getData\s*\(/ },
-    { name: "renderPopout fallback", pattern: /\brenderPopout\s*\(/ }
+    { name: "renderPopout fallback", pattern: /\brenderPopout\s*\(/ },
+    { name: "private i18n fallback access", pattern: /game\.i18n\._fallback/ }
 ];
 
 function listMjsFiles(dir) {

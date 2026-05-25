@@ -6,9 +6,17 @@
  */
 
 import { ADVERSARY_PROFILES, instantiateEncounterSeed } from "./enhanced-seeds.mjs";
+import {
+    requireActorDocumentClass,
+    requireCombatDocumentClass,
+    requireFolderDocumentClass
+} from "../foundry-v14-runtime.mjs";
 
 const NPC_ACTOR_TYPE = "pawn";
 const DEFAULT_NPC_FOLDER_NAME = "Combat NPCs";
+const ActorDocumentClass = requireActorDocumentClass();
+const CombatDocumentClass = requireCombatDocumentClass();
+const FolderDocumentClass = requireFolderDocumentClass();
 
 /**
  * Get or create the Combat NPCs folder for temporary actors
@@ -19,7 +27,7 @@ async function getOrCreateNpcFolder() {
     let folder = game.folders?.find((f) => f.name === folderName && f.type === "Actor");
 
     if (!folder) {
-        folder = await Folder.create({
+        folder = await FolderDocumentClass.create({
             name: folderName,
             type: "Actor",
             parent: null
@@ -80,7 +88,7 @@ async function createNpcActorFromProfile(profile, folder = null, options = {}) {
     };
 
     // Create the actor
-    const actor = await Actor.create(actorData);
+    const actor = await ActorDocumentClass.create(actorData);
     return actor;
 }
 
@@ -183,7 +191,7 @@ async function createCombatEncounterWithNpcs(seed, difficulty = "standard", base
         const combatData = {
             scene: game.scenes.current?.id ?? null
         };
-        combat = await Combat.create(combatData);
+        combat = await CombatDocumentClass.create(combatData);
     }
 
     // Add NPCs to combat

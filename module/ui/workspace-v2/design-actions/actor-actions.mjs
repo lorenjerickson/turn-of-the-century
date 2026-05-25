@@ -1,5 +1,6 @@
 import {
-    renderFoundryApplication
+    renderFoundryApplication,
+    requireActorDocumentClass
 } from "../../../foundry-v14-runtime.mjs";
 
 const DEFAULT_NPC_NAME = "New NPC";
@@ -58,12 +59,14 @@ export function buildDesignNpcActorData({
 }
 
 export async function createNpcDesignActor({
-    actorClass = globalThis.Actor,
+    actorClass = null,
+    foundry = globalThis.foundry,
     actors = globalThis.game?.actors,
     folderId = null,
     sourcePanelId = "",
     renderSheet = true
 } = {}) {
+    actorClass ??= requireActorDocumentClass({ foundry });
     if (!actorClass?.create) {
         throw new Error("Actor creation is not available.");
     }

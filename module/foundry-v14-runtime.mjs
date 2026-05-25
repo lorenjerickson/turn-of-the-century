@@ -43,6 +43,22 @@ export function requireSceneDocumentClass(overrides = {}) {
     return requireValue(getFoundry(overrides)?.documents?.Scene, "Scene document class");
 }
 
+export function requireActorDocumentClass(overrides = {}) {
+    return requireValue(getFoundry(overrides)?.documents?.Actor, "Actor document class");
+}
+
+export function requireItemDocumentClass(overrides = {}) {
+    return requireValue(getFoundry(overrides)?.documents?.Item, "Item document class");
+}
+
+export function requireCombatDocumentClass(overrides = {}) {
+    return requireValue(getFoundry(overrides)?.documents?.Combat, "Combat document class");
+}
+
+export function requireFolderDocumentClass(overrides = {}) {
+    return requireValue(getFoundry(overrides)?.documents?.Folder, "Folder document class");
+}
+
 export function requireActorsCollection(overrides = {}) {
     return requireValue(getFoundry(overrides)?.documents?.collections?.Actors, "Actors collection");
 }

@@ -96,6 +96,7 @@ import {
     renderFoundryApplication,
     requireActorSheetV2,
     requireActorsCollection,
+    requireCombatDocumentClass,
     requireItemSheetV2,
     requireItemsCollection
 } from "./module/foundry-v14-runtime.mjs";
@@ -122,6 +123,7 @@ const ActorsCollection = requireActorsCollection();
 const ItemsCollection = requireItemsCollection();
 const BaseActorSheetClass = requireActorSheetV2();
 const BaseItemSheetClass = requireItemSheetV2();
+const CombatDocumentClass = requireCombatDocumentClass();
 let encounterPlanningWatchHandle = null;
 const initiativePromptKeys = new Set();
 let workspaceV2Coordinator = null;
@@ -319,10 +321,6 @@ async function ensureTotcLocalizationLoaded() {
             };
 
             game.i18n.translations = foundry.utils.mergeObject(game.i18n.translations, translations, mergeOptions);
-
-            if (game.i18n._fallback && typeof game.i18n._fallback === "object") {
-                game.i18n._fallback = foundry.utils.mergeObject(game.i18n._fallback, translations, mergeOptions);
-            }
 
             if (game.i18n.localize(probeKey) !== probeKey) {
                 console.warn(`[turn-of-the-century] Recovered missing i18n translations from ${path}.`);

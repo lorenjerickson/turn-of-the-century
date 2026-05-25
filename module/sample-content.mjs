@@ -1,4 +1,11 @@
+import {
+    requireActorDocumentClass,
+    requireItemDocumentClass
+} from "./foundry-v14-runtime.mjs";
+
 const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha", "san"];
+const ActorDocumentClass = requireActorDocumentClass();
+const ItemDocumentClass = requireItemDocumentClass();
 const SKILL_ABILITY_MAP = {
     acrobatics: "dex",
     animalHandling: "wis",
@@ -3166,7 +3173,7 @@ export async function createTotcSampleContent({
             }
             if (existing && overwrite) await existing.delete();
 
-            await Actor.create(maybeDeepClone(actorData));
+            await ActorDocumentClass.create(maybeDeepClone(actorData));
             createdActors += 1;
             createdByType[actorData.type] = (createdByType[actorData.type] ?? 0) + 1;
         }
@@ -3186,7 +3193,7 @@ export async function createTotcSampleContent({
             }
             if (existing && overwrite) await existing.delete();
 
-            await Item.create(maybeDeepClone(itemData));
+            await ItemDocumentClass.create(maybeDeepClone(itemData));
             createdItems += 1;
             createdByType[itemData.type] = (createdByType[itemData.type] ?? 0) + 1;
         }

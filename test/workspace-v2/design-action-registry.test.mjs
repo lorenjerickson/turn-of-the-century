@@ -6,13 +6,11 @@ import {
     WorkspaceDesignActionRegistry
 } from "../../module/ui/workspace-v2/design-action-registry.mjs";
 
-const originalActor = globalThis.Actor;
 const originalGame = globalThis.game;
 const originalCanvas = globalThis.canvas;
 const originalUi = globalThis.ui;
 
 afterEach(() => {
-    globalThis.Actor = originalActor;
     globalThis.game = originalGame;
     globalThis.canvas = originalCanvas;
     globalThis.ui = originalUi;
@@ -73,18 +71,19 @@ describe("WorkspaceDesignActionRegistry", () => {
 
     it("executes the default NPC creation action", async () => {
         let createdData = null;
-        globalThis.Actor = {
+        const actorClass = {
             create: async (data) => {
                 createdData = data;
                 return { name: data.name };
             }
         };
-        globalThis.game = {
-            actors: [{ name: "New NPC" }]
-        };
 
         const action = DEFAULT_DESIGN_ACTION_REGISTRY.get("actor.createNpc");
-        const actor = await action.execute({ sourcePanel: { id: "encounter" } });
+        const actor = await action.execute({
+            actorClass,
+            actors: [{ name: "New NPC" }],
+            sourcePanel: { id: "encounter" }
+        });
 
         assert.equal(actor.name, "New NPC 2");
         assert.equal(createdData.type, "pawn");

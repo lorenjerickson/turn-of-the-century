@@ -132,6 +132,9 @@ export const DEFAULT_DESIGN_ACTIONS = Object.freeze([
         contexts: ["player", "encounter", "tracker"],
         relevance: 86,
         execute: async (context = {}) => createNpcDesignActor({
+            actorClass: context.actorClass,
+            foundry: context.foundry,
+            actors: context.actors ?? context.game?.actors,
             sourcePanelId: context.sourcePanel?.id ?? context.panel?.id ?? ""
         })
     },
