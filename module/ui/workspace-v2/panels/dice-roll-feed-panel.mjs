@@ -33,14 +33,13 @@ function getSpeakerName(message) {
     return String(
         message?.speaker?.alias
         ?? message?.alias
-        ?? message?.user?.name
         ?? message?.author?.name
         ?? "Unknown Speaker"
     ).trim();
 }
 
 function getMessageUserName(message) {
-    return String(message?.user?.name ?? message?.author?.name ?? "").trim();
+    return String(message?.author?.name ?? "").trim();
 }
 
 export function buildDiceRollFeedPanelModel({ messages = [], limit = DEFAULT_LIMIT } = {}) {

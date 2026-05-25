@@ -1,5 +1,5 @@
 import { createNpcDesignActor } from "./design-actions/actor-actions.mjs";
-import { activateSceneWallDesignMode } from "./design-actions/scene-actions.mjs";
+import { activateSceneWallDesignMode, createSceneDesignScene } from "./design-actions/scene-actions.mjs";
 
 const DEFAULT_RELEVANCE = 50;
 
@@ -43,6 +43,30 @@ function normalizeAction(action = {}) {
 }
 
 export const DEFAULT_DESIGN_ACTIONS = Object.freeze([
+    {
+        id: "scene.create",
+        label: "Create Scene",
+        description: "Create a Foundry scene from an organized battle-map image.",
+        domain: "scene",
+        contexts: ["gamemaster", "map"],
+        relevance: 98,
+        execute: async (context = {}) => createSceneDesignScene(context)
+    },
+    {
+        id: "scene.grid",
+        label: "Grid",
+        description: "Calibrate the grid cell size and offset for this scene.",
+        domain: "scene",
+        contexts: ["map"],
+        relevance: 93,
+        execute: async (context = {}) => {
+            if (typeof context.app?._openGridCalibration === "function") {
+                context.app._openGridCalibration({ scene: context.scene });
+                return { ok: true, silent: true };
+            }
+            return { ok: false, level: "warn", message: "Grid calibration is not available." };
+        }
+    },
     {
         id: "scene.walls",
         label: "Walls",

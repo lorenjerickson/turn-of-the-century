@@ -12,7 +12,9 @@ describe("Design lens panel", () => {
         const actions = getDesignLensActions("map");
 
         assert.deepEqual(actions.map((action) => action.id), [
+            "scene.create",
             "scene.walls",
+            "scene.grid",
             "scene.lights",
             "scene.tokens",
             "scene.notes",

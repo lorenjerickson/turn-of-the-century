@@ -23,6 +23,13 @@ import {
     buildDesignIssuesPanelModel,
     renderDesignIssuesPanel
 } from "./panels/design-issues-panel.mjs";
+import {
+    buildGridCalibrationModel,
+    renderGridCalibrationDialog,
+    cornersToCellSize,
+    cornersToGridOffset,
+    GRID_CAL_PHASE_HINTS
+} from "./panels/grid-calibration.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
 
 function getApplicationV2BaseClass() {
@@ -104,6 +111,14 @@ const GM_ACTION_MODELS = Object.freeze([
         groupId: "encounter-control",
         keywords: ["combat", "encounter", "end", "stop"],
         isRelevant: (snapshot) => snapshot.hasActiveCombat
+    },
+    {
+        id: "gm-create-scene",
+        label: "Create Scene",
+        description: "Create a new scene from a battle-map image in the organized world assets folder.",
+        groupId: "scene-flow",
+        keywords: ["scene", "map", "battlemap", "background", "image", "create"],
+        isRelevant: () => true
     },
     {
         id: "gm-toggle-pause",
@@ -594,6 +609,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             offsetY: 0
         };
         this._mapPanSession = null;
+        this._gridCalibrationState = null;
         this._playerPanelSectionSnapshotInitialized = false;
         this._playerPanelVisibleSectionIds = new Set();
         this._sceneRefreshHandler = () => {
@@ -788,7 +804,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 name: scene?.name ?? game.scenes?.viewed?.name ?? "Current Scene",
                 mapSrc: this.#getSceneMapSource(scene),
                 width: Number(scene?.width ?? canvas?.dimensions?.sceneWidth ?? 0),
-                height: Number(scene?.height ?? canvas?.dimensions?.sceneHeight ?? 0)
+                height: Number(scene?.height ?? canvas?.dimensions?.sceneHeight ?? 0),
+                grid: {
+                    type: Number(scene?.grid?.type ?? 1),
+                    size: Number(scene?.grid?.size ?? 100),
+                    offset: {
+                        x: Number(scene?.grid?.offset?.x ?? 0),
+                        y: Number(scene?.grid?.offset?.y ?? 0)
+                    },
+                    distance: Number(scene?.grid?.distance ?? 5),
+                    units: String(scene?.grid?.units ?? "ft")
+                }
             },
             gm: gmSnapshot,
             gmPanel: highlightedGmPanel,
@@ -1287,6 +1313,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
 
         this.#wireMapInteractionHandlers();
+        this.#wireGridCalibrationHandlers();
 
         this.#wireInteractionHandlers();
         this.#wireResizeHandlers();
@@ -1299,6 +1326,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#unbindPlayerHooks();
         this.#unbindDesignIssuesHooks();
         this.#endMapPanSession();
+        this._gridCalibrationState = null;
         return await super.close?.(options);
     }
 
@@ -1456,19 +1484,29 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             const mapSrc = context.scene?.mapSrc ?? "";
             const dimensions = [context.scene?.width, context.scene?.height].filter((value) => Number.isFinite(value) && value > 0);
             const dimensionLabel = dimensions.length === 2 ? `${dimensions[0]} × ${dimensions[1]}` : "Scene map";
+
+            const calModel = buildGridCalibrationModel({
+                state: this._gridCalibrationState,
+                scene: context.scene
+            });
+            const calActive = calModel.active;
+            const calDialog = renderGridCalibrationDialog(calModel, { escapeHTML: (v) => this.#escapeHTML(v) });
+
             const imageMarkup = mapSrc
-                ? `<div class="totc-v2-map-panel__viewport" data-action="map-viewport" data-map-viewport="true">
+                ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true">
                     <img class="totc-v2-map-panel__image" src="${this.#escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false" data-action="map-image">
+                    ${calActive ? `<svg class="totc-v2-map-panel__grid-overlay" data-grid-overlay="true" aria-hidden="true"></svg>` : ""}
                 </div>`
                 : `<div class="totc-v2-map-panel__empty">No active scene map available</div>`;
 
             return `
-            <figure class="totc-v2-map-panel">
+            <figure class="totc-v2-map-panel${calActive ? " is-calibrating" : ""}">
                 ${imageMarkup}
                 <figcaption class="totc-v2-map-panel__caption">
                     <span class="totc-v2-map-panel__name">${sceneName}</span>
                     <span class="totc-v2-map-panel__meta">${this.#escapeHTML(dimensionLabel)}</span>
                 </figcaption>
+                ${calDialog}
             </figure>`;
         }
 
@@ -2123,6 +2161,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         switch (String(actionId)) {
             case "gm-toggle-pause": {
                 await game.togglePause?.(!game.paused, true);
+                break;
+            }
+            case "gm-create-scene": {
+                await this.#executeDesignAction("scene.create", { panelId: "gamemaster" });
                 break;
             }
             case "gm-open-combat-tracker": {
@@ -3176,6 +3218,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._mapViewportState.offsetY = clampedOffsets.offsetY;
 
         image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
+        if (this._gridCalibrationState?.active) this.#drawGridCalibrationOverlay();
     }
 
     #applyMapWheelZoom(viewport, image, event) {
@@ -3302,6 +3345,269 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return null;
     }
 
+    // -----------------------------------------------------------------------
+    // Grid calibration
+    // -----------------------------------------------------------------------
+
+    /**
+     * Open the grid calibration tool for the current scene.
+     * Called by the scene.grid design action execute function.
+     *
+     * @param {{ scene: object|null }} opts
+     */
+    _openGridCalibration({ scene = null } = {}) {
+        const liveScene = scene ?? canvas?.scene ?? game.scenes?.viewed ?? null;
+        this._gridCalibrationState = {
+            active: true,
+            sceneId: String(liveScene?.id ?? ""),
+            corner1: null,
+            corner2: null,
+            cellW: null,
+            cellH: null,
+            offsetX: null,
+            offsetY: null
+        };
+        this.render(false);
+    }
+
+    /** Close and tear down the grid calibration tool without saving. */
+    #closeGridCalibration() {
+        this._gridCalibrationState = null;
+        this.render(false);
+    }
+
+    /**
+     * Wire click listeners for the calibration dialog and the map viewport
+     * corner-picking interaction.  Called from _onRender each render cycle.
+     */
+    #wireGridCalibrationHandlers() {
+        // Dialog button wiring -------------------------------------------------
+
+        this.element?.querySelectorAll("[data-action='grid-cal-cancel']")?.forEach((btn) => {
+            btn.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.#closeGridCalibration();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='grid-cal-reset']")?.forEach((btn) => {
+            btn.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!this._gridCalibrationState) return;
+                this._gridCalibrationState.corner1 = null;
+                this._gridCalibrationState.corner2 = null;
+                // cellW/cellH/offsets are kept so the user can re-confirm with minor tweaks
+                this.render(false);
+            });
+        });
+
+        // Number inputs update state + redraw the overlay without a full render
+        this.element?.querySelectorAll("[data-action='grid-cal-cell-w']")?.forEach((input) => {
+            input.addEventListener("input", () => {
+                const v = Math.max(4, Number(input.value) || 4);
+                if (!this._gridCalibrationState) return;
+                this._gridCalibrationState.cellW = v;
+                // Square grids mirror width to height
+                if (this._gridCalibrationState.isSquare ?? true) {
+                    this._gridCalibrationState.cellH = v;
+                }
+                this.#drawGridCalibrationOverlay();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='grid-cal-cell-h']")?.forEach((input) => {
+            input.addEventListener("input", () => {
+                const v = Math.max(4, Number(input.value) || 4);
+                if (!this._gridCalibrationState) return;
+                this._gridCalibrationState.cellH = v;
+                this.#drawGridCalibrationOverlay();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='grid-cal-offset-x']")?.forEach((input) => {
+            input.addEventListener("input", () => {
+                if (!this._gridCalibrationState) return;
+                this._gridCalibrationState.offsetX = Math.max(0, Number(input.value) || 0);
+                this.#drawGridCalibrationOverlay();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='grid-cal-offset-y']")?.forEach((input) => {
+            input.addEventListener("input", () => {
+                if (!this._gridCalibrationState) return;
+                this._gridCalibrationState.offsetY = Math.max(0, Number(input.value) || 0);
+                this.#drawGridCalibrationOverlay();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='grid-cal-confirm']")?.forEach((btn) => {
+            btn.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#applyGridCalibration();
+            });
+        });
+
+        // Map viewport corner-picking ------------------------------------------
+        if (!this._gridCalibrationState?.active) return;
+
+        const viewport = this.element?.querySelector("[data-map-viewport='true']");
+        if (!viewport) return;
+
+        viewport.addEventListener("pointerdown", (event) => {
+            // Only intercept left-button clicks while in corner-picking phase
+            if (event.button !== 0) return;
+            const state = this._gridCalibrationState;
+            if (!state?.active || (state.corner1 && state.corner2)) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const vRect = viewport.getBoundingClientRect();
+            const { scale, offsetX: imgX, offsetY: imgY } = this._mapViewportState;
+            const point = {
+                x: Math.round((event.clientX - vRect.left - imgX) / scale),
+                y: Math.round((event.clientY - vRect.top  - imgY) / scale)
+            };
+
+            if (!state.corner1) {
+                state.corner1 = point;
+                // Imperatively update the hint text — avoids a full re-render
+                const hint = this.element?.querySelector(".totc-v2-grid-cal__hint");
+                if (hint) hint.innerHTML = GRID_CAL_PHASE_HINTS["pick-second"];
+                this.#drawGridCalibrationOverlay();
+            } else {
+                state.corner2 = point;
+                const { cellW, cellH } = cornersToCellSize(state.corner1, state.corner2);
+                const { offsetX, offsetY } = cornersToGridOffset(state.corner1, state.corner2, { cellW, cellH });
+                state.cellW = cellW || (state.cellW ?? 100);
+                state.cellH = cellH || (state.cellH ?? 100);
+                state.offsetX = offsetX;
+                state.offsetY = offsetY;
+                // Full render to show the adjust controls
+                this.render(false);
+            }
+        });
+
+        // Draw initial overlay (covers the case where we re-render mid-adjust)
+        this.#drawGridCalibrationOverlay();
+    }
+
+    /**
+     * Imperatively draw (or redraw) the SVG grid overlay over the map viewport.
+     * Called after corner picks and after each input change.
+     */
+    #drawGridCalibrationOverlay() {
+        const state = this._gridCalibrationState;
+        const overlay = this.element?.querySelector("[data-grid-overlay='true']");
+        if (!(overlay instanceof SVGElement)) return;
+
+        const viewport = overlay.closest("[data-map-viewport='true']");
+        if (!viewport) return;
+
+        const vRect = viewport.getBoundingClientRect();
+        const W = vRect.width;
+        const H = vRect.height;
+
+        const { scale, offsetX: imgX, offsetY: imgY } = this._mapViewportState;
+        const cellW = state?.cellW ?? 0;
+        const cellH = state?.cellH ?? 0;
+        const gridOffX = state?.offsetX ?? 0;
+        const gridOffY = state?.offsetY ?? 0;
+        const corner1 = state?.corner1 ?? null;
+        const corner2 = state?.corner2 ?? null;
+
+        overlay.setAttribute("width", W);
+        overlay.setAttribute("height", H);
+        overlay.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
+        let inner = "";
+
+        // Grid lines — only shown once both corners have been picked and we
+        // have a valid cell size.
+        if (corner2 && cellW >= 4 && cellH >= 4) {
+            // Vertical lines: viewport-x = imgX + (gridOffX + n*cellW) * scale
+            const xStep = cellW * scale;
+            const xBase = imgX + gridOffX * scale;
+            const nXStart = Math.floor(-xBase / xStep) - 1;
+            const nXEnd   = Math.ceil((W - xBase) / xStep) + 1;
+            for (let n = nXStart; n <= nXEnd; n++) {
+                const x = (xBase + n * xStep).toFixed(1);
+                inner += `<line x1="${x}" y1="0" x2="${x}" y2="${H}" class="totc-v2-grid-overlay__vline"/>`;
+            }
+
+            // Horizontal lines
+            const yStep = cellH * scale;
+            const yBase = imgY + gridOffY * scale;
+            const nYStart = Math.floor(-yBase / yStep) - 1;
+            const nYEnd   = Math.ceil((H - yBase) / yStep) + 1;
+            for (let n = nYStart; n <= nYEnd; n++) {
+                const y = (yBase + n * yStep).toFixed(1);
+                inner += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" class="totc-v2-grid-overlay__hline"/>`;
+            }
+
+            // Highlight the reference cell the user picked
+            const x1 = (imgX + Math.min(corner1.x, corner2.x) * scale).toFixed(1);
+            const y1 = (imgY + Math.min(corner1.y, corner2.y) * scale).toFixed(1);
+            const cw = (Math.abs(corner2.x - corner1.x) * scale).toFixed(1);
+            const ch = (Math.abs(corner2.y - corner1.y) * scale).toFixed(1);
+            inner += `<rect x="${x1}" y="${y1}" width="${cw}" height="${ch}" class="totc-v2-grid-overlay__cell-ref"/>`;
+        }
+
+        // Corner markers
+        for (const corner of [corner1, corner2]) {
+            if (!corner) continue;
+            const cx = (imgX + corner.x * scale).toFixed(1);
+            const cy = (imgY + corner.y * scale).toFixed(1);
+                        inner += `<circle cx="${cx}" cy="${cy}" r="7" class="totc-v2-grid-overlay__corner-ring"/>`;
+            inner += `<circle cx="${cx}" cy="${cy}" r="2.5" class="totc-v2-grid-overlay__corner-dot"/>`;
+        }
+
+        overlay.innerHTML = inner;
+    }
+
+    /**
+     * Apply the calibrated grid values to the Foundry scene document and
+     * close the calibration tool.
+     */
+    async #applyGridCalibration() {
+        const state = this._gridCalibrationState;
+        if (!state?.active) return;
+
+        const scene = state.sceneId
+            ? game.scenes?.get(state.sceneId)
+            : (canvas?.scene ?? game.scenes?.viewed ?? null);
+
+        if (!scene) {
+            ui.notifications?.warn("No active scene — cannot apply grid calibration.");
+            return;
+        }
+
+        const cellW = Math.max(4, Math.round(state.cellW ?? 100));
+        // Foundry scene.grid.size is a single value (square grids); use width.
+        const size = cellW;
+        const offsetX = Math.max(0, Math.round(state.offsetX ?? 0));
+        const offsetY = Math.max(0, Math.round(state.offsetY ?? 0));
+
+        try {
+            await scene.update({
+                "grid.size": size,
+                "grid.offset.x": offsetX,
+                "grid.offset.y": offsetY
+            });
+            ui.notifications?.info(`Grid updated: ${size} px per cell (offset ${offsetX}, ${offsetY}).`);
+        } catch (err) {
+            console.error("[turn-of-the-century] Grid calibration apply failed", err);
+            ui.notifications?.error("Failed to apply grid — see console for details.");
+            return;
+        }
+
+        this._gridCalibrationState = null;
+        this.render(false);
+    }
+
     async #executeDesignAction(actionId, { panelId = "" } = {}) {
         const action = this.designActionRegistry.get(actionId);
         if (!action) return;
@@ -3321,6 +3627,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
             if (result?.level === "warn") {
                 ui.notifications?.warn(result.message ?? `${action.label} is not available right now.`);
+            } else if (result?.silent) {
+                // Action handled its own UI (e.g. opened a dialog) — no notification needed.
             } else if (result?.message) {
                 ui.notifications?.info(result.message);
             } else if (result?.name) {

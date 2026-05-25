@@ -7,12 +7,16 @@ import {
 } from "../../module/ui/workspace-v2/design-action-registry.mjs";
 
 const originalActor = globalThis.Actor;
+const originalScene = globalThis.Scene;
+const originalFilePicker = globalThis.FilePicker;
 const originalGame = globalThis.game;
 const originalCanvas = globalThis.canvas;
 const originalUi = globalThis.ui;
 
 afterEach(() => {
     globalThis.Actor = originalActor;
+    globalThis.Scene = originalScene;
+    globalThis.FilePicker = originalFilePicker;
     globalThis.game = originalGame;
     globalThis.canvas = originalCanvas;
     globalThis.ui = originalUi;
@@ -110,5 +114,24 @@ describe("WorkspaceDesignActionRegistry", () => {
 
         assert.deepEqual(initializedWith, { control: "walls", tool: "walls" });
         assert.equal(result.ok, true);
+    });
+
+    it("executes the default scene creation action through the file picker", async () => {
+        let pickerOptions = null;
+        globalThis.FilePicker = class {
+            constructor(options) {
+                pickerOptions = options;
+            }
+
+            render() {}
+        };
+
+        const action = DEFAULT_DESIGN_ACTION_REGISTRY.get("scene.create");
+        const result = await action.execute({});
+
+        assert.equal(result.ok, true);
+        assert.equal(result.silent, true);
+        assert.equal(pickerOptions.current, "assets/images/scenes");
+        assert.equal(typeof pickerOptions.callback, "function");
     });
 });
