@@ -1145,6 +1145,18 @@ body.totc-v2-active #board {
     display: none !important;
 }
 
+body.totc-v2-active.totc-v2-native-settings-open #ui-right,
+body.totc-v2-active.totc-v2-native-settings-open #sidebar {
+    display: flex !important;
+    visibility: visible !important;
+    z-index: 1200;
+}
+
+body.totc-v2-active.totc-v2-native-settings-open #settings {
+    display: flex !important;
+    visibility: visible !important;
+}
+
 .totc-workspace-v2-root-app {
     inset: 0 !important;
     height: 100vh !important;
