@@ -36,6 +36,10 @@ import {
     GRID_CAL_PHASE_HINTS
 } from "./panels/grid-calibration.mjs";
 import {
+    buildPersistedMapViewportState,
+    buildRestoredMapViewportTransform
+} from "./panels/map-viewport-state.mjs";
+import {
     buildSceneBackgroundUploadTarget,
     buildScenePropertiesPanelModel,
     renderScenePropertiesPanel
@@ -624,7 +628,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             scale: null,
             offsetX: 0,
             offsetY: 0,
-            source: ""
+            source: "",
+            mapKey: ""
         };
         this._mapPanSession = null;
         this._gridCalibrationState = null;
@@ -1505,6 +1510,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
             const imageMarkup = mapSrc
                 ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true"
+                    data-map-key="${this.#escapeHTML(context.scene?.id ?? mapSrc)}"
                     data-grid-type="${this.#escapeHTML(context.scene?.grid?.type ?? "")}"
                     data-grid-size="${this.#escapeHTML(context.scene?.grid?.size ?? "")}"
                     data-grid-shift-x="${this.#escapeHTML(context.scene?.shiftX ?? 0)}"
@@ -3214,18 +3220,29 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const imageWidth = Math.max(1, image.naturalWidth);
         const imageHeight = Math.max(1, image.naturalHeight);
         const imageSource = String(image.currentSrc || image.src || "");
+        const mapKey = String(viewport.dataset.mapKey || imageSource || "").trim();
         const sourceChanged = Boolean(imageSource && this._mapViewportState.source !== imageSource);
-        const preserveCalibrationView = Boolean(this._gridCalibrationState?.active && Number.isFinite(this._mapViewportState.scale) && !sourceChanged);
+        const mapChanged = Boolean(mapKey && this._mapViewportState.mapKey !== mapKey);
 
         const minScale = Math.min(viewportWidth / imageWidth, viewportHeight / imageHeight);
         const maxScale = Math.max(minScale, 8);
 
-        if ((initializeScale && !preserveCalibrationView) || !Number.isFinite(this._mapViewportState.scale) || sourceChanged) {
-            this._mapViewportState.scale = minScale;
-            this._mapViewportState.offsetX = (viewportWidth - (imageWidth * minScale)) / 2;
-            this._mapViewportState.offsetY = (viewportHeight - (imageHeight * minScale)) / 2;
+        if (sourceChanged || mapChanged || !Number.isFinite(this._mapViewportState.scale)) {
+            const saved = this.stateStore?.getUserMapViewport?.(mapKey);
+            const restored = buildRestoredMapViewportTransform({
+                saved,
+                viewportWidth,
+                viewportHeight,
+                imageWidth,
+                imageHeight,
+                minScale
+            });
+            this._mapViewportState.scale = restored.scale;
+            this._mapViewportState.offsetX = restored.offsetX;
+            this._mapViewportState.offsetY = restored.offsetY;
         }
         this._mapViewportState.source = imageSource;
+        this._mapViewportState.mapKey = mapKey;
 
         this._mapViewportState.scale = this.#clamp(this._mapViewportState.scale, minScale, maxScale);
 
@@ -3283,6 +3300,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._mapViewportState.offsetX = clampedOffsets.offsetX;
         this._mapViewportState.offsetY = clampedOffsets.offsetY;
         image.style.transform = `translate(${this._mapViewportState.offsetX}px, ${this._mapViewportState.offsetY}px) scale(${this._mapViewportState.scale})`;
+        void this.#persistMapViewportState(viewport, image);
         this.#drawGridCalibrationOverlay();
     }
 
@@ -3323,10 +3341,36 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #endMapPanSession() {
+        const { viewport, image } = this._mapPanSession ?? {};
         this._mapPanSession?.viewport?.classList?.remove("is-panning");
         this._mapPanSession = null;
         document.removeEventListener("pointermove", this._onMapPanPointerMove);
         document.removeEventListener("pointerup", this._onMapPanPointerUp);
+        if (viewport && image) void this.#persistMapViewportState(viewport, image);
+    }
+
+    async #persistMapViewportState(viewport, image) {
+        const mapKey = String(viewport?.dataset?.mapKey || this._mapViewportState.mapKey || "").trim();
+        const scale = Number(this._mapViewportState.scale);
+        if (!mapKey || !Number.isFinite(scale) || scale <= 0) return;
+
+        const viewportRect = viewport.getBoundingClientRect();
+        const viewportWidth = Math.max(1, Math.round(viewportRect.width));
+        const viewportHeight = Math.max(1, Math.round(viewportRect.height));
+        const imageWidth = Math.max(1, image?.naturalWidth ?? 1);
+        const imageHeight = Math.max(1, image?.naturalHeight ?? 1);
+        const persisted = buildPersistedMapViewportState({
+            scale,
+            offsetX: this._mapViewportState.offsetX,
+            offsetY: this._mapViewportState.offsetY,
+            viewportWidth,
+            viewportHeight,
+            imageWidth,
+            imageHeight
+        });
+        if (!persisted) return;
+
+        await this.stateStore?.setUserMapViewport?.(mapKey, persisted);
     }
 
     #clampMapOffsets({ viewportWidth, viewportHeight, imageWidth, imageHeight, scale, offsetX, offsetY }) {

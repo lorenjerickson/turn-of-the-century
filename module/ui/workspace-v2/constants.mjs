@@ -5,6 +5,7 @@ export const WORKSPACE_V2_POLICY_SETTINGS = Object.freeze({
 
 export const WORKSPACE_V2_FLAG_SCOPE = "workspaceV2";
 export const WORKSPACE_V2_LAYOUT_FLAG = "layout";
+export const WORKSPACE_V2_MAP_VIEWPORTS_FLAG = "mapViewports";
 
 export const WORKSPACE_V2_BODY_CLASS = "totc-v2-active";
 export const WORKSPACE_V2_NATIVE_SETTINGS_CLASS = "totc-v2-native-settings-open";

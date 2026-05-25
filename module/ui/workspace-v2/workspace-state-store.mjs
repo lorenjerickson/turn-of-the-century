@@ -1,6 +1,7 @@
 import {
     WORKSPACE_V2_FLAG_SCOPE,
     WORKSPACE_V2_LAYOUT_FLAG,
+    WORKSPACE_V2_MAP_VIEWPORTS_FLAG,
     WORKSPACE_V2_POLICY_SETTINGS
 } from "./constants.mjs";
 
@@ -71,4 +72,39 @@ export class WorkspaceStateStore {
         await game.user?.setFlag(this.systemId, WORKSPACE_V2_FLAG_SCOPE, current);
         return null;
     }
+
+    getUserMapViewport(mapKey) {
+        const key = String(mapKey ?? "").trim();
+        if (!key) return null;
+        const viewports = game.user?.getFlag(this.systemId, WORKSPACE_V2_FLAG_SCOPE)?.[WORKSPACE_V2_MAP_VIEWPORTS_FLAG] ?? {};
+        return normalizeMapViewportState(viewports[key]);
+    }
+
+    async setUserMapViewport(mapKey, viewportState) {
+        const key = String(mapKey ?? "").trim();
+        if (!key) return null;
+
+        const normalized = normalizeMapViewportState(viewportState);
+        if (!normalized) return this.getUserMapViewport(key);
+
+        const current = foundry.utils.deepClone(game.user?.getFlag(this.systemId, WORKSPACE_V2_FLAG_SCOPE) ?? {});
+        current[WORKSPACE_V2_MAP_VIEWPORTS_FLAG] = foundry.utils.deepClone(current[WORKSPACE_V2_MAP_VIEWPORTS_FLAG] ?? {});
+        current[WORKSPACE_V2_MAP_VIEWPORTS_FLAG][key] = normalized;
+        await game.user?.setFlag(this.systemId, WORKSPACE_V2_FLAG_SCOPE, current);
+        return this.getUserMapViewport(key);
+    }
+}
+
+export function normalizeMapViewportState(value = null) {
+    const scale = Number(value?.scale);
+    const centerX = Number(value?.centerX);
+    const centerY = Number(value?.centerY);
+    if (!Number.isFinite(scale) || scale <= 0) return null;
+    if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return null;
+
+    return {
+        scale,
+        centerX,
+        centerY
+    };
 }
