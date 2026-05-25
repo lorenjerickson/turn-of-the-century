@@ -1,4 +1,8 @@
 import { WORKSPACE_V2_NATIVE_SETTINGS_CLASS } from "./constants.mjs";
+import {
+    getSettingsConfigClass,
+    renderFoundryApplication
+} from "../../foundry-v14-runtime.mjs";
 
 function getRuntime(overrides = {}) {
     return {
@@ -28,17 +32,7 @@ export function revealFoundrySettingsRegions({ document = globalThis.document, u
 }
 
 function renderApplication(app) {
-    if (typeof app?.render === "function") {
-        app.render(true);
-        return true;
-    }
-
-    if (typeof app?.renderPopout === "function") {
-        app.renderPopout(true);
-        return true;
-    }
-
-    return false;
+    return renderFoundryApplication(app, { force: true });
 }
 
 export function openFoundrySettingsView(overrides = {}) {
@@ -46,24 +40,18 @@ export function openFoundrySettingsView(overrides = {}) {
 
     revealFoundrySettingsRegions(runtime);
 
-    if (renderApplication(runtime.game?.settings?.sheet)) {
-        runtime.defer?.(() => revealFoundrySettingsRegions(runtime), 0);
-        return { ok: true, source: "game.settings.sheet" };
-    }
-
-    if (renderApplication(runtime.ui?.settings)) {
-        runtime.defer?.(() => revealFoundrySettingsRegions(runtime), 0);
-        return { ok: true, source: "ui.settings" };
-    }
-
-    const SettingsConfig = runtime.foundry?.applications?.apps?.SettingsConfig
-        ?? runtime.foundry?.applications?.settings?.SettingsConfig;
+    const SettingsConfig = getSettingsConfigClass(runtime);
     if (typeof SettingsConfig === "function") {
         const app = new SettingsConfig();
         if (renderApplication(app)) {
             runtime.defer?.(() => revealFoundrySettingsRegions(runtime), 0);
             return { ok: true, source: "SettingsConfig" };
         }
+    }
+
+    if (renderApplication(runtime.game?.settings?.sheet)) {
+        runtime.defer?.(() => revealFoundrySettingsRegions(runtime), 0);
+        return { ok: true, source: "game.settings.sheet" };
     }
 
     runtime.notifications?.warn?.("Foundry settings are not available in this session.");

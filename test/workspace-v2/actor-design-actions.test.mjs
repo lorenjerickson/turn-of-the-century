@@ -43,8 +43,8 @@ describe("actor design actions", () => {
                 return {
                     name: data.name,
                     sheet: {
-                        render: (force) => {
-                            sheetRendered = force;
+                        render: (options) => {
+                            sheetRendered = options;
                         }
                     }
                 };
@@ -60,6 +60,6 @@ describe("actor design actions", () => {
         assert.equal(actor.name, "New NPC 2");
         assert.equal(createdData.name, "New NPC 2");
         assert.equal(createdData.flags["turn-of-the-century"].sourcePanelId, "tracker");
-        assert.equal(sheetRendered, true);
+        assert.deepEqual(sheetRendered, { force: true });
     });
 });

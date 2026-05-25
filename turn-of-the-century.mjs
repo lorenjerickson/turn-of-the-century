@@ -91,6 +91,14 @@ import {
     REGIONS,
     CAMP_SEASONS
 } from "./module/camps/region-aware-events.mjs";
+import {
+    getDocumentApplications,
+    renderFoundryApplication,
+    requireActorSheetV2,
+    requireActorsCollection,
+    requireItemSheetV2,
+    requireItemsCollection
+} from "./module/foundry-v14-runtime.mjs";
 
 const STARTER_CONTENT_SEEDED_SETTING = "starterContentSeeded";
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
@@ -110,10 +118,10 @@ const ENCOUNTER_EVENT_HOOK_NAMES = [
     "totcEncounterCombatantReadyChanged",
     "totcEncounterPlanUpdated"
 ];
-const ActorsCollection = foundry.documents?.collections?.Actors ?? Actors;
-const ItemsCollection = foundry.documents?.collections?.Items ?? Items;
-const BaseActorSheetClass = foundry.applications?.sheets?.ActorSheetV2 ?? foundry.applications?.sheets?.ActorSheet;
-const BaseItemSheetClass = foundry.applications?.sheets?.ItemSheetV2 ?? foundry.applications?.sheets?.ItemSheet;
+const ActorsCollection = requireActorsCollection();
+const ItemsCollection = requireItemsCollection();
+const BaseActorSheetClass = requireActorSheetV2();
+const BaseItemSheetClass = requireItemSheetV2();
 let encounterPlanningWatchHandle = null;
 const initiativePromptKeys = new Set();
 let workspaceV2Coordinator = null;
@@ -156,33 +164,16 @@ function maybePromptInitiativeRolls(combat) {
 function rerenderEncounterActorSheets(combat) {
     if (!combat) return;
 
-    const combatActorIds = new Set(
-        (combat.combatants?.contents ?? [])
-            .map((combatant) => combatant.actor?.id ?? combatant.actorId)
-            .filter(Boolean)
-    );
-    const combatTokenIds = new Set(
-        (combat.combatants?.contents ?? [])
-            .map((combatant) => combatant.tokenId ?? combatant.token?.id)
-            .filter(Boolean)
-    );
+    const apps = new Set();
+    for (const combatant of combat.combatants?.contents ?? []) {
+        for (const app of getDocumentApplications(combatant.actor)) apps.add(app);
+        for (const app of getDocumentApplications(combatant.token?.actor)) apps.add(app);
+        for (const app of getDocumentApplications(combatant.token?.document?.actor)) apps.add(app);
+    }
 
-    for (const app of Object.values(ui.windows ?? {})) {
-        const classes = app?.options?.classes ?? [];
-        if (!Array.isArray(classes)) continue;
-        if (!classes.includes("turn-of-the-century") || !classes.includes("actor")) continue;
-        if (!app?.rendered || typeof app.render !== "function") continue;
-
-        const actorId = app.actor?.id;
-        const tokenId = app.token?.id ?? app.token?.document?.id;
-        const shouldRender = Boolean(
-            (actorId && combatActorIds.has(actorId))
-            || (tokenId && combatTokenIds.has(tokenId))
-        );
-
-        if (shouldRender) {
-            app.render(false);
-        }
+    for (const app of apps) {
+        if (!app?.rendered) continue;
+        renderFoundryApplication(app, { force: false });
     }
 }
 
@@ -193,7 +184,7 @@ function rerenderEncounterTracker(combat) {
     const viewedCombat = tracker.viewed ?? game.combat;
     if (!viewedCombat || viewedCombat.id !== combat?.id) return;
 
-    tracker.render(false);
+    renderFoundryApplication(tracker, { force: false });
 }
 
 function handleEncounterEventHook(hookName, payload = {}) {
@@ -335,12 +326,8 @@ async function ensureTotcLocalizationLoaded() {
 
             if (game.i18n.localize(probeKey) !== probeKey) {
                 console.warn(`[turn-of-the-century] Recovered missing i18n translations from ${path}.`);
-                for (const app of Object.values(ui.windows ?? {})) {
-                    if (!app?.rendered || typeof app.render !== "function") continue;
-                    app.render(false);
-                }
                 if (ui.combat?.rendered && typeof ui.combat.render === "function") {
-                    ui.combat.render(false);
+                    renderFoundryApplication(ui.combat, { force: false });
                 }
                 return;
             }

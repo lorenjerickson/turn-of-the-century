@@ -36,17 +36,47 @@ function makeDocument(elements = {}) {
 }
 
 describe("workspace system menu", () => {
-    it("opens Foundry's native settings sheet when available", () => {
+    it("opens Foundry's V14 SettingsConfig before legacy settings sheet fallback", () => {
         let renderedWith = null;
         const document = makeDocument();
         const result = openFoundrySettingsView({
             document,
             defer: (callback) => callback(),
+            foundry: {
+                applications: {
+                    apps: {
+                        SettingsConfig: class SettingsConfig {
+                            render(options) {
+                                renderedWith = options;
+                            }
+                        }
+                    }
+                }
+            },
             game: {
                 settings: {
                     sheet: {
-                        render: (force) => {
-                            renderedWith = force;
+                        render: () => {
+                            throw new Error("legacy settings sheet was accessed");
+                        }
+                    }
+                }
+            }
+        });
+
+        assert.deepEqual(result, { ok: true, source: "SettingsConfig" });
+        assert.deepEqual(renderedWith, { force: true });
+        assert.equal(document.body.classList.contains("totc-v2-native-settings-open"), true);
+    });
+
+    it("falls back to the settings sheet when SettingsConfig is unavailable", () => {
+        let renderedWith = null;
+        const result = openFoundrySettingsView({
+            game: {
+                settings: {
+                    sheet: {
+                        render: (options) => {
+                            renderedWith = options;
                         }
                     }
                 }
@@ -54,25 +84,7 @@ describe("workspace system menu", () => {
         });
 
         assert.deepEqual(result, { ok: true, source: "game.settings.sheet" });
-        assert.equal(renderedWith, true);
-        assert.equal(document.body.classList.contains("totc-v2-native-settings-open"), true);
-    });
-
-    it("falls back to the settings sidebar app", () => {
-        let renderedWith = null;
-        const result = openFoundrySettingsView({
-            game: { settings: {} },
-            ui: {
-                settings: {
-                    renderPopout: (force) => {
-                        renderedWith = force;
-                    }
-                }
-            }
-        });
-
-        assert.deepEqual(result, { ok: true, source: "ui.settings" });
-        assert.equal(renderedWith, true);
+        assert.deepEqual(renderedWith, { force: true });
     });
 
     it("reveals the native settings sidebar regions hidden by the workspace shell", () => {

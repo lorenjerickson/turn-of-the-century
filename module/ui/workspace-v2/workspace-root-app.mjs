@@ -30,6 +30,7 @@ import {
     renderGridCalibrationDialog,
     cornersToCellSize,
     cornersToGridOffset,
+    buildGridCalibrationSceneUpdate,
     buildGridCalibrationOverlayModel,
     GRID_CAL_PHASE_HINTS
 } from "./panels/grid-calibration.mjs";
@@ -43,12 +44,12 @@ import {
     uploadSceneBackgroundFile
 } from "./design-actions/scene-actions.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
+import {
+    renderFoundryApplication,
+    requireApplicationV2
+} from "../../foundry-v14-runtime.mjs";
 
-function getApplicationV2BaseClass() {
-    return foundry?.applications?.api?.ApplicationV2 ?? null;
-}
-
-const ApplicationV2Base = getApplicationV2BaseClass();
+const ApplicationV2Base = requireApplicationV2();
 
 const DOCK_LABELS = Object.freeze({
     leftDock: "Left Dock",
@@ -635,7 +636,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._playerPanelVisibleSectionIds = new Set();
         this._sceneRefreshHandler = () => {
             if (this.rendered) {
-                this.render(false);
+                this.render({ force: false });
             }
         };
         this._compendiumRefreshHandler = () => {
@@ -643,7 +644,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             this._compendiumItemEntries = null;
             this._compendiumItemsPromise = null;
             if (this.rendered) {
-                this.render(false);
+                this.render({ force: false });
             }
         };
         this._compendiumDocumentMutationHandler = (document, change, options = {}) => {
@@ -653,16 +654,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
         this._gamemasterRefreshHandler = () => {
             if (this.rendered) {
-                this.render(false);
+                this.render({ force: false });
             }
         };
         this._playerRefreshHandler = () => {
             if (this.rendered) {
-                this.render(false);
+                this.render({ force: false });
             }
         };
         this._designIssuesRefreshHandler = () => {
-            if (this.rendered) this.render(false);
+            if (this.rendered) this.render({ force: false });
         };
         this._sceneHooksBound = false;
         this._compendiumHooksBound = false;
@@ -826,13 +827,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 mapSrc: this.#getSceneMapSource(scene),
                 width: Number(scene?.width ?? canvas?.dimensions?.sceneWidth ?? 0),
                 height: Number(scene?.height ?? canvas?.dimensions?.sceneHeight ?? 0),
+                shiftX: Number(scene?.shiftX ?? 0),
+                shiftY: Number(scene?.shiftY ?? 0),
                 grid: {
                     type: Number(scene?.grid?.type ?? 1),
                     size: Number(scene?.grid?.size ?? 100),
-                    offset: {
-                        x: Number(scene?.grid?.offset?.x ?? 0),
-                        y: Number(scene?.grid?.offset?.y ?? 0)
-                    },
                     distance: Number(scene?.grid?.distance ?? 5),
                     units: String(scene?.grid?.units ?? "ft")
                 }
@@ -952,7 +951,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.element?.querySelectorAll("[data-action='market-select-buyer']")?.forEach((input) => {
             input.addEventListener("change", async () => {
                 await this.#setMarketPanelStatePatch({ selectedBuyerActorId: String(input.value ?? "") });
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -989,7 +988,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.element?.querySelectorAll("[data-action='player-select-actor']")?.forEach((select) => {
             select.addEventListener("change", async () => {
                 await this.#setPlayerPanelStatePatch({ selectedActorId: String(select.value ?? "") });
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1005,7 +1004,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (collapsed.has(sectionId)) collapsed.delete(sectionId);
                 else collapsed.add(sectionId);
                 await this.#setPlayerPanelStatePatch({ collapsedSectionIds: [...collapsed] });
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1016,7 +1015,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const actorId = String(button.dataset.actorId ?? "").trim();
                 const actor = actorId ? game.actors?.get?.(actorId) : null;
                 if (!actor) return;
-                actor.sheet?.render?.(true);
+                renderFoundryApplication(actor?.sheet, { force: true });
             });
         });
 
@@ -1070,7 +1069,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 };
 
                 await combat.addCombatantAction(combatant.id, actionData);
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1083,7 +1082,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 if (this.activeDesignLensPanelIds.has(panelId)) this.activeDesignLensPanelIds.delete(panelId);
                 else this.activeDesignLensPanelIds.add(panelId);
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1103,7 +1102,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.stopPropagation();
                 this.designCommandPaletteOpen = !this.designCommandPaletteOpen;
                 if (!this.designCommandPaletteOpen) this.designCommandPaletteQuery = "";
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1116,7 +1115,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 await this.#executeDesignAction(actionId, { panelId });
                 this.designCommandPaletteOpen = false;
                 this.designCommandPaletteQuery = "";
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1171,7 +1170,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             if (this.designCommandPaletteOpen && commandPalette && !commandPalette.contains(target) && !commandPaletteToggle?.contains(target)) {
                 this.designCommandPaletteOpen = false;
                 this.designCommandPaletteQuery = "";
-                this.render(false);
+                this.render({ force: false });
             }
         });
 
@@ -1188,7 +1187,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     ? this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? null })
                     : this.layoutEngine.closePanel(panelId);
                 await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1200,7 +1199,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 const nextLayout = this.layoutEngine.setActivePanel(dockId, stackId, panelId);
                 await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1213,7 +1212,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 const nextLayout = this.layoutEngine.floatPanel(panelDef);
                 await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1226,7 +1225,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 const nextLayout = this.layoutEngine.closePanel(panelId);
                 await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1241,7 +1240,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 const nextLayout = this.layoutEngine.undockPanel({ dockId, stackId, panelId });
                 await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1258,7 +1257,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 const nextLayout = this.layoutEngine.redockFloatingWindow(floatingId);
                 await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1275,7 +1274,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 const nextLayout = this.layoutEngine.removeFloatingWindow(windowId);
                 await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1304,7 +1303,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     collapsed.add(groupId);
                 }
                 await this.#setGamemasterPanelStatePatch({ collapsedGroupIds: [...collapsed] });
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1314,7 +1313,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.stopPropagation();
                 const current = this.#getGamemasterPanelState();
                 await this.#setGamemasterPanelStatePatch({ allActionsExpanded: !current.allActionsExpanded });
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -1747,7 +1746,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #getSceneMapSource(scene) {
         return scene?.background?.src
-            ?? scene?.img
+            ?? scene?.["img"]
             ?? scene?.texture?.src
             ?? scene?.thumb
             ?? scene?.thumbnail?.src
@@ -2184,11 +2183,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 break;
             }
             case "gm-open-combat-tracker": {
-                if (typeof ui.combat?.renderPopout === "function") {
-                    ui.combat.renderPopout(true);
-                } else {
-                    ui.combat?.render?.(true);
-                }
+                renderFoundryApplication(ui.combat, { force: true });
                 break;
             }
             case "gm-start-encounter": {
@@ -2268,7 +2263,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 break;
         }
 
-        this.render(false);
+        this.render({ force: false });
     }
 
     async #generateGamemasterHook(kind) {
@@ -2713,7 +2708,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         await scene.setFlag?.(game.system?.id ?? "turn-of-the-century", MARKET_SCENE_FLAG_KEY, marketState.offers.length ? marketState : null);
 
         ui.notifications?.info(`${buyer.name} purchased ${quantityToBuy} ${offer.name} for ${this.#formatCurrency(totalPrice, offer.currency)}.`);
-        this.render(false);
+        this.render({ force: false });
     }
 
     async #handleMarketSell(itemId, requestedQuantity = 1) {
@@ -2783,7 +2778,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         await scene.setFlag?.(game.system?.id ?? "turn-of-the-century", MARKET_SCENE_FLAG_KEY, marketState);
         ui.notifications?.info(`${actor.name} sold ${quantityToSell} ${item.name} for ${this.#formatCurrency(totalSellPrice, currency)}.`);
-        this.render(false);
+        this.render({ force: false });
     }
 
     #wireMapInteractionHandlers() {
@@ -2890,7 +2885,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
             this.interactionController.clearIntent();
             this.#hideGhost();
-            this.render(false);
+            this.render({ force: false });
         });
     }
 
@@ -2992,7 +2987,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 await this.stateStore?.setUserLayout?.(droppedLayout);
                 this.interactionController.clearIntent();
                 this.#hideGhost();
-                this.render(false);
+                this.render({ force: false });
                 return;
             }
         }
@@ -3000,7 +2995,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         await this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
         this.interactionController.clearIntent();
         this.#hideGhost();
-        this.render(false);
+        this.render({ force: false });
     }
 
     #onResizePointerMove(event) {
@@ -3067,7 +3062,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     this._resizeSession.accumulatedDeltaY = accumulatedDelta - appliedDelta;
                 }
                 void this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
-                this.render(false);
+                this.render({ force: false });
             }
             return;
         }
@@ -3389,13 +3384,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             offsetX: null,
             offsetY: null
         };
-        this.render(false);
+        this.render({ force: false });
     }
 
     /** Close and tear down the grid calibration tool without saving. */
     #closeGridCalibration() {
         this._gridCalibrationState = null;
-        this.render(false);
+        this.render({ force: false });
     }
 
     /**
@@ -3421,7 +3416,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this._gridCalibrationState.corner1 = null;
                 this._gridCalibrationState.corner2 = null;
                 // cellW/cellH/offsets are kept so the user can re-confirm with minor tweaks
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -3510,7 +3505,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 state.offsetY = offsetY;
                 this.#drawGridCalibrationOverlay();
                 // Full render to show the adjust controls
-                this.render(false);
+                this.render({ force: false });
             }
         });
 
@@ -3591,19 +3586,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             return;
         }
 
-        const cellW = Math.max(4, Math.round(state.cellW ?? 100));
-        // Foundry scene.grid.size is a single value (square grids); use width.
-        const size = cellW;
-        const offsetX = Math.max(0, Math.round(state.offsetX ?? 0));
-        const offsetY = Math.max(0, Math.round(state.offsetY ?? 0));
+        const updateData = buildGridCalibrationSceneUpdate({
+            cellW: state.cellW ?? 100,
+            offsetX: state.offsetX ?? 0,
+            offsetY: state.offsetY ?? 0
+        });
+        const size = updateData["grid.size"];
 
         try {
-            await scene.update({
-                "grid.size": size,
-                "grid.offset.x": offsetX,
-                "grid.offset.y": offsetY
-            });
-            ui.notifications?.info(`Grid updated: ${size} px per cell (offset ${offsetX}, ${offsetY}).`);
+            await scene.update(updateData);
+            ui.notifications?.info(`Grid updated: ${size} px per cell (shift ${updateData.shiftX}, ${updateData.shiftY}).`);
         } catch (err) {
             console.error("[turn-of-the-century] Grid calibration apply failed", err);
             ui.notifications?.error("Failed to apply grid — see console for details.");
@@ -3611,7 +3603,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }
 
         this._gridCalibrationState = null;
-        this.render(false);
+        this.render({ force: false });
     }
 
     #wireDebouncedTextInputHandlers() {
@@ -3638,19 +3630,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         switch (action) {
             case "compendium-search": {
                 this.compendiumSearchQuery = value;
-                await this.render(false);
+                await this.render({ force: false });
                 this.element?.querySelector("[data-action='compendium-search']")?.focus();
                 break;
             }
             case "design-command-palette-search": {
                 this.designCommandPaletteQuery = value;
-                await this.render(false);
+                await this.render({ force: false });
                 this.element?.querySelector("[data-action='design-command-palette-search']")?.focus();
                 break;
             }
             case "gm-search-actions": {
                 await this.#setGamemasterPanelStatePatch({ actionSearchQuery: value });
-                await this.render(false);
+                await this.render({ force: false });
                 this.element?.querySelector("[data-action='gm-search-actions']")?.focus();
                 break;
             }
@@ -3666,7 +3658,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                         : "Enter a scene name before uploading a background image.",
                     error: ""
                 };
-                await this.render(false);
+                await this.render({ force: false });
                 this.element?.querySelector("[data-action='scene-properties-name']")?.focus();
                 break;
             }
@@ -3689,7 +3681,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
         await this.stateStore?.setUserLayout?.(nextLayout);
-        this.render(false);
+        this.render({ force: false });
     }
 
     #wireScenePropertiesHandlers() {
@@ -3711,7 +3703,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     status: target.valid ? `Uploading ${target.filename}...` : "",
                     error: target.valid ? "" : "Choose a supported image after entering a scene name."
                 };
-                this.render(false);
+                this.render({ force: false });
 
                 if (!target.valid) return;
 
@@ -3729,7 +3721,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                         status: "",
                         error: result?.message ?? "Scene background upload failed."
                     };
-                    this.render(false);
+                    this.render({ force: false });
                     return;
                 }
 
@@ -3739,7 +3731,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     status: `Uploaded ${result.filename}.`,
                     error: ""
                 };
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -3753,7 +3745,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     status: "Enter a scene name before uploading a background image.",
                     error: ""
                 };
-                this.render(false);
+                this.render({ force: false });
             });
         });
 
@@ -3777,7 +3769,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                         status: "",
                         error: result?.message ?? "Scene creation failed."
                     };
-                    this.render(false);
+                    this.render({ force: false });
                     return;
                 }
 
@@ -3788,7 +3780,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     status: `Created ${result.name}.`,
                     error: ""
                 };
-                this.render(false);
+                this.render({ force: false });
             });
         });
     }
@@ -3836,13 +3828,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             switch (navigateAction) {
                 case "navigate.actor": {
                     const actor = subjectId ? game.actors?.get(subjectId) : null;
-                    if (actor) actor.sheet?.render(true);
+                    if (actor) renderFoundryApplication(actor.sheet, { force: true });
                     else ui.notifications?.warn("Actor not found.");
                     break;
                 }
                 case "navigate.scene.config": {
                     const scene = subjectId ? game.scenes?.get(subjectId) : (canvas?.scene ?? null);
-                    if (scene) scene.sheet?.render(true);
+                    if (scene) renderFoundryApplication(scene.sheet, { force: true });
                     else ui.notifications?.warn("Scene not found.");
                     break;
                 }

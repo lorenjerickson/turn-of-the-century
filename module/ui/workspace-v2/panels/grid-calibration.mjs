@@ -13,8 +13,7 @@
  * shifted from (0, 0) on the image.
  *
  * All lengths are in image pixels at the scene's native resolution, which is
- * exactly the unit Foundry stores in scene.grid.size and
- * scene.grid.offset.{x,y} (v14 schema).
+ * exactly the unit Foundry uses for scene grid size and background shift.
  */
 
 // ---------------------------------------------------------------------------
@@ -50,10 +49,10 @@ export function cornersToCellSize(corner1, corner2) {
 }
 
 /**
- * Derive grid offset from the two clicked corners and the computed cell size.
+ * Derive grid phase from the two clicked corners and the computed cell size.
  *
- * Foundry's scene.grid.offset.{x,y} is the distance from the image origin to
- * the nearest grid line — i.e. the modular phase of the grid on the image.
+ * The phase is the distance from the image origin to the nearest grid line.
+ * V14 applies the matching alignment through scene background shift fields.
  *
  * @param {{ x: number, y: number }} corner1
  * @param {{ x: number, y: number }} corner2
@@ -68,6 +67,18 @@ export function cornersToGridOffset(corner1, corner2, { cellW, cellH }) {
     return {
         offsetX: Math.round(((left % cellW) + cellW) % cellW),
         offsetY: Math.round(((top % cellH) + cellH) % cellH)
+    };
+}
+
+export function buildGridCalibrationSceneUpdate({ cellW = 100, offsetX = 0, offsetY = 0 } = {}) {
+    const size = Math.max(4, Math.round(Number(cellW) || 100));
+    const phaseX = Math.max(0, Math.round(Number(offsetX) || 0));
+    const phaseY = Math.max(0, Math.round(Number(offsetY) || 0));
+
+    return {
+        "grid.size": size,
+        shiftX: -phaseX,
+        shiftY: -phaseY
     };
 }
 
@@ -189,7 +200,7 @@ export function buildGridCalibrationOverlayModel({ state = null, viewport = {}, 
  * @param {GridCalibrationState|null} opts.state   - Mutable calibration state, or null.
  * @param {object|null}               opts.scene   - Plain scene data (not a Foundry doc).
  *                                                   Must include grid.type, grid.size,
- *                                                   grid.offset.{x,y}, grid.distance,
+ *                                                   shiftX, shiftY, grid.distance,
  *                                                   grid.units if available.
  */
 export function buildGridCalibrationModel({ state = null, scene = null } = {}) {
@@ -201,8 +212,8 @@ export function buildGridCalibrationModel({ state = null, scene = null } = {}) {
     // Fall back to the scene's existing grid settings when corners haven't
     // been picked yet so the inputs are pre-populated with meaningful values.
     const fallbackSize = Math.max(4, Number(scene?.grid?.size ?? 100));
-    const fallbackOffX = Number(scene?.grid?.offset?.x ?? 0);
-    const fallbackOffY = Number(scene?.grid?.offset?.y ?? 0);
+    const fallbackOffX = Math.max(0, -Number(scene?.shiftX ?? 0));
+    const fallbackOffY = Math.max(0, -Number(scene?.shiftY ?? 0));
 
     const cellW = (Number.isFinite(state.cellW) && state.cellW > 0) ? state.cellW : fallbackSize;
     const cellH = (Number.isFinite(state.cellH) && state.cellH > 0)

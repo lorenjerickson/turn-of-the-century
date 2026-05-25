@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
     buildGridCalibrationOverlayModel,
+    buildGridCalibrationSceneUpdate,
     cornersToCellSize,
     cornersToGridOffset
 } from "../../module/ui/workspace-v2/panels/grid-calibration.mjs";
@@ -77,5 +78,17 @@ describe("Grid calibration", () => {
         assert.equal(zoomed.cellRef.height, base.cellRef.height * 2);
         assert.equal(zoomed.corners[0].x, base.corners[0].x * 2);
         assert.equal(zoomed.corners[0].y, base.corners[0].y * 2);
+    });
+
+    it("builds a Foundry V14 scene update using background shift fields", () => {
+        assert.deepEqual(buildGridCalibrationSceneUpdate({
+            cellW: 100.4,
+            offsetX: 24.2,
+            offsetY: 18.7
+        }), {
+            "grid.size": 100,
+            shiftX: -24,
+            shiftY: -19
+        });
     });
 });

@@ -1,3 +1,7 @@
+import {
+    renderFoundryApplication
+} from "../../../foundry-v14-runtime.mjs";
+
 const DEFAULT_NPC_NAME = "New NPC";
 const NPC_ACTOR_TYPE = "pawn";
 const SYSTEM_ID = "turn-of-the-century";
@@ -67,6 +71,6 @@ export async function createNpcDesignActor({
     const name = createUniqueNpcName(DEFAULT_NPC_NAME, actors);
     const actorData = buildDesignNpcActorData({ name, folderId, sourcePanelId });
     const actor = await actorClass.create(actorData);
-    if (renderSheet) actor?.sheet?.render?.(true);
+    if (renderSheet) renderFoundryApplication(actor?.sheet, { force: true });
     return actor;
 }

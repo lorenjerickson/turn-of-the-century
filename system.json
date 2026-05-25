@@ -4,7 +4,7 @@
     "description": "A pulp horror roleplaying game set in the turn of the 19th century.",
     "version": "0.0.105",
     "compatibility": {
-        "minimum": 12,
+        "minimum": 14,
         "verified": 14
     },
     "authors": [

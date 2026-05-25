@@ -1,10 +1,11 @@
 import { TOTC_EQUIPMENT_SLOT_KEYS } from "../models/actor.mjs";
 import { buildEncounterPlanner } from "../encounters/planner-context.mjs";
+import {
+    renderFoundryApplication,
+    requireActorSheetV2
+} from "../foundry-v14-runtime.mjs";
 
-const BaseActorSheet = foundry.applications?.sheets?.ActorSheetV2 ?? foundry.applications?.sheets?.ActorSheet;
-if (!BaseActorSheet) {
-    throw new Error("[turn-of-the-century] Foundry ActorSheetV2 is required.");
-}
+const BaseActorSheet = requireActorSheetV2();
 const BaseItemDocument = foundry.documents?.Item ?? Item;
 
 function toArrayInput(value) {
@@ -396,7 +397,7 @@ function showInlinePlannerConfig(plannerSection, planner, actionData, remainingA
         panel.remove();
         if (!game.combat?.addCombatantAction) return;
         await game.combat.addCombatantAction(combatantId, final);
-        sheet.render(true);
+        renderFoundryApplication(sheet, { force: true });
     });
 
     // Insert just before the planned column footer
@@ -581,7 +582,7 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
             if (!combatantId || !game.combat?.setCombatantReady) return;
 
             await game.combat.setCombatantReady(combatantId, !ready);
-            this.render(true);
+            this.render({ force: true });
         }));
 
         this.element.querySelectorAll("[data-action='totc-roll-initiative']").forEach((element) => element.addEventListener("click", async (event) => {
@@ -592,7 +593,7 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
             if (!combatantId || !combat?.rollEncounterInitiative) return;
 
             await combat.rollEncounterInitiative(combatantId);
-            this.render(true);
+            this.render({ force: true });
         }));
 
         this.element.querySelectorAll(".totc-planner-available-action").forEach((element) => element.addEventListener("dblclick", async (event) => {
@@ -620,7 +621,7 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
                 showInlinePlannerConfig(el.closest(".totc-encounter-planner"), planner, actionData, remainingAp, combatantId, this);
             } else {
                 await game.combat.addCombatantAction(combatantId, actionData);
-                this.render(true);
+                this.render({ force: true });
             }
         }));
 
@@ -679,7 +680,7 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
                 showInlinePlannerConfig(slot.closest(".totc-encounter-planner"), planner, actionData, remainingAp, combatantId, this);
             } else {
                 await game.combat.addCombatantAction(combatantId, actionData);
-                this.render(true);
+                this.render({ force: true });
             }
         }));
 
@@ -691,7 +692,7 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
             if (!combatantId || Number.isNaN(actionIndex) || !game.combat?.removeCombatantAction) return;
 
             await game.combat.removeCombatantAction(combatantId, actionIndex);
-            this.render(true);
+            this.render({ force: true });
         }));
 
         this.element.querySelectorAll("[data-action='totc-encounter-clear-plan']").forEach((element) => element.addEventListener("click", async (event) => {
@@ -701,7 +702,7 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
             if (!combatantId || !game.combat?.clearCombatantPlan) return;
 
             await game.combat.clearCombatantPlan(combatantId);
-            this.render(true);
+            this.render({ force: true });
         }));
     }
 }

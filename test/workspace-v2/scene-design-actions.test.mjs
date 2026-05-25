@@ -37,7 +37,7 @@ describe("scene design actions", () => {
         assert.equal(data.name, "Whitechapel Alley Night");
         assert.equal(data.navigation, true);
         assert.deepEqual(data.background, { src: "assets/images/scenes/whitechapel-alley-night.webp" });
-        assert.equal(data.img, "assets/images/scenes/whitechapel-alley-night.webp");
+        assert.equal(Object.hasOwn(data, "img"), false);
         assert.equal(data.flags["turn-of-the-century"].designCreated, true);
         assert.equal(data.flags["turn-of-the-century"].assetContext, "images/scenes");
     });

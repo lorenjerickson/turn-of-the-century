@@ -1,3 +1,7 @@
+import {
+    requireCombatTrackerV2
+} from "../foundry-v14-runtime.mjs";
+
 function readSelectedAction(selectElement) {
     const selectedOption = selectElement?.selectedOptions?.[0];
     if (!selectedOption) return null;
@@ -19,12 +23,7 @@ function readSelectedAction(selectElement) {
     };
 }
 
-const BaseCombatTracker = foundry.applications?.sidebar?.tabs?.CombatTracker
-    ?? null;
-
-if (!BaseCombatTracker) {
-    throw new Error("[turn-of-the-century] Foundry CombatTracker V2 is required.");
-}
+const BaseCombatTracker = requireCombatTrackerV2();
 
 export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
     static get DEFAULT_OPTIONS() {

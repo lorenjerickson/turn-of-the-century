@@ -55,7 +55,7 @@ function sceneDarknessLevel(scene) {
     const legacySourceDarkness = Number(scene?._source?.darkness);
     if (Number.isFinite(legacySourceDarkness)) return legacySourceDarkness;
 
-    return Number(scene?.darkness ?? 0);
+    return Number(scene?.["darkness"] ?? 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -70,7 +70,7 @@ function scanSceneIssues(scene) {
     const sceneName = String(scene.name ?? "Unnamed Scene");
 
     // No background image — background.src in v11+, img fallback for older shapes
-    const backgroundSrc = String(scene.background?.src ?? scene.img ?? "").trim();
+    const backgroundSrc = String(scene.background?.src ?? scene["img"] ?? "").trim();
     if (!backgroundSrc) {
         issues.push({
             id: "scene.no-background",

@@ -1,11 +1,12 @@
+import {
+    requireItemSheetV2
+} from "../foundry-v14-runtime.mjs";
+
 function isPlainObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-const BaseItemSheet = foundry.applications?.sheets?.ItemSheetV2 ?? foundry.applications?.sheets?.ItemSheet;
-if (!BaseItemSheet) {
-    throw new Error("[turn-of-the-century] Foundry ItemSheetV2 is required.");
-}
+const BaseItemSheet = requireItemSheetV2();
 
 /**
  * Converts a dot-separated system field path into a human-readable label.

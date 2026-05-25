@@ -1,3 +1,11 @@
+import {
+    getFileConstructor as getV14FileConstructor,
+    getWorldId as getV14WorldId,
+    renderFoundryApplication,
+    requireFilePicker,
+    requireSceneDocumentClass
+} from "../../../foundry-v14-runtime.mjs";
+
 const WALL_CONTROL = "walls";
 const WALL_TOOL = "walls";
 export const SCENE_BACKGROUND_IMAGE_ASSET_PATH = "assets/images/scenes";
@@ -16,26 +24,23 @@ function getCanvas(context = {}) {
 }
 
 function getSceneClass(context = {}) {
-    return context.SceneClass ?? globalThis.Scene ?? null;
-}
-
-function getFoundry(context = {}) {
-    return context.foundry ?? globalThis.foundry ?? null;
+    try {
+        return context.SceneClass ?? requireSceneDocumentClass(context);
+    } catch {
+        return null;
+    }
 }
 
 function getFilePickerClass(context = {}) {
-    if (context.FilePickerClass) return context.FilePickerClass;
-
-    const foundryNamespace = getFoundry(context);
-    const namespacedFilePicker = foundryNamespace?.applications?.apps?.FilePicker;
-    if (namespacedFilePicker?.implementation) return namespacedFilePicker.implementation;
-    if (typeof namespacedFilePicker === "function") return namespacedFilePicker;
-
-    return globalThis.FilePicker ?? null;
+    try {
+        return context.FilePickerClass ?? requireFilePicker(context);
+    } catch {
+        return null;
+    }
 }
 
 function getFileConstructor(context = {}) {
-    return context.FileClass ?? globalThis.File ?? null;
+    return getV14FileConstructor(context);
 }
 
 function getNotifications(context = {}) {
@@ -43,7 +48,7 @@ function getNotifications(context = {}) {
 }
 
 function getWorldId(context = {}) {
-    return String(context.worldId ?? context.game?.world?.id ?? globalThis.game?.world?.id ?? "").trim();
+    return getV14WorldId(context);
 }
 
 async function ensureFoundryDirectory(FilePickerClass, directory) {
@@ -110,7 +115,6 @@ export function buildSceneCreationData({ backgroundPath = "", name = "", navigat
         background: {
             src: safeBackgroundPath
         },
-        img: safeBackgroundPath,
         flags: {
             "turn-of-the-century": {
                 designCreated: true,
@@ -144,7 +148,7 @@ export async function createSceneFromBackgroundPath({ backgroundPath = "", name 
     const sceneData = buildSceneCreationData({ backgroundPath, name, navigation });
     const scene = await SceneClass.create(sceneData);
     notifications?.info?.(`Created scene: ${scene?.name ?? sceneData.name}.`);
-    scene?.sheet?.render?.(true);
+    renderFoundryApplication(scene?.sheet, { force: true });
 
     return {
         ok: true,
