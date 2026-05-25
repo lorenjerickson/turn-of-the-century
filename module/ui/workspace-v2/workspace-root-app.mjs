@@ -31,6 +31,15 @@ import {
     cornersToGridOffset,
     GRID_CAL_PHASE_HINTS
 } from "./panels/grid-calibration.mjs";
+import {
+    buildSceneBackgroundUploadTarget,
+    buildScenePropertiesPanelModel,
+    renderScenePropertiesPanel
+} from "./panels/scene-properties-panel.mjs";
+import {
+    createSceneFromBackgroundPath,
+    uploadSceneBackgroundFile
+} from "./design-actions/scene-actions.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
 
 function getApplicationV2BaseClass() {
@@ -611,6 +620,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
         this._mapPanSession = null;
         this._gridCalibrationState = null;
+        this._scenePropertiesState = {
+            sceneName: "",
+            selectedFilename: "",
+            backgroundPath: "",
+            status: "",
+            error: ""
+        };
         this._playerPanelSectionSnapshotInitialized = false;
         this._playerPanelVisibleSectionIds = new Set();
         this._sceneRefreshHandler = () => {
@@ -821,7 +837,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             gmPanel: highlightedGmPanel,
             marketPanel,
             playerPanel: highlightedPlayerPanel,
-            designIssuesPanel
+            designIssuesPanel,
+            scenePropertiesPanel: buildScenePropertiesPanelModel(this._scenePropertiesState)
         };
     }
 
@@ -1328,6 +1345,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.#wireMapInteractionHandlers();
         this.#wireGridCalibrationHandlers();
+        this.#wireScenePropertiesHandlers();
 
         this.#wireInteractionHandlers();
         this.#wireResizeHandlers();
@@ -1565,6 +1583,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 return `<section class="totc-v2-issues-panel"><p class="totc-v2-issues-panel__access-denied">This panel is only available to the active Gamemaster.</p></section>`;
             }
             return renderDesignIssuesPanel(context.designIssuesPanel ?? {}, {
+                escapeHTML: (value) => this.#escapeHTML(value)
+            });
+        }
+
+        if (panel.id === "scene-properties") {
+            if (!context.gm?.isGM) {
+                return `<section class="totc-v2-scene-properties-panel"><p class="totc-v2-scene-properties-panel__error">This panel is only available to the active Gamemaster.</p></section>`;
+            }
+            return renderScenePropertiesPanel(context.scenePropertiesPanel ?? {}, {
                 escapeHTML: (value) => this.#escapeHTML(value)
             });
         }
@@ -3620,6 +3647,141 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this._gridCalibrationState = null;
         this.render(false);
+    }
+
+    async _openScenePropertiesPanel() {
+        const panelDef = this.panelRegistry.get("scene-properties");
+        if (!panelDef) return;
+
+        this._scenePropertiesState = {
+            sceneName: "",
+            selectedFilename: "",
+            backgroundPath: "",
+            status: "Enter a scene name before uploading a background image.",
+            error: ""
+        };
+
+        const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
+        await this.stateStore?.setUserLayout?.(nextLayout);
+        this.render(false);
+    }
+
+    #wireScenePropertiesHandlers() {
+        this.element?.querySelectorAll("[data-action='scene-properties-name']")?.forEach((input) => {
+            input.addEventListener("input", () => {
+                const sceneName = String(input.value ?? "");
+                this._scenePropertiesState = {
+                    ...this._scenePropertiesState,
+                    sceneName,
+                    selectedFilename: "",
+                    backgroundPath: "",
+                    status: sceneName.trim()
+                        ? "Choose a background image to upload into the world assets folder."
+                        : "Enter a scene name before uploading a background image.",
+                    error: ""
+                };
+                this.render(false);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='scene-properties-background-upload']")?.forEach((input) => {
+            input.addEventListener("change", async () => {
+                const file = input.files?.[0] ?? null;
+                if (!file) return;
+
+                const sceneName = String(this._scenePropertiesState.sceneName ?? "").trim();
+                const target = buildSceneBackgroundUploadTarget({
+                    sceneName,
+                    filename: file.name
+                });
+
+                this._scenePropertiesState = {
+                    ...this._scenePropertiesState,
+                    selectedFilename: file.name,
+                    backgroundPath: "",
+                    status: target.valid ? `Uploading ${target.filename}...` : "",
+                    error: target.valid ? "" : "Choose a supported image after entering a scene name."
+                };
+                this.render(false);
+
+                if (!target.valid) return;
+
+                const result = await uploadSceneBackgroundFile({
+                    file,
+                    target,
+                    foundry,
+                    ui
+                });
+
+                if (!result?.ok) {
+                    this._scenePropertiesState = {
+                        ...this._scenePropertiesState,
+                        backgroundPath: "",
+                        status: "",
+                        error: result?.message ?? "Scene background upload failed."
+                    };
+                    this.render(false);
+                    return;
+                }
+
+                this._scenePropertiesState = {
+                    ...this._scenePropertiesState,
+                    backgroundPath: result.path,
+                    status: `Uploaded ${result.filename}.`,
+                    error: ""
+                };
+                this.render(false);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='scene-properties-reset']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                this._scenePropertiesState = {
+                    sceneName: "",
+                    selectedFilename: "",
+                    backgroundPath: "",
+                    status: "Enter a scene name before uploading a background image.",
+                    error: ""
+                };
+                this.render(false);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='scene-properties-create']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const sceneName = String(this._scenePropertiesState.sceneName ?? "").trim();
+                const backgroundPath = String(this._scenePropertiesState.backgroundPath ?? "").trim();
+                const result = await createSceneFromBackgroundPath({
+                    name: sceneName,
+                    backgroundPath,
+                    foundry,
+                    ui
+                });
+
+                if (!result?.ok) {
+                    this._scenePropertiesState = {
+                        ...this._scenePropertiesState,
+                        status: "",
+                        error: result?.message ?? "Scene creation failed."
+                    };
+                    this.render(false);
+                    return;
+                }
+
+                this._scenePropertiesState = {
+                    sceneName: "",
+                    selectedFilename: "",
+                    backgroundPath: "",
+                    status: `Created ${result.name}.`,
+                    error: ""
+                };
+                this.render(false);
+            });
+        });
     }
 
     async #executeDesignAction(actionId, { panelId = "" } = {}) {

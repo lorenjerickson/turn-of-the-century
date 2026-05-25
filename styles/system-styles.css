@@ -1302,6 +1302,90 @@ body.totc-v2-active.totc-v2-native-settings-open #settings {
     overflow: auto;
 }
 
+.turn-of-the-century .totc-v2-scene-properties-panel {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.2rem;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__fields {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__field {
+    color: #94a3b8;
+    display: grid;
+    font-size: 0.75rem;
+    font-weight: 700;
+    gap: 0.28rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__field input {
+    background: rgba(15, 23, 42, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 6px;
+    color: #e2e8f0;
+    font-size: 0.86rem;
+    letter-spacing: 0;
+    padding: 0.45rem 0.55rem;
+    text-transform: none;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__field.is-disabled {
+    opacity: 0.58;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__summary {
+    background: rgba(15, 23, 42, 0.52);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 6px;
+    color: #cbd5e1;
+    display: grid;
+    font-size: 0.78rem;
+    gap: 0.3rem;
+    line-height: 1.45;
+    padding: 0.55rem;
+    word-break: break-word;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__status,
+.turn-of-the-century .totc-v2-scene-properties-panel__error {
+    margin: 0;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__status {
+    color: #93c5fd;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__error {
+    color: #fca5a5;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actions {
+    display: flex;
+    gap: 0.45rem;
+    justify-content: flex-end;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actions button {
+    background: rgba(30, 41, 59, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 6px;
+    color: #e2e8f0;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.45rem 0.65rem;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+}
+
 .turn-of-the-century .totc-v2-command-menu__panel-toggle {
     align-items: center;
     color: #cbd5e1;

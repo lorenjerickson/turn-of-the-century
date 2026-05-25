@@ -51,6 +51,18 @@ describe("WorkspacePanelRegistry", () => {
         });
     });
 
+    it("registers the scene properties panel for GM scene design", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.deepEqual(registry.get("scene-properties"), {
+            id: "scene-properties",
+            title: "Scene Properties",
+            defaultDock: "rightDock",
+            roleAccess: { gmOnly: true },
+            contextTags: ["gm", "scene", "design"]
+        });
+    });
+
     it("builds visibility models in registry order", () => {
         const registry = new WorkspacePanelRegistry({
             panels: [

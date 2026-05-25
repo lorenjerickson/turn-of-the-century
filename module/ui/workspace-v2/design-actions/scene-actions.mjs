@@ -34,12 +34,32 @@ function getFilePickerClass(context = {}) {
     return globalThis.FilePicker ?? null;
 }
 
+function getFileConstructor(context = {}) {
+    return context.FileClass ?? globalThis.File ?? null;
+}
+
 function getNotifications(context = {}) {
     return context.notifications ?? context.ui?.notifications ?? globalThis.ui?.notifications ?? null;
 }
 
 function getWorldId(context = {}) {
     return String(context.worldId ?? context.game?.world?.id ?? globalThis.game?.world?.id ?? "").trim();
+}
+
+async function ensureFoundryDirectory(FilePickerClass, directory) {
+    if (typeof FilePickerClass?.createDirectory !== "function") return;
+
+    const segments = String(directory ?? "").split("/").filter(Boolean);
+    let current = "";
+    for (const segment of segments) {
+        current = current ? `${current}/${segment}` : segment;
+        try {
+            await FilePickerClass.createDirectory("data", current, {});
+        } catch (error) {
+            const message = String(error?.message ?? "");
+            if (!/exist|EEXIST|already/i.test(message)) throw error;
+        }
+    }
 }
 
 function stripQueryAndHash(path = "") {
@@ -135,39 +155,58 @@ export async function createSceneFromBackgroundPath({ backgroundPath = "", name 
 }
 
 export async function createSceneDesignScene(context = {}) {
-    const FilePickerClass = getFilePickerClass(context);
-
-    if (!FilePickerClass) {
+    if (typeof context.app?._openScenePropertiesPanel === "function") {
+        await context.app._openScenePropertiesPanel();
         return {
-            ok: false,
-            level: "warn",
-            message: "The Foundry file picker is not available in this session."
+            ok: true,
+            silent: true,
+            message: "Scene properties opened."
         };
     }
 
-    const picker = new FilePickerClass({
-        type: "image",
-        current: SCENE_BACKGROUND_IMAGE_ASSET_PATH,
-        callback: async (path) => {
-            try {
-                const result = await createSceneFromBackgroundPath({
-                    ...context,
-                    backgroundPath: path
-                });
-                if (result?.level === "warn") getNotifications(context)?.warn?.(result.message);
-            } catch (error) {
-                console.error("[turn-of-the-century] Scene creation failed", error);
-                getNotifications(context)?.error?.(error?.message ?? "Scene creation failed.");
-            }
-        }
-    });
+    return {
+        ok: false,
+        level: "warn",
+        message: "Scene properties are not available in this workspace session."
+    };
+}
 
-    picker.render?.(true);
+export async function uploadSceneBackgroundFile({ file, target, ...context } = {}) {
+    const FilePickerClass = getFilePickerClass(context);
+    if (!FilePickerClass || typeof FilePickerClass.upload !== "function") {
+        return {
+            ok: false,
+            level: "warn",
+            message: "Scene background upload is not available in this Foundry session."
+        };
+    }
+
+    if (!file || !target?.valid) {
+        return {
+            ok: false,
+            level: "warn",
+            message: "Enter a scene name and choose a supported image before uploading."
+        };
+    }
+
+    const FileClass = getFileConstructor(context);
+    const uploadFile = typeof FileClass === "function"
+        ? new FileClass([file], target.filename, {
+            type: file.type,
+            lastModified: file.lastModified
+        })
+        : file;
+    await ensureFoundryDirectory(FilePickerClass, target.directory);
+    const result = await FilePickerClass.upload("data", target.directory, uploadFile, {
+        notify: true,
+        overwrite: false
+    });
+    const uploadedPath = String(result?.path ?? result ?? target.path);
 
     return {
         ok: true,
-        silent: true,
-        message: `Choose a battle-map image from ${SCENE_BACKGROUND_IMAGE_ASSET_PATH}/.`
+        path: uploadedPath || target.path,
+        filename: target.filename
     };
 }
 

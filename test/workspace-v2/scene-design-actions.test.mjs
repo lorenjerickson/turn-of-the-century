@@ -7,7 +7,8 @@ import {
     createSceneDesignScene,
     createSceneFromBackgroundPath,
     isSceneBackgroundImagePath,
-    SCENE_BACKGROUND_IMAGE_ASSET_PATH
+    SCENE_BACKGROUND_IMAGE_ASSET_PATH,
+    uploadSceneBackgroundFile
 } from "../../module/ui/workspace-v2/design-actions/scene-actions.mjs";
 
 const originalFilePickerDescriptor = Object.getOwnPropertyDescriptor(globalThis, "FilePicker");
@@ -76,30 +77,22 @@ describe("scene design actions", () => {
         assert.match(result.message, new RegExp(SCENE_BACKGROUND_IMAGE_ASSET_PATH));
     });
 
-    it("opens the Foundry file picker at the organized scene image folder", async () => {
-        let pickerOptions = null;
-        let rendered = false;
+    it("opens the workspace scene properties panel", async () => {
+        let opened = false;
         const result = await createSceneDesignScene({
-            FilePickerClass: class {
-                constructor(options) {
-                    pickerOptions = options;
-                }
-
-                render(force) {
-                    rendered = force;
+            app: {
+                _openScenePropertiesPanel: async () => {
+                    opened = true;
                 }
             }
         });
 
         assert.equal(result.ok, true);
         assert.equal(result.silent, true);
-        assert.equal(rendered, true);
-        assert.equal(pickerOptions.type, "image");
-        assert.equal(pickerOptions.current, SCENE_BACKGROUND_IMAGE_ASSET_PATH);
-        assert.equal(typeof pickerOptions.callback, "function");
+        assert.equal(opened, true);
     });
 
-    it("prefers the Foundry V14 namespaced FilePicker implementation over the deprecated global", async () => {
+    it("uploads scene backgrounds through the Foundry V14 namespaced FilePicker implementation", async () => {
         Object.defineProperty(globalThis, "FilePicker", {
             configurable: true,
             get() {
@@ -107,20 +100,37 @@ describe("scene design actions", () => {
             }
         });
 
-        let pickerOptions = null;
-        let rendered = false;
-        const result = await createSceneDesignScene({
+        let uploaded = null;
+        const createdDirectories = [];
+        class TestFile {
+            constructor(parts, name, options) {
+                this.parts = parts;
+                this.name = name;
+                this.type = options.type;
+                this.lastModified = options.lastModified;
+            }
+        }
+
+        const result = await uploadSceneBackgroundFile({
+            file: { name: "Original Map.webp", type: "image/webp", lastModified: 1 },
+            target: {
+                valid: true,
+                directory: SCENE_BACKGROUND_IMAGE_ASSET_PATH,
+                filename: "whitechapel-alley.webp",
+                path: `${SCENE_BACKGROUND_IMAGE_ASSET_PATH}/whitechapel-alley.webp`
+            },
+            FileClass: TestFile,
             foundry: {
                 applications: {
                     apps: {
                         FilePicker: {
-                            implementation: class {
-                                constructor(options) {
-                                    pickerOptions = options;
-                                }
-
-                                render(force) {
-                                    rendered = force;
+                            implementation: {
+                                createDirectory: async (source, directory) => {
+                                    createdDirectories.push({ source, directory });
+                                },
+                                upload: async (source, directory, file, options) => {
+                                    uploaded = { source, directory, file, options };
+                                    return { path: `${directory}/${file.name}` };
                                 }
                             }
                         }
@@ -130,8 +140,16 @@ describe("scene design actions", () => {
         });
 
         assert.equal(result.ok, true);
-        assert.equal(rendered, true);
-        assert.equal(pickerOptions.current, SCENE_BACKGROUND_IMAGE_ASSET_PATH);
+        assert.equal(result.path, `${SCENE_BACKGROUND_IMAGE_ASSET_PATH}/whitechapel-alley.webp`);
+        assert.equal(uploaded.source, "data");
+        assert.equal(uploaded.directory, SCENE_BACKGROUND_IMAGE_ASSET_PATH);
+        assert.equal(uploaded.file.name, "whitechapel-alley.webp");
+        assert.equal(uploaded.options.overwrite, false);
+        assert.deepEqual(createdDirectories, [
+            { source: "data", directory: "assets" },
+            { source: "data", directory: "assets/images" },
+            { source: "data", directory: "assets/images/scenes" }
+        ]);
     });
 
     it("activates Foundry scene controls for wall editing when available", async () => {

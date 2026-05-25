@@ -7,16 +7,12 @@ import {
 } from "../../module/ui/workspace-v2/design-action-registry.mjs";
 
 const originalActor = globalThis.Actor;
-const originalScene = globalThis.Scene;
-const originalFilePicker = globalThis.FilePicker;
 const originalGame = globalThis.game;
 const originalCanvas = globalThis.canvas;
 const originalUi = globalThis.ui;
 
 afterEach(() => {
     globalThis.Actor = originalActor;
-    globalThis.Scene = originalScene;
-    globalThis.FilePicker = originalFilePicker;
     globalThis.game = originalGame;
     globalThis.canvas = originalCanvas;
     globalThis.ui = originalUi;
@@ -116,22 +112,19 @@ describe("WorkspaceDesignActionRegistry", () => {
         assert.equal(result.ok, true);
     });
 
-    it("executes the default scene creation action through the file picker", async () => {
-        let pickerOptions = null;
-        globalThis.FilePicker = class {
-            constructor(options) {
-                pickerOptions = options;
-            }
-
-            render() {}
-        };
-
+    it("executes the default scene creation action through the scene properties panel", async () => {
+        let opened = false;
         const action = DEFAULT_DESIGN_ACTION_REGISTRY.get("scene.create");
-        const result = await action.execute({});
+        const result = await action.execute({
+            app: {
+                _openScenePropertiesPanel: async () => {
+                    opened = true;
+                }
+            }
+        });
 
         assert.equal(result.ok, true);
         assert.equal(result.silent, true);
-        assert.equal(pickerOptions.current, "assets/images/scenes");
-        assert.equal(typeof pickerOptions.callback, "function");
+        assert.equal(opened, true);
     });
 });
