@@ -1502,7 +1502,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 scene: context.scene
             });
             const calActive = calModel.active;
-            const sceneGridOverlayActive = Boolean(!calActive && this.#isDesignLensActive(panel.id) && buildSceneGridOverlayState(context.scene));
+            const sceneGridOverlayActive = Boolean(!calActive && buildSceneGridOverlayState(context.scene));
             const gridOverlayActive = calActive || sceneGridOverlayActive;
             const calDialog = renderGridCalibrationDialog(calModel, { escapeHTML: (v) => this.#escapeHTML(v) });
 
