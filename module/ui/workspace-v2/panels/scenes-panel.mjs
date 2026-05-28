@@ -74,6 +74,7 @@ export function renderScenesPanel(panelModel = {}, { escapeHTML = (value) => Str
 
     return `
     <section class="totc-v2-scenes-panel">
+        <button type="button" class="totc-v2-scenes-panel__create" data-action="scenes-create-scene">Create Scene</button>
         <header class="totc-v2-scenes-panel__summary">${escapeHTML(summary)}</header>
         <div class="totc-v2-scenes-panel__list" role="list">
             ${entries.length ? entries.map((scene) => {

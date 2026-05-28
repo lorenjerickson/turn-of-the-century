@@ -1251,6 +1251,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.element?.querySelectorAll("[data-action='scenes-create-scene']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#executeDesignAction("scene.create", { panelId: "scenes" });
+            });
+        });
+
         this.element?.querySelectorAll("[data-action='float-panel']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();

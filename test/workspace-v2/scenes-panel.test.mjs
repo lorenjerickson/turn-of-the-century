@@ -51,6 +51,8 @@ describe("Scenes panel", () => {
     it("renders an empty state when no scenes are defined", () => {
         const html = renderScenesPanel(buildScenesPanelModel());
 
+        assert.match(html, /data-action="scenes-create-scene"/);
+        assert.match(html, /Create Scene/);
         assert.match(html, /0 defined scenes/);
         assert.match(html, /No scenes have been defined yet/);
     });
