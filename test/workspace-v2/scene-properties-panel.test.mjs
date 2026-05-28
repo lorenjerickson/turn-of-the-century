@@ -5,6 +5,7 @@ import {
     buildSceneBackgroundUploadTarget,
     buildScenePropertiesPanelModel,
     buildScenePropertiesUpdateData,
+    resolveScenePropertiesScene,
     renderScenePropertiesPanel,
     slugifySceneName
 } from "../../module/ui/workspace-v2/panels/scene-properties-panel.mjs";
@@ -71,6 +72,30 @@ describe("Scene properties panel", () => {
         assert.equal(model.status, "");
     });
 
+    it("resolves properties from the currently visible map panel scene", () => {
+        const viewedScene = { id: "scene-a", name: "Viewed Scene" };
+        const visibleScene = { id: "scene-b", name: "Visible Map Scene" };
+
+        const resolved = resolveScenePropertiesScene({
+            activePanel: { id: "map:scene-b", title: "Visible Map Scene", baseId: "map", sceneId: "scene-b" },
+            viewedScene,
+            sceneResolver: (sceneId) => sceneId === "scene-b" ? visibleScene : null
+        });
+
+        assert.equal(resolved, visibleScene);
+    });
+
+    it("falls back to the viewed scene when a non-map panel is active", () => {
+        const viewedScene = { id: "scene-a", name: "Viewed Scene" };
+        const defaultScene = { id: "scene-b", name: "Canvas Scene" };
+
+        assert.equal(resolveScenePropertiesScene({
+            activePanel: { id: "compendium", title: "Compendium" },
+            viewedScene,
+            defaultScene
+        }), viewedScene);
+    });
+
     it("builds scene update data and clears grid metadata when background changes", () => {
         assert.deepEqual(buildScenePropertiesUpdateData({
             sceneName: "Hotel Cellar",
@@ -98,7 +123,17 @@ describe("Scene properties panel", () => {
         const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({}));
         assert.match(html, /data-action="scene-properties-background-upload"[^>]*disabled/);
         assert.match(html, /data-action="scene-properties-save"[^>]*disabled/);
+        assert.match(html, /data-action="scene-properties-delete"[^>]*disabled/);
         assert.doesNotMatch(html, /Create Scene/);
+    });
+
+    it("renders delete scene enabled for an existing viewed scene", () => {
+        const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
+            scene: { id: "scene-a", name: "Whitechapel" }
+        }));
+
+        assert.match(html, /data-action="scene-properties-delete"/);
+        assert.doesNotMatch(html, /data-action="scene-properties-delete"[^>]*disabled/);
     });
 
     it("escapes rendered scene values", () => {

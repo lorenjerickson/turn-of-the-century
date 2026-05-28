@@ -39,6 +39,7 @@ import {
     buildSceneBackgroundUploadTarget,
     buildScenePropertiesPanelModel,
     buildScenePropertiesUpdateData,
+    resolveScenePropertiesScene,
     renderScenePropertiesPanel
 } from "./panels/scene-properties-panel.mjs";
 import {
@@ -739,6 +740,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const activeWorkspacePanel = this.#getPrimaryActivePanel(activeLayout);
         const viewedScene = this.#getViewedScene();
         const scene = canvas?.scene ?? game.scenes?.active ?? viewedScene;
+        const scenePropertiesScene = resolveScenePropertiesScene({
+            activePanel: activeWorkspacePanel,
+            viewedScene,
+            defaultScene: scene,
+            sceneResolver: (sceneId) => this.#getSceneDocumentById(sceneId)
+        });
         const combat = game.combats?.active ?? game.combat ?? null;
         const controlledTokens = canvas?.tokens?.controlled ?? [];
         const gmPanelState = this.#getGamemasterPanelState();
@@ -860,7 +867,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             designIssuesPanel,
             scenePropertiesPanel: buildScenePropertiesPanelModel({
                 ...this._scenePropertiesState,
-                scene: viewedScene
+                scene: scenePropertiesScene
             })
         };
     }
@@ -1803,6 +1810,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #getViewedScene() {
         return game.scenes?.viewed ?? canvas?.scene ?? game.scenes?.active ?? null;
+    }
+
+    #getScenePropertiesScene() {
+        const viewedScene = this.#getViewedScene();
+        const defaultScene = canvas?.scene ?? game.scenes?.active ?? viewedScene;
+        return resolveScenePropertiesScene({
+            activePanel: this.#getPrimaryActivePanel(),
+            viewedScene,
+            defaultScene,
+            sceneResolver: (sceneId) => this.#getSceneDocumentById(sceneId)
+        });
     }
 
     #isMapPanel(panel) {
@@ -3653,7 +3671,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }
             case "scene-properties-name": {
                 const sceneName = value;
-                const scene = this.#getViewedScene();
+                const scene = this.#getScenePropertiesScene();
                 this._scenePropertiesState = {
                     ...this._scenePropertiesState,
                     sceneId: scene?.id ?? scene?._id ?? "",
@@ -3698,7 +3716,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const file = input.files?.[0] ?? null;
                 if (!file) return;
 
-                const scene = this.#getViewedScene();
+                const scene = this.#getScenePropertiesScene();
                 const sceneName = String(this._scenePropertiesState.sceneName ?? scene?.name ?? "").trim();
                 const target = buildSceneBackgroundUploadTarget({
                     sceneName,
@@ -3750,7 +3768,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.element?.querySelectorAll("[data-action='scene-properties-reset']")?.forEach((button) => {
             button.addEventListener("click", (event) => {
                 event.preventDefault();
-                const scene = this.#getViewedScene();
+                const scene = this.#getScenePropertiesScene();
                 this._scenePropertiesState = {
                     sceneId: scene?.id ?? scene?._id ?? "",
                     sceneName: null,
@@ -3763,12 +3781,58 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.element?.querySelectorAll("[data-action='scene-properties-delete']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const scene = this.#getScenePropertiesScene();
+                if (!scene) {
+                    this._scenePropertiesState = {
+                        ...this._scenePropertiesState,
+                        status: "",
+                        error: "No viewed scene is available to delete."
+                    };
+                    this.render({ force: false });
+                    return;
+                }
+
+                const sceneName = String(scene.name ?? "this scene");
+                const confirmed = globalThis.confirm?.(`Delete scene "${sceneName}"? This cannot be undone.`) ?? false;
+                if (!confirmed) return;
+
+                try {
+                    if (typeof scene.delete !== "function") throw new Error("Scene deletion is not available.");
+                    await scene.delete();
+                } catch (error) {
+                    console.error("[turn-of-the-century] Scene delete failed", error);
+                    this._scenePropertiesState = {
+                        ...this._scenePropertiesState,
+                        status: "",
+                        error: "Scene delete failed - see console for details."
+                    };
+                    this.render({ force: false });
+                    return;
+                }
+
+                this._scenePropertiesState = {
+                    sceneId: "",
+                    sceneName: null,
+                    selectedFilename: "",
+                    backgroundPath: "",
+                    status: `Deleted ${sceneName}.`,
+                    error: ""
+                };
+                this.render({ force: false });
+            });
+        });
+
         this.element?.querySelectorAll("[data-action='scene-properties-save']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
 
-                const scene = this.#getViewedScene();
+                const scene = this.#getScenePropertiesScene();
                 if (!scene) {
                     this._scenePropertiesState = {
                         ...this._scenePropertiesState,

@@ -1381,6 +1381,17 @@ body.totc-v2-active.totc-v2-native-settings-open #settings {
     padding: 0.45rem 0.65rem;
 }
 
+.turn-of-the-century .totc-v2-scene-properties-panel__actions .totc-v2-scene-properties-panel__danger {
+    background: rgba(127, 29, 29, 0.28);
+    border-color: rgba(248, 113, 113, 0.42);
+    color: #fecaca;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actions .totc-v2-scene-properties-panel__danger:hover {
+    background: rgba(127, 29, 29, 0.42);
+    border-color: rgba(252, 165, 165, 0.68);
+}
+
 .turn-of-the-century .totc-v2-scene-properties-panel__actions button:disabled {
     cursor: not-allowed;
     opacity: 0.48;
