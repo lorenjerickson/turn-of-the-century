@@ -267,6 +267,16 @@ export class LayoutEngine {
         return this.getLayout();
     }
 
+    removePanel(panelId) {
+        if (!panelId) return this.getLayout();
+
+        const next = this.getLayout();
+        this.#removePanelInstances(next, panelId);
+        delete next.root.panelMemory?.[panelId];
+        this.layout = next;
+        return this.getLayout();
+    }
+
     restorePanel(panelDef, { preferredDockId = null } = {}) {
         if (!panelDef?.id || !panelDef?.title) return this.getLayout();
 

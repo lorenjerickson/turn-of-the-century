@@ -651,6 +651,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.render({ force: false });
             }
         };
+        this._deletedSceneHandler = (scene) => {
+            void this.#removeDeletedSceneMapPanel(scene);
+        };
         this._compendiumRefreshHandler = () => {
             // Clear cache and refresh the compendium panel when game becomes ready
             this._compendiumItemEntries = null;
@@ -1940,6 +1943,28 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return floatingWindow ? { kind: "floating", floatingId: floatingWindow.id } : null;
     }
 
+    async #removeDeletedSceneMapPanel(scene) {
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        if (!sceneId) {
+            if (this.rendered) this.render({ force: false });
+            return this.layoutEngine.getLayout();
+        }
+
+        const panelId = `map:${sceneId}`;
+        const location = this.#findPanelLocation(panelId);
+        if (!location) {
+            if (this.rendered) this.render({ force: false });
+            return this.layoutEngine.getLayout();
+        }
+
+        const nextLayout = typeof this.layoutEngine.removePanel === "function"
+            ? this.layoutEngine.removePanel(panelId)
+            : this.layoutEngine.closePanel(panelId);
+        await this.stateStore?.setUserLayout?.(nextLayout);
+        if (this.rendered) this.render({ force: false });
+        return nextLayout;
+    }
+
     #openSceneMapPanel(sceneId) {
         const scene = this.#getSceneDocumentById(sceneId);
         const panelDef = this.#makeSceneMapPanelDef(scene);
@@ -2122,7 +2147,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         Hooks.on("canvasReady", this._sceneRefreshHandler);
         Hooks.on("updateScene", this._sceneRefreshHandler);
         Hooks.on("createScene", this._sceneRefreshHandler);
-        Hooks.on("deleteScene", this._sceneRefreshHandler);
+        Hooks.on("deleteScene", this._deletedSceneHandler);
         this._sceneHooksBound = true;
     }
 
@@ -2162,7 +2187,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         Hooks.off("canvasReady", this._sceneRefreshHandler);
         Hooks.off("updateScene", this._sceneRefreshHandler);
         Hooks.off("createScene", this._sceneRefreshHandler);
-        Hooks.off("deleteScene", this._sceneRefreshHandler);
+        Hooks.off("deleteScene", this._deletedSceneHandler);
         this._sceneHooksBound = false;
     }
 
@@ -3855,6 +3880,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 try {
                     if (typeof scene.delete !== "function") throw new Error("Scene deletion is not available.");
                     await scene.delete();
+                    await this.#removeDeletedSceneMapPanel(scene);
                 } catch (error) {
                     console.error("[turn-of-the-century] Scene delete failed", error);
                     this._scenePropertiesState = {

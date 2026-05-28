@@ -109,6 +109,25 @@ describe("LayoutEngine", () => {
         assert.equal(layout.root.centerDock.stacks[0].panels[0].id, "map");
     });
 
+    it("removes deleted scene map panels without remembering them", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const engine = new LayoutEngine({ panels: panelLibrary });
+        const stackId = engine.getLayout().root.centerDock.stacks[0].id;
+
+        engine.applyDropIntent(
+            { id: "map:scene-a", title: "Station Yard", baseId: "map", sceneId: "scene-a" },
+            { kind: "local", dockId: "centerDock", stackId, zone: "local-center" }
+        );
+        engine.removePanel("map:scene-a");
+
+        const layout = engine.getLayout();
+        assert.equal(
+            layout.root.centerDock.stacks[0].panels.some((panel) => panel.id === "map:scene-a"),
+            false
+        );
+        assert.equal(layout.root.panelMemory["map:scene-a"], undefined);
+    });
+
     it("enforces minimum floating window dimensions", async () => {
         const { LayoutEngine } = await loadLayoutEngine();
         const engine = new LayoutEngine({ panels: panelLibrary });
