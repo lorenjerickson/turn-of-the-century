@@ -38,6 +38,7 @@ import {
 import {
     buildSceneBackgroundUploadTarget,
     buildScenePropertiesPanelModel,
+    buildScenePropertiesUpdateData,
     renderScenePropertiesPanel
 } from "./panels/scene-properties-panel.mjs";
 import {
@@ -45,7 +46,6 @@ import {
     renderScenesPanel
 } from "./panels/scenes-panel.mjs";
 import {
-    createSceneFromBackgroundPath,
     uploadSceneBackgroundFile
 } from "./design-actions/scene-actions.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
@@ -636,7 +636,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             logger: console
         });
         this._scenePropertiesState = {
-            sceneName: "",
+            sceneId: "",
+            sceneName: null,
             selectedFilename: "",
             backgroundPath: "",
             status: "",
@@ -736,7 +737,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const activeLayout = this.layoutEngine.getLayout();
         const visiblePanels = this.#getVisiblePanelIds(activeLayout);
         const activeWorkspacePanel = this.#getPrimaryActivePanel(activeLayout);
-        const scene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
+        const viewedScene = this.#getViewedScene();
+        const scene = canvas?.scene ?? game.scenes?.active ?? viewedScene;
         const combat = game.combats?.active ?? game.combat ?? null;
         const controlledTokens = canvas?.tokens?.controlled ?? [];
         const gmPanelState = this.#getGamemasterPanelState();
@@ -856,7 +858,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             marketPanel,
             playerPanel: highlightedPlayerPanel,
             designIssuesPanel,
-            scenePropertiesPanel: buildScenePropertiesPanelModel(this._scenePropertiesState)
+            scenePropertiesPanel: buildScenePropertiesPanelModel({
+                ...this._scenePropertiesState,
+                scene: viewedScene
+            })
         };
     }
 
@@ -1794,6 +1799,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             ?? scene?.thumb
             ?? scene?.thumbnail?.src
             ?? "";
+    }
+
+    #getViewedScene() {
+        return game.scenes?.viewed ?? canvas?.scene ?? game.scenes?.active ?? null;
     }
 
     #isMapPanel(panel) {
@@ -3644,14 +3653,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }
             case "scene-properties-name": {
                 const sceneName = value;
+                const scene = this.#getViewedScene();
                 this._scenePropertiesState = {
                     ...this._scenePropertiesState,
+                    sceneId: scene?.id ?? scene?._id ?? "",
                     sceneName,
                     selectedFilename: "",
                     backgroundPath: "",
                     status: sceneName.trim()
-                        ? "Choose a background image to upload into the world assets folder."
-                        : "Enter a scene name before uploading a background image.",
+                        ? ""
+                        : "Enter a scene name before saving.",
                     error: ""
                 };
                 await this.render({ force: false });
@@ -3668,10 +3679,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (!panelDef) return;
 
         this._scenePropertiesState = {
-            sceneName: "",
+            sceneId: "",
+            sceneName: null,
             selectedFilename: "",
             backgroundPath: "",
-            status: "Enter a scene name before uploading a background image.",
+            status: "",
             error: ""
         };
 
@@ -3686,7 +3698,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const file = input.files?.[0] ?? null;
                 if (!file) return;
 
-                const sceneName = String(this._scenePropertiesState.sceneName ?? "").trim();
+                const scene = this.#getViewedScene();
+                const sceneName = String(this._scenePropertiesState.sceneName ?? scene?.name ?? "").trim();
                 const target = buildSceneBackgroundUploadTarget({
                     sceneName,
                     filename: file.name
@@ -3694,6 +3707,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 this._scenePropertiesState = {
                     ...this._scenePropertiesState,
+                    sceneId: scene?.id ?? scene?._id ?? "",
+                    sceneName,
                     selectedFilename: file.name,
                     backgroundPath: "",
                     status: target.valid ? `Uploading ${target.filename}...` : "",
@@ -3706,6 +3721,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const result = await uploadSceneBackgroundFile({
                     file,
                     target,
+                    overwrite: true,
                     foundry,
                     ui
                 });
@@ -3734,46 +3750,62 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.element?.querySelectorAll("[data-action='scene-properties-reset']")?.forEach((button) => {
             button.addEventListener("click", (event) => {
                 event.preventDefault();
+                const scene = this.#getViewedScene();
                 this._scenePropertiesState = {
-                    sceneName: "",
+                    sceneId: scene?.id ?? scene?._id ?? "",
+                    sceneName: null,
                     selectedFilename: "",
                     backgroundPath: "",
-                    status: "Enter a scene name before uploading a background image.",
+                    status: "",
                     error: ""
                 };
                 this.render({ force: false });
             });
         });
 
-        this.element?.querySelectorAll("[data-action='scene-properties-create']")?.forEach((button) => {
+        this.element?.querySelectorAll("[data-action='scene-properties-save']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
 
-                const sceneName = String(this._scenePropertiesState.sceneName ?? "").trim();
-                const backgroundPath = String(this._scenePropertiesState.backgroundPath ?? "").trim();
-                const result = await createSceneFromBackgroundPath({
-                    name: sceneName,
-                    backgroundPath,
-                    foundry,
-                    ui
-                });
-
-                if (!result?.ok) {
+                const scene = this.#getViewedScene();
+                if (!scene) {
                     this._scenePropertiesState = {
                         ...this._scenePropertiesState,
                         status: "",
-                        error: result?.message ?? "Scene creation failed."
+                        error: "No viewed scene is available to save."
+                    };
+                    this.render({ force: false });
+                    return;
+                }
+
+                const model = buildScenePropertiesPanelModel({
+                    ...this._scenePropertiesState,
+                    scene
+                });
+                const updateData = buildScenePropertiesUpdateData(model);
+
+                try {
+                    await scene.update(updateData);
+                } catch (error) {
+                    console.error("[turn-of-the-century] Scene properties save failed", error);
+                    this._scenePropertiesState = {
+                        ...this._scenePropertiesState,
+                        status: "",
+                        error: "Scene save failed - see console for details."
                     };
                     this.render({ force: false });
                     return;
                 }
 
                 this._scenePropertiesState = {
-                    sceneName: "",
+                    sceneId: scene.id ?? scene._id ?? "",
+                    sceneName: null,
                     selectedFilename: "",
                     backgroundPath: "",
-                    status: `Created ${result.name}.`,
+                    status: model.backgroundChanged
+                        ? "Scene saved. Grid calibration was cleared for the new background."
+                        : "Scene saved.",
                     error: ""
                 };
                 this.render({ force: false });

@@ -173,6 +173,38 @@ describe("scene design actions", () => {
         ]);
     });
 
+    it("can overwrite scene backgrounds for incremental scene edits", async () => {
+        let uploadOptions = null;
+        const result = await uploadSceneBackgroundFile({
+            file: { name: "Replacement.webp", type: "image/webp", lastModified: 1 },
+            overwrite: true,
+            target: {
+                valid: true,
+                directory: SCENE_BACKGROUND_IMAGE_ASSET_PATH,
+                filename: "whitechapel-alley.webp",
+                path: `${SCENE_BACKGROUND_IMAGE_ASSET_PATH}/whitechapel-alley.webp`
+            },
+            foundry: {
+                applications: {
+                    apps: {
+                        FilePicker: {
+                            implementation: {
+                                createDirectory: async () => {},
+                                upload: async (source, directory, file, options) => {
+                                    uploadOptions = options;
+                                    return { path: `${directory}/${file.name}` };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        assert.equal(result.ok, true);
+        assert.equal(uploadOptions.overwrite, true);
+    });
+
     it("activates Foundry scene controls for wall editing when available", async () => {
         let initializedWith = null;
         const result = await activateSceneWallDesignMode({

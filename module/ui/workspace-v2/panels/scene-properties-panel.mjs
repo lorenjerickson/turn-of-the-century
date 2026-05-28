@@ -43,29 +43,63 @@ export function buildSceneBackgroundUploadTarget({ sceneName = "", filename = ""
 }
 
 export function buildScenePropertiesPanelModel(state = {}) {
-    const sceneName = String(state.sceneName ?? "").trim();
-    const selectedFilename = String(state.selectedFilename ?? "").trim();
+    const scene = state.scene ?? null;
+    const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+    const stateSceneId = String(state.sceneId ?? "").trim();
+    const stateApplies = !stateSceneId || !sceneId || stateSceneId === sceneId;
+    const sceneName = String(stateApplies ? (state.sceneName ?? scene?.name ?? "") : (scene?.name ?? "")).trim();
+    const selectedFilename = String(stateApplies ? state.selectedFilename ?? "" : "").trim();
     const target = buildSceneBackgroundUploadTarget({
         sceneName,
         filename: selectedFilename
     });
-    const uploadedPath = String(state.backgroundPath ?? "").trim();
+    const uploadedPath = String(stateApplies ? state.backgroundPath ?? "" : "").trim();
+    const currentBackgroundPath = String(
+        scene?.background?.src
+            ?? scene?.["img"]
+            ?? scene?.texture?.src
+            ?? ""
+    ).trim();
+    const effectiveBackgroundPath = uploadedPath || currentBackgroundPath;
 
     return {
+        sceneId,
         sceneName,
         selectedFilename,
         target,
         backgroundPath: uploadedPath,
+        currentBackgroundPath,
+        effectiveBackgroundPath,
         uploadEnabled: Boolean(sceneName),
-        createEnabled: Boolean(sceneName && uploadedPath),
-        status: String(state.status ?? "").trim(),
-        error: String(state.error ?? "").trim()
+        saveEnabled: Boolean(scene && sceneName),
+        backgroundChanged: Boolean(uploadedPath && uploadedPath !== currentBackgroundPath),
+        status: String(stateApplies ? state.status ?? "" : "").trim(),
+        error: String(stateApplies ? state.error ?? "" : "").trim()
     };
+}
+
+export function buildScenePropertiesUpdateData(model = {}) {
+    const sceneName = String(model.sceneName ?? "").trim();
+    const backgroundPath = String(model.backgroundPath ?? "").trim();
+    const currentBackgroundPath = String(model.currentBackgroundPath ?? "").trim();
+    const updateData = {};
+
+    if (sceneName) updateData.name = sceneName;
+
+    if (backgroundPath && backgroundPath !== currentBackgroundPath) {
+        updateData["background.src"] = backgroundPath;
+        updateData.shiftX = 0;
+        updateData.shiftY = 0;
+        updateData["grid.type"] = 0;
+        updateData["grid.size"] = 100;
+    }
+
+    return updateData;
 }
 
 export function renderScenePropertiesPanel(model = {}, { escapeHTML = safeEscape } = {}) {
     const uploadDisabled = model.uploadEnabled ? "" : "disabled";
-    const createDisabled = model.createEnabled ? "" : "disabled";
+    const saveDisabled = model.saveEnabled ? "" : "disabled";
     const accept = SCENE_BACKGROUND_IMAGE_EXTENSIONS.map((ext) => `.${ext}`).join(",");
     const targetPath = model.target?.path || `${SCENE_BACKGROUND_IMAGE_ASSET_PATH}/<scene-slug>.<ext>`;
 
@@ -82,14 +116,17 @@ export function renderScenePropertiesPanel(model = {}, { escapeHTML = safeEscape
             </label>
         </div>
         <div class="totc-v2-scene-properties-panel__summary">
+            ${model.sceneId ? `<div><strong>Scene</strong> ${escapeHTML(model.sceneId)}</div>` : `<div><strong>Scene</strong> No viewed scene</div>`}
+            ${model.currentBackgroundPath ? `<div><strong>Current background</strong> ${escapeHTML(model.currentBackgroundPath)}</div>` : ""}
             <div><strong>Upload target</strong> ${escapeHTML(targetPath)}</div>
             ${model.backgroundPath ? `<div><strong>Uploaded</strong> ${escapeHTML(model.backgroundPath)}</div>` : ""}
+            ${model.backgroundChanged ? `<p class="totc-v2-scene-properties-panel__status">Saving this background will clear existing grid calibration.</p>` : ""}
             ${model.status ? `<p class="totc-v2-scene-properties-panel__status">${escapeHTML(model.status)}</p>` : ""}
             ${model.error ? `<p class="totc-v2-scene-properties-panel__error">${escapeHTML(model.error)}</p>` : ""}
         </div>
         <footer class="totc-v2-scene-properties-panel__actions">
             <button type="button" data-action="scene-properties-reset">Reset</button>
-            <button type="button" data-action="scene-properties-create" ${createDisabled}>Create Scene</button>
+            <button type="button" data-action="scene-properties-save" ${saveDisabled}>Save</button>
         </footer>
     </section>`;
 }

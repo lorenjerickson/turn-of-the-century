@@ -180,7 +180,7 @@ export class SceneDesignService {
         };
     }
 
-    async uploadBackgroundFile({ file, target } = {}) {
+    async uploadBackgroundFile({ file, target, overwrite = false } = {}) {
         const FilePickerClass = getFilePickerClass(this.context);
         if (!FilePickerClass || typeof FilePickerClass.upload !== "function") {
             return {
@@ -208,7 +208,7 @@ export class SceneDesignService {
         await ensureFoundryDirectory(FilePickerClass, target.directory);
         const result = await FilePickerClass.upload("data", target.directory, uploadFile, {
             notify: true,
-            overwrite: false
+            overwrite: Boolean(overwrite)
         });
         const uploadedPath = String(result?.path ?? result ?? target.path);
 
@@ -273,8 +273,8 @@ export async function createSceneDesignScene(context = {}) {
     return new SceneDesignService(context).openScenePropertiesPanel();
 }
 
-export async function uploadSceneBackgroundFile({ file, target, ...context } = {}) {
-    return new SceneDesignService(context).uploadBackgroundFile({ file, target });
+export async function uploadSceneBackgroundFile({ file, target, overwrite = false, ...context } = {}) {
+    return new SceneDesignService(context).uploadBackgroundFile({ file, target, overwrite });
 }
 
 export async function activateSceneWallDesignMode(context = {}) {
