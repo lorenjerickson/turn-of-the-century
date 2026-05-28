@@ -39,6 +39,17 @@ describe("WorkspacePanelRegistry", () => {
         });
     });
 
+    it("registers the scenes panel for the left dock", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.deepEqual(registry.get("scenes"), {
+            id: "scenes",
+            title: "Scenes",
+            defaultDock: "leftDock",
+            contextTags: ["scene", "navigation"]
+        });
+    });
+
     it("registers the GM inspector panel for right-dock restoration", () => {
         const registry = new WorkspacePanelRegistry();
 

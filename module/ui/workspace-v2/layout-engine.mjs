@@ -23,7 +23,9 @@ function makeEmptyDock(orientation) {
 function makePanelInstance(panelDef) {
     return {
         id: panelDef.id,
-        title: panelDef.title
+        title: panelDef.title,
+        ...(panelDef.baseId ? { baseId: panelDef.baseId } : {}),
+        ...(panelDef.sceneId ? { sceneId: panelDef.sceneId } : {})
     };
 }
 
@@ -32,6 +34,20 @@ function makeStackWithPanel(panelDef) {
         id: nextId("stack"),
         panels: [makePanelInstance(panelDef)],
         activePanelId: panelDef.id,
+        size: 1
+    };
+}
+
+function makeStackWithPanels(panelDefs, { activePanelId = null } = {}) {
+    const panels = panelDefs.filter(Boolean).map(makePanelInstance);
+    const activeId = activePanelId && panels.some((panel) => panel.id === activePanelId)
+        ? activePanelId
+        : panels[0]?.id;
+
+    return {
+        id: nextId("stack"),
+        panels,
+        activePanelId: activeId,
         size: 1
     };
 }
@@ -73,6 +89,7 @@ function findPanelById(panels, panelId, fallbackIndex = 0) {
 export class LayoutEngine {
     static createDefaultLayout({ panels = [] } = {}) {
         const leftPanel = findPanelById(panels, "gamemaster");
+        const scenesPanel = findPanelById(panels, "scenes");
         const topPanel = findPanelById(panels, "chat");
         const centerPanel = findPanelById(panels, "map");
         const rightPanel = findPanelById(panels, "compendium");
@@ -85,7 +102,7 @@ export class LayoutEngine {
             root: {
                 leftDock: {
                     orientation: "vertical",
-                    stacks: [makeStackWithPanel(leftPanel)]
+                    stacks: [makeStackWithPanels([leftPanel, scenesPanel], { activePanelId: leftPanel.id })]
                 },
                 topDock: {
                     orientation: "horizontal",

@@ -41,6 +41,10 @@ import {
     renderScenePropertiesPanel
 } from "./panels/scene-properties-panel.mjs";
 import {
+    buildScenesPanelModel,
+    renderScenesPanel
+} from "./panels/scenes-panel.mjs";
+import {
     createSceneFromBackgroundPath,
     uploadSceneBackgroundFile
 } from "./design-actions/scene-actions.mjs";
@@ -842,6 +846,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     units: String(scene?.grid?.units ?? "ft")
                 }
             },
+            scenesPanel: buildScenesPanelModel({
+                scenes: game.scenes,
+                currentScene: scene,
+                viewedScene: game.scenes?.viewed ?? null
+            }),
             gm: gmSnapshot,
             gmPanel: highlightedGmPanel,
             marketPanel,
@@ -1209,11 +1218,24 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.element?.querySelectorAll("[data-action='open-scene-map']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const sceneId = String(button.dataset.sceneId ?? "").trim();
+                if (!sceneId) return;
+
+                const nextLayout = this.#openSceneMapPanel(sceneId);
+                await this.stateStore?.setUserLayout?.(nextLayout);
+                this.render({ force: false });
+            });
+        });
+
         this.element?.querySelectorAll("[data-action='float-panel']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 const panelId = button.dataset.panelId;
-                const panelDef = this.panelRegistry.get(panelId);
+                const panelDef = this.#resolvePanelDefinition(panelId);
                 if (!panelDef) return;
 
                 const nextLayout = this.layoutEngine.floatPanel(panelDef);
@@ -1377,7 +1399,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 draggable="true"
                 data-drag-panel-id="${panel.id}"
                 class="totc-v2-stack__tab ${panel.id === stack.activePanelId ? "is-active" : ""}">
-                ${panel.title}
+                ${this.#escapeHTML(this.#getPanelTitle(panel, context))}
             </button>`)
             .join("");
 
@@ -1440,15 +1462,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #renderFloatingWindowsMarkup(floatingWindows = []) {
         return floatingWindows.map((floatingWindow) => {
-            const title = this.#escapeHTML(floatingWindow.panel?.title ?? "Floating Panel");
-            const designLensActive = this.#isDesignLensActive(floatingWindow.panel?.id);
-            const designButtonTitle = designLensActive ? "Close design lens" : "Open design lens";
-            const content = this.#renderPanelContent(floatingWindow.panel, {
+            const floatingContext = {
                 scene: {
                     name: game.scenes?.viewed?.name ?? "Current Scene",
                     mapSrc: this.#getSceneMapSource(canvas?.scene ?? game.scenes?.viewed ?? null)
                 }
-            });
+            };
+            const title = this.#escapeHTML(this.#getPanelTitle(floatingWindow.panel, floatingContext) ?? "Floating Panel");
+            const designLensActive = this.#isDesignLensActive(floatingWindow.panel?.id);
+            const designButtonTitle = designLensActive ? "Close design lens" : "Open design lens";
+            const content = this.#renderPanelContent(floatingWindow.panel, floatingContext);
 
             return `
             <article
@@ -1491,28 +1514,29 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             return `<div class="totc-v2-panel-placeholder">Empty</div>`;
         }
 
-        if (panel.id === "map") {
-            const sceneName = this.#escapeHTML(context.scene?.name ?? "Current Scene");
-            const mapSrc = context.scene?.mapSrc ?? "";
-            const dimensions = [context.scene?.width, context.scene?.height].filter((value) => Number.isFinite(value) && value > 0);
+        if (this.#isMapPanel(panel)) {
+            const mapScene = this.#getMapPanelScene(panel, context);
+            const sceneName = this.#escapeHTML(mapScene?.name ?? "Current Scene");
+            const mapSrc = mapScene?.mapSrc ?? "";
+            const dimensions = [mapScene?.width, mapScene?.height].filter((value) => Number.isFinite(value) && value > 0);
             const dimensionLabel = dimensions.length === 2 ? `${dimensions[0]} × ${dimensions[1]}` : "Scene map";
 
             const calModel = buildGridCalibrationModel({
                 state: this.gridCalibrationController.state,
-                scene: context.scene
+                scene: mapScene
             });
             const calActive = calModel.active;
-            const sceneGridOverlayActive = Boolean(!calActive && buildSceneGridOverlayState(context.scene));
+            const sceneGridOverlayActive = Boolean(!calActive && buildSceneGridOverlayState(mapScene));
             const gridOverlayActive = calActive || sceneGridOverlayActive;
             const calDialog = renderGridCalibrationDialog(calModel, { escapeHTML: (v) => this.#escapeHTML(v) });
 
             const imageMarkup = mapSrc
                 ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true"
-                    data-map-key="${this.#escapeHTML(context.scene?.id ?? mapSrc)}"
-                    data-grid-type="${this.#escapeHTML(context.scene?.grid?.type ?? "")}"
-                    data-grid-size="${this.#escapeHTML(context.scene?.grid?.size ?? "")}"
-                    data-grid-shift-x="${this.#escapeHTML(context.scene?.shiftX ?? 0)}"
-                    data-grid-shift-y="${this.#escapeHTML(context.scene?.shiftY ?? 0)}">
+                    data-map-key="${this.#escapeHTML(mapScene?.id ?? mapSrc)}"
+                    data-grid-type="${this.#escapeHTML(mapScene?.grid?.type ?? "")}"
+                    data-grid-size="${this.#escapeHTML(mapScene?.grid?.size ?? "")}"
+                    data-grid-shift-x="${this.#escapeHTML(mapScene?.shiftX ?? 0)}"
+                    data-grid-shift-y="${this.#escapeHTML(mapScene?.shiftY ?? 0)}">
                     <img class="totc-v2-map-panel__image" src="${this.#escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false" data-action="map-image">
                     ${gridOverlayActive ? `<svg class="totc-v2-map-panel__grid-overlay" data-grid-overlay="true" aria-hidden="true"></svg>` : ""}
                 </div>`
@@ -1553,6 +1577,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                         </article>`).join("") : `<div class="totc-v2-compendium-panel__empty">No items match this search.</div>`}
                 </div>
             </section>`;
+        }
+
+        if (panel.id === "scenes") {
+            return renderScenesPanel(context.scenesPanel ?? {}, {
+                escapeHTML: (value) => this.#escapeHTML(value)
+            });
         }
 
         if (panel.id === "market") {
@@ -1764,6 +1794,130 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             ?? scene?.thumb
             ?? scene?.thumbnail?.src
             ?? "";
+    }
+
+    #isMapPanel(panel) {
+        return panel?.id === "map" || panel?.baseId === "map" || String(panel?.id ?? "").startsWith("map:");
+    }
+
+    #getSceneDocumentById(sceneId) {
+        const id = String(sceneId ?? "").trim();
+        if (!id) return null;
+        return game.scenes?.get?.(id)
+            ?? (game.scenes?.contents ?? []).find((scene) => String(scene?.id ?? scene?._id ?? "") === id)
+            ?? null;
+    }
+
+    #buildSceneViewModel(scene, fallback = {}) {
+        return {
+            id: scene?.id ?? scene?._id ?? fallback.id ?? null,
+            name: scene?.name ?? fallback.name ?? "Current Scene",
+            mapSrc: this.#getSceneMapSource(scene) || fallback.mapSrc || "",
+            width: Number(scene?.width ?? fallback.width ?? 0),
+            height: Number(scene?.height ?? fallback.height ?? 0),
+            shiftX: Number(scene?.shiftX ?? fallback.shiftX ?? 0),
+            shiftY: Number(scene?.shiftY ?? fallback.shiftY ?? 0),
+            grid: {
+                type: Number(scene?.grid?.type ?? fallback.grid?.type ?? 1),
+                size: Number(scene?.grid?.size ?? fallback.grid?.size ?? 100),
+                distance: Number(scene?.grid?.distance ?? fallback.grid?.distance ?? 5),
+                units: String(scene?.grid?.units ?? fallback.grid?.units ?? "ft")
+            }
+        };
+    }
+
+    #getMapPanelScene(panel, context = {}) {
+        const sceneId = panel?.sceneId ?? (String(panel?.id ?? "").startsWith("map:") ? String(panel.id).slice(4) : "");
+        const scene = this.#getSceneDocumentById(sceneId);
+        if (scene) return this.#buildSceneViewModel(scene, { id: sceneId });
+        if (sceneId) return this.#buildSceneViewModel(null, { id: sceneId, name: panel?.title ?? "Missing Scene" });
+        return context.scene ?? this.#buildSceneViewModel(null);
+    }
+
+    #getPanelTitle(panel, context = {}) {
+        if (this.#isMapPanel(panel)) {
+            return this.#getMapPanelScene(panel, context)?.name ?? panel?.title ?? "Map";
+        }
+
+        return panel?.title ?? "";
+    }
+
+    #makeSceneMapPanelDef(scene) {
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        if (!sceneId) return null;
+
+        return {
+            id: `map:${sceneId}`,
+            title: scene?.name ?? "Scene Map",
+            baseId: "map",
+            sceneId
+        };
+    }
+
+    #resolvePanelDefinition(panelId) {
+        const id = String(panelId ?? "").trim();
+        if (!id) return null;
+
+        const registered = this.panelRegistry.get(id);
+        if (registered) return registered;
+
+        if (id.startsWith("map:")) {
+            const scene = this.#getSceneDocumentById(id.slice(4));
+            return this.#makeSceneMapPanelDef(scene);
+        }
+
+        return null;
+    }
+
+    #findPanelLocation(panelId) {
+        const id = String(panelId ?? "").trim();
+        if (!id) return null;
+
+        const layout = this.layoutEngine.getLayout();
+        for (const dockId of WORKSPACE_V2_DOCK_IDS) {
+            const dock = layout?.root?.[dockId];
+            for (const stack of dock?.stacks ?? []) {
+                if ((stack?.panels ?? []).some((panel) => panel.id === id)) {
+                    return { kind: "dock", dockId, stackId: stack.id };
+                }
+            }
+        }
+
+        const floatingWindow = (layout?.root?.floatingWindows ?? []).find((entry) => entry?.panel?.id === id);
+        return floatingWindow ? { kind: "floating", floatingId: floatingWindow.id } : null;
+    }
+
+    #openSceneMapPanel(sceneId) {
+        const scene = this.#getSceneDocumentById(sceneId);
+        const panelDef = this.#makeSceneMapPanelDef(scene);
+        if (!panelDef) return this.layoutEngine.getLayout();
+
+        const currentSceneId = String((canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed)?.id ?? "");
+        if (panelDef.sceneId === currentSceneId) {
+            const currentMap = this.#findPanelLocation("map");
+            if (currentMap?.kind === "dock") {
+                return this.layoutEngine.setActivePanel(currentMap.dockId, currentMap.stackId, "map");
+            }
+        }
+
+        const existing = this.#findPanelLocation(panelDef.id);
+        if (existing?.kind === "dock") {
+            return this.layoutEngine.setActivePanel(existing.dockId, existing.stackId, panelDef.id);
+        }
+        if (existing?.kind === "floating") {
+            return this.layoutEngine.getLayout();
+        }
+
+        const layout = this.layoutEngine.getLayout();
+        const centerStack = layout.root?.centerDock?.stacks?.[0];
+        return centerStack?.id
+            ? this.layoutEngine.applyDropIntent(panelDef, {
+                kind: "local",
+                dockId: "centerDock",
+                stackId: centerStack.id,
+                zone: "local-center"
+            })
+            : this.layoutEngine.applyDropIntent(panelDef, { kind: "edge", dockId: "centerDock" });
     }
 
     #escapeHTML(value) {
@@ -2859,7 +3013,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         host.addEventListener("drop", async (event) => {
             event.preventDefault();
             const panelId = event.dataTransfer?.getData("text/plain");
-            const panelDef = this.panelRegistry.get(panelId);
+            const panelDef = this.#resolvePanelDefinition(panelId);
             if (!panelDef) {
                 this.#hideGhost();
                 return;
@@ -3630,7 +3784,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async #executeDesignAction(actionId, { panelId = "" } = {}) {
         const action = this.designActionRegistry.get(actionId);
         if (!action) return;
-        const sourcePanel = panelId ? this.panelRegistry.get(panelId) : this.#getPrimaryActivePanel();
+        const sourcePanel = panelId ? this.#resolvePanelDefinition(panelId) : this.#getPrimaryActivePanel();
 
         try {
             const result = await action.execute({
@@ -3708,7 +3862,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     #enforceRequiredDocking() {
         const mapPanel = this.panelRegistry.get("map");
         const compendiumPanel = this.panelRegistry.get("compendium");
-        if (!mapPanel || !compendiumPanel) return null;
+        const scenesPanel = this.panelRegistry.get("scenes");
+        if (!mapPanel || !compendiumPanel || !scenesPanel) return null;
 
         let changed = false;
         const initialLayout = this.layoutEngine.getLayout();
@@ -3723,7 +3878,46 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             changed = true;
         }
 
+        const layoutAfterCompendium = this.layoutEngine.getLayout();
+        if (!this.#dockHasPanel(layoutAfterCompendium, "leftDock", "scenes")) {
+            this.#dockPanelWithPanel(scenesPanel, {
+                targetPanelId: "gamemaster",
+                preferredDockId: "leftDock"
+            });
+            changed = true;
+        }
+
         return changed ? this.layoutEngine.getLayout() : null;
+    }
+
+    #dockPanelWithPanel(panelDef, { targetPanelId, preferredDockId } = {}) {
+        const layout = this.layoutEngine.getLayout();
+        let targetDockId = preferredDockId;
+        let targetStack = null;
+
+        const dockIds = preferredDockId ? [preferredDockId] : WORKSPACE_V2_DOCK_IDS;
+        for (const dockId of dockIds) {
+            const dock = layout?.root?.[dockId];
+            const stack = dock?.stacks?.find((entry) => (entry?.panels ?? []).some((panel) => panel.id === targetPanelId));
+            if (!stack) continue;
+            targetDockId = dockId;
+            targetStack = stack;
+            break;
+        }
+
+        if (targetDockId && targetStack?.id) {
+            const activePanelId = targetStack.activePanelId;
+            this.layoutEngine.applyDropIntent(panelDef, {
+                kind: "local",
+                dockId: targetDockId,
+                stackId: targetStack.id,
+                zone: "local-center"
+            });
+            if (activePanelId) this.layoutEngine.setActivePanel(targetDockId, targetStack.id, activePanelId);
+            return this.layoutEngine.getLayout();
+        }
+
+        return this.layoutEngine.applyDropIntent(panelDef, { kind: "edge", dockId: preferredDockId ?? panelDef.defaultDock ?? "leftDock" });
     }
 
     #dockHasPanel(layout, dockId, panelId) {

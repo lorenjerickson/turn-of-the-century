@@ -20,6 +20,7 @@ async function loadLayoutEngine() {
 
 const panelLibrary = Object.freeze([
     { id: "gamemaster", title: "Gamemaster" },
+    { id: "scenes", title: "Scenes", defaultDock: "leftDock" },
     { id: "map", title: "Map" },
     { id: "chat", title: "Chat and Messages" },
     { id: "tracker", title: "Turn Tracker" },
@@ -33,7 +34,8 @@ describe("LayoutEngine", () => {
         const layout = LayoutEngine.createDefaultLayout({ panels: panelLibrary });
 
         assert.equal(layout.version, 1);
-        assert.equal(layout.root.leftDock.stacks[0].panels[0].id, "gamemaster");
+        assert.deepEqual(layout.root.leftDock.stacks[0].panels.map((panel) => panel.id), ["gamemaster", "scenes"]);
+        assert.equal(layout.root.leftDock.stacks[0].activePanelId, "gamemaster");
         assert.equal(layout.root.centerDock.stacks[0].panels[0].id, "map");
         assert.equal(layout.root.topDock.stacks[0].panels[0].id, "chat");
         assert.equal(layout.root.bottomDock.stacks[0].panels[0].id, "tracker");
@@ -53,6 +55,31 @@ describe("LayoutEngine", () => {
         const stack = layout.root.centerDock.stacks[0];
         assert.deepEqual(stack.panels.map((panel) => panel.id), ["map", "player"]);
         assert.equal(stack.activePanelId, "player");
+    });
+
+    it("preserves multiple scene-specific map panels as separate tabs", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const engine = new LayoutEngine({ panels: panelLibrary });
+        const stackId = engine.getLayout().root.centerDock.stacks[0].id;
+
+        engine.applyDropIntent(
+            { id: "map:scene-a", title: "Station Yard", baseId: "map", sceneId: "scene-a" },
+            { kind: "local", dockId: "centerDock", stackId, zone: "local-center" }
+        );
+        const layout = engine.applyDropIntent(
+            { id: "map:scene-b", title: "Hotel Cellar", baseId: "map", sceneId: "scene-b" },
+            { kind: "local", dockId: "centerDock", stackId, zone: "local-center" }
+        );
+
+        const stack = layout.root.centerDock.stacks[0];
+        assert.deepEqual(stack.panels.map((panel) => panel.id), ["map", "map:scene-a", "map:scene-b"]);
+        assert.deepEqual(stack.panels[1], {
+            id: "map:scene-a",
+            title: "Station Yard",
+            baseId: "map",
+            sceneId: "scene-a"
+        });
+        assert.equal(stack.activePanelId, "map:scene-b");
     });
 
     it("stacks local-top drops before the target stack", async () => {
