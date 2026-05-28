@@ -123,15 +123,18 @@ describe("Scene properties panel", () => {
         const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({}));
         assert.match(html, /data-action="scene-properties-background-upload"[^>]*disabled/);
         assert.match(html, /data-action="scene-properties-save"[^>]*disabled/);
+        assert.match(html, /data-action="scene-properties-activate"[^>]*disabled/);
         assert.match(html, /data-action="scene-properties-delete"[^>]*disabled/);
         assert.doesNotMatch(html, /Create Scene/);
     });
 
-    it("renders delete scene enabled for an existing viewed scene", () => {
+    it("renders scene actions enabled for an existing viewed scene", () => {
         const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
             scene: { id: "scene-a", name: "Whitechapel" }
         }));
 
+        assert.match(html, /data-action="scene-properties-activate"/);
+        assert.doesNotMatch(html, /data-action="scene-properties-activate"[^>]*disabled/);
         assert.match(html, /data-action="scene-properties-delete"/);
         assert.doesNotMatch(html, /data-action="scene-properties-delete"[^>]*disabled/);
     });

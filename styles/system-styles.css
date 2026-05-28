@@ -1752,12 +1752,15 @@ body.totc-v2-active.totc-v2-native-settings-open #settings {
 
 .turn-of-the-century .totc-v2-stack__tab {
     appearance: none;
+    align-items: center;
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
     border-radius: 0;
     color: #cbd5e1;
     cursor: pointer;
+    display: inline-flex;
+    gap: 0.28rem;
     font-size: 0.74rem;
     font-weight: 500;
     max-width: 11rem;
@@ -1767,6 +1770,17 @@ body.totc-v2-active.totc-v2-native-settings-open #settings {
     text-overflow: ellipsis;
     white-space: nowrap;
     transform: translateY(1px);
+}
+
+.turn-of-the-century .totc-v2-stack__tab span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.turn-of-the-century .totc-v2-stack__tab-icon {
+    color: #fbbf24;
+    flex: 0 0 auto;
+    font-size: 0.66rem;
 }
 
 .turn-of-the-century .totc-v2-stack__tab.is-active {

@@ -86,7 +86,7 @@ export function renderScenesPanel(panelModel = {}, { escapeHTML = (value) => Str
 
                 return `
                 <article class="totc-v2-scenes-panel__entry${scene.current ? " is-current" : ""}" role="listitem" data-scene-id="${escapeHTML(scene.id)}">
-                    <button type="button" class="totc-v2-scenes-panel__entry-main" data-action="open-scene-map" data-scene-id="${escapeHTML(scene.id)}">
+                    <button type="button" class="totc-v2-scenes-panel__entry-main" data-action="open-scene-map" data-scene-id="${escapeHTML(scene.id)}" title="Open scene map">
                         <span class="totc-v2-scenes-panel__entry-name">${escapeHTML(scene.name)}</span>
                         <span class="totc-v2-scenes-panel__entry-dimensions">${escapeHTML(scene.dimensions)}</span>
                     </button>

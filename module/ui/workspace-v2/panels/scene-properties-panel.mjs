@@ -119,6 +119,7 @@ export function resolveScenePropertiesScene({
 export function renderScenePropertiesPanel(model = {}, { escapeHTML = safeEscape } = {}) {
     const uploadDisabled = model.uploadEnabled ? "" : "disabled";
     const saveDisabled = model.saveEnabled ? "" : "disabled";
+    const sceneActionDisabled = model.sceneId ? "" : "disabled";
     const accept = SCENE_BACKGROUND_IMAGE_EXTENSIONS.map((ext) => `.${ext}`).join(",");
     const targetPath = model.target?.path || `${SCENE_BACKGROUND_IMAGE_ASSET_PATH}/<scene-slug>.<ext>`;
 
@@ -145,7 +146,8 @@ export function renderScenePropertiesPanel(model = {}, { escapeHTML = safeEscape
         </div>
         <footer class="totc-v2-scene-properties-panel__actions">
             <button type="button" data-action="scene-properties-reset">Reset</button>
-            <button type="button" class="totc-v2-scene-properties-panel__danger" data-action="scene-properties-delete" ${model.sceneId ? "" : "disabled"}>Delete Scene</button>
+            <button type="button" data-action="scene-properties-activate" ${sceneActionDisabled}>Activate Scene</button>
+            <button type="button" class="totc-v2-scene-properties-panel__danger" data-action="scene-properties-delete" ${sceneActionDisabled}>Delete Scene</button>
             <button type="button" data-action="scene-properties-save" ${saveDisabled}>Save</button>
         </footer>
     </section>`;

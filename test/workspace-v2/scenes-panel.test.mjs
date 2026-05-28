@@ -57,13 +57,15 @@ describe("Scenes panel", () => {
 
     it("renders scene names as map-opening controls", () => {
         const model = buildScenesPanelModel({
-            scenes: [{ id: "scene-a", name: "Station Yard", grid: { type: 1, size: 100 } }]
+            scenes: [{ id: "scene-a", name: "Station Yard", active: true, grid: { type: 1, size: 100 } }]
         });
 
         const html = renderScenesPanel(model);
 
         assert.match(html, /data-action="open-scene-map"/);
         assert.match(html, /data-scene-id="scene-a"/);
+        assert.match(html, /title="Open scene map"/);
+        assert.match(html, />Active</);
         assert.match(html, /Station Yard/);
     });
 

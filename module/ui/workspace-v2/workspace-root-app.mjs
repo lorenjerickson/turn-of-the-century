@@ -1237,6 +1237,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const sceneId = String(button.dataset.sceneId ?? "").trim();
                 if (!sceneId) return;
 
+                if (event.detail > 1) {
+                    await this.#activateScene(this.#getSceneDocumentById(sceneId));
+                    return;
+                }
+
                 const nextLayout = this.#openSceneMapPanel(sceneId);
                 await this.stateStore?.setUserLayout?.(nextLayout);
                 this.render({ force: false });
@@ -1411,7 +1416,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 draggable="true"
                 data-drag-panel-id="${panel.id}"
                 class="totc-v2-stack__tab ${panel.id === stack.activePanelId ? "is-active" : ""}">
-                ${this.#escapeHTML(this.#getPanelTitle(panel, context))}
+                ${this.#renderPanelTabIcon(panel, context)}
+                <span>${this.#escapeHTML(this.#getPanelTitle(panel, context))}</span>
             </button>`)
             .join("");
 
@@ -1869,6 +1875,26 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return panel?.title ?? "";
     }
 
+    #getPanelSceneId(panel, context = {}) {
+        if (!this.#isMapPanel(panel)) return "";
+        const panelId = String(panel?.id ?? "");
+        const explicitSceneId = panel?.sceneId ?? (panelId.startsWith("map:") ? panelId.slice(4) : "");
+        return String(explicitSceneId || context.scene?.id || "").trim();
+    }
+
+    #getActiveSceneId() {
+        return String(game.scenes?.active?.id
+            ?? (game.scenes?.contents ?? []).find((scene) => scene?.active)?.id
+            ?? ""
+        ).trim();
+    }
+
+    #renderPanelTabIcon(panel, context = {}) {
+        const sceneId = this.#getPanelSceneId(panel, context);
+        if (!sceneId || sceneId !== this.#getActiveSceneId()) return "";
+        return `<i class="fa-solid fa-star totc-v2-stack__tab-icon" aria-hidden="true"></i>`;
+    }
+
     #makeSceneMapPanelDef(scene) {
         const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
         if (!sceneId) return null;
@@ -1945,6 +1971,31 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 zone: "local-center"
             })
             : this.layoutEngine.applyDropIntent(panelDef, { kind: "edge", dockId: "centerDock" });
+    }
+
+    async #activateScene(scene) {
+        if (!scene) {
+            ui.notifications?.warn("No scene is available to activate.");
+            return false;
+        }
+
+        try {
+            if (typeof scene.activate === "function") {
+                await scene.activate();
+            } else if (typeof scene.update === "function") {
+                await scene.update({ active: true });
+            } else {
+                throw new Error("Scene activation is not available.");
+            }
+        } catch (error) {
+            console.error("[turn-of-the-century] Scene activation failed", error);
+            ui.notifications?.error("Scene activation failed - see console for details.");
+            return false;
+        }
+
+        ui.notifications?.info?.(`Activated ${scene.name ?? "scene"}.`);
+        this.render({ force: false });
+        return true;
     }
 
     #escapeHTML(value) {
@@ -3824,6 +3875,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     error: ""
                 };
                 this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='scene-properties-activate']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const scene = this.#getScenePropertiesScene();
+                await this.#activateScene(scene);
             });
         });
 
