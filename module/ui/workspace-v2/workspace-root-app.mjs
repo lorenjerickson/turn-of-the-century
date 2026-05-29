@@ -24,6 +24,10 @@ import {
 } from "./panels/inspector-panel.mjs";
 import { WorkspaceDesignActionRegistry } from "./design-action-registry.mjs";
 import {
+    getCompendiumPacks,
+    loadUnifiedCompendiumItems
+} from "./compendium-items.mjs";
+import {
     buildDesignIssuesPanelModel,
     renderDesignIssuesPanel
 } from "./panels/design-issues-panel.mjs";
@@ -47,6 +51,7 @@ import {
     renderScenesPanel
 } from "./panels/scenes-panel.mjs";
 import {
+    createSceneDesignScene,
     uploadSceneBackgroundFile
 } from "./design-actions/scene-actions.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
@@ -643,6 +648,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             sceneName: null,
             selectedFilename: "",
             backgroundPath: "",
+            createMode: false,
             status: "",
             error: ""
         };
@@ -3800,6 +3806,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     sceneName,
                     selectedFilename: "",
                     backgroundPath: "",
+                    createMode: Boolean(this._scenePropertiesState.createMode),
                     status: sceneName.trim()
                         ? ""
                         : "Enter a scene name before saving.",
@@ -3823,6 +3830,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             sceneName: null,
             selectedFilename: "",
             backgroundPath: "",
+            createMode: false,
             status: "",
             error: ""
         };
@@ -3830,6 +3838,52 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
         await this.stateStore?.setUserLayout?.(nextLayout);
         this.render({ force: false });
+    }
+
+    async _createSceneDesignScene() {
+        const result = await createSceneDesignScene({
+            SceneClass: foundry?.documents?.Scene,
+            foundry,
+            ui
+        });
+        if (!result?.ok || !result.scene) return result;
+
+        const scene = result.scene;
+        const sceneId = String(scene.id ?? scene._id ?? "").trim();
+        if (!sceneId) {
+            return {
+                ok: false,
+                level: "warn",
+                message: "The new scene was created but could not be bound to the workspace."
+            };
+        }
+
+        this.#openSceneMapPanel(sceneId);
+        const panelDef = this.panelRegistry.get("scene-properties");
+        let nextLayout = this.layoutEngine.getLayout();
+        if (panelDef) {
+            nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
+        }
+
+        this._scenePropertiesState = {
+            sceneId,
+            sceneName: "",
+            selectedFilename: "",
+            backgroundPath: "",
+            createMode: true,
+            status: "New scene created. Enter a name, then upload a background image.",
+            error: ""
+        };
+        await this.stateStore?.setUserLayout?.(nextLayout);
+        this.render({ force: false });
+
+        return {
+            ok: true,
+            silent: true,
+            scene,
+            name: result.name,
+            message: "Scene draft created."
+        };
     }
 
     #wireScenePropertiesHandlers() {
@@ -3851,6 +3905,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     sceneName,
                     selectedFilename: file.name,
                     backgroundPath: "",
+                    createMode: Boolean(this._scenePropertiesState.createMode),
                     status: target.valid ? `Uploading ${target.filename}...` : "",
                     error: target.valid ? "" : "Choose a supported image after entering a scene name."
                 };
@@ -3870,6 +3925,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     this._scenePropertiesState = {
                         ...this._scenePropertiesState,
                         backgroundPath: "",
+                        createMode: Boolean(this._scenePropertiesState.createMode),
                         status: "",
                         error: result?.message ?? "Scene background upload failed."
                     };
@@ -3880,6 +3936,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this._scenePropertiesState = {
                     ...this._scenePropertiesState,
                     backgroundPath: result.path,
+                    createMode: Boolean(this._scenePropertiesState.createMode),
                     status: `Uploaded ${result.filename}.`,
                     error: ""
                 };
@@ -3896,6 +3953,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     sceneName: null,
                     selectedFilename: "",
                     backgroundPath: "",
+                    createMode: false,
                     status: "",
                     error: ""
                 };
@@ -3913,6 +3971,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     this._scenePropertiesState = {
                         ...this._scenePropertiesState,
                         status: "",
+                        createMode: Boolean(this._scenePropertiesState.createMode),
                         error: "No viewed scene is available to delete."
                     };
                     this.render({ force: false });
@@ -3932,6 +3991,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     this._scenePropertiesState = {
                         ...this._scenePropertiesState,
                         status: "",
+                        createMode: Boolean(this._scenePropertiesState.createMode),
                         error: "Scene delete failed - see console for details."
                     };
                     this.render({ force: false });
@@ -3943,6 +4003,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     sceneName: null,
                     selectedFilename: "",
                     backgroundPath: "",
+                    createMode: false,
                     status: `Deleted ${sceneName}.`,
                     error: ""
                 };
@@ -3970,6 +4031,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     this._scenePropertiesState = {
                         ...this._scenePropertiesState,
                         status: "",
+                        createMode: Boolean(this._scenePropertiesState.createMode),
                         error: "No viewed scene is available to save."
                     };
                     this.render({ force: false });
@@ -3989,6 +4051,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     this._scenePropertiesState = {
                         ...this._scenePropertiesState,
                         status: "",
+                        createMode: Boolean(this._scenePropertiesState.createMode),
                         error: "Scene save failed - see console for details."
                     };
                     this.render({ force: false });
@@ -4000,6 +4063,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     sceneName: null,
                     selectedFilename: "",
                     backgroundPath: "",
+                    createMode: false,
                     status: model.backgroundChanged
                         ? "Scene saved. Grid calibration was cleared for the new background."
                         : "Scene saved.",
@@ -4181,8 +4245,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this._compendiumItemsPromise = this.#loadUnifiedCompendiumItems();
         try {
-            const entries = await this._compendiumItemsPromise;
-            this._compendiumItemEntries = entries;
+            const result = await this._compendiumItemsPromise;
+            const entries = Array.isArray(result?.entries) ? result.entries : [];
+            if (entries.length || result?.ready) {
+                this._compendiumItemEntries = entries;
+            }
             return entries;
         } finally {
             this._compendiumItemsPromise = null;
@@ -4190,108 +4257,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     async #loadUnifiedCompendiumItems() {
-        const packs = this.#getCompendiumPacks();
-        const dedupedEntries = new Map();
-        const semanticEntries = new Map();
-        for (const pack of packs) {
-            if (String(pack?.documentName ?? "").toLowerCase() !== "item") {
-                continue;
-            }
-            if (this.#isAggregateCompendiumPack(pack)) {
-                continue;
-            }
-
-            let indexEntries = [];
-            try {
-                const index = await pack.getIndex();
-                if (Array.isArray(index)) {
-                    indexEntries = index;
-                } else if (Array.isArray(index?.contents)) {
-                    indexEntries = index.contents;
-                } else if (typeof index?.values === "function") {
-                    indexEntries = Array.from(index.values());
-                }
-            } catch (error) {
-                console.warn("[turn-of-the-century] Failed to load compendium index", pack?.collection ?? pack?.metadata?.label, error);
-                continue;
-            }
-
-            for (const entry of indexEntries) {
-                const entryId = entry?._id ?? entry?.id;
-                const uuid = entry?.uuid ?? (entryId ? `Compendium.${pack.collection}.${entryId}` : null);
-                if (!uuid) continue;
-
-                if (dedupedEntries.has(uuid)) continue;
-                const itemEntry = {
-                    uuid,
-                    name: entry?.name ?? "Unnamed Entry",
-                    type: String(entry?.type ?? "item"),
-                    packLabel: pack?.metadata?.label ?? pack?.title ?? pack?.collection ?? "Compendium"
-                };
-                dedupedEntries.set(uuid, itemEntry);
-
-                const semanticKey = this.#buildCompendiumSemanticKey(itemEntry);
-                if (!semanticKey) continue;
-                const existing = semanticEntries.get(semanticKey);
-                if (!existing) {
-                    semanticEntries.set(semanticKey, itemEntry);
-                    continue;
-                }
-
-                if (this.#isBetterSemanticCompendiumEntry(itemEntry, existing)) {
-                    semanticEntries.set(semanticKey, itemEntry);
-                }
-            }
-        }
-
-        const entries = semanticEntries.size
-            ? Array.from(semanticEntries.values())
-            : Array.from(dedupedEntries.values());
-
-        entries.sort((left, right) => {
-            const nameCompare = String(left.name ?? "").localeCompare(String(right.name ?? ""), undefined, { sensitivity: "base" });
-            if (nameCompare !== 0) return nameCompare;
-            return String(left.packLabel ?? "").localeCompare(String(right.packLabel ?? ""), undefined, { sensitivity: "base" });
+        return loadUnifiedCompendiumItems({
+            packs: this.#getCompendiumPacks(),
+            gameReady: Boolean(game?.ready),
+            logger: console
         });
-
-        return entries;
     }
 
     #getCompendiumPacks() {
-        if (Array.isArray(game?.packs?.contents)) {
-            return game.packs.contents;
-        }
-
-        if (typeof game?.packs?.values === "function") {
-            return Array.from(game.packs.values());
-        }
-
-        const iterablePacks = Array.from(game?.packs ?? []);
-        return iterablePacks.map((pack) => Array.isArray(pack) && pack.length > 1 ? pack[1] : pack);
-    }
-
-    #isAggregateCompendiumPack(pack) {
-        const collection = String(pack?.collection ?? "").toLowerCase();
-        return collection.endsWith(".starter-items") || collection.endsWith(".starter-actors");
-    }
-
-    #buildCompendiumSemanticKey(entry) {
-        const type = String(entry?.type ?? "").trim().toLowerCase();
-        const name = String(entry?.name ?? "").trim().toLowerCase();
-        if (!name) return null;
-        return `${type}|${name}`;
-    }
-
-    #isBetterSemanticCompendiumEntry(candidate, existing) {
-        const existingAggregate = /starter library/i.test(String(existing?.packLabel ?? ""));
-        const candidateAggregate = /starter library/i.test(String(candidate?.packLabel ?? ""));
-        if (existingAggregate !== candidateAggregate) {
-            return !candidateAggregate;
-        }
-
-        const existingLabel = String(existing?.packLabel ?? "").toLowerCase();
-        const candidateLabel = String(candidate?.packLabel ?? "").toLowerCase();
-        return candidateLabel < existingLabel;
+        return getCompendiumPacks(game?.packs);
     }
 
     #isMarketTradableItemType(itemType) {

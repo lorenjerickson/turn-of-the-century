@@ -3,6 +3,7 @@ import { afterEach, describe, it } from "node:test";
 
 import {
     activateSceneWallDesignMode,
+    buildBlankSceneCreationData,
     buildSceneCreationData,
     createSceneDesignScene,
     createSceneFromBackgroundPath,
@@ -41,6 +42,16 @@ describe("scene design actions", () => {
         assert.equal(Object.hasOwn(data, "img"), false);
         assert.equal(data.flags["turn-of-the-century"].designCreated, true);
         assert.equal(data.flags["turn-of-the-century"].assetContext, "images/scenes");
+    });
+
+    it("builds blank draft scene data for workspace create mode", () => {
+        const data = buildBlankSceneCreationData();
+
+        assert.equal(data.name, "New Scene");
+        assert.equal(data.navigation, true);
+        assert.deepEqual(data.background, { src: "" });
+        assert.equal(data.flags["turn-of-the-century"].designCreated, true);
+        assert.equal(data.flags["turn-of-the-century"].designDraft, true);
     });
 
     it("creates a Foundry scene from an organized background path", async () => {
@@ -98,19 +109,37 @@ describe("scene design actions", () => {
         assert.match(result.message, new RegExp(SCENE_BACKGROUND_IMAGE_ASSET_PATH));
     });
 
-    it("opens the workspace scene properties panel", async () => {
-        let opened = false;
+    it("delegates workspace scene creation to the app when available", async () => {
+        let created = false;
         const result = await createSceneDesignScene({
             app: {
-                _openScenePropertiesPanel: async () => {
-                    opened = true;
+                _createSceneDesignScene: async () => {
+                    created = true;
+                    return { ok: true, silent: true };
                 }
             }
         });
 
         assert.equal(result.ok, true);
         assert.equal(result.silent, true);
-        assert.equal(opened, true);
+        assert.equal(created, true);
+    });
+
+    it("creates a blank scene when no workspace app is available", async () => {
+        let createdData = null;
+        const result = await createSceneDesignScene({
+            SceneClass: {
+                create: async (data) => {
+                    createdData = data;
+                    return { id: "scene-a", name: data.name };
+                }
+            }
+        });
+
+        assert.equal(result.ok, true);
+        assert.equal(result.name, "New Scene");
+        assert.equal(createdData.background.src, "");
+        assert.equal(createdData.flags["turn-of-the-century"].designDraft, true);
     });
 
     it("uploads scene backgrounds through the Foundry V14 namespaced FilePicker implementation", async () => {

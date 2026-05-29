@@ -124,6 +124,24 @@ export function buildSceneCreationData({ backgroundPath = "", name = "", navigat
     };
 }
 
+export function buildBlankSceneCreationData({ name = "", navigation = true } = {}) {
+    const sceneName = String(name ?? "").trim() || "New Scene";
+
+    return {
+        name: sceneName,
+        navigation: Boolean(navigation),
+        background: {
+            src: ""
+        },
+        flags: {
+            "turn-of-the-century": {
+                designCreated: true,
+                designDraft: true
+            }
+        }
+    };
+}
+
 export class SceneDesignService {
     constructor(context = {}) {
         this.context = context;
@@ -160,6 +178,29 @@ export class SceneDesignService {
             scene,
             name: scene?.name ?? sceneData.name,
             data: sceneData
+        };
+    }
+
+    async createBlankScene({ name = "", navigation = true } = {}) {
+        const SceneClass = getSceneClass(this.context);
+
+        if (!SceneClass || typeof SceneClass.create !== "function") {
+            return {
+                ok: false,
+                level: "warn",
+                message: "Scene creation is not available in this Foundry session."
+            };
+        }
+
+        const sceneData = buildBlankSceneCreationData({ name, navigation });
+        const scene = await SceneClass.create(sceneData);
+
+        return {
+            ok: true,
+            scene,
+            name: scene?.name ?? sceneData.name,
+            data: sceneData,
+            silent: true
         };
     }
 
@@ -270,7 +311,11 @@ export async function createSceneFromBackgroundPath({ backgroundPath = "", name 
 }
 
 export async function createSceneDesignScene(context = {}) {
-    return new SceneDesignService(context).openScenePropertiesPanel();
+    if (typeof context.app?._createSceneDesignScene === "function") {
+        return context.app._createSceneDesignScene();
+    }
+
+    return new SceneDesignService(context).createBlankScene();
 }
 
 export async function uploadSceneBackgroundFile({ file, target, overwrite = false, ...context } = {}) {

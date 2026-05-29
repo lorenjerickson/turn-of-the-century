@@ -111,19 +111,20 @@ describe("WorkspaceDesignActionRegistry", () => {
         assert.equal(result.ok, true);
     });
 
-    it("executes the default scene creation action through the scene properties panel", async () => {
-        let opened = false;
+    it("executes the default scene creation action through the workspace draft flow", async () => {
+        let created = false;
         const action = DEFAULT_DESIGN_ACTION_REGISTRY.get("scene.create");
         const result = await action.execute({
             app: {
-                _openScenePropertiesPanel: async () => {
-                    opened = true;
+                _createSceneDesignScene: async () => {
+                    created = true;
+                    return { ok: true, silent: true };
                 }
             }
         });
 
         assert.equal(result.ok, true);
         assert.equal(result.silent, true);
-        assert.equal(opened, true);
+        assert.equal(created, true);
     });
 });

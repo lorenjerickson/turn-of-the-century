@@ -58,6 +58,40 @@ describe("Scene properties panel", () => {
         assert.equal(afterUpload.backgroundChanged, true);
     });
 
+    it("shows create mode for a newly-created draft scene bound to the panel", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: { id: "scene-draft", name: "New Scene", background: { src: "" } },
+            sceneId: "scene-draft",
+            sceneName: "",
+            createMode: true,
+            status: "New scene created."
+        });
+
+        assert.equal(model.createMode, true);
+        assert.equal(model.sceneId, "scene-draft");
+        assert.equal(model.sceneName, "");
+        assert.equal(model.uploadEnabled, false);
+        assert.equal(model.saveEnabled, false);
+
+        const html = renderScenePropertiesPanel(model);
+        assert.match(html, /Create mode/);
+        assert.match(html, /New scene created\./);
+    });
+
+    it("enables saving and upload in create mode after a draft scene is named", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: { id: "scene-draft", name: "New Scene", background: { src: "" } },
+            sceneId: "scene-draft",
+            sceneName: "Whitechapel Alley",
+            selectedFilename: "map.webp",
+            createMode: true
+        });
+
+        assert.equal(model.uploadEnabled, true);
+        assert.equal(model.saveEnabled, true);
+        assert.equal(model.target.path, "assets/images/scenes/whitechapel-alley.webp");
+    });
+
     it("ignores stale edits when the viewed scene changes", () => {
         const model = buildScenePropertiesPanelModel({
             scene: { id: "scene-b", name: "Hotel Cellar" },

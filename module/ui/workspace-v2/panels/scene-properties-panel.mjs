@@ -70,6 +70,7 @@ export function buildScenePropertiesPanelModel(state = {}) {
         backgroundPath: uploadedPath,
         currentBackgroundPath,
         effectiveBackgroundPath,
+        createMode: Boolean(state.createMode),
         uploadEnabled: Boolean(sceneName),
         saveEnabled: Boolean(scene && sceneName),
         backgroundChanged: Boolean(uploadedPath && uploadedPath !== currentBackgroundPath),
@@ -125,6 +126,7 @@ export function renderScenePropertiesPanel(model = {}, { escapeHTML = safeEscape
 
     return `
     <section class="totc-v2-scene-properties-panel">
+        ${model.createMode ? `<p class="totc-v2-scene-properties-panel__status">Create mode</p>` : ""}
         <div class="totc-v2-scene-properties-panel__fields">
             <label class="totc-v2-scene-properties-panel__field">
                 <span>Scene name</span>
