@@ -3773,6 +3773,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             if (existingTimer) clearTimeout(existingTimer);
 
             const value = String(input.value ?? "");
+            if (action === "scene-properties-name") {
+                const scene = this.#getScenePropertiesScene();
+                this._scenePropertiesState = buildScenePropertiesNameInputState(this._scenePropertiesState, scene, value);
+            }
+
             const timer = setTimeout(async () => {
                 this._textInputDebounceTimers.delete(action);
                 await this.#handleDebouncedTextInput(action, value);

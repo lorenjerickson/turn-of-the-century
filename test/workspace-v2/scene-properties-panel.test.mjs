@@ -110,6 +110,27 @@ describe("Scene properties panel", () => {
         assert.equal(state.createMode, true);
     });
 
+    it("keeps create-mode name input usable before the debounce render fires", () => {
+        const state = buildScenePropertiesNameInputState({
+            sceneId: "scene-draft",
+            sceneName: "",
+            selectedFilename: "",
+            backgroundPath: "",
+            createMode: true,
+            status: "New scene created.",
+            error: ""
+        }, { id: "scene-draft" }, "Whitechapel");
+
+        const model = buildScenePropertiesPanelModel({
+            ...state,
+            scene: { id: "scene-draft", name: "New Scene", background: { src: "" } }
+        });
+
+        assert.equal(model.sceneName, "Whitechapel");
+        assert.equal(model.uploadEnabled, true);
+        assert.equal(model.saveEnabled, true);
+    });
+
     it("saves a named draft scene with the uploaded background association", () => {
         const model = buildScenePropertiesPanelModel({
             scene: { id: "scene-draft", name: "New Scene", background: { src: "" } },
