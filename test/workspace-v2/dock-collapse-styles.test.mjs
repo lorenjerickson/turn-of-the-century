@@ -15,11 +15,11 @@ describe("Dock collapse styles", () => {
     it("rotates left and right collapsed tab labels toward their dock interiors", () => {
         assert.match(
             styles,
-            /\.turn-of-the-century \.totc-v2-dock--leftDock\.is-collapsed \.totc-v2-stack__tab span\s*\{[^}]*transform:\s*rotate\(90deg\);[^}]*\}/
+            /\.turn-of-the-century \.totc-v2-dock--leftDock\.is-collapsed \.totc-v2-stack__tab span\s*\{[^}]*transform:\s*rotate\(-90deg\);[^}]*\}/
         );
         assert.match(
             styles,
-            /\.turn-of-the-century \.totc-v2-dock--rightDock\.is-collapsed \.totc-v2-stack__tab span\s*\{[^}]*transform:\s*rotate\(-90deg\);[^}]*\}/
+            /\.turn-of-the-century \.totc-v2-dock--rightDock\.is-collapsed \.totc-v2-stack__tab span\s*\{[^}]*transform:\s*rotate\(90deg\);[^}]*\}/
         );
     });
 });
