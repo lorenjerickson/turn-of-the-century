@@ -79,6 +79,21 @@ export function buildScenePropertiesPanelModel(state = {}) {
     };
 }
 
+export function buildScenePropertiesNameInputState(currentState = {}, scene = null, sceneName = "") {
+    const nextName = String(sceneName ?? "");
+
+    return {
+        ...currentState,
+        sceneId: scene?.id ?? scene?._id ?? "",
+        sceneName: nextName,
+        createMode: Boolean(currentState.createMode),
+        status: nextName.trim()
+            ? ""
+            : "Enter a scene name before saving.",
+        error: ""
+    };
+}
+
 export function buildScenePropertiesUpdateData(model = {}) {
     const sceneName = String(model.sceneName ?? "").trim();
     const backgroundPath = String(model.backgroundPath ?? "").trim();

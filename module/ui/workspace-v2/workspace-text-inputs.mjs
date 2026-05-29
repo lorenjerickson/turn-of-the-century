@@ -16,3 +16,16 @@ export function isWorkspaceDebouncedTextInputTarget(input) {
     const type = String(input?.type ?? "text").toLowerCase();
     return type === "text" || type === "search";
 }
+
+export function focusWorkspaceTextInputAtEnd(root, action) {
+    const selector = `[data-action='${String(action ?? "").replaceAll("'", "\\'")}']`;
+    const input = root?.querySelector?.(selector);
+    if (!input || typeof input.focus !== "function") return false;
+
+    input.focus();
+    const valueLength = String(input.value ?? "").length;
+    if (typeof input.setSelectionRange === "function") {
+        input.setSelectionRange(valueLength, valueLength);
+    }
+    return true;
+}

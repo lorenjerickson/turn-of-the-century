@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
     WORKSPACE_DEBOUNCED_TEXT_INPUT_ACTIONS,
+    focusWorkspaceTextInputAtEnd,
     isWorkspaceDebouncedTextInputTarget
 } from "../../module/ui/workspace-v2/workspace-text-inputs.mjs";
 
@@ -32,5 +33,28 @@ describe("workspace text input debounce routing", () => {
 
     it("allows registered textareas to use the shared debounce route", () => {
         assert.equal(isWorkspaceDebouncedTextInputTarget(input({ action: "scene-properties-name", tagName: "TEXTAREA" })), true);
+    });
+
+    it("restores debounced input focus with the cursor at the end", () => {
+        const target = {
+            value: "Whitechapel",
+            focused: false,
+            selection: null,
+            focus() {
+                this.focused = true;
+            },
+            setSelectionRange(start, end) {
+                this.selection = { start, end };
+            }
+        };
+        const root = {
+            querySelector(selector) {
+                return selector === "[data-action='scene-properties-name']" ? target : null;
+            }
+        };
+
+        assert.equal(focusWorkspaceTextInputAtEnd(root, "scene-properties-name"), true);
+        assert.equal(target.focused, true);
+        assert.deepEqual(target.selection, { start: 11, end: 11 });
     });
 });

@@ -5,7 +5,10 @@ import { LayoutEngine } from "./layout-engine.mjs";
 import { MapViewportController } from "./map-viewport-controller.mjs";
 import { WorkspacePanelRegistry } from "./panel-registry.mjs";
 import { openFoundrySettingsView } from "./workspace-system-menu.mjs";
-import { isWorkspaceDebouncedTextInputTarget } from "./workspace-text-inputs.mjs";
+import {
+    focusWorkspaceTextInputAtEnd,
+    isWorkspaceDebouncedTextInputTarget
+} from "./workspace-text-inputs.mjs";
 import {
     buildDiceRollFeedPanelModel,
     renderDiceRollFeedPanel
@@ -42,6 +45,7 @@ import {
 import {
     buildSceneBackgroundUploadTarget,
     buildScenePropertiesPanelModel,
+    buildScenePropertiesNameInputState,
     buildScenePropertiesUpdateData,
     resolveScenePropertiesScene,
     renderScenePropertiesPanel
@@ -3782,38 +3786,26 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             case "compendium-search": {
                 this.compendiumSearchQuery = value;
                 await this.render({ force: false });
-                this.element?.querySelector("[data-action='compendium-search']")?.focus();
+                focusWorkspaceTextInputAtEnd(this.element, "compendium-search");
                 break;
             }
             case "design-command-palette-search": {
                 this.designCommandPaletteQuery = value;
                 await this.render({ force: false });
-                this.element?.querySelector("[data-action='design-command-palette-search']")?.focus();
+                focusWorkspaceTextInputAtEnd(this.element, "design-command-palette-search");
                 break;
             }
             case "gm-search-actions": {
                 await this.#setGamemasterPanelStatePatch({ actionSearchQuery: value });
                 await this.render({ force: false });
-                this.element?.querySelector("[data-action='gm-search-actions']")?.focus();
+                focusWorkspaceTextInputAtEnd(this.element, "gm-search-actions");
                 break;
             }
             case "scene-properties-name": {
-                const sceneName = value;
                 const scene = this.#getScenePropertiesScene();
-                this._scenePropertiesState = {
-                    ...this._scenePropertiesState,
-                    sceneId: scene?.id ?? scene?._id ?? "",
-                    sceneName,
-                    selectedFilename: "",
-                    backgroundPath: "",
-                    createMode: Boolean(this._scenePropertiesState.createMode),
-                    status: sceneName.trim()
-                        ? ""
-                        : "Enter a scene name before saving.",
-                    error: ""
-                };
+                this._scenePropertiesState = buildScenePropertiesNameInputState(this._scenePropertiesState, scene, value);
                 await this.render({ force: false });
-                this.element?.querySelector("[data-action='scene-properties-name']")?.focus();
+                focusWorkspaceTextInputAtEnd(this.element, "scene-properties-name");
                 break;
             }
             default:

@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
     buildSceneBackgroundUploadTarget,
     buildScenePropertiesPanelModel,
+    buildScenePropertiesNameInputState,
     buildScenePropertiesUpdateData,
     resolveScenePropertiesScene,
     renderScenePropertiesPanel,
@@ -90,6 +91,42 @@ describe("Scene properties panel", () => {
         assert.equal(model.uploadEnabled, true);
         assert.equal(model.saveEnabled, true);
         assert.equal(model.target.path, "assets/images/scenes/whitechapel-alley.webp");
+    });
+
+    it("preserves an uploaded background path while debounced name edits settle", () => {
+        const state = buildScenePropertiesNameInputState({
+            sceneId: "scene-draft",
+            sceneName: "Whitechapel",
+            selectedFilename: "whitechapel.webp",
+            backgroundPath: "assets/images/scenes/whitechapel.webp",
+            createMode: true,
+            status: "Uploaded whitechapel.webp.",
+            error: ""
+        }, { id: "scene-draft" }, "Whitechapel Alley");
+
+        assert.equal(state.sceneName, "Whitechapel Alley");
+        assert.equal(state.selectedFilename, "whitechapel.webp");
+        assert.equal(state.backgroundPath, "assets/images/scenes/whitechapel.webp");
+        assert.equal(state.createMode, true);
+    });
+
+    it("saves a named draft scene with the uploaded background association", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: { id: "scene-draft", name: "New Scene", background: { src: "" } },
+            sceneId: "scene-draft",
+            sceneName: "Whitechapel Alley",
+            backgroundPath: "assets/images/scenes/whitechapel-alley.webp",
+            createMode: true
+        });
+
+        assert.deepEqual(buildScenePropertiesUpdateData(model), {
+            name: "Whitechapel Alley",
+            "background.src": "assets/images/scenes/whitechapel-alley.webp",
+            shiftX: 0,
+            shiftY: 0,
+            "grid.type": 0,
+            "grid.size": 100
+        });
     });
 
     it("ignores stale edits when the viewed scene changes", () => {
