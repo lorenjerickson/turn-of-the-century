@@ -71,6 +71,8 @@ const MIN_FLOAT_WIDTH = 240;
 const MIN_FLOAT_HEIGHT = 160;
 const MIN_TOP_BOTTOM_DOCK_HEIGHT = 128;
 const MIN_LEFT_RIGHT_DOCK_WIDTH = 240;
+const COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT = 38;
+const COLLAPSED_LEFT_RIGHT_DOCK_WIDTH = 42;
 const TEXT_INPUT_DEBOUNCE_MS = 300;
 const GM_PANEL_STATE_KEY = "gmPanelState";
 const MARKET_PANEL_STATE_KEY = "marketPanelState";
@@ -885,12 +887,20 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const rightOccupied = this.#isDockOccupied(layoutRoot.rightDock);
         const topOccupied = this.#isDockOccupied(layoutRoot.topDock);
         const bottomOccupied = this.#isDockOccupied(layoutRoot.bottomDock);
-        const leftMin = leftOccupied ? `${MIN_LEFT_RIGHT_DOCK_WIDTH}px` : "0px";
-        const rightMin = rightOccupied ? `${MIN_LEFT_RIGHT_DOCK_WIDTH}px` : "0px";
-        const topMin = topOccupied ? `${MIN_TOP_BOTTOM_DOCK_HEIGHT}px` : "0px";
-        const bottomMin = bottomOccupied ? `${MIN_TOP_BOTTOM_DOCK_HEIGHT}px` : "0px";
-        const columnTemplate = `minmax(${leftMin}, ${Math.max(1, Math.round(dockWeights.left * 100))}fr) minmax(0, ${Math.max(1, Math.round((dockWeights.centerX ?? 0.64) * 100))}fr) minmax(${rightMin}, ${Math.max(1, Math.round(dockWeights.right * 100))}fr)`;
-        const rowTemplate = `minmax(${topMin}, ${Math.max(1, Math.round(dockWeights.top * 100))}fr) minmax(0, ${Math.max(1, Math.round((dockWeights.centerY ?? 0.64) * 100))}fr) minmax(${bottomMin}, ${Math.max(1, Math.round(dockWeights.bottom * 100))}fr)`;
+        const leftTrack = leftOccupied && layoutRoot.leftDock?.collapsed
+            ? `${COLLAPSED_LEFT_RIGHT_DOCK_WIDTH}px`
+            : `minmax(${leftOccupied ? `${MIN_LEFT_RIGHT_DOCK_WIDTH}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.left * 100))}fr)`;
+        const rightTrack = rightOccupied && layoutRoot.rightDock?.collapsed
+            ? `${COLLAPSED_LEFT_RIGHT_DOCK_WIDTH}px`
+            : `minmax(${rightOccupied ? `${MIN_LEFT_RIGHT_DOCK_WIDTH}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.right * 100))}fr)`;
+        const topTrack = topOccupied && layoutRoot.topDock?.collapsed
+            ? `${COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT}px`
+            : `minmax(${topOccupied ? `${MIN_TOP_BOTTOM_DOCK_HEIGHT}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.top * 100))}fr)`;
+        const bottomTrack = bottomOccupied && layoutRoot.bottomDock?.collapsed
+            ? `${COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT}px`
+            : `minmax(${bottomOccupied ? `${MIN_TOP_BOTTOM_DOCK_HEIGHT}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.bottom * 100))}fr)`;
+        const columnTemplate = `${leftTrack} minmax(0, ${Math.max(1, Math.round((dockWeights.centerX ?? 0.64) * 100))}fr) ${rightTrack}`;
+        const rowTemplate = `${topTrack} minmax(0, ${Math.max(1, Math.round((dockWeights.centerY ?? 0.64) * 100))}fr) ${bottomTrack}`;
 
         const docksMarkup = WORKSPACE_V2_DOCK_IDS
             .map((dockId) => this.#renderDockMarkup(dockId, context.layout.root[dockId], context))
@@ -927,7 +937,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     <main class="totc-workspace-v2-shell__main">
         <section class="totc-v2-layout" data-layout-root="true" style="grid-template-columns:${columnTemplate};grid-template-rows:${rowTemplate};">
             ${docksMarkup}
-            ${this.#renderDockSplittersMarkup(dockWeights)}
+            ${this.#renderDockSplittersMarkup(dockWeights, layoutRoot)}
             ${this.#renderFloatingWindowsMarkup(context.layout.root.floatingWindows ?? [])}
             <div class="totc-v2-ghost" data-drop-ghost="true" hidden>
                 <span data-drop-label="true"></span>
@@ -1221,6 +1231,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.element?.querySelectorAll("[data-action='toggle-dock-collapse']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const dockId = button.dataset.dockId;
+                if (!dockId) return;
+
+                const nextLayout = this.layoutEngine.toggleDockCollapsed(dockId);
+                await this.stateStore?.setUserLayout?.(nextLayout);
+                this.render({ force: false });
+            });
+        });
+
         this.element?.querySelectorAll("[data-action='activate-tab']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
@@ -1393,22 +1416,25 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #renderDockMarkup(dockId, dock = { stacks: [] }, context = {}) {
+        const collapsed = dockId !== "centerDock" && Boolean(dock?.collapsed);
         const stackItemsMarkup = (dock?.stacks ?? [])
             .map((stack, index, stacks) => {
                 const stackMarkup = this.#renderStackMarkup(dockId, stack, context, {
                     includeDockLabel: false,
-                    dockLabel: DOCK_LABELS[dockId] ?? dockId
+                    dockLabel: DOCK_LABELS[dockId] ?? dockId,
+                    dockCollapsed: collapsed
                 });
-                const splitterMarkup = index < stacks.length - 1
+                const splitterMarkup = !collapsed && index < stacks.length - 1
                     ? this.#renderStackSplitterMarkup(dockId, stack.id, stacks[index + 1]?.id, dock?.orientation)
                     : "";
                 return `${stackMarkup}${splitterMarkup}`;
             })
             .join("");
         const orientationClass = dock?.orientation === "horizontal" ? "is-horizontal" : "is-vertical";
+        const collapsedClass = collapsed ? "is-collapsed" : "";
 
         return `
-        <section class="totc-v2-dock totc-v2-dock--${dockId} ${orientationClass}" data-dock-id="${dockId}">
+        <section class="totc-v2-dock totc-v2-dock--${dockId} ${orientationClass} ${collapsedClass}" data-dock-id="${dockId}" data-collapsed="${collapsed ? "true" : "false"}">
             <div class="totc-v2-dock__stacks ${orientationClass}" data-dock-stacks="${dockId}">
                 ${stackItemsMarkup || `<div class='totc-v2-dock__empty' data-dock-drop-target='${dockId}'>Drop panel here</div>`}
             </div>
@@ -1433,24 +1459,28 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             .join("");
 
         const activePanel = (stack?.panels ?? []).find((panel) => panel.id === stack.activePanelId) ?? stack?.panels?.[0];
-        const panelContent = this.#renderPanelContent(activePanel, context);
+        const collapsed = Boolean(options.dockCollapsed);
+        const panelContent = collapsed ? "" : this.#renderPanelContent(activePanel, context);
         const designLensActive = this.#isDesignLensActive(activePanel?.id);
         const designButtonTitle = designLensActive ? "Close design lens" : "Open design lens";
+        const canCollapseDock = dockId !== "centerDock";
+        const collapseTitle = collapsed ? "Restore dock" : "Minimize dock";
 
         return `
-        <article class="totc-v2-stack" data-dock-id="${dockId}" data-stack-id="${stack.id}" style="flex-grow:${Number(stack.size) || 1};">
+        <article class="totc-v2-stack ${collapsed ? "is-collapsed" : ""}" data-dock-id="${dockId}" data-stack-id="${stack.id}" style="flex-grow:${Number(stack.size) || 1};">
             <div class="totc-v2-stack__header">
                 <div class="totc-v2-stack__tabs">
                     ${options.includeDockLabel ? `<span class="totc-v2-dock-label-inline">${this.#escapeHTML(options.dockLabel ?? dockId)}</span>` : ""}
                     ${tabsMarkup}
                 </div>
                 <div class="totc-v2-stack__actions">
+                    ${canCollapseDock ? `<button type="button" data-action="toggle-dock-collapse" data-dock-id="${dockId}" title="${collapseTitle}" aria-label="${collapseTitle}" aria-pressed="${collapsed ? "true" : "false"}"><i class="fa-solid ${collapsed ? "fa-expand" : "fa-compress"}" aria-hidden="true"></i></button>` : ""}
                     ${game.user?.isGM ? `<button type="button" class="${designLensActive ? "is-active" : ""}" data-action="toggle-design-lens" data-panel-id="${activePanel?.id ?? ""}" title="${designButtonTitle}" aria-label="${designButtonTitle}" aria-pressed="${designLensActive ? "true" : "false"}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>` : ""}
                     <button type="button" data-action="undock-panel" data-dock-id="${dockId}" data-stack-id="${stack.id}" data-panel-id="${activePanel?.id ?? ""}" title="Undock panel" aria-label="Undock panel"><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i></button>
                     <button type="button" data-action="close-panel" data-dock-id="${dockId}" data-stack-id="${stack.id}" data-panel-id="${activePanel?.id ?? ""}" title="Close panel" aria-label="Close panel"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                 </div>
             </div>
-            <div class="totc-v2-stack__content">${panelContent}</div>
+            <div class="totc-v2-stack__content" ${collapsed ? "hidden" : ""}>${panelContent}</div>
         </article>`;
     }
 
@@ -1466,7 +1496,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             title="Resize stack"></div>`;
     }
 
-    #renderDockSplittersMarkup(dockWeights = {}) {
+    #renderDockSplittersMarkup(dockWeights = {}, layoutRoot = {}) {
         const left = Number(dockWeights.left) || 0.18;
         const centerX = Number(dockWeights.centerX) || Math.max(0.2, 1 - left - (Number(dockWeights.right) || 0.18));
         const right = Number(dockWeights.right) || 0.18;
@@ -1483,10 +1513,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const centerRightBoundary = `${100 - rightBoundary}%`;
 
         return `
-        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--left" style="left:${leftBoundary}%;" data-action="dock-resizer" data-dock-id="leftDock" data-axis="x" title="Resize dock"></div>
-        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--right" style="left:${rightBoundary}%;" data-action="dock-resizer" data-dock-id="rightDock" data-axis="x" title="Resize dock"></div>
-        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--top" style="top:${topBoundary}%;--totc-v2-center-left:${centerLeftBoundary};--totc-v2-center-right:${centerRightBoundary};" data-action="dock-resizer" data-dock-id="topDock" data-axis="y" title="Resize dock"></div>
-        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--bottom" style="top:${bottomBoundary}%;--totc-v2-center-left:${centerLeftBoundary};--totc-v2-center-right:${centerRightBoundary};" data-action="dock-resizer" data-dock-id="bottomDock" data-axis="y" title="Resize dock"></div>`;
+        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--left ${layoutRoot.leftDock?.collapsed ? "is-hidden" : ""}" style="left:${leftBoundary}%;" data-action="dock-resizer" data-dock-id="leftDock" data-axis="x" title="Resize dock"></div>
+        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--right ${layoutRoot.rightDock?.collapsed ? "is-hidden" : ""}" style="left:${rightBoundary}%;" data-action="dock-resizer" data-dock-id="rightDock" data-axis="x" title="Resize dock"></div>
+        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--top ${layoutRoot.topDock?.collapsed ? "is-hidden" : ""}" style="top:${topBoundary}%;--totc-v2-center-left:${centerLeftBoundary};--totc-v2-center-right:${centerRightBoundary};" data-action="dock-resizer" data-dock-id="topDock" data-axis="y" title="Resize dock"></div>
+        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--bottom ${layoutRoot.bottomDock?.collapsed ? "is-hidden" : ""}" style="top:${bottomBoundary}%;--totc-v2-center-left:${centerLeftBoundary};--totc-v2-center-right:${centerRightBoundary};" data-action="dock-resizer" data-dock-id="bottomDock" data-axis="y" title="Resize dock"></div>`;
     }
 
     #renderFloatingWindowsMarkup(floatingWindows = []) {
@@ -3405,13 +3435,21 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const topOccupied = this.#isDockOccupied(layout.root.topDock);
         const bottomOccupied = this.#isDockOccupied(layout.root.bottomDock);
 
-        const leftMin = leftOccupied ? `${MIN_LEFT_RIGHT_DOCK_WIDTH}px` : "0px";
-        const rightMin = rightOccupied ? `${MIN_LEFT_RIGHT_DOCK_WIDTH}px` : "0px";
-        const topMin = topOccupied ? `${MIN_TOP_BOTTOM_DOCK_HEIGHT}px` : "0px";
-        const bottomMin = bottomOccupied ? `${MIN_TOP_BOTTOM_DOCK_HEIGHT}px` : "0px";
+        const leftTrack = leftOccupied && layout.root.leftDock?.collapsed
+            ? `${COLLAPSED_LEFT_RIGHT_DOCK_WIDTH}px`
+            : `minmax(${leftOccupied ? `${MIN_LEFT_RIGHT_DOCK_WIDTH}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.left * 100))}fr)`;
+        const rightTrack = rightOccupied && layout.root.rightDock?.collapsed
+            ? `${COLLAPSED_LEFT_RIGHT_DOCK_WIDTH}px`
+            : `minmax(${rightOccupied ? `${MIN_LEFT_RIGHT_DOCK_WIDTH}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.right * 100))}fr)`;
+        const topTrack = topOccupied && layout.root.topDock?.collapsed
+            ? `${COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT}px`
+            : `minmax(${topOccupied ? `${MIN_TOP_BOTTOM_DOCK_HEIGHT}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.top * 100))}fr)`;
+        const bottomTrack = bottomOccupied && layout.root.bottomDock?.collapsed
+            ? `${COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT}px`
+            : `minmax(${bottomOccupied ? `${MIN_TOP_BOTTOM_DOCK_HEIGHT}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.bottom * 100))}fr)`;
 
-        host.style.gridTemplateColumns = `minmax(${leftMin}, ${Math.max(1, Math.round(dockWeights.left * 100))}fr) minmax(0, ${Math.max(1, Math.round((dockWeights.centerX ?? 0.64) * 100))}fr) minmax(${rightMin}, ${Math.max(1, Math.round(dockWeights.right * 100))}fr)`;
-        host.style.gridTemplateRows = `minmax(${topMin}, ${Math.max(1, Math.round(dockWeights.top * 100))}fr) minmax(0, ${Math.max(1, Math.round((dockWeights.centerY ?? 0.64) * 100))}fr) minmax(${bottomMin}, ${Math.max(1, Math.round(dockWeights.bottom * 100))}fr)`;
+        host.style.gridTemplateColumns = `${leftTrack} minmax(0, ${Math.max(1, Math.round((dockWeights.centerX ?? 0.64) * 100))}fr) ${rightTrack}`;
+        host.style.gridTemplateRows = `${topTrack} minmax(0, ${Math.max(1, Math.round((dockWeights.centerY ?? 0.64) * 100))}fr) ${bottomTrack}`;
 
         const left = Number(dockWeights.left) || 0.18;
         const centerX = Number(dockWeights.centerX) || Math.max(0.2, 1 - left - (Number(dockWeights.right) || 0.18));

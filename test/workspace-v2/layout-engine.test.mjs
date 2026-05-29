@@ -142,4 +142,45 @@ describe("LayoutEngine", () => {
         assert.equal(floatingWindow.width, 240);
         assert.equal(floatingWindow.height, 160);
     });
+
+    it("toggles collapsed state only for edge docks", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const engine = new LayoutEngine({ panels: panelLibrary });
+
+        const collapsed = engine.toggleDockCollapsed("leftDock");
+        assert.equal(collapsed.root.leftDock.collapsed, true);
+
+        const expanded = engine.toggleDockCollapsed("leftDock");
+        assert.equal(expanded.root.leftDock.collapsed, false);
+
+        const centerLayout = engine.toggleDockCollapsed("centerDock");
+        assert.equal(centerLayout.root.centerDock.collapsed, false);
+    });
+
+    it("restores a collapsed dock when one of its tab headers is activated", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const engine = new LayoutEngine({ panels: panelLibrary });
+        const stack = engine.getLayout().root.leftDock.stacks[0];
+
+        engine.setDockCollapsed("leftDock", true);
+        const layout = engine.setActivePanel("leftDock", stack.id, "scenes");
+
+        assert.equal(layout.root.leftDock.collapsed, false);
+        assert.equal(layout.root.leftDock.stacks[0].activePanelId, "scenes");
+    });
+
+    it("normalizes missing and invalid collapsed flags on persisted layouts", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const layout = LayoutEngine.createDefaultLayout({ panels: panelLibrary });
+        layout.root.leftDock.collapsed = "yes";
+        delete layout.root.rightDock.collapsed;
+        layout.root.centerDock.collapsed = true;
+
+        const engine = new LayoutEngine({ layout, panels: panelLibrary });
+        const normalized = engine.getLayout();
+
+        assert.equal(normalized.root.leftDock.collapsed, true);
+        assert.equal(normalized.root.rightDock.collapsed, false);
+        assert.equal(normalized.root.centerDock.collapsed, false);
+    });
 });

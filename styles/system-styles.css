@@ -1803,6 +1803,104 @@ body.totc-v2-active.totc-v2-native-settings-open #settings {
     padding: 0.45rem;
 }
 
+.turn-of-the-century .totc-v2-dock.is-collapsed {
+    overflow: hidden;
+}
+
+.turn-of-the-century .totc-v2-dock.is-collapsed .totc-v2-stack {
+    grid-template-rows: auto;
+}
+
+.turn-of-the-century .totc-v2-dock.is-collapsed .totc-v2-stack__content {
+    display: none;
+}
+
+.turn-of-the-century .totc-v2-dock.is-collapsed .totc-v2-stack__header {
+    min-height: 34px;
+}
+
+.turn-of-the-century .totc-v2-dock--topDock.is-collapsed .totc-v2-stack__header,
+.turn-of-the-century .totc-v2-dock--bottomDock.is-collapsed .totc-v2-stack__header {
+    align-items: center;
+    padding-bottom: 0.2rem;
+}
+
+.turn-of-the-century .totc-v2-dock--leftDock.is-collapsed .totc-v2-dock__stacks,
+.turn-of-the-century .totc-v2-dock--rightDock.is-collapsed .totc-v2-dock__stacks {
+    flex-direction: column;
+}
+
+.turn-of-the-century .totc-v2-dock--leftDock.is-collapsed .totc-v2-stack,
+.turn-of-the-century .totc-v2-dock--rightDock.is-collapsed .totc-v2-stack {
+    min-width: 0;
+}
+
+.turn-of-the-century .totc-v2-dock--leftDock.is-collapsed .totc-v2-stack__header,
+.turn-of-the-century .totc-v2-dock--rightDock.is-collapsed .totc-v2-stack__header {
+    align-items: center;
+    border-bottom: none;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    padding: 0.35rem 0.2rem;
+}
+
+.turn-of-the-century .totc-v2-dock--leftDock.is-collapsed .totc-v2-stack__tabs,
+.turn-of-the-century .totc-v2-dock--rightDock.is-collapsed .totc-v2-stack__tabs {
+    align-items: center;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-height: 0;
+    overflow: visible;
+    padding: 0.1rem 0;
+}
+
+.turn-of-the-century .totc-v2-dock--leftDock.is-collapsed .totc-v2-stack__tab,
+.turn-of-the-century .totc-v2-dock--rightDock.is-collapsed .totc-v2-stack__tab {
+    border-bottom: none;
+    border-inline-start: 2px solid transparent;
+    height: 7.5rem;
+    justify-content: center;
+    max-width: none;
+    padding: 0.4rem 0.15rem;
+    transform: none;
+    width: 2rem;
+}
+
+.turn-of-the-century .totc-v2-dock--leftDock.is-collapsed .totc-v2-stack__tab.is-active,
+.turn-of-the-century .totc-v2-dock--rightDock.is-collapsed .totc-v2-stack__tab.is-active {
+    border-bottom-color: transparent;
+    border-inline-start-color: #f59e0b;
+}
+
+.turn-of-the-century .totc-v2-dock--leftDock.is-collapsed .totc-v2-stack__tab span,
+.turn-of-the-century .totc-v2-dock--rightDock.is-collapsed .totc-v2-stack__tab span {
+    display: inline-block;
+    flex: 0 0 auto;
+    max-width: 6.4rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.turn-of-the-century .totc-v2-dock--leftDock.is-collapsed .totc-v2-stack__tab span {
+    transform: rotate(90deg);
+}
+
+.turn-of-the-century .totc-v2-dock--rightDock.is-collapsed .totc-v2-stack__tab span {
+    transform: rotate(-90deg);
+}
+
+.turn-of-the-century .totc-v2-dock--leftDock.is-collapsed .totc-v2-stack__tab-icon,
+.turn-of-the-century .totc-v2-dock--rightDock.is-collapsed .totc-v2-stack__tab-icon {
+    display: none;
+}
+
+.turn-of-the-century .totc-v2-dock--leftDock.is-collapsed .totc-v2-stack__actions,
+.turn-of-the-century .totc-v2-dock--rightDock.is-collapsed .totc-v2-stack__actions {
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
 .turn-of-the-century .totc-v2-panel-placeholder {
     align-items: center;
     color: #cbd5e1;
@@ -2234,7 +2332,7 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
 .turn-of-the-century .totc-v2-scenes-panel {
     display: grid;
     gap: 0.45rem;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
     height: 100%;
     min-height: 0;
 }
@@ -3311,6 +3409,10 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     background: transparent;
     position: absolute;
     z-index: 3;
+}
+
+.turn-of-the-century .totc-v2-layout [data-action='dock-resizer'].is-hidden {
+    display: none;
 }
 
 .turn-of-the-century .totc-v2-dock-resizer--left,

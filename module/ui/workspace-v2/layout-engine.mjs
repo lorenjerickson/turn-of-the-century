@@ -16,6 +16,7 @@ function nextId(prefix) {
 function makeEmptyDock(orientation) {
     return {
         orientation,
+        collapsed: false,
         stacks: []
     };
 }
@@ -79,6 +80,10 @@ function makeDefaultPanelMemory() {
     return {};
 }
 
+function isCollapsibleDock(dockId) {
+    return dockId && dockId !== "centerDock";
+}
+
 function findPanelById(panels, panelId, fallbackIndex = 0) {
     return panels.find((panel) => panel.id === panelId) ?? panels[fallbackIndex] ?? {
         id: "placeholder",
@@ -102,22 +107,27 @@ export class LayoutEngine {
             root: {
                 leftDock: {
                     orientation: "vertical",
+                    collapsed: false,
                     stacks: [makeStackWithPanels([leftPanel, scenesPanel], { activePanelId: leftPanel.id })]
                 },
                 topDock: {
                     orientation: "horizontal",
+                    collapsed: false,
                     stacks: [makeStackWithPanel(topPanel)]
                 },
                 centerDock: {
                     orientation: "vertical",
+                    collapsed: false,
                     stacks: [makeStackWithPanel(centerPanel)]
                 },
                 rightDock: {
                     orientation: "vertical",
+                    collapsed: false,
                     stacks: [makeStackWithPanel(rightPanel)]
                 },
                 bottomDock: {
                     orientation: "horizontal",
+                    collapsed: false,
                     stacks: [makeStackWithPanel(bottomPanel)]
                 },
                 floatingWindows: [makeFloatingWindow(floatingPanel, { x: 120, y: 120, width: 420, height: 280, zIndex: 20 })],
@@ -156,6 +166,7 @@ export class LayoutEngine {
             if (!dock || !Array.isArray(dock.stacks)) {
                 return null;
             }
+            dock.collapsed = isCollapsibleDock(dockId) ? Boolean(dock.collapsed) : false;
             for (const stack of dock.stacks) {
                 if (!stack || typeof stack !== "object") return null;
                 if (!Array.isArray(stack.panels)) return null;
@@ -362,6 +373,30 @@ export class LayoutEngine {
         return this.getLayout();
     }
 
+    setDockCollapsed(dockId, collapsed = false) {
+        if (!isCollapsibleDock(dockId)) return this.getLayout();
+
+        const next = this.getLayout();
+        const dock = next.root[dockId];
+        if (!dock) return this.getLayout();
+
+        dock.collapsed = Boolean(collapsed);
+        this.layout = next;
+        return this.getLayout();
+    }
+
+    toggleDockCollapsed(dockId) {
+        if (!isCollapsibleDock(dockId)) return this.getLayout();
+
+        const next = this.getLayout();
+        const dock = next.root[dockId];
+        if (!dock) return this.getLayout();
+
+        dock.collapsed = !dock.collapsed;
+        this.layout = next;
+        return this.getLayout();
+    }
+
     setActivePanel(dockId, stackId, panelId) {
         const next = this.getLayout();
         const dock = next.root[dockId];
@@ -373,6 +408,7 @@ export class LayoutEngine {
         }
 
         stack.activePanelId = panelId;
+        if (isCollapsibleDock(dockId) && dock.collapsed) dock.collapsed = false;
         this.layout = next;
         return this.getLayout();
     }
@@ -418,12 +454,14 @@ export class LayoutEngine {
         const dock = layout.root[dockId] ?? layout.root.centerDock;
         if (!dock.stacks.length) {
             dock.stacks.push(makeStackWithPanel(panelDef));
+            if (isCollapsibleDock(dockId)) dock.collapsed = false;
             return;
         }
 
         const stack = dock.stacks[0];
         stack.panels.push(makePanelInstance(panelDef));
         stack.activePanelId = panelDef.id;
+        if (isCollapsibleDock(dockId)) dock.collapsed = false;
     }
 
     #composeIntoDockLocation(layout, panelDef, location = null) {
@@ -437,6 +475,7 @@ export class LayoutEngine {
         if (stack) {
             stack.panels.push(makePanelInstance(panelDef));
             stack.activePanelId = panelDef.id;
+            if (isCollapsibleDock(location.dockId)) dock.collapsed = false;
             return;
         }
 
@@ -454,11 +493,13 @@ export class LayoutEngine {
         if (intent.zone === LOCAL_ZONE_CENTER) {
             dock.stacks[stackIndex].panels.push(makePanelInstance(panelDef));
             dock.stacks[stackIndex].activePanelId = panelDef.id;
+            if (isCollapsibleDock(intent.dockId)) dock.collapsed = false;
             return;
         }
 
         const targetIndex = intent.zone === LOCAL_ZONE_TOP ? stackIndex : stackIndex + 1;
         dock.stacks.splice(targetIndex, 0, makeStackWithPanel(panelDef));
+        if (isCollapsibleDock(intent.dockId)) dock.collapsed = false;
     }
 
     #removePanelInstances(layout, panelId) {
