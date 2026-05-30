@@ -14,6 +14,10 @@ import {
     renderDiceRollFeedPanel
 } from "./panels/dice-roll-feed-panel.mjs";
 import {
+    buildDieRollRequestPanelModel,
+    renderDieRollRequestPanel
+} from "./panels/die-roll-request-panel.mjs";
+import {
     buildDesignLensModel,
     renderDesignLensSurface
 } from "./panels/design-lens-panel.mjs";
@@ -815,6 +819,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             snapshot: gmSnapshot,
             panelState: gmPanelState
         });
+        // Die Roll Request Panel context
+        const dieRollRequestPanel = buildDieRollRequestPanelModel({
+            userId: game.user?.id,
+            isGM: Boolean(game.user?.isGM)
+        });
         const compendiumItems = await this.#getUnifiedCompendiumItems();
         const mediaBrowserEntries = visiblePanels.has("media-browser")
             ? await this.#getMediaBrowserEntries()
@@ -907,6 +916,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 state: this._mediaBrowserState
             }),
             diceRollFeedPanel,
+            dieRollRequestPanel,
             inspectorPanel,
             scene: {
                 id: scene?.id ?? null,
@@ -978,6 +988,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const docksMarkup = WORKSPACE_V2_DOCK_IDS
             .map((dockId) => this.#renderDockMarkup(dockId, context.layout.root[dockId], context))
             .join("\n");
+        // Render die roll request panel in leftDockBottom if present
+        let dieRollRequestPanelMarkup = "";
+        if (context.dieRollRequestPanel) {
+            dieRollRequestPanelMarkup = renderDieRollRequestPanel(context.dieRollRequestPanel, { escapeHTML: (value) => this.#escapeHTML(value) });
+        }
         const panelToggleMarkup = (context.panelVisibility ?? []).map((panel) => `
             <label class="totc-v2-command-menu__panel-toggle">
                 <input
@@ -1010,6 +1025,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     <main class="totc-workspace-v2-shell__main">
         <section class="totc-v2-layout" data-layout-root="true" style="grid-template-columns:${columnTemplate};grid-template-rows:${rowTemplate};">
             ${docksMarkup}
+            ${dieRollRequestPanelMarkup}
             ${this.#renderDockSplittersMarkup(dockWeights, layoutRoot)}
             ${this.#renderFloatingWindowsMarkup(context.layout.root.floatingWindows ?? [])}
             <div class="totc-v2-ghost" data-drop-ghost="true" hidden>
@@ -1032,6 +1048,69 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#bindGamemasterHooks();
         this.#bindPlayerHooks();
         this.#bindDesignIssuesHooks();
+
+        // Die Roll Request Panel: handle roll button
+        this.element?.querySelectorAll(".totc-v2-die-roll-request-panel__roll-btn")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                // Find the current request for this user
+                const userId = game.user?.id;
+                const isGM = Boolean(game.user?.isGM);
+                const requests = globalThis.dieRollRequestManager?.getAllRequests?.() ?? [];
+                const request = isGM
+                    ? requests[0]
+                    : requests.find((req) => req.recipientIds.includes(userId));
+                if (!request) return;
+                // For now, roll a d20 + modifiers
+                const baseRoll = new Roll("1d20");
+                await baseRoll.evaluate({ async: true });
+                let total = baseRoll.total;
+                if (Array.isArray(request.modifiers)) {
+                    total += request.modifiers.reduce((a, b) => a + Number(b || 0), 0);
+                } else if (!isNaN(Number(request.modifiers))) {
+                    total += Number(request.modifiers);
+                }
+                // Send result
+                globalThis.dieRollRequestManager?.sendResult?.(request.id, userId, {
+                    roll: baseRoll.toJSON(),
+                    total,
+                    timestamp: Date.now()
+                });
+                // Re-render panel
+                this.render({ force: true });
+            });
+        });
+// Ensure the dieRollRequestManager is globally accessible for socket updates and UI
+import { dieRollRequestManager } from "../../die-roll-request-manager.mjs";
+if (typeof globalThis.dieRollRequestManager === "undefined") {
+    globalThis.dieRollRequestManager = dieRollRequestManager;
+}
+
+// Listen for socket updates to re-render the panel when requests/results change
+if (!globalThis._dieRollRequestPanelSocketBound) {
+    dieRollRequestManager._onPanelUpdate = () => {
+        const app = ui?.windows?.["totc-workspace-v2-root"];
+        if (app?.rendered) app.render({ force: true });
+    };
+    // Patch the manager's handlers to call _onPanelUpdate
+    const origHandleRequest = dieRollRequestManager._handleRequest.bind(dieRollRequestManager);
+    dieRollRequestManager._handleRequest = function (...args) {
+        origHandleRequest(...args);
+        this._onPanelUpdate?.();
+    };
+    const origHandleResult = dieRollRequestManager._handleResult.bind(dieRollRequestManager);
+    dieRollRequestManager._handleResult = function (...args) {
+        origHandleResult(...args);
+        this._onPanelUpdate?.();
+    };
+    const origHandleCancel = dieRollRequestManager._handleCancel.bind(dieRollRequestManager);
+    dieRollRequestManager._handleCancel = function (...args) {
+        origHandleCancel(...args);
+        this._onPanelUpdate?.();
+    };
+    globalThis._dieRollRequestPanelSocketBound = true;
+}
 
         this.element?.querySelectorAll("[data-action='totc-v2-exit-world']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {

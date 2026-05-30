@@ -149,13 +149,6 @@
             "system": "turn-of-the-century"
         },
         {
-            "name": "encounter-designs",
-            "label": "Encounter Designs",
-            "type": "Item",
-            "path": "packs/encounter-designs",
-            "system": "turn-of-the-century"
-        },
-        {
             "name": "locations",
             "label": "Locations",
             "type": "Item",

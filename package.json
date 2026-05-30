@@ -8,5 +8,9 @@
     "syntax-check": "node scripts/syntax-check.mjs",
     "audit:foundry-v14": "node scripts/audit-foundry-v14-compat.mjs",
     "validate": "node scripts/syntax-check.mjs && node --test \"test/**/*.test.mjs\" && node scripts/audit-foundry-v14-compat.mjs"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2",
+    "uuid": "^14.0.0"
   }
 }

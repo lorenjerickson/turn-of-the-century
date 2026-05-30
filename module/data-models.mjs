@@ -12,3 +12,5 @@ export * from "./models/campaign.mjs";
 export * from "./models/scenario.mjs";
 export * from "./models/encounter-design.mjs";
 export * from "./models/location.mjs";
+export * from "./models/die-roll-request.mjs";
+// export * from "../module/die-roll-request-manager.mjs";
