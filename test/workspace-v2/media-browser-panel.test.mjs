@@ -36,28 +36,36 @@ describe("Media browser panel", () => {
     });
 
     it("browses Foundry data assets recursively", async () => {
-        let browseRequest = null;
+        const browseRequests = [];
+        const tree = new Map([
+            ["assets", { files: [], dirs: ["images", { path: "assets/audio" }] }],
+            ["assets/images", { files: [], dirs: ["scenes"] }],
+            ["assets/images/scenes", { files: ["alley.webp", "assets/images/scenes/yard.png"], dirs: [] }],
+            ["assets/audio", { files: [{ name: "bell.mp3" }], dirs: [] }]
+        ]);
+
         const result = await browseAssetMedia({
             FilePickerClass: {
                 browse: async (source, root, options) => {
-                    browseRequest = { source, root, options };
-                    return {
-                        files: [
-                            "assets/images/scenes/alley.webp",
-                            "assets/audio/effects/bell.mp3"
-                        ]
-                    };
+                    browseRequests.push({ source, root, options });
+                    return tree.get(root) ?? { files: [], dirs: [] };
                 }
             }
         });
 
         assert.equal(result.ok, true);
-        assert.deepEqual(browseRequest, {
-            source: "data",
-            root: "assets",
-            options: { recursive: true }
-        });
-        assert.deepEqual(result.entries.map((entry) => entry.type), ["image", "audio"]);
+        assert.deepEqual(browseRequests, [
+            { source: "data", root: "assets", options: { recursive: true } },
+            { source: "data", root: "assets/images", options: { recursive: true } },
+            { source: "data", root: "assets/audio", options: { recursive: true } },
+            { source: "data", root: "assets/images/scenes", options: { recursive: true } }
+        ]);
+        assert.deepEqual(result.entries.map((entry) => entry.path), [
+            "assets/audio/bell.mp3",
+            "assets/images/scenes/alley.webp",
+            "assets/images/scenes/yard.png"
+        ]);
+        assert.deepEqual(result.entries.map((entry) => entry.type), ["audio", "image", "image"]);
     });
 
     it("filters by filename and media type, then sorts by selected column", () => {

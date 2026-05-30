@@ -93,6 +93,20 @@ export function normalizeMediaBrowserEntries(entries = []) {
         });
 }
 
+function getBrowseEntryPath(pathOrEntry) {
+    return normalizeSlashPath(typeof pathOrEntry === "string"
+        ? pathOrEntry
+        : pathOrEntry?.path ?? pathOrEntry?.target ?? pathOrEntry?.url ?? pathOrEntry?.name ?? "");
+}
+
+function resolveBrowseEntryPath(pathOrEntry, directory) {
+    const path = getBrowseEntryPath(pathOrEntry);
+    if (!path) return "";
+    if (path.startsWith(`${ASSETS_ROOT}/`) || path.includes(`/${ASSETS_ROOT}/`)) return path;
+
+    return normalizeSlashPath(`${directory}/${path}`);
+}
+
 export async function browseAssetMedia({ FilePickerClass = null, source = "data", root = ASSETS_ROOT } = {}) {
     if (!FilePickerClass || typeof FilePickerClass.browse !== "function") {
         return {
@@ -103,10 +117,29 @@ export async function browseAssetMedia({ FilePickerClass = null, source = "data"
     }
 
     try {
-        const result = await FilePickerClass.browse(source, root, { recursive: true });
+        const pendingDirectories = [normalizeSlashPath(root)];
+        const visitedDirectories = new Set();
+        const files = [];
+
+        while (pendingDirectories.length) {
+            const directory = pendingDirectories.shift();
+            if (!directory || visitedDirectories.has(directory)) continue;
+            visitedDirectories.add(directory);
+
+            const result = await FilePickerClass.browse(source, directory, { recursive: true });
+            files.push(...(result?.files ?? []).map((file) => resolveBrowseEntryPath(file, directory)));
+
+            for (const dir of result?.dirs ?? []) {
+                const nextDirectory = resolveBrowseEntryPath(dir, directory);
+                if (nextDirectory && !visitedDirectories.has(nextDirectory)) {
+                    pendingDirectories.push(nextDirectory);
+                }
+            }
+        }
+
         return {
             ok: true,
-            entries: normalizeMediaBrowserEntries(result?.files ?? []),
+            entries: normalizeMediaBrowserEntries(files),
             error: ""
         };
     } catch (error) {
