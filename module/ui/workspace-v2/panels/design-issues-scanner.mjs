@@ -200,6 +200,11 @@ export class DesignIssueScanner {
     }
 
     #sceneBackgroundSource(scene) {
+        // Use Level API for background (Foundry v14+)
+        if (scene?.levels && Array.isArray(scene.levels) && scene.levels.length > 0) {
+            return String(scene.levels[0]?.background?.src ?? scene.levels[0]?.textures?.background?.src ?? "").trim();
+        }
+        // Fallback for legacy/compat
         return String(scene.background?.src ?? scene._source?.background?.src ?? scene._source?.img ?? "").trim();
     }
 

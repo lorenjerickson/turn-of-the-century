@@ -16,21 +16,29 @@ async function hasAnyCompendiumData() {
 // Utility: Show a modal dialog to the GM with a repair button
 function showCompendiumRepairModal(onRepair) {
     if (!game.user?.isGM) return;
-    new Dialog({
-        title: "Compendium Data Missing",
-        content: `<p>No compendium data was found. This can break core features. Would you like to repair the compendiums now?</p>` +
-            `<p><strong>This will repopulate the starter compendiums. Existing world data will not be affected.</strong></p>`,
-        buttons: {
-            repair: {
-                label: "Repair Compendiums",
-                callback: onRepair
+    // Use Application V2 Dialog (DialogV2) if available
+    const foundry = globalThis.foundry ?? {};
+    const DialogV2 = foundry.applications?.api?.DialogV2;
+    if (DialogV2) {
+        new DialogV2({
+            title: "Compendium Data Missing",
+            content: `<p>No compendium data was found. This can break core features. Would you like to repair the compendiums now?</p>` +
+                `<p><strong>This will repopulate the starter compendiums. Existing world data will not be affected.</strong></p>`,
+            buttons: {
+                repair: {
+                    label: "Repair Compendiums",
+                    callback: onRepair
+                },
+                cancel: {
+                    label: "Cancel"
+                }
             },
-            cancel: {
-                label: "Cancel"
-            }
-        },
-        default: "repair"
-    }).render(true);
+            default: "repair"
+        }).render(true);
+    } else {
+        // Fallback: show notification if DialogV2 is not available
+        ui.notifications?.error("Compendium data missing. Please update Foundry or contact your system maintainer.");
+    }
 }
 
 // Main preflight: Run after game.ready, before UI panels
@@ -2256,6 +2264,13 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
     }
 
     #getSceneMapSource(scene) {
+        // Use Level API for background (Foundry v14+)
+        if (scene?.levels && Array.isArray(scene.levels) && scene.levels.length > 0) {
+            return scene.levels[0]?.background?.src
+                ?? scene.levels[0]?.textures?.background?.src
+                ?? "";
+        }
+        // Fallback for legacy/compat
         return scene?.background?.src
             ?? scene?.["img"]
             ?? scene?.texture?.src

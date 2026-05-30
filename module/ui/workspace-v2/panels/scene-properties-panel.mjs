@@ -54,12 +54,14 @@ export function buildScenePropertiesPanelModel(state = {}) {
         filename: selectedFilename
     });
     const uploadedPath = String(stateApplies ? state.backgroundPath ?? "" : "").trim();
-    const currentBackgroundPath = String(
-        scene?.background?.src
-            ?? scene?.["img"]
-            ?? scene?.texture?.src
-            ?? ""
-    ).trim();
+    // Use Level API for background (Foundry v14+)
+    let currentBackgroundPath = "";
+    if (scene?.levels && Array.isArray(scene.levels) && scene.levels.length > 0) {
+        currentBackgroundPath = String(scene.levels[0]?.background?.src ?? scene.levels[0]?.textures?.background?.src ?? "").trim();
+    } else {
+        // Fallback for legacy/compat
+        currentBackgroundPath = String(scene?.background?.src ?? scene?.["img"] ?? scene?.texture?.src ?? "").trim();
+    }
     const effectiveBackgroundPath = uploadedPath || currentBackgroundPath;
 
     return {
