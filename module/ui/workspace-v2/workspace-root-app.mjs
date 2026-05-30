@@ -20,20 +20,28 @@ function showCompendiumRepairModal(onRepair) {
     const foundry = globalThis.foundry ?? {};
     const DialogV2 = foundry.applications?.api?.DialogV2;
     if (DialogV2) {
+        // Defensive: ensure onRepair is a function
+        const safeOnRepair = typeof onRepair === "function" ? onRepair : () => {};
+        const buttons = {
+            repair: {
+                label: "Repair Compendiums",
+                callback: safeOnRepair
+            },
+            cancel: {
+                label: "Cancel",
+                callback: () => {}
+            }
+        };
+        if (!buttons || Object.keys(buttons).length === 0) {
+            console.warn("DialogV2 called with empty buttons config. Dialog will not be shown.");
+            ui.notifications?.error("Compendium repair dialog could not be shown due to a configuration error.");
+            return;
+        }
         new DialogV2({
             title: "Compendium Data Missing",
             content: `<p>No compendium data was found. This can break core features. Would you like to repair the compendiums now?</p>` +
                 `<p><strong>This will repopulate the starter compendiums. Existing world data will not be affected.</strong></p>`,
-            buttons: {
-                repair: {
-                    label: "Repair Compendiums",
-                    callback: onRepair
-                },
-                cancel: {
-                    label: "Cancel",
-                    callback: () => {}
-                }
-            },
+            buttons,
             default: "repair"
         }).render(true);
     } else {
