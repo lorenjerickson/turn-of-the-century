@@ -91,10 +91,15 @@ function findCombatantForActor(combat, actor, tokenDocument = null) {
         return pickPreferredCombatant(byToken);
     }
 
-    const byActor = [
-        combat.getCombatantByActor?.(actor.id),
-        combat.getCombatantByActor?.(actor.baseActor?.id)
-    ].filter(Boolean);
+
+    // Use new getCombatantsByActor API (returns array)
+    let byActor = [];
+    if (typeof combat.getCombatantsByActor === "function") {
+        byActor = [
+            ...(combat.getCombatantsByActor(actor.id) ?? []),
+            ...(actor.baseActor?.id ? (combat.getCombatantsByActor(actor.baseActor.id) ?? []) : [])
+        ];
+    }
     if (byActor.length) {
         return pickPreferredCombatant(byActor);
     }
