@@ -1,4 +1,4 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 10;
+export const TOTC_WORLD_SCHEMA_VERSION = 11;
 
 import { migrateTotcItems } from "./items.mjs";
 
@@ -156,6 +156,21 @@ export async function runTotcMigrations({
             report
         });
         appliedVersion = 10;
+    }
+
+    // v11: migrate exportSource flag to _stats.exportSource (idempotent)
+    if (appliedVersion < 11) {
+        const report = await migrateTotcItems({
+            dryRun: false,
+            notify: false,
+            includeCompendiums: true
+        });
+        appliedSteps.push({
+            version: 11,
+            key: "exportSource-flag-migration",
+            report
+        });
+        appliedVersion = 11;
     }
 
     if (notify && appliedSteps.length) {
