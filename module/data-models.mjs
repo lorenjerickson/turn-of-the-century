@@ -8,3 +8,7 @@ export * from "./models/item.mjs";
 export * from "./models/profession.mjs";
 export * from "./models/quirk.mjs";
 export * from "./models/weapon.mjs";
+export * from "./models/campaign.mjs";
+export * from "./models/scenario.mjs";
+export * from "./models/encounter-design.mjs";
+export * from "./models/location.mjs";

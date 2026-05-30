@@ -9,7 +9,11 @@ import {
     ProfessionDataModel,
     QuirkDataModel,
     VillainDataModel,
-    WeaponDataModel
+    WeaponDataModel,
+    CampaignDataModel,
+    ScenarioDataModel,
+    EncounterDesignDataModel,
+    LocationDataModel
 } from "./module/data-models.mjs";
 import {
     getActionPointBudget,
@@ -404,7 +408,11 @@ Hooks.once("init", () => {
         quirk: QuirkDataModel,
         skill: ItemDataModel,
         talent: ItemDataModel,
-        weapon: WeaponDataModel
+        weapon: WeaponDataModel,
+        campaign: CampaignDataModel,
+        scenario: ScenarioDataModel,
+        "encounter-design": EncounterDesignDataModel,
+        location: LocationDataModel
     });
 
     ItemsCollection.unregisterSheet("core", BaseItemSheetClass);
@@ -497,11 +505,18 @@ Hooks.once("init", () => {
         default: true
     });
 
+    game.settings.register("turn-of-the-century", "geminiApiKey", {
+        name: "Gemini API Key",
+        hint: "API key for generating campaigns and scenarios.",
+        scope: "world",
+        config: true,
+        type: String,
+        default: ""
+    });
+
     registerTotcThemeSetting("turn-of-the-century");
 
     registerWorkspaceV2PolicySettings("turn-of-the-century", {
-        onEnabledChange: async (enabled) => {
-            if (!workspaceV2Coordinator) return;
             if (enabled) {
                 await workspaceV2Coordinator.start();
             } else {

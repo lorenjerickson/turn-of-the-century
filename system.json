@@ -2,7 +2,7 @@
     "id": "turn-of-the-century",
     "title": "Turn of the Century",
     "description": "A pulp horror roleplaying game set in the turn of the 19th century.",
-    "version": "0.0.121",
+    "version": "0.0.122",
     "compatibility": {
         "minimum": 14,
         "verified": 14
@@ -133,6 +133,34 @@
             "type": "Item",
             "path": "packs/starter-items",
             "system": "turn-of-the-century"
+        },
+        {
+            "name": "campaigns",
+            "label": "Campaigns",
+            "type": "Item",
+            "path": "packs/campaigns",
+            "system": "turn-of-the-century"
+        },
+        {
+            "name": "scenarios",
+            "label": "Scenarios",
+            "type": "Item",
+            "path": "packs/scenarios",
+            "system": "turn-of-the-century"
+        },
+        {
+            "name": "encounter-designs",
+            "label": "Encounter Designs",
+            "type": "Item",
+            "path": "packs/encounter-designs",
+            "system": "turn-of-the-century"
+        },
+        {
+            "name": "locations",
+            "label": "Locations",
+            "type": "Item",
+            "path": "packs/locations",
+            "system": "turn-of-the-century"
         }
     ],
     "languages": [
@@ -216,6 +244,33 @@
                 "htmlFields": [
                     "description",
                     "prerequisites.notes"
+                ]
+            },
+            "campaign": {
+                "htmlFields": [
+                    "environment",
+                    "culture",
+                    "socialClimate",
+                    "antagonist",
+                    "motivations"
+                ]
+            },
+            "scenario": {
+                "htmlFields": [
+                    "description",
+                    "historicalNotes"
+                ]
+            },
+            "encounter-design": {
+                "htmlFields": [
+                    "description",
+                    "hazards"
+                ]
+            },
+            "location": {
+                "htmlFields": [
+                    "description",
+                    "notes"
                 ]
             }
         }

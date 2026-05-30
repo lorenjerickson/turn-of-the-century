@@ -62,6 +62,23 @@ import {
     renderScenesPanel
 } from "./panels/scenes-panel.mjs";
 import {
+    buildCampaignBuilderPanelModel,
+    renderCampaignBuilderPanel
+} from "./panels/campaign-builder-panel.mjs";
+import {
+    buildScenarioBuilderPanelModel,
+    renderScenarioBuilderPanel
+} from "./panels/scenario-builder-panel.mjs";
+import {
+    buildEncounterDesignerPanelModel,
+    renderEncounterDesignerPanel
+} from "./panels/encounter-designer-panel.mjs";
+import {
+    buildGMAssistantPanelModel,
+    renderGMAssistantPanel
+} from "./panels/gm-assistant-panel.mjs";
+import { LLMService } from "../services/llm-service.mjs";
+import {
     createSceneDesignScene,
     uploadSceneBackgroundFile
 } from "./design-actions/scene-actions.mjs";
@@ -679,6 +696,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             status: "",
             error: ""
         };
+        this._gmAssistantState = {
+            elementType: "campaign",
+            prompt: "",
+            isGenerating: false,
+            result: null,
+            error: null
+        };
         this._playerPanelSectionSnapshotInitialized = false;
         this._playerPanelVisibleSectionIds = new Set();
         this._sceneRefreshHandler = () => {
@@ -912,7 +936,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             scenePropertiesPanel: buildScenePropertiesPanelModel({
                 ...this._scenePropertiesState,
                 scene: scenePropertiesScene
-            })
+            }),
+            campaignBuilderPanel: buildCampaignBuilderPanelModel({
+                campaigns: Array.from(game.items?.contents || []).filter(i => i.type === "campaign")
+            }),
+            scenarioBuilderPanel: buildScenarioBuilderPanelModel({
+                scenarios: Array.from(game.items?.contents || []).filter(i => i.type === "scenario")
+            }),
+            encounterDesignerPanel: buildEncounterDesignerPanelModel({
+                encounters: Array.from(game.items?.contents || []).filter(i => i.type === "encounter-design")
+            }),
+            gmAssistantPanel: buildGMAssistantPanelModel(this._gmAssistantState)
         };
     }
 
@@ -1401,6 +1435,110 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.element?.querySelectorAll("[data-action='create-campaign']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const cls = CONFIG.Item.documentClass || globalThis.Item;
+                const item = await cls.create({ name: "New Campaign", type: "campaign" });
+                if (item?.sheet) item.sheet.render(true);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='create-scenario']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const cls = CONFIG.Item.documentClass || globalThis.Item;
+                const item = await cls.create({ name: "New Scenario", type: "scenario" });
+                if (item?.sheet) item.sheet.render(true);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='create-encounter']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const cls = CONFIG.Item.documentClass || globalThis.Item;
+                const item = await cls.create({ name: "New Encounter", type: "encounter-design" });
+                if (item?.sheet) item.sheet.render(true);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='gm-assistant-set-type']")?.forEach((select) => {
+            select.addEventListener("change", (event) => {
+                this._gmAssistantState.elementType = event.target.value;
+                this._gmAssistantState.result = null;
+                this._gmAssistantState.error = null;
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='gm-assistant-set-prompt']")?.forEach((input) => {
+            input.addEventListener("input", (event) => {
+                this._gmAssistantState.prompt = event.target.value;
+                this.render({ force: false });
+            });
+        });
+
+        const handleGenerate = async () => {
+            if (this._gmAssistantState.isGenerating || !this._gmAssistantState.prompt) return;
+            this._gmAssistantState.isGenerating = true;
+            this._gmAssistantState.error = null;
+            this._gmAssistantState.result = null;
+            this.render({ force: false });
+
+            try {
+                const result = await LLMService.generate(this._gmAssistantState.prompt, {
+                    elementType: this._gmAssistantState.elementType
+                });
+                this._gmAssistantState.result = result;
+            } catch (err) {
+                this._gmAssistantState.error = err.message;
+            } finally {
+                this._gmAssistantState.isGenerating = false;
+                this.render({ force: false });
+            }
+        };
+
+        this.element?.querySelectorAll("[data-action='gm-assistant-generate']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                await handleGenerate();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='gm-assistant-regenerate']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                await handleGenerate();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='gm-assistant-accept']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                const { result, elementType } = this._gmAssistantState;
+                if (!result) return;
+
+                const isActor = elementType === "pawn";
+                const cls = isActor ? (CONFIG.Actor.documentClass || globalThis.Actor) : (CONFIG.Item.documentClass || globalThis.Item);
+                
+                const documentData = {
+                    name: result.name || "Generated Element",
+                    type: elementType,
+                    system: result.system || {}
+                };
+
+                const doc = await cls.create(documentData);
+                if (doc?.sheet) doc.sheet.render(true);
+
+                this._gmAssistantState.result = null;
+                this._gmAssistantState.prompt = "";
+                this.render({ force: false });
+            });
+        });
+
         this.element?.querySelectorAll("[data-action='float-panel']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
@@ -1798,6 +1936,22 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             return renderMediaBrowserPanel(context.mediaBrowserPanel ?? {}, {
                 escapeHTML: (value) => this.#escapeHTML(value)
             });
+        }
+
+        if (panel.id === "campaign-builder") {
+            return renderCampaignBuilderPanel(context.campaignBuilderPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
+        }
+
+        if (panel.id === "scenario-builder") {
+            return renderScenarioBuilderPanel(context.scenarioBuilderPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
+        }
+
+        if (panel.id === "encounter-designer") {
+            return renderEncounterDesignerPanel(context.encounterDesignerPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
+        }
+
+        if (panel.id === "gm-assistant") {
+            return renderGMAssistantPanel(context.gmAssistantPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
         }
 
         if (panel.id === "roll-feed") {
