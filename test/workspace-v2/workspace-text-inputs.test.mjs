@@ -18,11 +18,13 @@ function input({ action, type = "text", tagName = "INPUT" } = {}) {
 describe("workspace text input debounce routing", () => {
     it("registers scene properties name as a debounced text action", () => {
         assert.equal(WORKSPACE_DEBOUNCED_TEXT_INPUT_ACTIONS.has("scene-properties-name"), true);
+        assert.equal(WORKSPACE_DEBOUNCED_TEXT_INPUT_ACTIONS.has("media-browser-search"), true);
     });
 
     it("debounces text and search inputs for registered actions", () => {
         assert.equal(isWorkspaceDebouncedTextInputTarget(input({ action: "scene-properties-name" })), true);
         assert.equal(isWorkspaceDebouncedTextInputTarget(input({ action: "compendium-search", type: "search" })), true);
+        assert.equal(isWorkspaceDebouncedTextInputTarget(input({ action: "media-browser-search", type: "search" })), true);
     });
 
     it("does not debounce unregistered or non-text inputs", () => {

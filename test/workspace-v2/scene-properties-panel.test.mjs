@@ -9,6 +9,7 @@ import {
     getScenePropertiesStagedBackgroundPath,
     resolveScenePropertiesScene,
     renderScenePropertiesPanel,
+    scenePropertiesStateLocksScene,
     slugifySceneName
 } from "../../module/ui/workspace-v2/panels/scene-properties-panel.mjs";
 
@@ -184,12 +185,38 @@ describe("Scene properties panel", () => {
 
         const resolved = resolveScenePropertiesScene({
             stateSceneId: "scene-draft",
+            stateLocksScene: true,
             activePanel: { id: "scene-properties", title: "Scene Properties" },
             viewedScene,
             sceneResolver: (sceneId) => sceneId === "scene-draft" ? draftScene : null
         });
 
         assert.equal(resolved, draftScene);
+    });
+
+    it("does not pin properties to a saved scene without unsaved edits", () => {
+        const savedScene = { id: "scene-a", name: "Saved Scene" };
+        const viewedScene = { id: "scene-b", name: "Viewed Scene" };
+
+        const resolved = resolveScenePropertiesScene({
+            stateSceneId: "scene-a",
+            stateLocksScene: false,
+            activePanel: { id: "scene-properties", title: "Scene Properties" },
+            viewedScene,
+            sceneResolver: (sceneId) => sceneId === "scene-a" ? savedScene : null
+        });
+
+        assert.equal(resolved, viewedScene);
+    });
+
+    it("locks scene properties only while edits are in progress", () => {
+        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", sceneName: null, backgroundPath: "", selectedFilename: "", createMode: false }), false);
+        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", sceneName: "Edited Name", createMode: false }), true);
+        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", sceneName: "", createMode: false }), true);
+        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", previewPath: "blob:map" }), true);
+        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", backgroundPath: "assets/images/scenes/map.webp" }), true);
+        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", selectedFilename: "map.webp" }), true);
+        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", createMode: true }), true);
     });
 
     it("exposes a staged background preview only for the bound scene", () => {
@@ -203,6 +230,26 @@ describe("Scene properties panel", () => {
             "assets/images/scenes/draft-map.webp"
         );
         assert.equal(getScenePropertiesStagedBackgroundPath(state, { id: "scene-other" }), "");
+    });
+
+    it("prefers the selected local preview while retaining the upload path for save", () => {
+        const state = {
+            sceneId: "scene-draft",
+            previewPath: "blob:local-map-preview",
+            backgroundPath: "assets/images/scenes/draft-map.webp"
+        };
+
+        assert.equal(
+            getScenePropertiesStagedBackgroundPath(state, { id: "scene-draft" }),
+            "blob:local-map-preview"
+        );
+
+        const model = buildScenePropertiesPanelModel({
+            scene: { id: "scene-draft", name: "Draft", background: { src: "" } },
+            ...state
+        });
+        assert.equal(model.backgroundPath, "assets/images/scenes/draft-map.webp");
+        assert.equal(buildScenePropertiesUpdateData(model)["background.src"], "assets/images/scenes/draft-map.webp");
     });
 
     it("falls back to the viewed scene when a non-map panel is active", () => {

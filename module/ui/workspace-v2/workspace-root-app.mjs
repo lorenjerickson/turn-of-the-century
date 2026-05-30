@@ -25,6 +25,11 @@ import {
     buildInspectorPanelModel,
     renderInspectorPanel
 } from "./panels/inspector-panel.mjs";
+import {
+    browseAssetMedia,
+    buildMediaBrowserPanelModel,
+    renderMediaBrowserPanel
+} from "./panels/media-browser-panel.mjs";
 import { WorkspaceDesignActionRegistry } from "./design-action-registry.mjs";
 import {
     getCompendiumPacks,
@@ -49,7 +54,8 @@ import {
     buildScenePropertiesUpdateData,
     getScenePropertiesStagedBackgroundPath,
     resolveScenePropertiesScene,
-    renderScenePropertiesPanel
+    renderScenePropertiesPanel,
+    scenePropertiesStateLocksScene
 } from "./panels/scene-properties-panel.mjs";
 import {
     buildScenesPanelModel,
@@ -635,6 +641,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.designCommandPaletteOpen = false;
         this.designCommandPaletteQuery = "";
         this.compendiumSearchQuery = "";
+        this._mediaBrowserEntries = null;
+        this._mediaBrowserEntriesPromise = null;
+        this._mediaBrowserSelectCallback = null;
+        this._mediaBrowserState = {
+            query: "",
+            type: "all",
+            view: "list",
+            sortKey: "filename",
+            sortDirection: "asc",
+            mode: "browse",
+            selectedPaths: [],
+            error: ""
+        };
         this._compendiumItemEntries = null;
         this._compendiumItemsPromise = null;
         this._resizeSession = null;
@@ -655,6 +674,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             sceneName: null,
             selectedFilename: "",
             backgroundPath: "",
+            previewPath: "",
             createMode: false,
             status: "",
             error: ""
@@ -772,6 +792,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             panelState: gmPanelState
         });
         const compendiumItems = await this.#getUnifiedCompendiumItems();
+        const mediaBrowserEntries = visiblePanels.has("media-browser")
+            ? await this.#getMediaBrowserEntries()
+            : (this._mediaBrowserEntries ?? []);
         const diceRollFeedPanel = buildDiceRollFeedPanelModel({
             messages: game.messages?.contents ?? game.messages ?? [],
             limit: 20
@@ -855,6 +878,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             dockWeights: this.layoutEngine.getDockWeightLayout(),
             compendiumSearchQuery: this.compendiumSearchQuery,
             compendiumItems,
+            mediaBrowserPanel: buildMediaBrowserPanelModel({
+                entries: mediaBrowserEntries,
+                state: this._mediaBrowserState
+            }),
             diceRollFeedPanel,
             inspectorPanel,
             scene: {
@@ -1041,6 +1068,86 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             select.addEventListener("change", async () => {
                 await this.#setPlayerPanelStatePatch({ selectedActorId: String(select.value ?? "") });
                 this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='media-browser-filter-type']")?.forEach((select) => {
+            select.addEventListener("change", () => {
+                this._mediaBrowserState = {
+                    ...this._mediaBrowserState,
+                    type: String(select.value ?? "all")
+                };
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='media-browser-view']")?.forEach((select) => {
+            select.addEventListener("change", () => {
+                this._mediaBrowserState = {
+                    ...this._mediaBrowserState,
+                    view: String(select.value ?? "list")
+                };
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='media-browser-refresh']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this._mediaBrowserEntries = null;
+                this._mediaBrowserEntriesPromise = null;
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='media-browser-sort']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this._mediaBrowserState = {
+                    ...this._mediaBrowserState,
+                    sortKey: String(button.dataset.sortKey ?? "filename"),
+                    sortDirection: String(button.dataset.sortDirection ?? "asc")
+                };
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='media-browser-toggle-selection']")?.forEach((checkbox) => {
+            checkbox.addEventListener("change", (event) => {
+                event.stopPropagation();
+                const mediaPath = String(checkbox.dataset.mediaPath ?? "").trim();
+                if (!mediaPath) return;
+
+                const selected = new Set(this._mediaBrowserState.selectedPaths ?? []);
+                if (checkbox.checked) selected.add(mediaPath);
+                else selected.delete(mediaPath);
+                this._mediaBrowserState = {
+                    ...this._mediaBrowserState,
+                    selectedPaths: [...selected]
+                };
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='media-browser-clear-selection']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this._mediaBrowserState = {
+                    ...this._mediaBrowserState,
+                    selectedPaths: []
+                };
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='media-browser-confirm-selection']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#confirmMediaBrowserSelection();
             });
         });
 
@@ -1684,6 +1791,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         }
 
+        if (panel.id === "media-browser") {
+            if (!context.gm?.isGM) {
+                return `<section class="totc-v2-media-browser"><p class="totc-v2-media-browser__error">This panel is only available to the active Gamemaster.</p></section>`;
+            }
+            return renderMediaBrowserPanel(context.mediaBrowserPanel ?? {}, {
+                escapeHTML: (value) => this.#escapeHTML(value)
+            });
+        }
+
         if (panel.id === "roll-feed") {
             return renderDiceRollFeedPanel(context.diceRollFeedPanel ?? {}, {
                 escapeHTML: (value) => this.#escapeHTML(value)
@@ -1877,6 +1993,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     } = {}) {
         return resolveScenePropertiesScene({
             stateSceneId: this._scenePropertiesState?.sceneId,
+            stateLocksScene: scenePropertiesStateLocksScene(this._scenePropertiesState),
             activePanel,
             viewedScene,
             defaultScene,
@@ -3783,6 +3900,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             if (existingTimer) clearTimeout(existingTimer);
 
             const value = String(input.value ?? "");
+            if (action === "media-browser-search") {
+                this._mediaBrowserState = {
+                    ...this._mediaBrowserState,
+                    query: value
+                };
+            }
             if (action === "scene-properties-name") {
                 const scene = this.#getScenePropertiesScene();
                 this._scenePropertiesState = buildScenePropertiesNameInputState(this._scenePropertiesState, scene, value);
@@ -3816,6 +3939,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 focusWorkspaceTextInputAtEnd(this.element, "gm-search-actions");
                 break;
             }
+            case "media-browser-search": {
+                this._mediaBrowserState = {
+                    ...this._mediaBrowserState,
+                    query: value
+                };
+                await this.render({ force: false });
+                focusWorkspaceTextInputAtEnd(this.element, "media-browser-search");
+                break;
+            }
             case "scene-properties-name": {
                 const scene = this.#getScenePropertiesScene();
                 this._scenePropertiesState = buildScenePropertiesNameInputState(this._scenePropertiesState, scene, value);
@@ -3837,6 +3969,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             sceneName: null,
             selectedFilename: "",
             backgroundPath: "",
+            previewPath: "",
             createMode: false,
             status: "",
             error: ""
@@ -3877,6 +4010,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             sceneName: "",
             selectedFilename: "",
             backgroundPath: "",
+            previewPath: "",
             createMode: true,
             status: "New scene created. Enter a name, then upload a background image.",
             error: ""
@@ -3901,6 +4035,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 const scene = this.#getScenePropertiesScene();
                 const sceneName = String(this._scenePropertiesState.sceneName ?? scene?.name ?? "").trim();
+                const previewPath = globalThis.URL?.createObjectURL
+                    ? globalThis.URL.createObjectURL(file)
+                    : "";
                 const target = buildSceneBackgroundUploadTarget({
                     sceneName,
                     filename: file.name
@@ -3912,6 +4049,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     sceneName,
                     selectedFilename: file.name,
                     backgroundPath: "",
+                    previewPath,
                     createMode: Boolean(this._scenePropertiesState.createMode),
                     status: target.valid ? `Uploading ${target.filename}...` : "",
                     error: target.valid ? "" : "Choose a supported image after entering a scene name."
@@ -3960,6 +4098,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     sceneName: null,
                     selectedFilename: "",
                     backgroundPath: "",
+                    previewPath: "",
                     createMode: false,
                     status: "",
                     error: ""
@@ -4010,6 +4149,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     sceneName: null,
                     selectedFilename: "",
                     backgroundPath: "",
+                    previewPath: "",
                     createMode: false,
                     status: `Deleted ${sceneName}.`,
                     error: ""
@@ -4070,6 +4210,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     sceneName: null,
                     selectedFilename: "",
                     backgroundPath: "",
+                    previewPath: "",
                     createMode: false,
                     status: model.backgroundChanged
                         ? "Scene saved. Grid calibration was cleared for the new background."
@@ -4300,6 +4441,79 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #getCompendiumPacks() {
         return getCompendiumPacks(game?.packs);
+    }
+
+    async #getMediaBrowserEntries() {
+        if (Array.isArray(this._mediaBrowserEntries)) return this._mediaBrowserEntries;
+        if (this._mediaBrowserEntriesPromise) return await this._mediaBrowserEntriesPromise;
+
+        this._mediaBrowserEntriesPromise = this.#loadMediaBrowserEntries();
+        try {
+            const result = await this._mediaBrowserEntriesPromise;
+            this._mediaBrowserEntries = Array.isArray(result?.entries) ? result.entries : [];
+            if (!result?.ok) {
+                this._mediaBrowserState = {
+                    ...this._mediaBrowserState,
+                    error: result?.error ?? "Media browsing failed."
+                };
+            } else if (this._mediaBrowserState.error) {
+                this._mediaBrowserState = {
+                    ...this._mediaBrowserState,
+                    error: ""
+                };
+            }
+            return this._mediaBrowserEntries;
+        } finally {
+            this._mediaBrowserEntriesPromise = null;
+        }
+    }
+
+    async #loadMediaBrowserEntries() {
+        return browseAssetMedia({
+            FilePickerClass: this.#getFilePickerClass()
+        });
+    }
+
+    #getFilePickerClass() {
+        return foundry?.applications?.apps?.FilePicker?.implementation
+            ?? null;
+    }
+
+    async _openMediaBrowserPanel({ mode = "browse", selectedPaths = [], onSelect = null } = {}) {
+        const panelDef = this.panelRegistry.get("media-browser");
+        if (!panelDef) return;
+
+        this._mediaBrowserState = {
+            ...this._mediaBrowserState,
+            mode: mode === "select" ? "select" : "browse",
+            selectedPaths: Array.isArray(selectedPaths) ? selectedPaths.map(String) : []
+        };
+        this._mediaBrowserSelectCallback = typeof onSelect === "function" ? onSelect : null;
+
+        const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
+        await this.stateStore?.setUserLayout?.(nextLayout);
+        this.render({ force: false });
+    }
+
+    async #confirmMediaBrowserSelection() {
+        const selectedPaths = new Set(this._mediaBrowserState.selectedPaths ?? []);
+        const entries = (await this.#getMediaBrowserEntries()).filter((entry) => selectedPaths.has(entry.path));
+
+        try {
+            await this._mediaBrowserSelectCallback?.(entries);
+            globalThis.Hooks?.callAll?.("totcMediaBrowserSelected", entries);
+        } finally {
+            this._mediaBrowserSelectCallback = null;
+            this._mediaBrowserState = {
+                ...this._mediaBrowserState,
+                mode: "browse",
+                selectedPaths: []
+            };
+
+            const nextLayout = this.layoutEngine.closePanel("media-browser");
+            await this.stateStore?.setUserLayout?.(nextLayout);
+            this.render({ force: false });
+        }
     }
 
     #isMarketTradableItemType(itemType) {

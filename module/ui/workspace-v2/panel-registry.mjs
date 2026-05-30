@@ -14,6 +14,7 @@ export const DEFAULT_WORKSPACE_PANELS = Object.freeze([
     { id: "inspector", title: "Inspector", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "design", "inspection"] },
     { id: "design-issues", title: "Design Issues", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "design", "inspection"] },
     { id: "scene-properties", title: "Scene Properties", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "scene", "design"] },
+    { id: "media-browser", title: "Media Browser", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "media", "assets"] },
     { id: "map", title: "Map", contextTags: ["scene", "navigation"] },
     { id: "travel", title: "Travel", contextTags: ["travel", "exploration"] },
     { id: "encounter", title: "Encounter Planner", contextTags: ["encounter", "combat"] },

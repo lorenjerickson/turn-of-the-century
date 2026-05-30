@@ -74,6 +74,18 @@ describe("WorkspacePanelRegistry", () => {
         });
     });
 
+    it("registers the GM media browser panel", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.deepEqual(registry.get("media-browser"), {
+            id: "media-browser",
+            title: "Media Browser",
+            defaultDock: "rightDock",
+            roleAccess: { gmOnly: true },
+            contextTags: ["gm", "media", "assets"]
+        });
+    });
+
     it("builds visibility models in registry order", () => {
         const registry = new WorkspacePanelRegistry({
             panels: [

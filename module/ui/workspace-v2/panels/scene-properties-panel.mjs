@@ -115,13 +115,14 @@ export function buildScenePropertiesUpdateData(model = {}) {
 
 export function resolveScenePropertiesScene({
     stateSceneId = "",
+    stateLocksScene = false,
     activePanel = null,
     viewedScene = null,
     defaultScene = null,
     sceneResolver = () => null
 } = {}) {
     const boundSceneId = String(stateSceneId ?? "").trim();
-    if (boundSceneId) {
+    if (boundSceneId && stateLocksScene) {
         const boundScene = sceneResolver(boundSceneId);
         if (boundScene) return boundScene;
     }
@@ -139,12 +140,20 @@ export function resolveScenePropertiesScene({
     return viewedScene ?? defaultScene ?? null;
 }
 
+export function scenePropertiesStateLocksScene(state = {}) {
+    if (state.createMode) return true;
+    if (String(state.previewPath ?? "").trim()) return true;
+    if (String(state.backgroundPath ?? "").trim()) return true;
+    if (String(state.selectedFilename ?? "").trim()) return true;
+    return state.sceneName !== null && state.sceneName !== undefined;
+}
+
 export function getScenePropertiesStagedBackgroundPath(state = {}, scene = null) {
     const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
     const stateSceneId = String(state.sceneId ?? "").trim();
     if (!sceneId || !stateSceneId || sceneId !== stateSceneId) return "";
 
-    return String(state.backgroundPath ?? "").trim();
+    return String(state.previewPath ?? state.backgroundPath ?? "").trim();
 }
 
 export function renderScenePropertiesPanel(model = {}, { escapeHTML = safeEscape } = {}) {
