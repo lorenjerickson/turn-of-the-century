@@ -54,14 +54,14 @@ export function buildScenePropertiesPanelModel(state = {}) {
         filename: selectedFilename
     });
     const uploadedPath = String(stateApplies ? state.backgroundPath ?? "" : "").trim();
-    // Use Level API for background (Foundry v14+)
-    let currentBackgroundPath = "";
-    if (scene?.levels && Array.isArray(scene.levels) && scene.levels.length > 0) {
-        currentBackgroundPath = String(scene.levels[0]?.background?.src ?? scene.levels[0]?.textures?.background?.src ?? "").trim();
-    } else {
-        // Fallback for legacy/compat
-        currentBackgroundPath = String(scene?.background?.src ?? scene?.["img"] ?? scene?.texture?.src ?? "").trim();
-    }
+    // Read background from raw source data to avoid the deprecated Scene#background
+    // getter which was removed in Foundry v16 (deprecated since v14).
+    const currentBackgroundPath = String(
+        scene?._source?.background?.src
+        ?? scene?._source?.img
+        ?? scene?.texture?.src
+        ?? ""
+    ).trim();
     const effectiveBackgroundPath = uploadedPath || currentBackgroundPath;
 
     return {

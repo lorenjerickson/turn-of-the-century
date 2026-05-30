@@ -1,14 +1,24 @@
 // --- Compendium Preflight Check ---
 import { migrateTotcStarterCompendiums } from "../../migrations/starter-compendiums.mjs";
-// Utility: Check if any compendium has entries
+// Utility: Check if any system compendium pack has entries.
+// Scoped to this system's own packs so that content from installed modules
+// does not mask a genuinely empty system compendium set.
 async function hasAnyCompendiumData() {
     if (!game?.ready) return false;
-    const packs = Array.from(game.packs.values?.() ?? game.packs ?? []);
-    for (const pack of packs) {
+    const systemId = game.system?.id ?? "turn-of-the-century";
+    const allPacks = Array.from(game.packs.values?.() ?? game.packs ?? []);
+    const systemPacks = allPacks.filter((p) => {
+        const collection = String(p.collection ?? p.metadata?.id ?? "");
+        const packageName = String(p.metadata?.packageName ?? p.metadata?.package ?? "");
+        return collection.startsWith(`${systemId}.`) || packageName === systemId;
+    });
+    if (!systemPacks.length) return false;
+    for (const pack of systemPacks) {
         try {
             const index = await pack.getIndex();
-            if (Array.isArray(index) ? index.length : (index?.size ?? 0) > 0) return true;
-        } catch (e) { /* ignore */ }
+            const count = Array.isArray(index) ? index.length : (index?.size ?? 0);
+            if (count > 0) return true;
+        } catch { /* ignore individual pack errors */ }
     }
     return false;
 }
@@ -16,37 +26,32 @@ async function hasAnyCompendiumData() {
 // Utility: Show a modal dialog to the GM with a repair button
 function showCompendiumRepairModal(onRepair) {
     if (!game.user?.isGM) return;
-    // Use Application V2 Dialog (DialogV2) if available
-    const foundry = globalThis.foundry ?? {};
-    const DialogV2 = foundry.applications?.api?.DialogV2;
+    const safeOnRepair = typeof onRepair === "function" ? onRepair : () => {};
+    // DialogV2 (Foundry v13+) requires buttons as an array and title under window:{title}.
+    const DialogV2 = globalThis.foundry?.applications?.api?.DialogV2;
     if (DialogV2) {
-        // Defensive: ensure onRepair is a function
-        const safeOnRepair = typeof onRepair === "function" ? onRepair : () => {};
-        const buttons = {
-            repair: {
-                label: "Repair Compendiums",
-                callback: safeOnRepair
-            },
-            cancel: {
-                label: "Cancel",
-                callback: () => {}
-            }
-        };
-        if (!buttons || Object.keys(buttons).length === 0) {
-            console.warn("DialogV2 called with empty buttons config. Dialog will not be shown.");
-            ui.notifications?.error("Compendium repair dialog could not be shown due to a configuration error.");
-            return;
-        }
         new DialogV2({
-            title: "Compendium Data Missing",
-            content: `<p>No compendium data was found. This can break core features. Would you like to repair the compendiums now?</p>` +
-                `<p><strong>This will repopulate the starter compendiums. Existing world data will not be affected.</strong></p>`,
-            buttons,
-            default: "repair"
+            window: { title: "Compendium Data Missing" },
+            content: `<p>No compendium data was found for this system. This can break core features.</p>`
+                + `<p><strong>Repair will repopulate the starter compendiums. Existing world data will not be affected.</strong></p>`,
+            buttons: [
+                {
+                    action: "repair",
+                    label: "Repair Compendiums",
+                    default: true,
+                    callback: () => safeOnRepair()
+                },
+                {
+                    action: "cancel",
+                    label: "Cancel"
+                }
+            ]
         }).render(true);
     } else {
-        // Fallback: show notification if DialogV2 is not available
-        ui.notifications?.error("Compendium data missing. Please update Foundry or contact your system maintainer.");
+        // Foundry version too old to support DialogV2 — surface a notification instead.
+        ui.notifications?.error(
+            "Turn of the Century: compendium data is missing. Please reload and allow the repair prompt, or contact your system maintainer."
+        );
     }
 }
 
@@ -2273,15 +2278,11 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
     }
 
     #getSceneMapSource(scene) {
-        // Use Level API for background (Foundry v14+)
-        if (scene?.levels && Array.isArray(scene.levels) && scene.levels.length > 0) {
-            return scene.levels[0]?.background?.src
-                ?? scene.levels[0]?.textures?.background?.src
-                ?? "";
-        }
-        // Fallback for legacy/compat
-        return scene?.background?.src
-            ?? scene?.["img"]
+        // Read from raw _source data to avoid the deprecated Scene#background getter
+        // (deprecated v14, removed v16).  _source holds the unprocessed document data
+        // and does not go through the compat shim.
+        return scene?._source?.background?.src
+            ?? scene?._source?.img
             ?? scene?.texture?.src
             ?? scene?.thumb
             ?? scene?.thumbnail?.src

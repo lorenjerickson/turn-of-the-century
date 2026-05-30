@@ -1,16 +1,16 @@
 {
-  "name": "turn-of-the-century",
-  "version": "0.0.132",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "test": "node --test \"test/**/*.test.mjs\"",
-    "syntax-check": "node scripts/syntax-check.mjs",
-    "audit:foundry-v14": "node scripts/audit-foundry-v14-compat.mjs",
-    "validate": "node scripts/syntax-check.mjs && node --test \"test/**/*.test.mjs\" && node scripts/audit-foundry-v14-compat.mjs"
-  },
-  "devDependencies": {
-    "jest": "^30.4.2",
-    "uuid": "^14.0.0"
-  }
+    "name": "turn-of-the-century",
+    "version": "0.0.133",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test": "node --test \"test/**/*.test.mjs\"",
+        "syntax-check": "node scripts/syntax-check.mjs",
+        "audit:foundry-v14": "node scripts/audit-foundry-v14-compat.mjs",
+        "validate": "node scripts/syntax-check.mjs && node --test \"test/**/*.test.mjs\" && node scripts/audit-foundry-v14-compat.mjs"
+    },
+    "devDependencies": {
+        "jest": "^30.4.2",
+        "uuid": "^14.0.0"
+    }
 }
