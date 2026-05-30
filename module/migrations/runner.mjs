@@ -1,4 +1,4 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 9;
+export const TOTC_WORLD_SCHEMA_VERSION = 10;
 
 import { migrateTotcItems } from "./items.mjs";
 
@@ -10,6 +10,7 @@ export async function runTotcMigrations({
     migrateEquipmentSlots,
     migrateEncounterActions,
     migrateModifiers,
+    migrateStarterCompendiums,
     notify = true
 } = {}) {
     if (!game?.ready) throw new Error("Game is not ready yet.");
@@ -30,6 +31,9 @@ export async function runTotcMigrations({
     }
     if (typeof migrateModifiers !== "function") {
         throw new Error("runTotcMigrations requires a migrateModifiers function.");
+    }
+    if (typeof migrateStarterCompendiums !== "function") {
+        throw new Error("runTotcMigrations requires a migrateStarterCompendiums function.");
     }
 
     let appliedVersion = Number(currentVersion) || 0;
@@ -139,6 +143,21 @@ export async function runTotcMigrations({
         appliedVersion = 9;
     }
 
+    if (appliedVersion < 10) {
+        const report = await migrateStarterCompendiums({
+            overwrite: true,
+            notify: false,
+            onlyIfEmpty: true
+        });
+
+        appliedSteps.push({
+            version: 10,
+            key: "starter-compendiums-repair",
+            report
+        });
+        appliedVersion = 10;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -164,6 +183,11 @@ export async function runTotcMigrations({
 
                 if (step.key === "totc-items") {
                     return `${step.key}: ${step.report.actorsUpdated} actors and ${step.report.itemsUpdated} items updated`;
+                }
+
+                if (step.key === "starter-compendiums-repair") {
+                    if (step.report.skipped) return `${step.key}: skipped (${step.report.existingDocuments} existing documents)`;
+                    return `${step.key}: ${step.report.totalImported} documents imported`;
                 }
 
                 return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;

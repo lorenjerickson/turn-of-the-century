@@ -80,6 +80,30 @@ describe("unified compendium item loading", () => {
         assert.deepEqual(result.entries, []);
     });
 
+    it("reports not-ready when startup pack indexes have not populated yet", async () => {
+        const result = await loadUnifiedCompendiumItems({
+            gameReady: true,
+            packs: [
+                makePack({
+                    collection: "turn-of-the-century.equipment",
+                    label: "Equipment",
+                    entries: []
+                }),
+                makePack({
+                    collection: "turn-of-the-century.weapons",
+                    label: "Weapons",
+                    entries: []
+                })
+            ]
+        });
+
+        assert.equal(result.ready, false);
+        assert.equal(result.itemPackCount, 2);
+        assert.equal(result.loadedPackCount, 2);
+        assert.equal(result.indexedEntryCount, 0);
+        assert.deepEqual(result.entries, []);
+    });
+
     it("reads pack maps as Foundry-style collection values", () => {
         const pack = makePack({ collection: "turn-of-the-century.equipment", label: "Equipment" });
         const packs = getCompendiumPacks(new Map([[pack.collection, pack]]));

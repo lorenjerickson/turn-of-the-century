@@ -83,6 +83,8 @@ const MIN_LEFT_RIGHT_DOCK_WIDTH = 240;
 const COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT = 38;
 const COLLAPSED_LEFT_RIGHT_DOCK_WIDTH = 42;
 const TEXT_INPUT_DEBOUNCE_MS = 300;
+const COMPENDIUM_STARTUP_RETRY_LIMIT = 10;
+const COMPENDIUM_STARTUP_RETRY_BASE_MS = 250;
 const GM_PANEL_STATE_KEY = "gmPanelState";
 const MARKET_PANEL_STATE_KEY = "marketPanelState";
 const PLAYER_PANEL_STATE_KEY = "playerPanelState";
@@ -670,6 +672,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             // Clear cache and refresh the compendium panel when game becomes ready
             this._compendiumItemEntries = null;
             this._compendiumItemsPromise = null;
+            this._compendiumHydrationRetries = 0;
+            this.#clearCompendiumHydrationRetry();
             if (this.rendered) {
                 this.render({ force: false });
             }
@@ -697,6 +701,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._gamemasterHooksBound = false;
         this._playerHooksBound = false;
         this._designIssuesHooksBound = false;
+        this._compendiumHydrationRetries = 0;
+        this._compendiumHydrationRetryTimer = null;
     }
 
     /**
@@ -2211,6 +2217,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         // Refresh compendium cache when pack metadata changes.
         Hooks.on("createCompendium", this._compendiumRefreshHandler);
+        Hooks.on("updateCompendium", this._compendiumRefreshHandler);
         Hooks.on("deleteCompendium", this._compendiumRefreshHandler);
         Hooks.on("createItem", this._compendiumDocumentMutationHandler);
         Hooks.on("updateItem", this._compendiumDocumentMutationHandler);
@@ -2241,7 +2248,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #unbindCompendiumHooks() {
         if (!this._compendiumHooksBound) return;
+        this.#clearCompendiumHydrationRetry();
         Hooks.off("createCompendium", this._compendiumRefreshHandler);
+        Hooks.off("updateCompendium", this._compendiumRefreshHandler);
         Hooks.off("deleteCompendium", this._compendiumRefreshHandler);
         Hooks.off("createItem", this._compendiumDocumentMutationHandler);
         Hooks.off("updateItem", this._compendiumDocumentMutationHandler);
@@ -4246,11 +4255,38 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             const entries = Array.isArray(result?.entries) ? result.entries : [];
             if (entries.length || result?.ready) {
                 this._compendiumItemEntries = entries;
+                this._compendiumHydrationRetries = 0;
+                this.#clearCompendiumHydrationRetry();
+            } else {
+                this.#scheduleCompendiumHydrationRetry();
             }
             return entries;
         } finally {
             this._compendiumItemsPromise = null;
         }
+    }
+
+    #scheduleCompendiumHydrationRetry() {
+        if (this._compendiumHydrationRetryTimer || this._compendiumHydrationRetries >= COMPENDIUM_STARTUP_RETRY_LIMIT) return;
+
+        const retryNumber = this._compendiumHydrationRetries + 1;
+        const delay = Math.min(COMPENDIUM_STARTUP_RETRY_BASE_MS * retryNumber, 2000);
+        this._compendiumHydrationRetries = retryNumber;
+        this._compendiumHydrationRetryTimer = setTimeout(() => {
+            this._compendiumHydrationRetryTimer = null;
+            this._compendiumItemsPromise = null;
+            if (this.rendered) {
+                this.render({ force: false });
+            } else {
+                void this.#getUnifiedCompendiumItems();
+            }
+        }, delay);
+    }
+
+    #clearCompendiumHydrationRetry() {
+        if (!this._compendiumHydrationRetryTimer) return;
+        clearTimeout(this._compendiumHydrationRetryTimer);
+        this._compendiumHydrationRetryTimer = null;
     }
 
     async #loadUnifiedCompendiumItems() {

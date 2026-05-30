@@ -52,6 +52,7 @@ export async function loadUnifiedCompendiumItems({
     const semanticEntries = new Map();
     let itemPackCount = 0;
     let loadedPackCount = 0;
+    let indexedEntryCount = 0;
 
     for (const pack of packs) {
         if (String(pack?.documentName ?? "").toLowerCase() !== "item") continue;
@@ -62,6 +63,7 @@ export async function loadUnifiedCompendiumItems({
         try {
             indexEntries = normalizeIndexEntries(await pack.getIndex());
             loadedPackCount += 1;
+            indexedEntryCount += indexEntries.length;
         } catch (error) {
             logger?.warn?.(
                 "[turn-of-the-century] Failed to load compendium index",
@@ -105,6 +107,9 @@ export async function loadUnifiedCompendiumItems({
 
     return {
         entries,
-        ready: itemPackCount > 0 && loadedPackCount > 0
+        ready: itemPackCount > 0 && loadedPackCount > 0 && indexedEntryCount > 0,
+        itemPackCount,
+        loadedPackCount,
+        indexedEntryCount
     };
 }
