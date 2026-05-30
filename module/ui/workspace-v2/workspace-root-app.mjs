@@ -82,7 +82,7 @@ import {
     buildGMAssistantPanelModel,
     renderGMAssistantPanel
 } from "./panels/gm-assistant-panel.mjs";
-import { LLMService } from "../services/llm-service.mjs";
+import { LLMService } from "../../services/llm-service.mjs";
 import {
     createSceneDesignScene,
     uploadSceneBackgroundFile
