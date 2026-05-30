@@ -30,7 +30,8 @@ function showCompendiumRepairModal(onRepair) {
                     callback: onRepair
                 },
                 cancel: {
-                    label: "Cancel"
+                    label: "Cancel",
+                    callback: () => {}
                 }
             },
             default: "repair"
