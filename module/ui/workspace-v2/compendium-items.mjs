@@ -45,8 +45,11 @@ export async function loadUnifiedCompendiumItems({
     logger = console
 } = {}) {
     if (!gameReady || !Array.isArray(packs) || !packs.length) {
+        logger?.info?.("[turn-of-the-century] loadUnifiedCompendiumItems: early exit", { gameReady, packCount: packs?.length });
         return { entries: [], ready: false };
     }
+
+    logger?.info?.("[turn-of-the-century] loadUnifiedCompendiumItems: scanning", packs.length, "packs");
 
     const dedupedEntries = new Map();
     const semanticEntries = new Map();
@@ -55,15 +58,21 @@ export async function loadUnifiedCompendiumItems({
     let indexedEntryCount = 0;
 
     for (const pack of packs) {
-        if (String(pack?.documentName ?? "").toLowerCase() !== "item") continue;
+        const docName = String(pack?.documentName ?? pack?.metadata?.type ?? "").toLowerCase();
+        if (docName !== "item") {
+            logger?.debug?.("[turn-of-the-century] skipping pack (not Item)", pack?.collection ?? pack?.metadata?.label, "documentName:", pack?.documentName, "metadata.type:", pack?.metadata?.type);
+            continue;
+        }
 
         itemPackCount += 1;
         const aggregate = isAggregateCompendiumPack(pack);
         let indexEntries = [];
         try {
-            indexEntries = normalizeIndexEntries(await pack.getIndex());
+            const rawIndex = await pack.getIndex({ fields: ["name", "img", "type"] });
+            indexEntries = normalizeIndexEntries(rawIndex);
             loadedPackCount += 1;
             indexedEntryCount += indexEntries.length;
+            logger?.info?.("[turn-of-the-century] indexed pack", pack?.collection ?? pack?.metadata?.label, "→", indexEntries.length, "entries");
         } catch (error) {
             logger?.warn?.(
                 "[turn-of-the-century] Failed to load compendium index",
@@ -105,9 +114,20 @@ export async function loadUnifiedCompendiumItems({
         return String(left.packLabel ?? "").localeCompare(String(right.packLabel ?? ""), undefined, { sensitivity: "base" });
     });
 
+    const ready = itemPackCount > 0 && loadedPackCount > 0 && indexedEntryCount > 0;
+    logger?.info?.("[turn-of-the-century] loadUnifiedCompendiumItems: done", {
+        itemPackCount,
+        loadedPackCount,
+        indexedEntryCount,
+        dedupedCount: dedupedEntries.size,
+        semanticCount: semanticEntries.size,
+        finalEntryCount: entries.length,
+        ready
+    });
+
     return {
         entries,
-        ready: itemPackCount > 0 && loadedPackCount > 0 && indexedEntryCount > 0,
+        ready,
         itemPackCount,
         loadedPackCount,
         indexedEntryCount

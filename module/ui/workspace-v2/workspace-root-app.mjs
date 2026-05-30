@@ -55,18 +55,27 @@ function showCompendiumRepairModal(onRepair) {
     }
 }
 
-// Main preflight: Run after game.ready, before UI panels
+// Main preflight: Run after game.ready, before UI panels.
+// On a fresh install all packs are empty LevelDB databases; auto-populate from
+// the bundled sample content so the compendium panel works immediately.
 Hooks.once("ready", async () => {
     if (await hasAnyCompendiumData()) return;
-    showCompendiumRepairModal(async () => {
-        ui.notifications?.info("Repairing compendiums...");
-        try {
-            await migrateTotcStarterCompendiums({ overwrite: true, notify: true });
-            ui.notifications?.info("Compendiums repaired. Please reload the world if issues persist.");
-        } catch (e) {
-            ui.notifications?.error("Compendium repair failed: " + (e?.message || e));
+    if (!game.user?.isGM) return;
+
+    ui.notifications?.info("Turn of the Century: Populating starter content…");
+    try {
+        await migrateTotcStarterCompendiums({ overwrite: false, notify: false });
+        ui.notifications?.info("Turn of the Century: Starter content ready.");
+        // Refresh whichever WorkspaceRootApp instance is running.
+        for (const app of Object.values(ui.windows ?? {})) {
+            if (typeof app._compendiumRefreshHandler === "function") {
+                app._compendiumRefreshHandler();
+            }
         }
-    });
+    } catch (e) {
+        ui.notifications?.error("Turn of the Century: Starter content population failed — " + (e?.message ?? e));
+        console.error("[turn-of-the-century] Starter compendium population error", e);
+    }
 });
 import { dieRollRequestManager } from "../../die-roll-request-manager.mjs";
 import { WORKSPACE_V2_DOCK_IDS } from "./constants.mjs";
@@ -982,6 +991,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             dockWeights: this.layoutEngine.getDockWeightLayout(),
             compendiumSearchQuery: this.compendiumSearchQuery,
             compendiumItems,
+            compendiumLoadingState: !compendiumItems.length && this._compendiumHydrationRetries >= COMPENDIUM_STARTUP_RETRY_LIMIT
+                ? `No entries found after ${COMPENDIUM_STARTUP_RETRY_LIMIT} load attempts. Check the browser console for [turn-of-the-century] log messages.`
+                : null,
             mediaBrowserPanel: buildMediaBrowserPanelModel({
                 entries: mediaBrowserEntries,
                 state: this._mediaBrowserState
@@ -2025,6 +2037,19 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
                 ? allEntries.filter((entry) => String(entry.name ?? "").toLowerCase().includes(query))
                 : allEntries;
 
+            const loadingState = context.compendiumLoadingState ?? null;
+            const isLoading = !loadingState && !allEntries.length;
+            let emptyMessage;
+            if (query && !entries.length && allEntries.length) {
+                emptyMessage = `No items match "${this.#escapeHTML(query)}".`;
+            } else if (!allEntries.length && loadingState) {
+                emptyMessage = `Compendium data unavailable: ${this.#escapeHTML(loadingState)}`;
+            } else if (!allEntries.length) {
+                emptyMessage = "Loading compendium data…";
+            } else {
+                emptyMessage = "No items found.";
+            }
+
             return `
             <section class="totc-v2-compendium-panel">
                 <label class="totc-v2-compendium-panel__search">
@@ -2032,14 +2057,15 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
                     <input type="search" data-action="compendium-search" value="${this.#escapeHTML(context.compendiumSearchQuery ?? "")}" placeholder="Filter by item name">
                 </label>
                 <div class="totc-v2-compendium-panel__summary">
-                    ${entries.length} item${entries.length === 1 ? "" : "s"} from ${this.#escapeHTML(allEntries.length ? `${allEntries.length} compendium entries` : "no compendium entries")}
+                    ${allEntries.length} item${allEntries.length === 1 ? "" : "s"} available
+                    ${query && allEntries.length ? `&mdash; ${entries.length} match${entries.length === 1 ? "" : "es"}` : ""}
                 </div>
                 <div class="totc-v2-compendium-panel__list" role="list">
                     ${entries.length ? entries.map((entry) => `
                         <article class="totc-v2-compendium-panel__entry" role="listitem" data-entry-uuid="${this.#escapeHTML(entry.uuid ?? "")}">
                             <div class="totc-v2-compendium-panel__entry-name">${this.#escapeHTML(entry.name)}</div>
                             <div class="totc-v2-compendium-panel__entry-pack">${this.#escapeHTML(entry.packLabel)}</div>
-                        </article>`).join("") : `<div class="totc-v2-compendium-panel__empty">No items match this search.</div>`}
+                        </article>`).join("") : `<div class="totc-v2-compendium-panel__empty${isLoading ? " is-loading" : ""}">${emptyMessage}</div>`}
                 </div>
             </section>`;
         }

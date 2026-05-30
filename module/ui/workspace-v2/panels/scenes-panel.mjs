@@ -8,8 +8,10 @@ function getSceneCollectionEntries(scenes) {
 }
 
 function defaultMapSourceResolver(scene) {
-    return scene?.background?.src
-        ?? scene?.["img"]
+    // Read from raw _source data to avoid the deprecated Scene#background getter
+    // (deprecated v14, removed v16).
+    return scene?._source?.background?.src
+        ?? scene?._source?.img
         ?? scene?.texture?.src
         ?? scene?.thumb
         ?? scene?.thumbnail?.src
