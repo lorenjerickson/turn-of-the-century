@@ -47,6 +47,7 @@ import {
     buildScenePropertiesPanelModel,
     buildScenePropertiesNameInputState,
     buildScenePropertiesUpdateData,
+    getScenePropertiesStagedBackgroundPath,
     resolveScenePropertiesScene,
     renderScenePropertiesPanel
 } from "./panels/scene-properties-panel.mjs";
@@ -761,12 +762,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const activeWorkspacePanel = this.#getPrimaryActivePanel(activeLayout);
         const viewedScene = this.#getViewedScene();
         const scene = canvas?.scene ?? game.scenes?.active ?? viewedScene;
-        const scenePropertiesScene = resolveScenePropertiesScene({
-            activePanel: activeWorkspacePanel,
-            viewedScene,
-            defaultScene: scene,
-            sceneResolver: (sceneId) => this.#getSceneDocumentById(sceneId)
-        });
+        const scenePropertiesScene = this.#getScenePropertiesScene(activeWorkspacePanel, { viewedScene, defaultScene: scene });
         const combat = game.combats?.active ?? game.combat ?? null;
         const controlledTokens = canvas?.tokens?.controlled ?? [];
         const gmPanelState = this.#getGamemasterPanelState();
@@ -1875,11 +1871,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return game.scenes?.viewed ?? canvas?.scene ?? game.scenes?.active ?? null;
     }
 
-    #getScenePropertiesScene() {
-        const viewedScene = this.#getViewedScene();
-        const defaultScene = canvas?.scene ?? game.scenes?.active ?? viewedScene;
+    #getScenePropertiesScene(activePanel = this.#getPrimaryActivePanel(), {
+        viewedScene = this.#getViewedScene(),
+        defaultScene = canvas?.scene ?? game.scenes?.active ?? viewedScene
+    } = {}) {
         return resolveScenePropertiesScene({
-            activePanel: this.#getPrimaryActivePanel(),
+            stateSceneId: this._scenePropertiesState?.sceneId,
+            activePanel,
             viewedScene,
             defaultScene,
             sceneResolver: (sceneId) => this.#getSceneDocumentById(sceneId)
@@ -1899,10 +1897,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #buildSceneViewModel(scene, fallback = {}) {
+        const fallbackMapSrc = String(fallback.mapSrc ?? "").trim();
+
         return {
             id: scene?.id ?? scene?._id ?? fallback.id ?? null,
             name: scene?.name ?? fallback.name ?? "Current Scene",
-            mapSrc: this.#getSceneMapSource(scene) || fallback.mapSrc || "",
+            mapSrc: fallbackMapSrc || this.#getSceneMapSource(scene) || "",
             width: Number(scene?.width ?? fallback.width ?? 0),
             height: Number(scene?.height ?? fallback.height ?? 0),
             shiftX: Number(scene?.shiftX ?? fallback.shiftX ?? 0),
@@ -1919,7 +1919,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     #getMapPanelScene(panel, context = {}) {
         const sceneId = panel?.sceneId ?? (String(panel?.id ?? "").startsWith("map:") ? String(panel.id).slice(4) : "");
         const scene = this.#getSceneDocumentById(sceneId);
-        if (scene) return this.#buildSceneViewModel(scene, { id: sceneId });
+        const stagedMapSrc = getScenePropertiesStagedBackgroundPath(this._scenePropertiesState, scene);
+        if (scene) return this.#buildSceneViewModel(scene, { id: sceneId, mapSrc: stagedMapSrc });
         if (sceneId) return this.#buildSceneViewModel(null, { id: sceneId, name: panel?.title ?? "Missing Scene" });
         return context.scene ?? this.#buildSceneViewModel(null);
     }

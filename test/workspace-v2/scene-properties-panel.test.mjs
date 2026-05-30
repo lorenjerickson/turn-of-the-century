@@ -6,6 +6,7 @@ import {
     buildScenePropertiesPanelModel,
     buildScenePropertiesNameInputState,
     buildScenePropertiesUpdateData,
+    getScenePropertiesStagedBackgroundPath,
     resolveScenePropertiesScene,
     renderScenePropertiesPanel,
     slugifySceneName
@@ -175,6 +176,33 @@ describe("Scene properties panel", () => {
         });
 
         assert.equal(resolved, visibleScene);
+    });
+
+    it("resolves properties from the bound draft scene before viewed scene fallback", () => {
+        const viewedScene = { id: "scene-a", name: "Viewed Scene" };
+        const draftScene = { id: "scene-draft", name: "Draft Scene" };
+
+        const resolved = resolveScenePropertiesScene({
+            stateSceneId: "scene-draft",
+            activePanel: { id: "scene-properties", title: "Scene Properties" },
+            viewedScene,
+            sceneResolver: (sceneId) => sceneId === "scene-draft" ? draftScene : null
+        });
+
+        assert.equal(resolved, draftScene);
+    });
+
+    it("exposes a staged background preview only for the bound scene", () => {
+        const state = {
+            sceneId: "scene-draft",
+            backgroundPath: "assets/images/scenes/draft-map.webp"
+        };
+
+        assert.equal(
+            getScenePropertiesStagedBackgroundPath(state, { id: "scene-draft" }),
+            "assets/images/scenes/draft-map.webp"
+        );
+        assert.equal(getScenePropertiesStagedBackgroundPath(state, { id: "scene-other" }), "");
     });
 
     it("falls back to the viewed scene when a non-map panel is active", () => {

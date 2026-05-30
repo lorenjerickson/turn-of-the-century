@@ -114,11 +114,18 @@ export function buildScenePropertiesUpdateData(model = {}) {
 }
 
 export function resolveScenePropertiesScene({
+    stateSceneId = "",
     activePanel = null,
     viewedScene = null,
     defaultScene = null,
     sceneResolver = () => null
 } = {}) {
+    const boundSceneId = String(stateSceneId ?? "").trim();
+    if (boundSceneId) {
+        const boundScene = sceneResolver(boundSceneId);
+        if (boundScene) return boundScene;
+    }
+
     const panelId = String(activePanel?.id ?? "");
     const sceneId = String(activePanel?.sceneId ?? (panelId.startsWith("map:") ? panelId.slice(4) : "")).trim();
     const isMapPanel = activePanel?.baseId === "map" || panelId === "map" || panelId.startsWith("map:");
@@ -130,6 +137,14 @@ export function resolveScenePropertiesScene({
     if (isMapPanel) return defaultScene ?? viewedScene ?? null;
 
     return viewedScene ?? defaultScene ?? null;
+}
+
+export function getScenePropertiesStagedBackgroundPath(state = {}, scene = null) {
+    const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+    const stateSceneId = String(state.sceneId ?? "").trim();
+    if (!sceneId || !stateSceneId || sceneId !== stateSceneId) return "";
+
+    return String(state.backgroundPath ?? "").trim();
 }
 
 export function renderScenePropertiesPanel(model = {}, { escapeHTML = safeEscape } = {}) {
