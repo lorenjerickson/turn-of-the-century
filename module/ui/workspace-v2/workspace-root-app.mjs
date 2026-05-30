@@ -1,3 +1,51 @@
+// --- Compendium Preflight Check ---
+import { migrateTotcStarterCompendiums } from "../../migrations/starter-compendiums.mjs";
+// Utility: Check if any compendium has entries
+async function hasAnyCompendiumData() {
+    if (!game?.ready) return false;
+    const packs = Array.from(game.packs.values?.() ?? game.packs ?? []);
+    for (const pack of packs) {
+        try {
+            const index = await pack.getIndex();
+            if (Array.isArray(index) ? index.length : (index?.size ?? 0) > 0) return true;
+        } catch (e) { /* ignore */ }
+    }
+    return false;
+}
+
+// Utility: Show a modal dialog to the GM with a repair button
+function showCompendiumRepairModal(onRepair) {
+    if (!game.user?.isGM) return;
+    new Dialog({
+        title: "Compendium Data Missing",
+        content: `<p>No compendium data was found. This can break core features. Would you like to repair the compendiums now?</p>` +
+            `<p><strong>This will repopulate the starter compendiums. Existing world data will not be affected.</strong></p>`,
+        buttons: {
+            repair: {
+                label: "Repair Compendiums",
+                callback: onRepair
+            },
+            cancel: {
+                label: "Cancel"
+            }
+        },
+        default: "repair"
+    }).render(true);
+}
+
+// Main preflight: Run after game.ready, before UI panels
+Hooks.once("ready", async () => {
+    if (await hasAnyCompendiumData()) return;
+    showCompendiumRepairModal(async () => {
+        ui.notifications?.info("Repairing compendiums...");
+        try {
+            await migrateTotcStarterCompendiums({ overwrite: true, notify: true });
+            ui.notifications?.info("Compendiums repaired. Please reload the world if issues persist.");
+        } catch (e) {
+            ui.notifications?.error("Compendium repair failed: " + (e?.message || e));
+        }
+    });
+});
 import { dieRollRequestManager } from "../../die-roll-request-manager.mjs";
 import { WORKSPACE_V2_DOCK_IDS } from "./constants.mjs";
 import { InteractionController } from "./interaction-controller.mjs";
