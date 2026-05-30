@@ -1,3 +1,4 @@
+import { dieRollRequestManager } from "../../die-roll-request-manager.mjs";
 import { WORKSPACE_V2_DOCK_IDS } from "./constants.mjs";
 import { InteractionController } from "./interaction-controller.mjs";
 import { GridCalibrationController } from "./grid-calibration-controller.mjs";
@@ -1082,7 +1083,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 // Ensure the dieRollRequestManager is globally accessible for socket updates and UI
-import { dieRollRequestManager } from "../../die-roll-request-manager.mjs";
 if (typeof globalThis.dieRollRequestManager === "undefined") {
     globalThis.dieRollRequestManager = dieRollRequestManager;
 }
