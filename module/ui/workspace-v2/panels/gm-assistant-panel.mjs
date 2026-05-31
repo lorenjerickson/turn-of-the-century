@@ -1,7 +1,34 @@
 export function buildGMAssistantPanelModel(state = {}) {
+    const promptTextareaHeight = Number(state.promptTextareaHeight ?? 0);
+    const elementType = state.elementType || "campaign";
+    const actorType = ["hero", "pawn", "villain"].includes(state.actorType) ? state.actorType : "pawn";
+    const parentLocationId = String(state.parentLocationId ?? "");
+    const parentLocationOptions = [
+        { value: "", label: "No parent location", selected: !parentLocationId },
+        ...(state.parentLocationOptions ?? []).map((option) => {
+            const value = String(option.value ?? option.id ?? "");
+            return {
+                value,
+                label: option.label ?? option.name ?? "Unnamed location",
+                selected: value === parentLocationId
+            };
+        })
+    ];
+
     return {
-        elementType: state.elementType || "campaign",
+        elementType,
         prompt: state.prompt || "",
+        promptTextareaHeight: Number.isFinite(promptTextareaHeight) && promptTextareaHeight > 0 ? promptTextareaHeight : 0,
+        actorType,
+        actorTypeOptions: [
+            { value: "hero", label: "Hero", selected: actorType === "hero" },
+            { value: "pawn", label: "Pawn", selected: actorType === "pawn" },
+            { value: "villain", label: "Villain", selected: actorType === "villain" }
+        ],
+        showActorTypeSelector: elementType === "actor",
+        parentLocationId,
+        parentLocationOptions,
+        showParentLocationSelector: elementType === "location",
         isGenerating: !!state.isGenerating,
         result: state.result || null,
         error: state.error || null,
@@ -10,7 +37,7 @@ export function buildGMAssistantPanelModel(state = {}) {
             { value: "scenario", label: "Scenario", selected: state.elementType === "scenario" },
             { value: "encounter-design", label: "Encounter", selected: state.elementType === "encounter-design" },
             { value: "location", label: "Location (Village/Market/etc)", selected: state.elementType === "location" },
-            { value: "pawn", label: "NPC (Pawn)", selected: state.elementType === "pawn" }
+            { value: "actor", label: "Actor", selected: state.elementType === "actor" }
         ]
     };
 }
@@ -19,6 +46,26 @@ export function renderGMAssistantPanel(model, { escapeHTML }) {
     const optionsMarkup = model.options.map(opt => 
         `<option value="${escapeHTML(opt.value)}" ${opt.selected ? "selected" : ""}>${escapeHTML(opt.label)}</option>`
     ).join("");
+    const promptHeight = Number(model.promptTextareaHeight ?? 0);
+    const promptStyle = Number.isFinite(promptHeight) && promptHeight > 0
+        ? ` style="height: ${Math.round(promptHeight)}px;"`
+        : "";
+    const parentLocationMarkup = model.showParentLocationSelector
+        ? `<label class="totc-v2-gm-assistant__field">
+                <span>Parent Location</span>
+                <select data-action="gm-assistant-set-parent-location">
+                    ${model.parentLocationOptions.map((opt) => `<option value="${escapeHTML(opt.value)}" ${opt.selected ? "selected" : ""}>${escapeHTML(opt.label)}</option>`).join("")}
+                </select>
+            </label>`
+        : "";
+    const actorTypeMarkup = model.showActorTypeSelector
+        ? `<label class="totc-v2-gm-assistant__field">
+                <span>Actor Type</span>
+                <select data-action="gm-assistant-set-actor-type">
+                    ${model.actorTypeOptions.map((opt) => `<option value="${escapeHTML(opt.value)}" ${opt.selected ? "selected" : ""}>${escapeHTML(opt.label)}</option>`).join("")}
+                </select>
+            </label>`
+        : "";
 
     let resultMarkup = "";
     if (model.isGenerating) {
@@ -64,13 +111,17 @@ export function renderGMAssistantPanel(model, { escapeHTML }) {
             <h3>GM Assistant</h3>
         </header>
         <div class="totc-v2-gm-assistant__input-group">
-            <label>Element Type
+            <label class="totc-v2-gm-assistant__field">
+                <span>Element Type</span>
                 <select data-action="gm-assistant-set-type">
                     ${optionsMarkup}
                 </select>
             </label>
-            <label>Prompt
-                <textarea data-action="gm-assistant-set-prompt" placeholder="Describe what you want to create...">${escapeHTML(model.prompt)}</textarea>
+            ${parentLocationMarkup}
+            ${actorTypeMarkup}
+            <label class="totc-v2-gm-assistant__field totc-v2-gm-assistant__field--prompt">
+                <span>Prompt</span>
+                <textarea data-action="gm-assistant-set-prompt" placeholder="Describe what you want to create..."${promptStyle}>${escapeHTML(model.prompt)}</textarea>
             </label>
             <button type="button" class="totc-v2-gm-assistant__generate-btn" data-action="gm-assistant-generate" ${model.isGenerating || !model.prompt ? "disabled" : ""}>Generate</button>
         </div>

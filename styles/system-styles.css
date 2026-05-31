@@ -1543,6 +1543,43 @@ body.totc-v2-active.totc-v2-native-settings-open #settings {
     justify-content: flex-end;
 }
 
+.turn-of-the-century .totc-v2-gm-assistant {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.turn-of-the-century .totc-v2-gm-assistant__input-group {
+    align-items: end;
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.turn-of-the-century .totc-v2-gm-assistant__field {
+    color: #94a3b8;
+    display: grid;
+    font-size: 0.68rem;
+    font-weight: 800;
+    gap: 0.25rem;
+    letter-spacing: 0.08em;
+    min-width: 0;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-gm-assistant__field--prompt {
+    grid-column: 1 / -1;
+}
+
+.turn-of-the-century .totc-v2-gm-assistant__field textarea {
+    min-height: 7rem;
+    resize: vertical;
+    width: 100%;
+}
+
+.turn-of-the-century .totc-v2-gm-assistant__generate-btn {
+    min-height: 2.15rem;
+}
+
 .turn-of-the-century .totc-v2-media-browser__summary {
     color: #94a3b8;
     font-size: 0.76rem;

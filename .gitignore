@@ -10,3 +10,5 @@ packs/**/LOG.old
 packs/**/MANIFEST-*
 packs/**/*.ldb
 packs/**/*.log
+
+.env

@@ -804,7 +804,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._appliedGridOverlayStates = new Map();
         this._gmAssistantState = {
             elementType: "campaign",
+            actorType: "pawn",
             prompt: "",
+            promptTextareaHeight: 0,
+            parentLocationId: "",
             isGenerating: false,
             result: null,
             error: null
@@ -1180,7 +1183,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             encounterDesignerPanel: buildEncounterDesignerPanelModel({
                 encounters: Array.from(game.items?.contents || []).filter(i => i.type === "encounter-design")
             }),
-            gmAssistantPanel: buildGMAssistantPanelModel(this._gmAssistantState)
+            gmAssistantPanel: buildGMAssistantPanelModel({
+                ...this._gmAssistantState,
+                parentLocationOptions: Array.from(game.items?.contents || [])
+                    .filter((item) => item.type === "location")
+                    .map((item) => ({ value: item.id, label: item.name }))
+                    .sort((a, b) => a.label.localeCompare(b.label))
+            })
         };
     }
 
@@ -1706,6 +1715,27 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.element?.querySelectorAll("[data-action='gm-assistant-set-type']")?.forEach((select) => {
             select.addEventListener("change", (event) => {
                 this._gmAssistantState.elementType = event.target.value;
+                if (this._gmAssistantState.elementType !== "location") {
+                    this._gmAssistantState.parentLocationId = "";
+                }
+                this._gmAssistantState.result = null;
+                this._gmAssistantState.error = null;
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='gm-assistant-set-actor-type']")?.forEach((select) => {
+            select.addEventListener("change", (event) => {
+                this._gmAssistantState.actorType = event.target.value;
+                this._gmAssistantState.result = null;
+                this._gmAssistantState.error = null;
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='gm-assistant-set-parent-location']")?.forEach((select) => {
+            select.addEventListener("change", (event) => {
+                this._gmAssistantState.parentLocationId = event.target.value;
                 this._gmAssistantState.result = null;
                 this._gmAssistantState.error = null;
                 this.render({ force: false });
@@ -1714,14 +1744,36 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         const handleGenerate = async () => {
             if (this._gmAssistantState.isGenerating || !this._gmAssistantState.prompt) return;
+            const promptInput = this.element?.querySelector("[data-action='gm-assistant-set-prompt']");
+            if (promptInput instanceof HTMLTextAreaElement) {
+                this._gmAssistantState.promptTextareaHeight = promptInput.offsetHeight || promptInput.clientHeight || 0;
+            }
             this._gmAssistantState.isGenerating = true;
             this._gmAssistantState.error = null;
             this._gmAssistantState.result = null;
             this.render({ force: false });
 
             try {
+                const parentLocation = this._gmAssistantState.elementType === "location" && this._gmAssistantState.parentLocationId
+                    ? game.items?.get?.(this._gmAssistantState.parentLocationId)
+                    : null;
+                const generationContext = {};
+                if (this._gmAssistantState.elementType === "actor") {
+                    generationContext.actorType = this._gmAssistantState.actorType;
+                }
+                if (parentLocation) {
+                    generationContext.parentLocation = {
+                        id: parentLocation.id,
+                        name: parentLocation.name,
+                        locationType: parentLocation.system?.locationType ?? "",
+                        description: parentLocation.system?.description ?? "",
+                        notes: parentLocation.system?.notes ?? ""
+                    };
+                }
+
                 const result = await LLMService.generate(this._gmAssistantState.prompt, {
-                    elementType: this._gmAssistantState.elementType
+                    elementType: this._gmAssistantState.elementType,
+                    generationContext
                 });
                 this._gmAssistantState.result = result;
             } catch (err) {
@@ -1749,15 +1801,18 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.element?.querySelectorAll("[data-action='gm-assistant-accept']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
-                const { result, elementType } = this._gmAssistantState;
+                const { result, elementType, actorType } = this._gmAssistantState;
                 if (!result) return;
 
-                const isActor = elementType === "pawn";
+                const isActor = elementType === "actor";
                 const documentData = {
                     name: result.name || "Generated Element",
-                    type: elementType,
+                    type: isActor ? actorType : elementType,
                     system: result.system || {}
                 };
+                if (elementType === "location" && this._gmAssistantState.parentLocationId) {
+                    documentData.system.parentLocationId = this._gmAssistantState.parentLocationId;
+                }
 
                 const doc = await (isActor ? ActorDocumentClass : ItemDocumentClass).create(documentData);
                 if (doc?.sheet) doc.sheet.render(true);
@@ -4393,6 +4448,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }
             if (action === "gm-assistant-set-prompt") {
                 this._gmAssistantState.prompt = value;
+                this._gmAssistantState.promptTextareaHeight = input.offsetHeight || input.clientHeight || 0;
             }
 
             const timer = setTimeout(async () => {

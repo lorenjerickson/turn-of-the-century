@@ -97,6 +97,7 @@ import {
     requireItemSheetV2,
     requireItemsCollection
 } from "./module/foundry-v14-runtime.mjs";
+import { OPENAI_API_KEY_SETTING } from "./module/services/llm-service.mjs";
 
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
 const ENCOUNTER_AP_BUDGET_SETTING = "encounterActionPointBudget";
@@ -505,8 +506,8 @@ Hooks.once("init", () => {
         default: true
     });
 
-    game.settings.register("turn-of-the-century", "geminiApiKey", {
-        name: "Gemini API Key",
+    game.settings.register("turn-of-the-century", OPENAI_API_KEY_SETTING, {
+        name: "OpenAI API Key",
         hint: "API key for generating campaigns and scenarios.",
         scope: "world",
         config: true,
