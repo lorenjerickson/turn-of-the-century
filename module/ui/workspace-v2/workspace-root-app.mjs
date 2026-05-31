@@ -139,6 +139,7 @@ import {
     renderScenePropertiesPanel,
     scenePropertiesStateLocksScene
 } from "./panels/scene-properties-panel.mjs";
+import { buildSceneActorTokenData } from "./scene-actor-placement.mjs";
 import {
     buildScenesPanelModel,
     renderScenesPanel
@@ -365,6 +366,8 @@ const ROLL_LOCKED_ACTIONS = Object.freeze(new Set([
     "grid-cal-confirm",
     "inspector-design-action",
     "scene-properties-activate",
+    "scene-actors-add-heroes",
+    "scene-actors-add-selected",
     "scene-properties-delete",
     "scene-properties-save",
     "scenes-create-scene"
@@ -798,6 +801,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             status: "",
             error: ""
         };
+        this._appliedGridOverlayStates = new Map();
         this._gmAssistantState = {
             elementType: "campaign",
             prompt: "",
@@ -1164,7 +1168,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             designIssuesPanel,
             scenePropertiesPanel: buildScenePropertiesPanelModel({
                 ...this._scenePropertiesState,
-                scene: scenePropertiesScene
+                scene: scenePropertiesScene,
+                actors: worldActors
             }),
             campaignBuilderPanel: buildCampaignBuilderPanelModel({
                 campaigns: Array.from(game.items?.contents || []).filter(i => i.type === "campaign")
@@ -2073,17 +2078,18 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 scene: mapScene
             });
             const calActive = calModel.active;
-            const sceneGridOverlayActive = Boolean(!calActive && buildSceneGridOverlayState(mapScene));
+            const sceneGridOverlayState = this.#getSceneGridOverlayState(mapScene);
+            const sceneGridOverlayActive = Boolean(!calActive && sceneGridOverlayState);
             const gridOverlayActive = calActive || sceneGridOverlayActive;
             const calDialog = renderGridCalibrationDialog(calModel, { escapeHTML: (v) => this.#escapeHTML(v) });
 
             const imageMarkup = mapSrc
                 ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true"
                     data-map-key="${this.#escapeHTML(mapScene?.id ?? mapSrc)}"
-                    data-grid-type="${this.#escapeHTML(mapScene?.grid?.type ?? "")}"
-                    data-grid-size="${this.#escapeHTML(mapScene?.grid?.size ?? "")}"
-                    data-grid-shift-x="${this.#escapeHTML(mapScene?.shiftX ?? 0)}"
-                    data-grid-shift-y="${this.#escapeHTML(mapScene?.shiftY ?? 0)}">
+                    data-grid-type="${this.#escapeHTML(sceneGridOverlayState?.gridType ?? mapScene?.grid?.type ?? "")}"
+                    data-grid-size="${this.#escapeHTML(sceneGridOverlayState?.cellW ?? mapScene?.grid?.size ?? "")}"
+                    data-grid-offset-x="${this.#escapeHTML(sceneGridOverlayState?.offsetX ?? -Number(mapScene?.shiftX ?? 0))}"
+                    data-grid-offset-y="${this.#escapeHTML(sceneGridOverlayState?.offsetY ?? -Number(mapScene?.shiftY ?? 0))}">
                     <img class="totc-v2-map-panel__image" src="${this.#escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false" data-action="map-image">
                     ${gridOverlayActive ? `<svg class="totc-v2-map-panel__grid-overlay" data-grid-overlay="true" aria-hidden="true"></svg>` : ""}
                 </div>`
@@ -4225,8 +4231,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const state = this.gridCalibrationController.active
             ? this.gridCalibrationController.state
             : buildSceneGridOverlayState({
-                shiftX: Number(viewport.dataset.gridShiftX ?? 0),
-                shiftY: Number(viewport.dataset.gridShiftY ?? 0),
+                shiftX: -Number(viewport.dataset.gridOffsetX ?? 0),
+                shiftY: -Number(viewport.dataset.gridOffsetY ?? 0),
                 grid: {
                     type: Number(viewport.dataset.gridType ?? 0),
                     size: Number(viewport.dataset.gridSize ?? 0)
@@ -4309,7 +4315,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         try {
             await scene.update(updateData);
-            ui.notifications?.info(`Grid updated: ${size} px per cell (offset ${Math.abs(updateData.shiftX)}, ${Math.abs(updateData.shiftY)}).`);
+            this.#rememberAppliedGridOverlayState(scene, updateData);
+            ui.notifications?.info(`Grid updated: ${size} px per cell (offset ${-updateData.shiftX}, ${-updateData.shiftY}).`);
         } catch (err) {
             console.error("[turn-of-the-century] Grid calibration apply failed", err);
             ui.notifications?.error("Failed to apply grid — see console for details.");
@@ -4318,6 +4325,39 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.gridCalibrationController.close();
         this.render({ force: false });
+    }
+
+    #getSceneGridOverlayState(scene = null) {
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        const sceneState = buildSceneGridOverlayState(scene);
+        if (sceneState) {
+            if (sceneId) this._appliedGridOverlayStates.delete(sceneId);
+            return sceneState;
+        }
+        return sceneId ? (this._appliedGridOverlayStates.get(sceneId) ?? null) : null;
+    }
+
+    #rememberAppliedGridOverlayState(scene = null, updateData = {}) {
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        if (!sceneId) return;
+
+        const gridType = Number(updateData["grid.type"] ?? scene?.grid?.type ?? 1);
+        const cellSize = Number(updateData["grid.size"] ?? scene?.grid?.size ?? 0);
+        if (!gridType || cellSize < 4) {
+            this._appliedGridOverlayStates.delete(sceneId);
+            return;
+        }
+
+        this._appliedGridOverlayStates.set(sceneId, {
+            active: true,
+            gridType,
+            corner1: null,
+            corner2: null,
+            cellW: cellSize,
+            cellH: cellSize,
+            offsetX: -Number(updateData.shiftX ?? 0),
+            offsetY: -Number(updateData.shiftY ?? 0)
+        });
     }
 
     #syncGridCalibrationStateFromInputs() {
@@ -4623,6 +4663,29 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.element?.querySelectorAll("[data-action='scene-actors-add-heroes']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const heroes = Array.from(game.actors?.contents ?? []).filter((actor) => actor?.type === "hero");
+                await this.#addActorsToScene(heroes);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='scene-actors-add-selected']")?.forEach((form) => {
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const formData = new FormData(form);
+                const actorIds = new Set(formData.getAll("actorId").map((id) => String(id ?? "").trim()).filter(Boolean));
+                const actors = Array.from(actorIds)
+                    .map((id) => game.actors?.get?.(id))
+                    .filter(Boolean);
+                await this.#addActorsToScene(actors);
+            });
+        });
+
         this.element?.querySelectorAll("[data-action='scene-properties-save']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
@@ -4664,6 +4727,63 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.render({ force: false });
             });
         });
+    }
+
+    async #addActorsToScene(actors = []) {
+        const scene = this.#getScenePropertiesScene();
+        if (!scene) {
+            this._scenePropertiesState = {
+                ...this._scenePropertiesState,
+                status: "",
+                createMode: Boolean(this._scenePropertiesState.createMode),
+                error: "No viewed scene is available for actor placement."
+            };
+            this.render({ force: false });
+            return;
+        }
+
+        const selectedActors = Array.from(actors ?? []).filter(Boolean);
+        if (!selectedActors.length) {
+            this._scenePropertiesState = {
+                ...this._scenePropertiesState,
+                sceneId: scene?.id ?? scene?._id ?? "",
+                status: "",
+                createMode: Boolean(this._scenePropertiesState.createMode),
+                error: "Choose at least one actor to add to the scene."
+            };
+            this.render({ force: false });
+            return;
+        }
+
+        try {
+            if (typeof scene.createEmbeddedDocuments !== "function") {
+                throw new Error("Scene token creation is not available.");
+            }
+            const tokenData = await buildSceneActorTokenData({
+                actors: selectedActors,
+                scene
+            });
+            if (!tokenData.length) throw new Error("No token data could be built for the selected actors.");
+            await scene.createEmbeddedDocuments("Token", tokenData);
+            this._scenePropertiesState = {
+                ...this._scenePropertiesState,
+                sceneId: scene?.id ?? scene?._id ?? "",
+                createMode: Boolean(this._scenePropertiesState.createMode),
+                status: `Added ${tokenData.length} actor${tokenData.length === 1 ? "" : "s"} to ${scene.name ?? "scene"}.`,
+                error: ""
+            };
+        } catch (error) {
+            console.error("[turn-of-the-century] Scene actor placement failed", error);
+            this._scenePropertiesState = {
+                ...this._scenePropertiesState,
+                sceneId: scene?.id ?? scene?._id ?? "",
+                status: "",
+                createMode: Boolean(this._scenePropertiesState.createMode),
+                error: "Actor placement failed - see console for details."
+            };
+        }
+
+        this.render({ force: false });
     }
 
     async #executeDesignAction(actionId, { panelId = "" } = {}) {

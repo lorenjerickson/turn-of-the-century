@@ -106,6 +106,20 @@ describe("Grid calibration", () => {
         assert.equal(model.horizontalLines.includes(17), true);
     });
 
+    it("preserves negative persisted scene grid offsets", () => {
+        const state = buildSceneGridOverlayState({
+            shiftX: 12,
+            shiftY: 8,
+            grid: {
+                type: 1,
+                size: 100
+            }
+        });
+
+        assert.equal(state.offsetX, -12);
+        assert.equal(state.offsetY, -8);
+    });
+
     it("does not create a persisted overlay state for gridless scenes", () => {
         assert.equal(buildSceneGridOverlayState({
             grid: {
@@ -139,6 +153,19 @@ describe("Grid calibration", () => {
             "grid.size": 80,
             shiftX: -12,
             shiftY: -8
+        });
+    });
+
+    it("builds scene updates for negative grid offsets", () => {
+        assert.deepEqual(buildGridCalibrationSceneUpdate({
+            cellW: 100,
+            offsetX: -12,
+            offsetY: -8
+        }), {
+            "grid.type": 1,
+            "grid.size": 100,
+            shiftX: 12,
+            shiftY: 8
         });
     });
 });

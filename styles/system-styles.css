@@ -1400,6 +1400,90 @@ body.totc-v2-active.totc-v2-native-settings-open #settings {
     opacity: 0.48;
 }
 
+.turn-of-the-century .totc-v2-scene-properties-panel__actors {
+    background: rgba(15, 23, 42, 0.52);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 6px;
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.55rem;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actors header {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: space-between;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actors h3,
+.turn-of-the-century .totc-v2-scene-properties-panel__actor-group h4 {
+    color: #fde68a;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actors header button {
+    background: rgba(59, 130, 246, 0.22);
+    border: 1px solid rgba(147, 197, 253, 0.42);
+    border-radius: 6px;
+    color: #dbeafe;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 0.36rem 0.55rem;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actor-group {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actor-list {
+    display: grid;
+    gap: 0.28rem;
+    max-height: 11rem;
+    overflow: auto;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actor-option {
+    align-items: center;
+    background: rgba(15, 23, 42, 0.44);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 6px;
+    color: #cbd5e1;
+    display: grid;
+    gap: 0.38rem;
+    grid-template-columns: auto 1.45rem minmax(0, 1fr);
+    padding: 0.32rem 0.42rem;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actor-option img,
+.turn-of-the-century .totc-v2-scene-properties-panel__actor-icon {
+    border-radius: 4px;
+    height: 1.45rem;
+    object-fit: cover;
+    width: 1.45rem;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actor-icon {
+    align-items: center;
+    background: rgba(245, 158, 11, 0.2);
+    color: #fde68a;
+    display: inline-flex;
+    font-size: 0.72rem;
+    font-weight: 800;
+    justify-content: center;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__actor-empty {
+    color: #94a3b8;
+    font-size: 0.74rem;
+}
+
 .turn-of-the-century .totc-v2-media-browser {
     display: grid;
     gap: 0.55rem;

@@ -346,6 +346,24 @@ describe("Scene properties panel", () => {
         assert.doesNotMatch(html, /data-action="scene-properties-delete"[^>]*disabled/);
     });
 
+    it("renders actor placement controls grouped by actor type", () => {
+        const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
+            scene: { id: "scene-a", name: "Whitechapel" },
+            actors: [
+                { id: "h1", name: "Ada", type: "hero", img: "ada.webp" },
+                { id: "p1", name: "Constable", type: "pawn", img: "constable.webp" },
+                { id: "v1", name: "Moriarty", type: "villain", img: "moriarty.webp" }
+            ]
+        }));
+
+        assert.match(html, /data-action="scene-actors-add-heroes"/);
+        assert.match(html, /Heroes/);
+        assert.match(html, /Pawns/);
+        assert.match(html, /Villains/);
+        assert.match(html, /value="p1"/);
+        assert.match(html, /value="v1"/);
+    });
+
     it("escapes rendered scene values", () => {
         const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
             sceneName: "A <Scene>",

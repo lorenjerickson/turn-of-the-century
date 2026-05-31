@@ -70,6 +70,32 @@ describe("GridCalibrationController", () => {
         });
     });
 
+    it("applies negative manual offsets", async () => {
+        let updateData = null;
+        const controller = new GridCalibrationController({
+            sceneResolver: () => ({
+                update: async (data) => {
+                    updateData = data;
+                }
+            }),
+            notifications: { info: () => {} }
+        });
+        controller.open({ scene: { id: "scene-1", grid: { type: 1 } } });
+        controller.setCellWidth(96);
+        controller.setOffsetX(-31);
+        controller.setOffsetY(-17);
+
+        const result = await controller.apply();
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(updateData, {
+            "grid.type": 1,
+            "grid.size": 96,
+            shiftX: 31,
+            shiftY: 17
+        });
+    });
+
     it("keeps state open when the scene update fails", async () => {
         const controller = new GridCalibrationController({
             sceneResolver: () => ({

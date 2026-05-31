@@ -1,0 +1,91 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import {
+    buildSceneActorPlacementPanelModel,
+    buildSceneActorPlacements,
+    buildSceneActorTokenData
+} from "../../module/ui/workspace-v2/scene-actor-placement.mjs";
+
+function actor(id, type, name = id, extra = {}) {
+    return {
+        id,
+        name,
+        type,
+        img: `${id}.webp`,
+        ...extra
+    };
+}
+
+describe("scene actor placement", () => {
+    it("groups available actors by system actor type for the scene panel", () => {
+        const model = buildSceneActorPlacementPanelModel({
+            scene: { id: "scene-1", name: "The Yard" },
+            actors: [
+                actor("v1", "villain", "Moriarty"),
+                actor("h1", "hero", "Ada"),
+                actor("p1", "pawn", "Constable"),
+                actor("i1", "item", "Not an Actor")
+            ]
+        });
+
+        assert.equal(model.sceneId, "scene-1");
+        assert.deepEqual(model.heroes.map((entry) => entry.id), ["h1"]);
+        assert.deepEqual(model.pawns.map((entry) => entry.id), ["p1"]);
+        assert.deepEqual(model.villains.map((entry) => entry.id), ["v1"]);
+    });
+
+    it("groups heroes near one side and villains far from them", () => {
+        const placements = buildSceneActorPlacements({
+            scene: { width: 2000, height: 1200, grid: { size: 100 } },
+            actors: [
+                actor("h1", "hero"),
+                actor("h2", "hero"),
+                actor("v1", "villain"),
+                actor("v2", "villain")
+            ]
+        });
+
+        const heroes = placements.filter((placement) => placement.role === "hero");
+        const villains = placements.filter((placement) => placement.role === "villain");
+
+        assert.ok(heroes.every((placement) => placement.position.x < 350));
+        assert.ok(villains.every((placement) => placement.position.x > 1600));
+        assert.ok(villains.every((placement) => placement.position.y > 850));
+    });
+
+    it("scatters pawns using injected randomness", () => {
+        const rolls = [0, 0.5, 1, 0.25];
+        const placements = buildSceneActorPlacements({
+            scene: { width: 1000, height: 800, grid: { size: 100 } },
+            actors: [actor("p1", "pawn"), actor("p2", "pawn")],
+            rng: () => rolls.shift() ?? 0
+        });
+
+        assert.deepEqual(placements.map((placement) => placement.position), [
+            { x: 50, y: 350 },
+            { x: 850, y: 200 }
+        ]);
+    });
+
+    it("builds token data from actor token defaults at computed positions", async () => {
+        const tokens = await buildSceneActorTokenData({
+            scene: { width: 1000, height: 800, grid: { size: 100 } },
+            actors: [
+                actor("h1", "hero", "Ada", {
+                    prototypeToken: {
+                        width: 1,
+                        height: 1,
+                        texture: { src: "token.webp" }
+                    }
+                })
+            ]
+        });
+
+        assert.equal(tokens.length, 1);
+        assert.equal(tokens[0].actorId, "h1");
+        assert.equal(tokens[0].name, "Ada");
+        assert.equal(tokens[0].texture.src, "token.webp");
+        assert.equal(tokens[0].x, 100);
+    });
+});

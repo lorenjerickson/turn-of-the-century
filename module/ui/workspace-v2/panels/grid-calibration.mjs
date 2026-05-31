@@ -73,8 +73,8 @@ export function cornersToGridOffset(corner1, corner2, { cellW, cellH }) {
 
 export function buildGridCalibrationSceneUpdate({ cellW = 100, offsetX = 0, offsetY = 0, gridType = GRID_TYPES.SQUARE } = {}) {
     const size = Math.max(4, Math.round(Number(cellW) || 100));
-    const phaseX = Math.max(0, Math.round(Number(offsetX) || 0));
-    const phaseY = Math.max(0, Math.round(Number(offsetY) || 0));
+    const phaseX = Math.round(Number(offsetX) || 0);
+    const phaseY = Math.round(Number(offsetY) || 0);
     const type = Number(gridType) === GRID_TYPES.GRIDLESS ? GRID_TYPES.SQUARE : Number(gridType) || GRID_TYPES.SQUARE;
 
     return {
@@ -92,12 +92,13 @@ export function buildSceneGridOverlayState(scene = null) {
 
     return {
         active: true,
+        gridType,
         corner1: null,
         corner2: null,
         cellW: cellSize,
         cellH: cellSize,
-        offsetX: Math.max(0, -Number(scene?.shiftX ?? 0)),
-        offsetY: Math.max(0, -Number(scene?.shiftY ?? 0))
+        offsetX: -Number(scene?.shiftX ?? 0),
+        offsetY: -Number(scene?.shiftY ?? 0)
     };
 }
 
@@ -304,14 +305,14 @@ export function renderGridCalibrationDialog(model = {}, { escapeHTML = (v) => St
                 <span>Offset X (px)</span>
                 <input type="number"
                     data-action="grid-cal-offset-x"
-                    min="0" step="1"
+                    step="1"
                     value="${escapeHTML(model.offsetX)}">
             </label>
             <label class="totc-v2-grid-cal__field">
                 <span>Offset Y (px)</span>
                 <input type="number"
                     data-action="grid-cal-offset-y"
-                    min="0" step="1"
+                    step="1"
                     value="${escapeHTML(model.offsetY)}">
             </label>
         </div>

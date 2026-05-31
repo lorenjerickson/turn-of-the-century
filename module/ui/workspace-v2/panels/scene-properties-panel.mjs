@@ -3,6 +3,7 @@ import {
     SCENE_BACKGROUND_IMAGE_EXTENSIONS
 } from "../design-actions/scene-actions.mjs";
 import { getSceneBackgroundSource } from "../scene-background-source.mjs";
+import { buildSceneActorPlacementPanelModel } from "../scene-actor-placement.mjs";
 
 function safeEscape(value) {
     return String(value ?? "")
@@ -70,9 +71,34 @@ export function buildScenePropertiesPanelModel(state = {}) {
         uploadEnabled: Boolean(sceneName),
         saveEnabled: Boolean(scene && sceneName),
         backgroundChanged: Boolean(uploadedPath && uploadedPath !== currentBackgroundPath),
+        actorPlacement: buildSceneActorPlacementPanelModel({
+            actors: state.actors ?? [],
+            scene
+        }),
         status: String(stateApplies ? state.status ?? "" : "").trim(),
         error: String(stateApplies ? state.error ?? "" : "").trim()
     };
+}
+
+function renderActorCheckbox(actor, escapeHTML) {
+    return `
+        <label class="totc-v2-scene-properties-panel__actor-option">
+            <input type="checkbox" name="actorId" value="${escapeHTML(actor.id)}">
+            ${actor.img ? `<img src="${escapeHTML(actor.img)}" alt="">` : `<span class="totc-v2-scene-properties-panel__actor-icon">${escapeHTML(actor.name.slice(0, 1).toUpperCase())}</span>`}
+            <span>${escapeHTML(actor.name)}</span>
+        </label>`;
+}
+
+function renderActorGroup(title, actors, escapeHTML) {
+    return `
+        <section class="totc-v2-scene-properties-panel__actor-group">
+            <h4>${escapeHTML(title)}</h4>
+            <div class="totc-v2-scene-properties-panel__actor-list">
+                ${actors.length
+                    ? actors.map((actor) => renderActorCheckbox(actor, escapeHTML)).join("")
+                    : `<div class="totc-v2-scene-properties-panel__actor-empty">None available</div>`}
+            </div>
+        </section>`;
 }
 
 export function buildScenePropertiesNameInputState(currentState = {}, scene = null, sceneName = "") {
@@ -210,5 +236,17 @@ export function renderScenePropertiesPanel(model = {}, { escapeHTML = safeEscape
             <button type="button" class="totc-v2-scene-properties-panel__danger" data-action="scene-properties-delete" ${sceneActionDisabled}>Delete Scene</button>
             <button type="button" data-action="scene-properties-save" ${saveDisabled}>Save</button>
         </footer>
+        <form class="totc-v2-scene-properties-panel__actors" data-action="scene-actors-add-selected">
+            <header>
+                <h3>Scene Actors</h3>
+                <button type="button" data-action="scene-actors-add-heroes" ${sceneActionDisabled}>Add All Heroes</button>
+            </header>
+            ${renderActorGroup("Heroes", model.actorPlacement?.heroes ?? [], escapeHTML)}
+            ${renderActorGroup("Pawns", model.actorPlacement?.pawns ?? [], escapeHTML)}
+            ${renderActorGroup("Villains", model.actorPlacement?.villains ?? [], escapeHTML)}
+            <footer class="totc-v2-scene-properties-panel__actions">
+                <button type="submit" ${sceneActionDisabled}>Add Selected</button>
+            </footer>
+        </form>
     </section>`;
 }

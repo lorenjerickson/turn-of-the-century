@@ -58,13 +58,13 @@ export class GridCalibrationController {
 
     setOffsetX(value) {
         if (!this.state) return null;
-        this.state.offsetX = Math.max(0, Number(value) || 0);
+        this.state.offsetX = Number(value) || 0;
         return this.state;
     }
 
     setOffsetY(value) {
         if (!this.state) return null;
-        this.state.offsetY = Math.max(0, Number(value) || 0);
+        this.state.offsetY = Number(value) || 0;
         return this.state;
     }
 
@@ -105,7 +105,7 @@ export class GridCalibrationController {
 
         try {
             await scene.update(updateData);
-            this.notifications?.info?.(`Grid updated: ${updateData["grid.size"]} px per cell (offset ${Math.abs(updateData.shiftX)}, ${Math.abs(updateData.shiftY)}).`);
+            this.notifications?.info?.(`Grid updated: ${updateData["grid.size"]} px per cell (offset ${-updateData.shiftX}, ${-updateData.shiftY}).`);
         } catch (error) {
             this.logger?.error?.("[turn-of-the-century] Grid calibration apply failed", error);
             this.notifications?.error?.("Failed to apply grid - see console for details.");
