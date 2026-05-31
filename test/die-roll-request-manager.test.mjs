@@ -1,34 +1,76 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 
+import { DieRollRequestManager } from "../module/die-roll-request-manager.mjs";
 
-import { installFoundryMock } from "./foundry-mock.js";
-installFoundryMock();
-
-import { dieRollRequestManager } from "../module/die-roll-request-manager.mjs";
-import { v4 as uuidv4 } from "uuid";
+function makeSocket() {
+    return {
+        emitted: [],
+        on() {},
+        emit(type, payload) {
+            this.emitted.push({ type, payload });
+        }
+    };
+}
 
 describe("DieRollRequestManager", () => {
-  it("should send and receive a request and result", () => {
-    // Simulate GM sending a request
-    const requestId = uuidv4();
-    const request = {
-      id: requestId,
-      initiatorId: "gm1",
-      recipientIds: ["player1"],
-      rollType: "skill",
-      rollSubType: "Stealth",
-      modifiers: [2],
-      status: "pending",
-      results: {},
-      timestamp: Date.now()
-    };
-    dieRollRequestManager.sendRequest(request);
-    const stored = dieRollRequestManager.getRequest(requestId);
-    expect(stored).toBeDefined();
-    expect(stored.rollType).toBe("skill");
-    // Simulate player sending result
-    // Simulate socket delivery by calling _handleResult directly
-    dieRollRequestManager._handleResult({ requestId, recipientId: "player1", result: { roll: { total: 15 }, total: 17, timestamp: Date.now() } });
-    const updated = dieRollRequestManager.getRequest(requestId);
-    expect(updated.results["player1"].total).toBe(17);
-  });
+    it("sends, adjusts, rolls, and resolves a request", () => {
+        const socket = makeSocket();
+        const rngValues = [0.05, 0.95];
+        const manager = new DieRollRequestManager({
+            socketService: socket,
+            rng: () => rngValues.shift(),
+            now: () => 1000
+        });
+        const changes = [];
+        manager.onChange((change) => changes.push(change.type));
+
+        const request = manager.sendRequest({
+            id: "req1",
+            initiatorId: "gm1",
+            recipientIds: ["player1"],
+            label: "Constitution Saving Throw",
+            dice: [{ count: 2, faces: 20, keep: "highest" }],
+            modifiers: [{ label: "Constitution", value: 2 }]
+        });
+        manager.adjustModifier(request.id, "player1", 1);
+        const result = manager.rollRequestForRecipient(request.id, "player1");
+
+        assert.deepEqual(socket.emitted.map((entry) => entry.type), ["dieRollRequest", "dieRollAdjust", "dieRollResult"]);
+        assert.equal(result.total, 23);
+        assert.equal(manager.getRequest("req1").status, "resolved");
+        assert.deepEqual(changes, ["request", "adjust", "rolling", "result"]);
+    });
+
+    it("keeps multiple-player requests pending until every recipient rolls", () => {
+        const manager = new DieRollRequestManager({
+            socketService: makeSocket(),
+            rng: () => 0,
+            now: () => 5
+        });
+
+        manager.sendRequest({
+            id: "multi",
+            recipientIds: ["p1", "p2"],
+            dice: "1d20"
+        });
+        manager.rollRequestForRecipient("multi", "p1");
+
+        assert.equal(manager.getRequest("multi").status, "pending");
+        assert.equal(manager.hasOutstandingRequests(), true);
+
+        manager.rollRequestForRecipient("multi", "p2");
+        assert.equal(manager.getRequest("multi").status, "resolved");
+        assert.equal(manager.hasOutstandingRequests(), false);
+    });
+
+    it("cancels requests without keeping them in visible history", () => {
+        const manager = new DieRollRequestManager({ socketService: makeSocket() });
+        manager.sendRequest({ id: "cancel-me", recipientIds: ["p1"] });
+
+        manager.sendCancel("cancel-me", { cancelledBy: "p1" });
+
+        assert.equal(manager.getRequest("cancel-me"), undefined);
+        assert.deepEqual(manager.getAllRequests(), []);
+    });
 });

@@ -42,9 +42,39 @@ function getMessageUserName(message) {
     return String(message?.author?.name ?? "").trim();
 }
 
-export function buildDiceRollFeedPanelModel({ messages = [], limit = DEFAULT_LIMIT } = {}) {
+function getRequestTimestamp(request) {
+    return Number(request?.resolvedAt ?? request?.updatedAt ?? request?.timestamp ?? 0) || 0;
+}
+
+function normalizeRequestEntry(request, { users = [] } = {}) {
+    const userName = (userId) => users.find((user) => user.id === userId)?.name || userId;
+    const results = Object.entries(request.results ?? {});
+    const resultRolls = results.map(([userId, result]) => ({
+        formula: String(result?.formula ?? request.getFormulaFor?.(userId) ?? "").trim(),
+        total: Number.isFinite(Number(result?.total)) ? Number(result.total) : null,
+        userId,
+        userName: userName(userId),
+        dice: result?.dice ?? [],
+        adjustment: Number(result?.adjustment ?? request.adjustments?.[userId]?.value ?? 0) || 0
+    }));
+
+    return {
+        id: request.id,
+        speaker: request.requestor?.name ?? request.initiatorId ?? "System",
+        user: request.recipientIds?.map(userName).join(", ") ?? "",
+        timestamp: getRequestTimestamp(request),
+        flavor: request.label,
+        rolls: resultRolls,
+        status: request.status,
+        hasRoll: resultRolls.length > 0,
+        activeRequest: request.isPending,
+        request
+    };
+}
+
+export function buildDiceRollFeedPanelModel({ messages = [], rollRequests = [], users = [], limit = DEFAULT_LIMIT } = {}) {
     const normalizedLimit = Math.max(1, Number(limit) || DEFAULT_LIMIT);
-    const entries = Array.from(messages ?? [])
+    const messageEntries = Array.from(messages ?? [])
         .map((message) => {
             const rolls = getMessageRolls(message)
                 .map((roll) => ({
@@ -64,20 +94,26 @@ export function buildDiceRollFeedPanelModel({ messages = [], limit = DEFAULT_LIM
                 hasRoll: rolls.length > 0
             };
         })
-        .filter((entry) => entry.hasRoll || entry.flavor)
+        .filter((entry) => entry.hasRoll || entry.flavor);
+    const requestEntries = Array.from(rollRequests ?? [])
+        .filter((request) => request?.status !== "cancelled")
+        .map((request) => normalizeRequestEntry(request, { users }));
+    const entries = [...messageEntries, ...requestEntries]
         .sort((a, b) => b.timestamp - a.timestamp)
         .slice(0, normalizedLimit);
 
     return {
         entries,
         rollCount: entries.filter((entry) => entry.hasRoll).length,
+        activeRequestCount: entries.filter((entry) => entry.activeRequest).length,
         messageCount: entries.length
     };
 }
 
 export function renderDiceRollFeedPanel(panelModel = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
     const entries = Array.isArray(panelModel.entries) ? panelModel.entries : [];
-    const summary = `${Number(panelModel.rollCount ?? 0)} roll${panelModel.rollCount === 1 ? "" : "s"} from ${entries.length} recent message${entries.length === 1 ? "" : "s"}`;
+    const activeCount = Number(panelModel.activeRequestCount ?? 0);
+    const summary = `${Number(panelModel.rollCount ?? 0)} roll${panelModel.rollCount === 1 ? "" : "s"}${activeCount ? `, ${activeCount} active request${activeCount === 1 ? "" : "s"}` : ""}`;
 
     return `
     <section class="totc-v2-roll-feed-panel">
@@ -88,14 +124,17 @@ export function renderDiceRollFeedPanel(panelModel = {}, { escapeHTML = (value) 
             ${entries.length ? entries.map((entry) => {
                 const rollsMarkup = entry.rolls.map((roll) => `
                     <span class="totc-v2-roll-feed-panel__roll">
+                        ${roll.userName ? `<span class="totc-v2-roll-feed-panel__user">${escapeHTML(roll.userName)}</span>` : ""}
                         ${roll.formula ? `<span class="totc-v2-roll-feed-panel__formula">${escapeHTML(roll.formula)}</span>` : ""}
                         ${roll.total !== null ? `<strong class="totc-v2-roll-feed-panel__total">${escapeHTML(roll.total)}</strong>` : ""}
+                        ${roll.adjustment ? `<span class="totc-v2-roll-feed-panel__formula">player ${roll.adjustment > 0 ? "+" : ""}${escapeHTML(roll.adjustment)}</span>` : ""}
                     </span>`).join("");
                 return `
                 <article class="totc-v2-roll-feed-panel__entry ${entry.hasRoll ? "totc-v2-roll-feed-panel__entry--roll" : ""}" role="listitem">
                     <div class="totc-v2-roll-feed-panel__entry-header">
                         <span class="totc-v2-roll-feed-panel__speaker">${escapeHTML(entry.speaker)}</span>
                         ${entry.user ? `<span class="totc-v2-roll-feed-panel__user">${escapeHTML(entry.user)}</span>` : ""}
+                        ${entry.status ? `<span class="totc-v2-roll-feed-panel__user">${escapeHTML(entry.status)}</span>` : ""}
                     </div>
                     ${entry.flavor ? `<p class="totc-v2-roll-feed-panel__flavor">${escapeHTML(entry.flavor)}</p>` : ""}
                     ${rollsMarkup ? `<div class="totc-v2-roll-feed-panel__rolls">${rollsMarkup}</div>` : ""}

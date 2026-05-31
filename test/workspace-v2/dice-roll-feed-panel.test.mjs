@@ -5,6 +5,7 @@ import {
     buildDiceRollFeedPanelModel,
     renderDiceRollFeedPanel
 } from "../../module/ui/workspace-v2/panels/dice-roll-feed-panel.mjs";
+import { DieRollRequest } from "../../module/models/die-roll-request.mjs";
 
 describe("Dice and Roll Feed panel", () => {
     it("normalizes recent roll messages newest first", () => {
@@ -70,5 +71,39 @@ describe("Dice and Roll Feed panel", () => {
         assert.match(html, /Ada &lt;Danger&gt;/);
         assert.match(html, /1d20 &lt; 18/);
         assert.match(html, /totc-v2-roll-feed-panel__total/);
+    });
+
+    it("includes active roll requests and completed request results", () => {
+        const pending = new DieRollRequest({
+            id: "pending",
+            recipientIds: ["player1"],
+            label: "Constitution Saving Throw",
+            timestamp: 300
+        });
+        const resolved = new DieRollRequest({
+            id: "resolved",
+            recipientIds: ["player1"],
+            label: "Attack",
+            status: "resolved",
+            results: {
+                player1: {
+                    formula: "1d20 + 2",
+                    total: 18,
+                    adjustment: 1,
+                    timestamp: 250
+                }
+            },
+            timestamp: 250
+        });
+
+        const model = buildDiceRollFeedPanelModel({
+            rollRequests: [pending, resolved],
+            users: [{ id: "player1", name: "Ada" }]
+        });
+
+        assert.equal(model.activeRequestCount, 1);
+        assert.equal(model.rollCount, 1);
+        assert.equal(model.entries[0].id, "pending");
+        assert.equal(model.entries[1].rolls[0].total, 18);
     });
 });

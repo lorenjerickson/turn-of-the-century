@@ -355,6 +355,21 @@ const GM_ACTION_MODELS = Object.freeze([
     }
 ]);
 
+const ROLL_LOCKED_ACTIONS = Object.freeze(new Set([
+    "actor-create-npc",
+    "design-lens-action",
+    "gm-create-scene",
+    "gm-end-combat",
+    "gm-next-turn",
+    "gm-start-encounter",
+    "grid-cal-confirm",
+    "inspector-design-action",
+    "scene-properties-activate",
+    "scene-properties-delete",
+    "scene-properties-save",
+    "scenes-create-scene"
+]));
+
 const GM_GROUP_MODELS = Object.freeze([
     {
         id: "encounter-control",
@@ -828,6 +843,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._designIssuesRefreshHandler = () => {
             if (this.rendered) this.render({ force: false });
         };
+        this._dieRollRequestUnsubscribe = dieRollRequestManager.onChange((change) => {
+            void this.#handleDieRollRequestChange(change);
+        });
         this._sceneHooksBound = false;
         this._compendiumHooksBound = false;
         this._gamemasterHooksBound = false;
@@ -880,6 +898,114 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }).join("");
     }
 
+    #getWorkspaceUsers() {
+        const users = game.users?.contents
+            ?? (typeof game.users?.values === "function" ? Array.from(game.users.values()) : game.users)
+            ?? [];
+        return Array.from(users).map((user) => ({
+            id: String(user?.id ?? ""),
+            name: String(user?.name ?? user?.id ?? "Unknown User"),
+            isGM: Boolean(user?.isGM)
+        })).filter((user) => user.id);
+    }
+
+    async #handleDieRollRequestChange() {
+        const userId = String(game.user?.id ?? "");
+        const isGM = Boolean(game.user?.isGM);
+        const hasRelevantPendingRequest = dieRollRequestManager
+            .getVisibleRequests({ userId, isGM })
+            .some((request) => request.isPending && (isGM || !request.hasResult(userId)));
+
+        if (hasRelevantPendingRequest) {
+            const panelDef = this.panelRegistry.get("die-roll-request");
+            if (panelDef) {
+                const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "bottomDock" });
+                await this.stateStore?.setUserLayout?.(nextLayout);
+            }
+        }
+
+        if (this.rendered) this.render({ force: false });
+    }
+
+    #wireDieRollRequestHandlers() {
+        this.element?.querySelectorAll("[data-action='die-roll-request-create']")?.forEach((form) => {
+            form.addEventListener("submit", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const data = new FormData(form);
+                const recipientId = String(data.get("recipientId") ?? "").trim();
+                if (!recipientId) {
+                    ui.notifications?.warn?.("Choose a player before requesting a roll.");
+                    return;
+                }
+
+                const label = String(data.get("label") ?? "Requested Roll").trim() || "Requested Roll";
+                const rollMode = String(data.get("rollMode") ?? "normal");
+                const modifier = Number(data.get("modifier") ?? 0) || 0;
+                dieRollRequestManager.sendRequest({
+                    initiatorId: game.user?.id ?? "",
+                    requestor: {
+                        id: game.user?.id ?? "",
+                        name: game.user?.name ?? "GM",
+                        type: "gm"
+                    },
+                    recipientIds: [recipientId],
+                    rollType: String(data.get("rollType") ?? "custom"),
+                    rollSubType: label,
+                    label,
+                    dice: rollMode === "advantage"
+                        ? [{ count: 2, faces: 20, keep: "highest" }]
+                        : rollMode === "disadvantage"
+                            ? [{ count: 2, faces: 20, keep: "lowest" }]
+                            : [{ count: 1, faces: 20 }],
+                    modifiers: modifier ? [{ label: "Requested modifier", value: modifier, source: "gm" }] : []
+                });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='die-roll-adjust']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                dieRollRequestManager.adjustModifier(
+                    button.dataset.requestId,
+                    game.user?.id,
+                    Number(button.dataset.delta ?? 0) || 0
+                );
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='die-roll-request-roll']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                dieRollRequestManager.rollRequestForRecipient(button.dataset.requestId, game.user?.id);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='die-roll-request-cancel']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                dieRollRequestManager.sendCancel(button.dataset.requestId, { cancelledBy: game.user?.id ?? "" });
+            });
+        });
+    }
+
+    #wireRollLockGuard() {
+        this.element?.addEventListener("click", (event) => {
+            if (!dieRollRequestManager.hasOutstandingRequests()) return;
+            const target = event.target?.closest?.("[data-action]");
+            const action = String(target?.dataset?.action ?? "");
+            if (!ROLL_LOCKED_ACTIONS.has(action)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation?.();
+            ui.notifications?.warn?.("Resolve or cancel outstanding roll requests before changing combat, scenes, or actors.");
+        }, { capture: true });
+    }
+
     async _prepareContext(options) {
         const policy = this.stateStore?.getPolicy?.() ?? { enabled: false, debugGovernance: false };
         const userLayout = this.stateStore?.getUserLayout?.() ?? this.layoutEngine.getLayout();
@@ -902,10 +1028,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             snapshot: gmSnapshot,
             panelState: gmPanelState
         });
+        const workspaceUsers = this.#getWorkspaceUsers();
         // Die Roll Request Panel context
         const dieRollRequestPanel = buildDieRollRequestPanelModel({
             userId: game.user?.id,
-            isGM: Boolean(game.user?.isGM)
+            isGM: Boolean(game.user?.isGM),
+            users: workspaceUsers
         });
         const compendiumItems = await this.#getUnifiedCompendiumItems();
         const mediaBrowserEntries = visiblePanels.has("media-browser")
@@ -913,6 +1041,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             : (this._mediaBrowserEntries ?? []);
         const diceRollFeedPanel = buildDiceRollFeedPanelModel({
             messages: game.messages?.contents ?? game.messages ?? [],
+            rollRequests: dieRollRequestManager.getVisibleRequests({
+                userId: game.user?.id,
+                isGM: Boolean(game.user?.isGM)
+            }),
+            users: workspaceUsers,
             limit: 20
         });
         const inspectorPanel = buildInspectorPanelModel({
@@ -1049,6 +1182,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async _renderHTML(context) {
         const root = document.createElement("section");
         root.classList.add("totc-workspace-v2-root");
+        if (dieRollRequestManager.hasOutstandingRequests()) {
+            root.classList.add("is-roll-locked");
+            root.setAttribute("data-roll-lock", "true");
+        }
         root.setAttribute("data-drag-host", "true");
         const dockWeights = context.dockWeights ?? { left: 0.18, centerX: 0.64, right: 0.18, top: 0.18, centerY: 0.64, bottom: 0.18 };
         const layoutRoot = context.layout?.root ?? {};
@@ -1135,67 +1272,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#bindPlayerHooks();
         this.#bindDesignIssuesHooks();
 
-        // Die Roll Request Panel: handle roll button
-        this.element?.querySelectorAll(".totc-v2-die-roll-request-panel__roll-btn")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                // Find the current request for this user
-                const userId = game.user?.id;
-                const isGM = Boolean(game.user?.isGM);
-                const requests = globalThis.dieRollRequestManager?.getAllRequests?.() ?? [];
-                const request = isGM
-                    ? requests[0]
-                    : requests.find((req) => req.recipientIds.includes(userId));
-                if (!request) return;
-                // For now, roll a d20 + modifiers
-                const baseRoll = new Roll("1d20");
-                await baseRoll.evaluate({ async: true });
-                let total = baseRoll.total;
-                if (Array.isArray(request.modifiers)) {
-                    total += request.modifiers.reduce((a, b) => a + Number(b || 0), 0);
-                } else if (!isNaN(Number(request.modifiers))) {
-                    total += Number(request.modifiers);
-                }
-                // Send result
-                globalThis.dieRollRequestManager?.sendResult?.(request.id, userId, {
-                    roll: baseRoll.toJSON(),
-                    total,
-                    timestamp: Date.now()
-                });
-                // Re-render panel
-                this.render({ force: true });
-            });
-        });
-// Ensure the dieRollRequestManager is globally accessible for socket updates and UI
-if (typeof globalThis.dieRollRequestManager === "undefined") {
-    globalThis.dieRollRequestManager = dieRollRequestManager;
-}
-
-// Listen for socket updates to re-render the panel when requests/results change
-if (!globalThis._dieRollRequestPanelSocketBound) {
-    dieRollRequestManager._onPanelUpdate = () => {
-        const app = ui?.windows?.["totc-workspace-v2-root"];
-        if (app?.rendered) app.render({ force: true });
-    };
-    // Patch the manager's handlers to call _onPanelUpdate
-    const origHandleRequest = dieRollRequestManager._handleRequest.bind(dieRollRequestManager);
-    dieRollRequestManager._handleRequest = function (...args) {
-        origHandleRequest(...args);
-        this._onPanelUpdate?.();
-    };
-    const origHandleResult = dieRollRequestManager._handleResult.bind(dieRollRequestManager);
-    dieRollRequestManager._handleResult = function (...args) {
-        origHandleResult(...args);
-        this._onPanelUpdate?.();
-    };
-    const origHandleCancel = dieRollRequestManager._handleCancel.bind(dieRollRequestManager);
-    dieRollRequestManager._handleCancel = function (...args) {
-        origHandleCancel(...args);
-        this._onPanelUpdate?.();
-    };
-    globalThis._dieRollRequestPanelSocketBound = true;
-}
+        this.#wireRollLockGuard();
+        this.#wireDieRollRequestHandlers();
 
         this.element?.querySelectorAll("[data-action='totc-v2-exit-world']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {

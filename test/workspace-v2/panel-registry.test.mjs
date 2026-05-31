@@ -39,6 +39,17 @@ describe("WorkspacePanelRegistry", () => {
         });
     });
 
+    it("registers the die roll request panel for bottom-dock restoration", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.deepEqual(registry.get("die-roll-request"), {
+            id: "die-roll-request",
+            title: "Die Roll Request",
+            defaultDock: "bottomDock",
+            contextTags: ["dice", "rolls", "request", "gm", "player"]
+        });
+    });
+
     it("registers the scenes panel for the left dock", () => {
         const registry = new WorkspacePanelRegistry();
 
