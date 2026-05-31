@@ -7,9 +7,18 @@ import {
 } from "../../module/ui/workspace-v2/workspace-system-menu.mjs";
 
 function makeElement() {
+    const classes = new Set(["hidden", "collapsed", "minimized"]);
     return {
         hidden: true,
         attributesRemoved: [],
+        dataset: {},
+        clicked: false,
+        ariaSelected: "",
+        classList: {
+            add: (...classNames) => classNames.forEach((className) => classes.add(className)),
+            remove: (...classNames) => classNames.forEach((className) => classes.delete(className)),
+            contains: (className) => classes.has(className)
+        },
         style: {
             removed: [],
             removeProperty(property) {
@@ -18,6 +27,12 @@ function makeElement() {
         },
         removeAttribute(attribute) {
             this.attributesRemoved.push(attribute);
+        },
+        setAttribute(attribute, value) {
+            if (attribute === "aria-selected") this.ariaSelected = value;
+        },
+        click() {
+            this.clicked = true;
         }
     };
 }
@@ -31,7 +46,8 @@ function makeDocument(elements = {}) {
                 contains: (className) => classes.has(className)
             }
         },
-        querySelector: (selector) => elements[selector] ?? null
+        querySelector: (selector) => elements[selector] ?? null,
+        querySelectorAll: (selector) => elements[selector] ? [elements[selector]] : []
     };
 }
 
@@ -88,31 +104,51 @@ describe("workspace system menu", () => {
     });
 
     it("reveals the native settings sidebar regions hidden by the workspace shell", () => {
+        const settingsTab = makeElement();
+        settingsTab.dataset.tab = "settings";
         const elements = {
             "#ui-right": makeElement(),
             "#sidebar": makeElement(),
-            "#settings": makeElement()
+            "#settings": makeElement(),
+            "#sidebar-tabs [data-tab='settings'], #ui-right [data-tab='settings']": settingsTab
         };
         const document = makeDocument(elements);
         let activatedTab = "";
+        let changedTab = "";
+        let renderForce = null;
 
         revealFoundrySettingsRegions({
             document,
             ui: {
                 sidebar: {
+                    render: (force) => {
+                        renderForce = force;
+                    },
                     activateTab: (tab) => {
                         activatedTab = tab;
+                    },
+                    changeTab: (tab) => {
+                        changedTab = tab;
                     }
                 }
             }
         });
 
         assert.equal(document.body.classList.contains("totc-v2-native-settings-open"), true);
+        assert.equal(renderForce, true);
         assert.equal(activatedTab, "settings");
+        assert.equal(changedTab, "settings");
+        assert.equal(settingsTab.clicked, true);
+        assert.equal(settingsTab.classList.contains("active"), true);
+        assert.equal(settingsTab.ariaSelected, "true");
+        assert.equal(elements["#settings"].classList.contains("active"), true);
         for (const element of Object.values(elements)) {
             assert.equal(element.hidden, false);
             assert.deepEqual(element.attributesRemoved, ["hidden"]);
-            assert.deepEqual(element.style.removed, ["display", "visibility"]);
+            assert.deepEqual(element.style.removed, ["display", "visibility", "pointer-events"]);
+            assert.equal(element.classList.contains("hidden"), false);
+            assert.equal(element.classList.contains("collapsed"), false);
+            assert.equal(element.classList.contains("minimized"), false);
         }
     });
 

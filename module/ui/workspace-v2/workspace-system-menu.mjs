@@ -15,20 +15,60 @@ function getRuntime(overrides = {}) {
     };
 }
 
+function revealElement(element) {
+    if (!element) return;
+
+    element.hidden = false;
+    element.removeAttribute?.("hidden");
+    element.style?.removeProperty?.("display");
+    element.style?.removeProperty?.("visibility");
+    element.style?.removeProperty?.("pointer-events");
+    element.classList?.remove?.("hidden", "collapsed", "minimized");
+}
+
+function queryAll(document, selector) {
+    if (typeof document?.querySelectorAll === "function") return Array.from(document.querySelectorAll(selector));
+    const element = document?.querySelector?.(selector);
+    return element ? [element] : [];
+}
+
+function activateSettingsTab({ document = globalThis.document, ui = globalThis.ui } = {}) {
+    ui?.sidebar?.render?.(true);
+    ui?.sidebar?.activateTab?.("settings");
+    ui?.sidebar?.changeTab?.("settings", "primary");
+
+    const settingsTabs = queryAll(document, "#sidebar-tabs [data-tab='settings'], #ui-right [data-tab='settings']");
+    for (const tab of settingsTabs) {
+        revealElement(tab);
+        tab.classList?.add?.("active");
+        tab.setAttribute?.("aria-selected", "true");
+        tab.click?.();
+    }
+
+    for (const tab of queryAll(document, "#sidebar-tabs [data-tab], #ui-right [data-tab]")) {
+        if (tab?.dataset?.tab === "settings") continue;
+        tab.classList?.remove?.("active");
+        tab.setAttribute?.("aria-selected", "false");
+    }
+
+    const settingsPane = document?.querySelector?.("#settings");
+    revealElement(settingsPane);
+    settingsPane?.classList?.add?.("active");
+
+    for (const pane of queryAll(document, "#sidebar > .tab, #sidebar .sidebar-tab")) {
+        if (pane?.id === "settings" || pane?.dataset?.tab === "settings") continue;
+        pane.classList?.remove?.("active");
+    }
+}
+
 export function revealFoundrySettingsRegions({ document = globalThis.document, ui = globalThis.ui } = {}) {
     document?.body?.classList?.add?.(WORKSPACE_V2_NATIVE_SETTINGS_CLASS);
 
-    for (const selector of ["#ui-right", "#sidebar", "#settings"]) {
-        const element = document?.querySelector?.(selector);
-        if (!element) continue;
-
-        element.hidden = false;
-        element.removeAttribute?.("hidden");
-        element.style?.removeProperty?.("display");
-        element.style?.removeProperty?.("visibility");
+    for (const selector of ["#ui-right", "#sidebar"]) {
+        revealElement(document?.querySelector?.(selector));
     }
 
-    ui?.sidebar?.activateTab?.("settings");
+    activateSettingsTab({ document, ui });
 }
 
 function renderApplication(app) {

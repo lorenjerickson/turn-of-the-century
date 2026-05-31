@@ -1151,12 +1151,21 @@ body.totc-v2-active #board {
 body.totc-v2-active.totc-v2-native-settings-open #ui-right,
 body.totc-v2-active.totc-v2-native-settings-open #sidebar {
     display: flex !important;
+    pointer-events: auto !important;
     visibility: visible !important;
     z-index: 1200;
 }
 
+body.totc-v2-active.totc-v2-native-settings-open #sidebar-tabs,
+body.totc-v2-active.totc-v2-native-settings-open #sidebar-tabs [data-tab="settings"],
+body.totc-v2-active.totc-v2-native-settings-open #ui-right [data-tab="settings"] {
+    pointer-events: auto !important;
+    visibility: visible !important;
+}
+
 body.totc-v2-active.totc-v2-native-settings-open #settings {
     display: flex !important;
+    pointer-events: auto !important;
     visibility: visible !important;
 }
 
