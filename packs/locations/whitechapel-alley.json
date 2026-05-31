@@ -1,0 +1,19 @@
+{
+  "_id": "locwhitechapal",
+  "name": "Whitechapel Alley",
+  "type": "location",
+  "img": "icons/environment/settlement/city-gate.webp",
+  "system": {
+    "description": "<p>A cramped service lane behind public houses and lodging rooms, slick with soot-stained rain.</p>",
+    "notes": "<p>Gaslight fails here often enough that locals carry matches and keep to the wider road after midnight.</p>",
+    "locationType": "district",
+    "parentLocationId": "",
+    "features": [
+      {
+        "name": "Blind Turning",
+        "description": "A sharp corner hides a recessed delivery door and old coal chute."
+      }
+    ]
+  },
+  "flags": {}
+}

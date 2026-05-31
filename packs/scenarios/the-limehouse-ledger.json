@@ -1,0 +1,14 @@
+{
+  "_id": "scnlimeledger01",
+  "name": "The Limehouse Ledger",
+  "type": "scenario",
+  "img": "icons/sundries/documents/document-sealed-signatures-red.webp",
+  "system": {
+    "campaignId": "",
+    "description": "<p>A missing accountant leaves behind a coded ledger tying dockside shipments to private medical demonstrations.</p>",
+    "historicalNotes": "<p>Limehouse's warehouses, boarding houses, and river traffic make it a plausible crossing point for hidden trade.</p>",
+    "resolutionCriteria": "<p>The scenario resolves when the investigators identify the ledger's patron and secure proof that can survive public scrutiny.</p>",
+    "encounters": []
+  },
+  "flags": {}
+}

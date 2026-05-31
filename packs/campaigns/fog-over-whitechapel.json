@@ -1,0 +1,21 @@
+{
+  "_id": "cmpfogwhitechap",
+  "name": "Fog over Whitechapel",
+  "type": "campaign",
+  "img": "icons/sundries/documents/document-sealed-signatures-red.webp",
+  "system": {
+    "setting": "London",
+    "era": "1890s",
+    "environment": "<p>A winter of industrial smoke, gaslight, and river fog presses close upon the East End.</p>",
+    "culture": "<p>Respectability and desperation share the same narrow streets, divided by class, accent, and opportunity.</p>",
+    "socialClimate": "<p>Rumours of disappearances trouble workhouses, docks, and charitable societies alike.</p>",
+    "antagonist": {
+      "name": "The Pallid Circle",
+      "concept": "A clandestine society exploiting poverty and scientific curiosity.",
+      "motivations": "<p>The circle seeks influence through fear, patronage, and controlled public scandal.</p>"
+    },
+    "motivations": "<p>Expose the pattern behind the disappearances before the guilty can bury their evidence.</p>",
+    "scenarios": []
+  },
+  "flags": {}
+}

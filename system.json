@@ -244,14 +244,15 @@
                     "environment",
                     "culture",
                     "socialClimate",
-                    "antagonist",
+                    "antagonist.motivations",
                     "motivations"
                 ]
             },
             "scenario": {
                 "htmlFields": [
                     "description",
-                    "historicalNotes"
+                    "historicalNotes",
+                    "resolutionCriteria"
                 ]
             },
             "encounter-design": {

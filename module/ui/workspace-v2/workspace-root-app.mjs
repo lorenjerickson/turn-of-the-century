@@ -66,12 +66,7 @@ Hooks.once("ready", async () => {
     try {
         await migrateTotcStarterCompendiums({ overwrite: false, notify: false });
         ui.notifications?.info("Turn of the Century: Starter content ready.");
-        // Refresh whichever WorkspaceRootApp instance is running.
-        for (const app of Object.values(ui.windows ?? {})) {
-            if (typeof app._compendiumRefreshHandler === "function") {
-                app._compendiumRefreshHandler();
-            }
-        }
+        Hooks.callAll?.("totcStarterCompendiumsReady");
     } catch (e) {
         ui.notifications?.error("Turn of the Century: Starter content population failed — " + (e?.message ?? e));
         console.error("[turn-of-the-century] Starter compendium population error", e);
@@ -170,13 +165,17 @@ import {
 } from "./design-actions/scene-actions.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
 import {
+    requireActorDocumentClass,
     renderFoundryApplication,
     requireApplicationV2,
-    requireCombatDocumentClass
+    requireCombatDocumentClass,
+    requireItemDocumentClass
 } from "../../foundry-v14-runtime.mjs";
 
 const ApplicationV2Base = requireApplicationV2();
 const CombatDocumentClass = requireCombatDocumentClass();
+const ActorDocumentClass = requireActorDocumentClass();
+const ItemDocumentClass = requireItemDocumentClass();
 
 const DOCK_LABELS = Object.freeze({
     leftDock: "Left Dock",
@@ -1681,8 +1680,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                const cls = CONFIG.Item.documentClass || globalThis.Item;
-                const item = await cls.create({ name: "New Campaign", type: "campaign" });
+                const item = await ItemDocumentClass.create({ name: "New Campaign", type: "campaign" });
                 if (item?.sheet) item.sheet.render(true);
             });
         });
@@ -1691,8 +1689,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                const cls = CONFIG.Item.documentClass || globalThis.Item;
-                const item = await cls.create({ name: "New Scenario", type: "scenario" });
+                const item = await ItemDocumentClass.create({ name: "New Scenario", type: "scenario" });
                 if (item?.sheet) item.sheet.render(true);
             });
         });
@@ -1701,8 +1698,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                const cls = CONFIG.Item.documentClass || globalThis.Item;
-                const item = await cls.create({ name: "New Encounter", type: "encounter-design" });
+                const item = await ItemDocumentClass.create({ name: "New Encounter", type: "encounter-design" });
                 if (item?.sheet) item.sheet.render(true);
             });
         });
@@ -1764,15 +1760,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (!result) return;
 
                 const isActor = elementType === "pawn";
-                const cls = isActor ? (CONFIG.Actor.documentClass || globalThis.Actor) : (CONFIG.Item.documentClass || globalThis.Item);
-                
                 const documentData = {
                     name: result.name || "Generated Element",
                     type: elementType,
                     system: result.system || {}
                 };
 
-                const doc = await cls.create(documentData);
+                const doc = await (isActor ? ActorDocumentClass : ItemDocumentClass).create(documentData);
                 if (doc?.sheet) doc.sheet.render(true);
 
                 this._gmAssistantState.result = null;
@@ -2745,6 +2739,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         Hooks.on("createItem", this._compendiumDocumentMutationHandler);
         Hooks.on("updateItem", this._compendiumDocumentMutationHandler);
         Hooks.on("deleteItem", this._compendiumDocumentMutationHandler);
+        Hooks.on("totcStarterCompendiumsReady", this._compendiumRefreshHandler);
         this._compendiumHooksBound = true;
     }
 
@@ -2778,6 +2773,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         Hooks.off("createItem", this._compendiumDocumentMutationHandler);
         Hooks.off("updateItem", this._compendiumDocumentMutationHandler);
         Hooks.off("deleteItem", this._compendiumDocumentMutationHandler);
+        Hooks.off("totcStarterCompendiumsReady", this._compendiumRefreshHandler);
         this._compendiumHooksBound = false;
     }
 
