@@ -1712,13 +1712,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
-        this.element?.querySelectorAll("[data-action='gm-assistant-set-prompt']")?.forEach((input) => {
-            input.addEventListener("input", (event) => {
-                this._gmAssistantState.prompt = event.target.value;
-                this.render({ force: false });
-            });
-        });
-
         const handleGenerate = async () => {
             if (this._gmAssistantState.isGenerating || !this._gmAssistantState.prompt) return;
             this._gmAssistantState.isGenerating = true;
@@ -4398,6 +4391,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const scene = this.#getScenePropertiesScene();
                 this._scenePropertiesState = buildScenePropertiesNameInputState(this._scenePropertiesState, scene, value);
             }
+            if (action === "gm-assistant-set-prompt") {
+                this._gmAssistantState.prompt = value;
+            }
 
             const timer = setTimeout(async () => {
                 this._textInputDebounceTimers.delete(action);
@@ -4425,6 +4421,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 await this.#setGamemasterPanelStatePatch({ actionSearchQuery: value });
                 await this.render({ force: false });
                 focusWorkspaceTextInputAtEnd(this.element, "gm-search-actions");
+                break;
+            }
+            case "gm-assistant-set-prompt": {
+                this._gmAssistantState.prompt = value;
+                await this.render({ force: false });
+                focusWorkspaceTextInputAtEnd(this.element, "gm-assistant-set-prompt");
                 break;
             }
             case "media-browser-search": {

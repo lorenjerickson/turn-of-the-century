@@ -1,6 +1,7 @@
 export const WORKSPACE_DEBOUNCED_TEXT_INPUT_ACTIONS = Object.freeze(new Set([
     "compendium-search",
     "design-command-palette-search",
+    "gm-assistant-set-prompt",
     "gm-search-actions",
     "media-browser-search",
     "scene-properties-name"

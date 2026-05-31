@@ -19,6 +19,7 @@ describe("workspace text input debounce routing", () => {
     it("registers scene properties name as a debounced text action", () => {
         assert.equal(WORKSPACE_DEBOUNCED_TEXT_INPUT_ACTIONS.has("scene-properties-name"), true);
         assert.equal(WORKSPACE_DEBOUNCED_TEXT_INPUT_ACTIONS.has("media-browser-search"), true);
+        assert.equal(WORKSPACE_DEBOUNCED_TEXT_INPUT_ACTIONS.has("gm-assistant-set-prompt"), true);
     });
 
     it("debounces text and search inputs for registered actions", () => {
@@ -34,7 +35,7 @@ describe("workspace text input debounce routing", () => {
     });
 
     it("allows registered textareas to use the shared debounce route", () => {
-        assert.equal(isWorkspaceDebouncedTextInputTarget(input({ action: "scene-properties-name", tagName: "TEXTAREA" })), true);
+        assert.equal(isWorkspaceDebouncedTextInputTarget(input({ action: "gm-assistant-set-prompt", tagName: "TEXTAREA" })), true);
     });
 
     it("restores debounced input focus with the cursor at the end", () => {
