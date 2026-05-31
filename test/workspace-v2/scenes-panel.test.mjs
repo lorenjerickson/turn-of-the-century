@@ -48,6 +48,19 @@ describe("Scenes panel", () => {
         assert.equal(model.entries[1].grid, "Gridless");
     });
 
+    it("recognizes a saved map when draft raw source is empty but scene background is populated", () => {
+        const model = buildScenesPanelModel({
+            scenes: [{
+                id: "scene-draft",
+                name: "Draft Map",
+                _source: { background: { src: "" } },
+                background: { src: "assets/images/scenes/draft-map.webp" }
+            }]
+        });
+
+        assert.equal(model.entries[0].hasMap, true);
+    });
+
     it("renders an empty state when no scenes are defined", () => {
         const html = renderScenesPanel(buildScenesPanelModel());
 

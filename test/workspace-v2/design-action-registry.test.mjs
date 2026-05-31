@@ -60,6 +60,24 @@ describe("WorkspaceDesignActionRegistry", () => {
         assert.deepEqual(actions.map((action) => action.id), ["inspect.context", "design.issues"]);
     });
 
+    it("treats scene-specific map panels as map context", () => {
+        const actions = DEFAULT_DESIGN_ACTION_REGISTRY.getApplicableActions({
+            panelId: "map:scene-draft",
+            isGM: true
+        });
+
+        assert.deepEqual(actions.map((action) => action.id), [
+            "scene.create",
+            "scene.walls",
+            "scene.grid",
+            "scene.lights",
+            "scene.tokens",
+            "scene.notes",
+            "inspect.context",
+            "design.issues"
+        ]);
+    });
+
     it("rejects duplicate action ids", () => {
         assert.throws(() => new WorkspaceDesignActionRegistry({
             actions: [

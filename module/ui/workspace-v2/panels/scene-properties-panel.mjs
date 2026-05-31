@@ -2,6 +2,7 @@ import {
     SCENE_BACKGROUND_IMAGE_ASSET_PATH,
     SCENE_BACKGROUND_IMAGE_EXTENSIONS
 } from "../design-actions/scene-actions.mjs";
+import { getSceneBackgroundSource } from "../scene-background-source.mjs";
 
 function safeEscape(value) {
     return String(value ?? "")
@@ -54,14 +55,7 @@ export function buildScenePropertiesPanelModel(state = {}) {
         filename: selectedFilename
     });
     const uploadedPath = String(stateApplies ? state.backgroundPath ?? "" : "").trim();
-    // Read background from raw source data to avoid the deprecated Scene#background
-    // getter which was removed in Foundry v16 (deprecated since v14).
-    const currentBackgroundPath = String(
-        scene?._source?.background?.src
-        ?? scene?._source?.img
-        ?? scene?.texture?.src
-        ?? ""
-    ).trim();
+    const currentBackgroundPath = getSceneBackgroundSource(scene);
     const effectiveBackgroundPath = uploadedPath || currentBackgroundPath;
 
     return {

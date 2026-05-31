@@ -23,6 +23,15 @@ describe("Design lens panel", () => {
         ]);
     });
 
+    it("surfaces scene design actions for scene-specific map panels", () => {
+        const actions = getDesignLensActions("map:scene-draft");
+
+        assert.ok(actions.some((action) => action.id === "scene.grid"));
+        assert.ok(actions.some((action) => action.id === "scene.walls"));
+        assert.ok(actions.some((action) => action.id === "inspect.context"));
+        assert.ok(actions.some((action) => action.id === "design.issues"));
+    });
+
     it("uses injected registries for action lookup", () => {
         const registry = {
             getApplicableActions: ({ panelId, isGM }) => [{ id: `${panelId}:${isGM}`, label: "Injected", description: "Injected action." }]

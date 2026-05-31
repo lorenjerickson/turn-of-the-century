@@ -1,3 +1,5 @@
+import { getSceneBackgroundSource } from "../scene-background-source.mjs";
+
 function getSceneCollectionEntries(scenes) {
     if (!scenes) return [];
     if (Array.isArray(scenes)) return scenes;
@@ -8,14 +10,7 @@ function getSceneCollectionEntries(scenes) {
 }
 
 function defaultMapSourceResolver(scene) {
-    // Read from raw _source data to avoid the deprecated Scene#background getter
-    // (deprecated v14, removed v16).
-    return scene?._source?.background?.src
-        ?? scene?._source?.img
-        ?? scene?.texture?.src
-        ?? scene?.thumb
-        ?? scene?.thumbnail?.src
-        ?? "";
+    return getSceneBackgroundSource(scene);
 }
 
 function formatDimensions(scene) {

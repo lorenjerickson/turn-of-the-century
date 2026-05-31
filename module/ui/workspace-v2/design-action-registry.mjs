@@ -9,6 +9,12 @@ function normalizeStringArray(value = []) {
         : [];
 }
 
+function normalizePanelContextId(panelId = "") {
+    const id = String(panelId ?? "").trim();
+    if (id.startsWith("map:")) return "map";
+    return id;
+}
+
 function cloneAction(action) {
     return {
         id: action.id,
@@ -227,7 +233,7 @@ export class WorkspaceDesignActionRegistry {
     }
 
     getApplicableActions({ panelId = "", isGM = false } = {}) {
-        const activePanelId = String(panelId ?? "").trim();
+        const activePanelId = normalizePanelContextId(panelId);
         return this.#actions
             .filter((action) => this.#isActionAllowed(action, { panelId: activePanelId, isGM }))
             .sort((a, b) => b.relevance - a.relevance || a.label.localeCompare(b.label))

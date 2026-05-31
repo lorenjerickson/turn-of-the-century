@@ -61,6 +61,23 @@ describe("Scene properties panel", () => {
         assert.equal(afterUpload.backgroundChanged, true);
     });
 
+    it("uses live scene background data when raw source still has an empty draft background", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: {
+                id: "scene-draft",
+                name: "Whitechapel",
+                _source: { background: { src: "" } },
+                background: { src: "assets/images/scenes/whitechapel.webp" }
+            }
+        });
+
+        assert.equal(model.currentBackgroundPath, "assets/images/scenes/whitechapel.webp");
+        assert.equal(model.effectiveBackgroundPath, "assets/images/scenes/whitechapel.webp");
+        assert.deepEqual(buildScenePropertiesUpdateData(model), {
+            name: "Whitechapel"
+        });
+    });
+
     it("shows create mode for a newly-created draft scene bound to the panel", () => {
         const model = buildScenePropertiesPanelModel({
             scene: { id: "scene-draft", name: "New Scene", background: { src: "" } },

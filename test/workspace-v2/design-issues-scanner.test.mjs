@@ -127,6 +127,16 @@ describe("scanDesignIssues — scene checks", () => {
         assert.ok(!issues.some((i) => i.id === "scene.no-background"), "should not flag source img fallback");
     });
 
+    it("accepts live background data when an empty draft source has not caught up", () => {
+        const scene = makeScene({
+            _source: { background: { src: "" } },
+            background: { src: "scenes/saved-map.webp" }
+        });
+        const issues = scanDesignIssues({ scene });
+
+        assert.ok(!issues.some((i) => i.id === "scene.no-background"), "should not flag saved live background");
+    });
+
     it("flags a scene with no walls", () => {
         const scene = makeScene({ walls: { size: 0 } });
         const issues = scanDesignIssues({ scene });

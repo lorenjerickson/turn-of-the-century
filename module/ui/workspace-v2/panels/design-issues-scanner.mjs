@@ -1,3 +1,5 @@
+import { getSceneBackgroundSource } from "../scene-background-source.mjs";
+
 /**
  * Design Issues Scanner
  *
@@ -36,7 +38,7 @@ export class DesignIssueScanner {
         const sceneId = String(scene.id ?? "");
         const sceneName = String(scene.name ?? "Unnamed Scene");
 
-        if (!this.#sceneBackgroundSource(scene)) {
+        if (!getSceneBackgroundSource(scene)) {
             issues.push({
                 id: "scene.no-background",
                 category: "scene",
@@ -197,12 +199,6 @@ export class DesignIssueScanner {
                 navigateAction: "navigate.scene.tokens"
             });
         }
-    }
-
-    #sceneBackgroundSource(scene) {
-        // Read from raw _source data to avoid the deprecated Scene#background getter
-        // (deprecated v14, removed v16).
-        return String(scene?._source?.background?.src ?? scene?._source?.img ?? "").trim();
     }
 
     #sceneDarknessLevel(scene) {

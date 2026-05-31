@@ -114,6 +114,7 @@ import {
     buildMediaBrowserPanelModel,
     renderMediaBrowserPanel
 } from "./panels/media-browser-panel.mjs";
+import { getSceneBackgroundSource } from "./scene-background-source.mjs";
 import { WorkspaceDesignActionRegistry } from "./design-action-registry.mjs";
 import {
     getCompendiumPacks,
@@ -2304,15 +2305,7 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
     }
 
     #getSceneMapSource(scene) {
-        // Read from raw _source data to avoid the deprecated Scene#background getter
-        // (deprecated v14, removed v16).  _source holds the unprocessed document data
-        // and does not go through the compat shim.
-        return scene?._source?.background?.src
-            ?? scene?._source?.img
-            ?? scene?.texture?.src
-            ?? scene?.thumb
-            ?? scene?.thumbnail?.src
-            ?? "";
+        return getSceneBackgroundSource(scene);
     }
 
     #getViewedScene() {
