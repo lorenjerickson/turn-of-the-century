@@ -21,8 +21,12 @@ function makeElement() {
         },
         style: {
             removed: [],
+            set: [],
             removeProperty(property) {
                 this.removed.push(property);
+            },
+            setProperty(property, value, priority) {
+                this.set.push({ property, value, priority });
             }
         },
         removeAttribute(attribute) {
@@ -54,7 +58,10 @@ function makeDocument(elements = {}) {
 describe("workspace system menu", () => {
     it("opens Foundry's V14 SettingsConfig before legacy settings sheet fallback", () => {
         let renderedWith = null;
-        const document = makeDocument();
+        const settingsConfigElement = makeElement();
+        const document = makeDocument({
+            "#settings-config": settingsConfigElement
+        });
         const result = openFoundrySettingsView({
             document,
             defer: (callback) => callback(),
@@ -83,6 +90,13 @@ describe("workspace system menu", () => {
         assert.deepEqual(result, { ok: true, source: "SettingsConfig" });
         assert.deepEqual(renderedWith, { force: true });
         assert.equal(document.body.classList.contains("totc-v2-native-settings-open"), true);
+        assert.equal(settingsConfigElement.hidden, false);
+        assert.equal(settingsConfigElement.classList.contains("active"), true);
+        assert.ok(settingsConfigElement.style.set.some((entry) => (
+            entry.property === "z-index"
+            && entry.value === "1300"
+            && entry.priority === "important"
+        )));
     });
 
     it("falls back to the settings sheet when SettingsConfig is unavailable", () => {

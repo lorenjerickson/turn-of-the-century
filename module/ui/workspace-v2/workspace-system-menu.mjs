@@ -61,6 +61,23 @@ function activateSettingsTab({ document = globalThis.document, ui = globalThis.u
     }
 }
 
+function revealSettingsApplications({ document = globalThis.document } = {}) {
+    for (const selector of [
+        "#settings-config",
+        ".settings-config",
+        ".application.settings-config",
+        ".window-app.settings-config",
+        "[data-appid='settings-config']",
+        "[data-application-id='settings-config']"
+    ]) {
+        for (const app of queryAll(document, selector)) {
+            revealElement(app);
+            app.style?.setProperty?.("z-index", "1300", "important");
+            app.classList?.add?.("active");
+        }
+    }
+}
+
 export function revealFoundrySettingsRegions({ document = globalThis.document, ui = globalThis.ui } = {}) {
     document?.body?.classList?.add?.(WORKSPACE_V2_NATIVE_SETTINGS_CLASS);
 
@@ -69,6 +86,7 @@ export function revealFoundrySettingsRegions({ document = globalThis.document, u
     }
 
     activateSettingsTab({ document, ui });
+    revealSettingsApplications({ document });
 }
 
 function renderApplication(app) {
@@ -85,12 +103,14 @@ export function openFoundrySettingsView(overrides = {}) {
         const app = new SettingsConfig();
         if (renderApplication(app)) {
             runtime.defer?.(() => revealFoundrySettingsRegions(runtime), 0);
+            runtime.defer?.(() => revealSettingsApplications(runtime), 0);
             return { ok: true, source: "SettingsConfig" };
         }
     }
 
     if (renderApplication(runtime.game?.settings?.sheet)) {
         runtime.defer?.(() => revealFoundrySettingsRegions(runtime), 0);
+        runtime.defer?.(() => revealSettingsApplications(runtime), 0);
         return { ok: true, source: "game.settings.sheet" };
     }
 

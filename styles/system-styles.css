@@ -1169,6 +1169,15 @@ body.totc-v2-active.totc-v2-native-settings-open #settings {
     visibility: visible !important;
 }
 
+body.totc-v2-active.totc-v2-native-settings-open .application:not(.totc-workspace-v2-root-app),
+body.totc-v2-active.totc-v2-native-settings-open .window-app:not(.totc-workspace-v2-root-app),
+body.totc-v2-active.totc-v2-native-settings-open #settings-config,
+body.totc-v2-active.totc-v2-native-settings-open .settings-config {
+    pointer-events: auto !important;
+    visibility: visible !important;
+    z-index: 1300 !important;
+}
+
 .totc-workspace-v2-root-app {
     inset: 0 !important;
     height: 100vh !important;
