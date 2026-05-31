@@ -36,11 +36,38 @@ describe("GridCalibrationController", () => {
 
         assert.equal(result.ok, true);
         assert.deepEqual(updateData, {
+            "grid.type": 1,
             "grid.size": 100,
             shiftX: -24,
             shiftY: -18
         });
         assert.equal(controller.active, false);
+    });
+
+    it("applies manually adjusted offsets instead of reverting to zero", async () => {
+        let updateData = null;
+        const controller = new GridCalibrationController({
+            sceneResolver: () => ({
+                update: async (data) => {
+                    updateData = data;
+                }
+            }),
+            notifications: { info: () => {} }
+        });
+        controller.open({ scene: { id: "scene-1", grid: { type: 0 } } });
+        controller.setCellWidth(96);
+        controller.setOffsetX(31);
+        controller.setOffsetY(17);
+
+        const result = await controller.apply();
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(updateData, {
+            "grid.type": 1,
+            "grid.size": 96,
+            shiftX: -31,
+            shiftY: -17
+        });
     });
 
     it("keeps state open when the scene update fails", async () => {

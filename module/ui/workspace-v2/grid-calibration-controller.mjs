@@ -20,6 +20,7 @@ export class GridCalibrationController {
         this.state = {
             active: true,
             sceneId: String(scene?.id ?? ""),
+            gridType: Number(scene?.grid?.type ?? 1) || 1,
             corner1: null,
             corner2: null,
             cellW: null,
@@ -98,12 +99,13 @@ export class GridCalibrationController {
         const updateData = buildGridCalibrationSceneUpdate({
             cellW: state.cellW ?? 100,
             offsetX: state.offsetX ?? 0,
-            offsetY: state.offsetY ?? 0
+            offsetY: state.offsetY ?? 0,
+            gridType: state.gridType
         });
 
         try {
             await scene.update(updateData);
-            this.notifications?.info?.(`Grid updated: ${updateData["grid.size"]} px per cell (shift ${updateData.shiftX}, ${updateData.shiftY}).`);
+            this.notifications?.info?.(`Grid updated: ${updateData["grid.size"]} px per cell (offset ${Math.abs(updateData.shiftX)}, ${Math.abs(updateData.shiftY)}).`);
         } catch (error) {
             this.logger?.error?.("[turn-of-the-century] Grid calibration apply failed", error);
             this.notifications?.error?.("Failed to apply grid - see console for details.");

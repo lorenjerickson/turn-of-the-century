@@ -12,8 +12,9 @@
  * against that cell size becomes the grid offset — i.e. how far the grid is
  * shifted from (0, 0) on the image.
  *
- * All lengths are in image pixels at the scene's native resolution, which is
- * exactly the unit Foundry uses for scene grid size and background shift.
+ * All lengths are in image pixels at the scene's native resolution. Foundry v14
+ * stores grid size under scene.grid and applies grid phase through scene shift
+ * fields.
  */
 
 // ---------------------------------------------------------------------------
@@ -52,7 +53,7 @@ export function cornersToCellSize(corner1, corner2) {
  * Derive grid phase from the two clicked corners and the computed cell size.
  *
  * The phase is the distance from the image origin to the nearest grid line.
- * V14 applies the matching alignment through scene background shift fields.
+ * V14 applies the matching alignment through scene shift fields.
  *
  * @param {{ x: number, y: number }} corner1
  * @param {{ x: number, y: number }} corner2
@@ -70,12 +71,14 @@ export function cornersToGridOffset(corner1, corner2, { cellW, cellH }) {
     };
 }
 
-export function buildGridCalibrationSceneUpdate({ cellW = 100, offsetX = 0, offsetY = 0 } = {}) {
+export function buildGridCalibrationSceneUpdate({ cellW = 100, offsetX = 0, offsetY = 0, gridType = GRID_TYPES.SQUARE } = {}) {
     const size = Math.max(4, Math.round(Number(cellW) || 100));
     const phaseX = Math.max(0, Math.round(Number(offsetX) || 0));
     const phaseY = Math.max(0, Math.round(Number(offsetY) || 0));
+    const type = Number(gridType) === GRID_TYPES.GRIDLESS ? GRID_TYPES.SQUARE : Number(gridType) || GRID_TYPES.SQUARE;
 
     return {
+        "grid.type": type,
         "grid.size": size,
         shiftX: -phaseX,
         shiftY: -phaseY

@@ -28,8 +28,8 @@ export const DEFAULT_WORKSPACE_PANELS = Object.freeze([
     { id: "camp", title: "Camp", contextTags: ["camp", "travel"] },
     { id: "chat", title: "Chat and Messages", contextTags: ["chat", "messages"] },
     { id: "roll-feed", title: "Dice and Roll Feed", defaultDock: "bottomDock", contextTags: ["dice", "rolls", "messages"] },
-    { id: "tracker", title: "Turn Tracker", contextTags: ["combat", "turns"] }
-    ,{ id: "die-roll-request", title: "Die Roll Request", defaultDock: "bottomDock", contextTags: ["dice", "rolls", "request", "gm", "player"] }
+    { id: "tracker", title: "Turn Tracker", contextTags: ["combat", "turns"] },
+    { id: "die-roll-request", title: "Die Roll Request", defaultDock: "bottomDock", roleAccess: { internalOnly: true }, contextTags: ["dice", "rolls", "request", "player"] }
 ]);
 
 export class WorkspacePanelRegistry {
@@ -56,16 +56,21 @@ export class WorkspacePanelRegistry {
 
     getAvailability({ isGM = false } = {}) {
         return this.#panels
-            .filter((panel) => !panel.roleAccess?.gmOnly || isGM)
+            .filter((panel) => {
+                if (panel.roleAccess?.gmOnly && !isGM) return false;
+                if (panel.roleAccess?.playerOnly && isGM) return false;
+                if (panel.roleAccess?.internalOnly) return false;
+                return true;
+            })
             .map(clonePanel);
     }
 
-    getVisibilityModel(visiblePanelIds = new Set()) {
+    getVisibilityModel(visiblePanelIds = new Set(), { isGM = false } = {}) {
         const visibleIds = visiblePanelIds instanceof Set
             ? visiblePanelIds
             : new Set(Array.isArray(visiblePanelIds) ? visiblePanelIds : []);
 
-        return this.#panels.map((panel) => ({
+        return this.getAvailability({ isGM }).map((panel) => ({
             id: panel.id,
             title: panel.title,
             visible: visibleIds.has(panel.id)

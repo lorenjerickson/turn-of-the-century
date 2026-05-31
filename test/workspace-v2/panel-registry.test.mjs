@@ -28,6 +28,13 @@ describe("WorkspacePanelRegistry", () => {
         assert.equal(registry.getAvailability({ isGM: true }).some((panel) => panel.id === "gamemaster"), true);
     });
 
+    it("filters internal panels from user availability", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.equal(registry.getAvailability({ isGM: false }).some((panel) => panel.id === "die-roll-request"), false);
+        assert.equal(registry.getAvailability({ isGM: true }).some((panel) => panel.id === "die-roll-request"), false);
+    });
+
     it("registers the dice and roll feed panel for bottom-dock restoration", () => {
         const registry = new WorkspacePanelRegistry();
 
@@ -46,7 +53,8 @@ describe("WorkspacePanelRegistry", () => {
             id: "die-roll-request",
             title: "Die Roll Request",
             defaultDock: "bottomDock",
-            contextTags: ["dice", "rolls", "request", "gm", "player"]
+            roleAccess: { internalOnly: true },
+            contextTags: ["dice", "rolls", "request", "player"]
         });
     });
 
@@ -109,5 +117,15 @@ describe("WorkspacePanelRegistry", () => {
             { id: "a", title: "A", visible: false },
             { id: "b", title: "B", visible: true }
         ]);
+    });
+
+    it("omits unavailable panels from visibility models", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        const gmPanelIds = registry.getVisibilityModel(new Set(["die-roll-request"]), { isGM: true })
+            .map((panel) => panel.id);
+
+        assert.equal(gmPanelIds.includes("die-roll-request"), false);
+        assert.equal(gmPanelIds.includes("gamemaster"), true);
     });
 });

@@ -115,15 +115,30 @@ describe("Grid calibration", () => {
         }), null);
     });
 
-    it("builds a Foundry V14 scene update using background shift fields", () => {
+    it("builds a Foundry V14 scene update using scene shift fields and enables a square grid", () => {
         assert.deepEqual(buildGridCalibrationSceneUpdate({
             cellW: 100.4,
             offsetX: 24.2,
             offsetY: 18.7
         }), {
+            "grid.type": 1,
             "grid.size": 100,
             shiftX: -24,
             shiftY: -19
+        });
+    });
+
+    it("preserves an existing visible grid type when applying calibration", () => {
+        assert.deepEqual(buildGridCalibrationSceneUpdate({
+            cellW: 80,
+            offsetX: 12,
+            offsetY: 8,
+            gridType: 2
+        }), {
+            "grid.type": 2,
+            "grid.size": 80,
+            shiftX: -12,
+            shiftY: -8
         });
     });
 });

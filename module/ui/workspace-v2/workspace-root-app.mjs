@@ -79,6 +79,7 @@ import { GridCalibrationController } from "./grid-calibration-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
 import { MapViewportController } from "./map-viewport-controller.mjs";
 import { WorkspacePanelRegistry } from "./panel-registry.mjs";
+import { getDieRollRequestHostPanelId } from "./die-roll-request-routing.mjs";
 import { openFoundrySettingsView } from "./workspace-system-menu.mjs";
 import {
     focusWorkspaceTextInputAtEnd,
@@ -916,7 +917,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             .some((request) => request.isPending && (isGM || !request.hasResult(userId)));
 
         if (hasRelevantPendingRequest) {
-            const panelDef = this.panelRegistry.get("die-roll-request");
+            const panelDef = this.panelRegistry.get(getDieRollRequestHostPanelId({ isGM }));
             if (panelDef) {
                 const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "bottomDock" });
                 await this.stateStore?.setUserLayout?.(nextLayout);
@@ -1114,7 +1115,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             debugGovernance: policy.debugGovernance,
             hasUserLayout: Boolean(this.stateStore?.getUserLayout?.()),
             panels: this.panels,
-            panelVisibility: this.panelRegistry.getVisibilityModel(visiblePanels),
+            panelVisibility: this.panelRegistry.getVisibilityModel(visiblePanels, { isGM: Boolean(game.user?.isGM) }),
             designCommandPalette: buildDesignCommandPaletteModel({
                 active: this.designCommandPaletteOpen,
                 activePanel: activeWorkspacePanel,
@@ -1210,11 +1211,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const docksMarkup = WORKSPACE_V2_DOCK_IDS
             .map((dockId) => this.#renderDockMarkup(dockId, context.layout.root[dockId], context))
             .join("\n");
-        // Render die roll request panel in leftDockBottom if present
-        let dieRollRequestPanelMarkup = "";
-        if (context.dieRollRequestPanel) {
-            dieRollRequestPanelMarkup = renderDieRollRequestPanel(context.dieRollRequestPanel, { escapeHTML: (value) => this.#escapeHTML(value) });
-        }
         const panelToggleMarkup = (context.panelVisibility ?? []).map((panel) => `
             <label class="totc-v2-command-menu__panel-toggle">
                 <input
@@ -1247,7 +1243,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     <main class="totc-workspace-v2-shell__main">
         <section class="totc-v2-layout" data-layout-root="true" style="grid-template-columns:${columnTemplate};grid-template-rows:${rowTemplate};">
             ${docksMarkup}
-            ${dieRollRequestPanelMarkup}
             ${this.#renderDockSplittersMarkup(dockWeights, layoutRoot)}
             ${this.#renderFloatingWindowsMarkup(context.layout.root.floatingWindows ?? [])}
             <div class="totc-v2-ghost" data-drop-ghost="true" hidden>
@@ -2211,7 +2206,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }
 
         if (panel.id === "player") {
-            return this.#renderPlayerPanel(context.playerPanel ?? {});
+            return this.#renderPlayerPanel(context.playerPanel ?? {}, context.dieRollRequestPanel);
         }
 
         if (panel.id === "gamemaster") {
@@ -2225,15 +2220,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 </section>`;
             }
 
-            return this.#renderGamemasterPanel(context.gmPanel, context.gm);
+            return this.#renderGamemasterPanel(context.gmPanel, context.gm, context.dieRollRequestPanel);
         }
 
         return `<div class="totc-v2-panel-placeholder">${this.#escapeHTML(panel.title)}</div>`;
     }
 
-    #renderPlayerPanel(playerPanel = {}) {
+    #renderPlayerPanel(playerPanel = {}, dieRollRequestPanel = {}) {
         const actorOptionsMarkup = (playerPanel.actorOptions ?? []).map((actor) => `
             <option value="${this.#escapeHTML(actor.id)}" ${actor.selected ? "selected" : ""}>${this.#escapeHTML(actor.name)}</option>`).join("");
+        const rollPromptMarkup = this.#renderPlayerRollPrompt(dieRollRequestPanel);
 
         if (!playerPanel.hasActor) {
             return `
@@ -2248,6 +2244,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                         </select>
                     </label>
                 </article>
+                ${rollPromptMarkup}
             </section>`;
         }
 
@@ -2287,7 +2284,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             <section class="totc-v2-player-panel__sections">
                 ${sectionsMarkup || `<div class="totc-v2-player-panel__empty">No actor sections are available yet.</div>`}
             </section>
+            ${rollPromptMarkup}
         </section>`;
+    }
+
+    #renderPlayerRollPrompt(dieRollRequestPanel = {}) {
+        if (dieRollRequestPanel?.isGM || !dieRollRequestPanel?.requests?.length) return "";
+
+        return `
+        <article class="totc-v2-player-panel__roll-prompt">
+            ${renderDieRollRequestPanel(dieRollRequestPanel, {
+                escapeHTML: (value) => this.#escapeHTML(value)
+            })}
+        </article>`;
     }
 
 
@@ -2919,7 +2928,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return playerActors[0] ?? null;
     }
 
-    #renderGamemasterPanel(gmPanel = {}, gmSnapshot = {}) {
+    #renderGamemasterPanel(gmPanel = {}, gmSnapshot = {}, dieRollRequestPanel = {}) {
         const combat = gmSnapshot.combat;
         const combatSummary = combat
             ? `${combat.combatantCount} combatant${combat.combatantCount === 1 ? "" : "s"} · Round ${Math.max(1, combat.round || 1)} · Turn ${Math.max(1, (combat.turn ?? 0) + 1)}`
@@ -2954,6 +2963,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 <span>${this.#escapeHTML(row.label)}</span>
                 <span>${this.#escapeHTML(row.value)}</span>
             </div>`).join("");
+        const dieRollRequestsMarkup = renderDieRollRequestPanel(dieRollRequestPanel, {
+            escapeHTML: (value) => this.#escapeHTML(value)
+        });
 
         return `
         <section class="totc-v2-gm-panel">
@@ -2968,6 +2980,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             <section class="totc-v2-gm-panel__groups">
                 ${groupsMarkup || `<div class="totc-v2-gm-panel__empty">No context groups are active right now.</div>`}
             </section>
+            <article class="totc-v2-gm-panel__roll-requests">
+                <div class="totc-v2-gm-panel__group-header">
+                    <span>Die Roll Requests</span>
+                    <span class="totc-v2-gm-panel__group-meta">${Number(dieRollRequestPanel?.requests?.length ?? 0)}</span>
+                </div>
+                <div class="totc-v2-gm-panel__roll-requests-body">
+                    ${dieRollRequestsMarkup}
+                </div>
+            </article>
             <article class="totc-v2-gm-panel__all-actions ${gmPanel.allActionsExpanded ? "is-expanded" : ""}">
                 <button type="button" class="totc-v2-gm-panel__group-header" data-action="gm-toggle-all-actions" aria-expanded="${gmPanel.allActionsExpanded ? "true" : "false"}">
                     <span>All GM Actions</span>
@@ -4109,31 +4130,39 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         // Number inputs update state + redraw the overlay without a full render
         this.element?.querySelectorAll("[data-action='grid-cal-cell-w']")?.forEach((input) => {
-            input.addEventListener("input", () => {
+            const handleInput = () => {
                 this.gridCalibrationController.setCellWidth(input.value);
                 this.#drawGridCalibrationOverlay();
-            });
+            };
+            input.addEventListener("input", handleInput);
+            input.addEventListener("change", handleInput);
         });
 
         this.element?.querySelectorAll("[data-action='grid-cal-cell-h']")?.forEach((input) => {
-            input.addEventListener("input", () => {
+            const handleInput = () => {
                 this.gridCalibrationController.setCellHeight(input.value);
                 this.#drawGridCalibrationOverlay();
-            });
+            };
+            input.addEventListener("input", handleInput);
+            input.addEventListener("change", handleInput);
         });
 
         this.element?.querySelectorAll("[data-action='grid-cal-offset-x']")?.forEach((input) => {
-            input.addEventListener("input", () => {
+            const handleInput = () => {
                 this.gridCalibrationController.setOffsetX(input.value);
                 this.#drawGridCalibrationOverlay();
-            });
+            };
+            input.addEventListener("input", handleInput);
+            input.addEventListener("change", handleInput);
         });
 
         this.element?.querySelectorAll("[data-action='grid-cal-offset-y']")?.forEach((input) => {
-            input.addEventListener("input", () => {
+            const handleInput = () => {
                 this.gridCalibrationController.setOffsetY(input.value);
                 this.#drawGridCalibrationOverlay();
-            });
+            };
+            input.addEventListener("input", handleInput);
+            input.addEventListener("change", handleInput);
         });
 
         this.element?.querySelectorAll("[data-action='grid-cal-confirm']")?.forEach((btn) => {
@@ -4259,6 +4288,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async #applyGridCalibration() {
         const state = this.gridCalibrationController.state;
         if (!state?.active) return;
+        this.#syncGridCalibrationStateFromInputs();
 
         const scene = state.sceneId
             ? game.scenes?.get(state.sceneId)
@@ -4272,13 +4302,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const updateData = buildGridCalibrationSceneUpdate({
             cellW: state.cellW ?? 100,
             offsetX: state.offsetX ?? 0,
-            offsetY: state.offsetY ?? 0
+            offsetY: state.offsetY ?? 0,
+            gridType: state.gridType
         });
         const size = updateData["grid.size"];
 
         try {
             await scene.update(updateData);
-            ui.notifications?.info(`Grid updated: ${size} px per cell (shift ${updateData.shiftX}, ${updateData.shiftY}).`);
+            ui.notifications?.info(`Grid updated: ${size} px per cell (offset ${Math.abs(updateData.shiftX)}, ${Math.abs(updateData.shiftY)}).`);
         } catch (err) {
             console.error("[turn-of-the-century] Grid calibration apply failed", err);
             ui.notifications?.error("Failed to apply grid — see console for details.");
@@ -4287,6 +4318,22 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.gridCalibrationController.close();
         this.render({ force: false });
+    }
+
+    #syncGridCalibrationStateFromInputs() {
+        const root = this.element?.querySelector("[data-grid-calibration='true']");
+        if (!root) return;
+
+        const readNumber = (action) => root.querySelector(`[data-action='${action}']`)?.value;
+        const cellW = readNumber("grid-cal-cell-w");
+        const cellH = readNumber("grid-cal-cell-h");
+        const offsetX = readNumber("grid-cal-offset-x");
+        const offsetY = readNumber("grid-cal-offset-y");
+
+        if (cellW !== undefined) this.gridCalibrationController.setCellWidth(cellW);
+        if (cellH !== undefined) this.gridCalibrationController.setCellHeight(cellH);
+        if (offsetX !== undefined) this.gridCalibrationController.setOffsetX(offsetX);
+        if (offsetY !== undefined) this.gridCalibrationController.setOffsetY(offsetY);
     }
 
     #wireDebouncedTextInputHandlers() {

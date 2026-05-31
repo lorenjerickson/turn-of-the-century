@@ -3213,12 +3213,13 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
 .turn-of-the-century .totc-v2-player-panel {
     display: grid;
     gap: 0.45rem;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
     height: 100%;
     min-height: 0;
 }
 
 .turn-of-the-century .totc-v2-player-panel__state,
+.turn-of-the-century .totc-v2-player-panel__roll-prompt,
 .turn-of-the-century .totc-v2-player-panel__section {
     background: rgba(15, 23, 42, 0.5);
     border: 1px solid rgba(148, 163, 184, 0.22);
@@ -3435,6 +3436,20 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     text-align: center;
 }
 
+.turn-of-the-century .totc-v2-player-panel__roll-prompt {
+    min-height: 12rem;
+    overflow: hidden;
+    padding: 0.55rem 0.6rem;
+}
+
+.turn-of-the-century .totc-v2-player-panel__roll-prompt .totc-v2-die-roll-request-panel {
+    grid-template-rows: auto minmax(0, 1fr);
+}
+
+.turn-of-the-century .totc-v2-player-panel__roll-prompt .totc-v2-die-roll-request-panel__queue {
+    max-height: 3.25rem;
+}
+
 @keyframes totc-player-section-reveal {
     0% {
         background-color: rgba(245, 158, 11, 0.36);
@@ -3539,6 +3554,7 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
 }
 
 .turn-of-the-century .totc-v2-gm-panel__state,
+.turn-of-the-century .totc-v2-gm-panel__roll-requests,
 .turn-of-the-century .totc-v2-gm-panel__all-actions {
     background: rgba(15, 23, 42, 0.5);
     border: 1px solid rgba(148, 163, 184, 0.22);
@@ -3642,6 +3658,21 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     flex: 0 0 auto;
     gap: 0.35rem;
     margin-top: auto;
+}
+
+.turn-of-the-century .totc-v2-gm-panel__roll-requests {
+    display: grid;
+    flex: 0 0 auto;
+    gap: 0.35rem;
+    min-height: 12rem;
+}
+
+.turn-of-the-century .totc-v2-gm-panel__roll-requests-body {
+    min-height: 0;
+}
+
+.turn-of-the-century .totc-v2-gm-panel__roll-requests .totc-v2-gm-panel__group-header {
+    cursor: default;
 }
 
 .turn-of-the-century .totc-v2-gm-panel__all-actions-body {
