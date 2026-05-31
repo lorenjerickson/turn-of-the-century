@@ -69,3 +69,7 @@ The actor should evoke anxious wonder: progress casting a longer shadow than it 
 ## Output Priorities
 
 The generated actor should be immediately usable in play, with a clear type, strong identity, useful table hooks, plausible equipment, quirks, talents, and enough mechanical shape to create a Foundry actor of the selected type.
+
+## JSON Response Requirement
+
+Return the final result as a single valid JSON object only. Do not include Markdown fences, explanatory prose outside the JSON, or trailing commentary. The JSON must match the schema constraints supplied by the generation service.

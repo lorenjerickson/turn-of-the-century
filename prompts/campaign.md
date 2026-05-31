@@ -55,3 +55,7 @@ The campaign should evoke anxious wonder: progress casting a longer shadow than 
 ## Output Priorities
 
 The generated campaign should help a GM run a session zero and understand the campaign's long arc. It should be immediately useful as a campaign seed, with enough structure to generate linked scenarios later.
+
+## JSON Response Requirement
+
+Return the final result as a single valid JSON object only. Do not include Markdown fences, explanatory prose outside the JSON, or trailing commentary. The JSON must match the schema constraints supplied by the generation service.

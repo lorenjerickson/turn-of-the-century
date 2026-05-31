@@ -63,3 +63,7 @@ The location should evoke anxious wonder: progress casting a longer shadow than 
 ## Output Priorities
 
 The generated location should help a GM place the site on the world map, understand its parent geography, describe what is obvious to the party, preserve meaningful discoveries for play, and reuse the location in scenarios, encounters, travel, and maps.
+
+## JSON Response Requirement
+
+Return the final result as a single valid JSON object only. Do not include Markdown fences, explanatory prose outside the JSON, or trailing commentary. The JSON must match the schema constraints supplied by the generation service.

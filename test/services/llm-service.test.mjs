@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it, beforeEach, afterEach } from "node:test";
 import {
     GENERATION_PROMPT_PATHS,
@@ -57,6 +58,15 @@ describe("LLMService", () => {
         assert.equal(GENERATION_PROMPT_PATHS.actor, "prompts/actor.md");
         assert.equal(GENERATION_PROMPT_PATHS.pawn, "prompts/actor.md");
         assert.equal(GENERATION_PROMPT_PATHS.location, "prompts/location.md");
+    });
+
+    it("keeps prep prompts explicit about JSON output", () => {
+        for (const promptPath of new Set(Object.values(GENERATION_PROMPT_PATHS))) {
+            const promptText = readFileSync(new URL(`../../${promptPath}`, import.meta.url), "utf8");
+
+            assert.match(promptText, /single valid JSON object only/i, promptPath);
+            assert.match(promptText, /schema constraints supplied by the generation service/i, promptPath);
+        }
     });
 
     it("loads generation prep prompts from the prompts folder", async () => {
@@ -207,7 +217,7 @@ describe("LLMService", () => {
         assert.equal(fetchCall.options.headers.Authorization, "Bearer test-key");
 
         const body = JSON.parse(fetchCall.options.body);
-        assert.equal(body.model, "gpt-5.4-nano");
+        assert.equal(body.model, "gpt-5.5-thinking");
         assert.equal(body.input, "Hello LLM");
         assert.deepEqual(body.text.format, { type: "json_object" });
         assert.ok(body.instructions.includes("System Instruction"));

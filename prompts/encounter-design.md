@@ -66,3 +66,7 @@ The encounter should evoke anxious wonder: progress casting a longer shadow than
 ## Output Priorities
 
 The generated encounter should help a GM place heroes, pawns, villains, hazards, and objectives into immediate contact. It should clearly identify or create required locations and actors, support noncombat as well as combat play, account for hidden or delayed participants, and provide success and failure conditions that matter beyond the encounter.
+
+## JSON Response Requirement
+
+Return the final result as a single valid JSON object only. Do not include Markdown fences, explanatory prose outside the JSON, or trailing commentary. The JSON must match the schema constraints supplied by the generation service.
