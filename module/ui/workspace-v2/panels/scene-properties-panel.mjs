@@ -90,6 +90,29 @@ export function buildScenePropertiesNameInputState(currentState = {}, scene = nu
     };
 }
 
+export function buildScenePropertiesSavedState({ scene = null, model = {} } = {}) {
+    const savedBackgroundPath = String(
+        model.backgroundPath
+        || model.currentBackgroundPath
+        || model.effectiveBackgroundPath
+        || ""
+    ).trim();
+
+    return {
+        sceneId: scene?.id ?? scene?._id ?? model.sceneId ?? "",
+        sceneName: null,
+        selectedFilename: "",
+        backgroundPath: "",
+        previewPath: "",
+        savedBackgroundPath,
+        createMode: false,
+        status: model.backgroundChanged
+            ? "Scene saved. Grid calibration was cleared for the new background."
+            : "Scene saved.",
+        error: ""
+    };
+}
+
 export function buildScenePropertiesUpdateData(model = {}) {
     const sceneName = String(model.sceneName ?? "").trim();
     const backgroundPath = String(model.backgroundPath ?? "").trim();
@@ -149,7 +172,7 @@ export function getScenePropertiesStagedBackgroundPath(state = {}, scene = null)
     const stateSceneId = String(state.sceneId ?? "").trim();
     if (!sceneId || !stateSceneId || sceneId !== stateSceneId) return "";
 
-    return String(state.previewPath ?? state.backgroundPath ?? "").trim();
+    return String(state.previewPath || state.backgroundPath || state.savedBackgroundPath || "").trim();
 }
 
 export function renderScenePropertiesPanel(model = {}, { escapeHTML = safeEscape } = {}) {

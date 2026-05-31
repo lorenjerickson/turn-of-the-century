@@ -136,6 +136,7 @@ import {
     buildSceneBackgroundUploadTarget,
     buildScenePropertiesPanelModel,
     buildScenePropertiesNameInputState,
+    buildScenePropertiesSavedState,
     buildScenePropertiesUpdateData,
     getScenePropertiesStagedBackgroundPath,
     resolveScenePropertiesScene,
@@ -777,6 +778,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             selectedFilename: "",
             backgroundPath: "",
             previewPath: "",
+            savedBackgroundPath: "",
             createMode: false,
             status: "",
             error: ""
@@ -4295,6 +4297,7 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
             selectedFilename: "",
             backgroundPath: "",
             previewPath: "",
+            savedBackgroundPath: "",
             createMode: false,
             status: "",
             error: ""
@@ -4336,6 +4339,7 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
             selectedFilename: "",
             backgroundPath: "",
             previewPath: "",
+            savedBackgroundPath: "",
             createMode: true,
             status: "New scene created. Enter a name, then upload a background image.",
             error: ""
@@ -4375,6 +4379,7 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
                     selectedFilename: file.name,
                     backgroundPath: "",
                     previewPath,
+                    savedBackgroundPath: "",
                     createMode: Boolean(this._scenePropertiesState.createMode),
                     status: target.valid ? `Uploading ${target.filename}...` : "",
                     error: target.valid ? "" : "Choose a supported image after entering a scene name."
@@ -4395,6 +4400,7 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
                     this._scenePropertiesState = {
                         ...this._scenePropertiesState,
                         backgroundPath: "",
+                        savedBackgroundPath: "",
                         createMode: Boolean(this._scenePropertiesState.createMode),
                         status: "",
                         error: result?.message ?? "Scene background upload failed."
@@ -4406,6 +4412,7 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
                 this._scenePropertiesState = {
                     ...this._scenePropertiesState,
                     backgroundPath: result.path,
+                    savedBackgroundPath: "",
                     createMode: Boolean(this._scenePropertiesState.createMode),
                     status: `Uploaded ${result.filename}.`,
                     error: ""
@@ -4424,6 +4431,7 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
                     selectedFilename: "",
                     backgroundPath: "",
                     previewPath: "",
+                    savedBackgroundPath: "",
                     createMode: false,
                     status: "",
                     error: ""
@@ -4475,6 +4483,7 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
                     selectedFilename: "",
                     backgroundPath: "",
                     previewPath: "",
+                    savedBackgroundPath: "",
                     createMode: false,
                     status: `Deleted ${sceneName}.`,
                     error: ""
@@ -4530,18 +4539,7 @@ if (!globalThis._dieRollRequestPanelSocketBound) {
                     return;
                 }
 
-                this._scenePropertiesState = {
-                    sceneId: scene.id ?? scene._id ?? "",
-                    sceneName: null,
-                    selectedFilename: "",
-                    backgroundPath: "",
-                    previewPath: "",
-                    createMode: false,
-                    status: model.backgroundChanged
-                        ? "Scene saved. Grid calibration was cleared for the new background."
-                        : "Scene saved.",
-                    error: ""
-                };
+                this._scenePropertiesState = buildScenePropertiesSavedState({ scene, model });
                 this.render({ force: false });
             });
         });

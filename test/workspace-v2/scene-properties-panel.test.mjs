@@ -5,6 +5,7 @@ import {
     buildSceneBackgroundUploadTarget,
     buildScenePropertiesPanelModel,
     buildScenePropertiesNameInputState,
+    buildScenePropertiesSavedState,
     buildScenePropertiesUpdateData,
     getScenePropertiesStagedBackgroundPath,
     resolveScenePropertiesScene,
@@ -247,6 +248,28 @@ describe("Scene properties panel", () => {
             "assets/images/scenes/draft-map.webp"
         );
         assert.equal(getScenePropertiesStagedBackgroundPath(state, { id: "scene-other" }), "");
+    });
+
+    it("keeps a saved background fallback for the open map panel without locking scene edits", () => {
+        const state = buildScenePropertiesSavedState({
+            scene: { id: "scene-draft" },
+            model: {
+                sceneId: "scene-draft",
+                backgroundPath: "assets/images/scenes/draft-map.webp",
+                currentBackgroundPath: "",
+                effectiveBackgroundPath: "assets/images/scenes/draft-map.webp",
+                backgroundChanged: true
+            }
+        });
+
+        assert.equal(state.backgroundPath, "");
+        assert.equal(state.previewPath, "");
+        assert.equal(state.savedBackgroundPath, "assets/images/scenes/draft-map.webp");
+        assert.equal(scenePropertiesStateLocksScene(state), false);
+        assert.equal(
+            getScenePropertiesStagedBackgroundPath(state, { id: "scene-draft" }),
+            "assets/images/scenes/draft-map.webp"
+        );
     });
 
     it("prefers the selected local preview while retaining the upload path for save", () => {
