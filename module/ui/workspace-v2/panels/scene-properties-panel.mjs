@@ -201,6 +201,27 @@ export function getScenePropertiesStagedBackgroundPath(state = {}, scene = null)
     return String(state.previewPath || state.backgroundPath || state.savedBackgroundPath || "").trim();
 }
 
+export function resolveScenePropertiesMapPanelScene({
+    panel = null,
+    currentScene = null,
+    sceneResolver = () => null
+} = {}) {
+    const panelId = String(panel?.id ?? "");
+    const explicitSceneId = String(panel?.sceneId ?? (panelId.startsWith("map:") ? panelId.slice(4) : "")).trim();
+
+    if (explicitSceneId) {
+        return {
+            sceneId: explicitSceneId,
+            scene: sceneResolver(explicitSceneId) ?? null
+        };
+    }
+
+    return {
+        sceneId: String(currentScene?.id ?? currentScene?._id ?? "").trim(),
+        scene: currentScene ?? null
+    };
+}
+
 export function renderScenePropertiesPanel(model = {}, { escapeHTML = safeEscape } = {}) {
     const uploadDisabled = model.uploadEnabled ? "" : "disabled";
     const saveDisabled = model.saveEnabled ? "" : "disabled";

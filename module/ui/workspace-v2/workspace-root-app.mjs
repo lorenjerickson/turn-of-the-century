@@ -135,6 +135,7 @@ import {
     buildScenePropertiesSavedState,
     buildScenePropertiesUpdateData,
     getScenePropertiesStagedBackgroundPath,
+    resolveScenePropertiesMapPanelScene,
     resolveScenePropertiesScene,
     renderScenePropertiesPanel,
     scenePropertiesStateLocksScene
@@ -2496,8 +2497,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #getMapPanelScene(panel, context = {}) {
-        const sceneId = panel?.sceneId ?? (String(panel?.id ?? "").startsWith("map:") ? String(panel.id).slice(4) : "");
-        const scene = this.#getSceneDocumentById(sceneId);
+        const currentScene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
+        const { sceneId, scene } = resolveScenePropertiesMapPanelScene({
+            panel,
+            currentScene,
+            sceneResolver: (id) => this.#getSceneDocumentById(id)
+        });
         const stagedMapSrc = getScenePropertiesStagedBackgroundPath(this._scenePropertiesState, scene);
         if (scene) return this.#buildSceneViewModel(scene, { id: sceneId, mapSrc: stagedMapSrc });
         if (sceneId) return this.#buildSceneViewModel(null, { id: sceneId, name: panel?.title ?? "Missing Scene" });

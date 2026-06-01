@@ -8,6 +8,7 @@ import {
     buildScenePropertiesSavedState,
     buildScenePropertiesUpdateData,
     getScenePropertiesStagedBackgroundPath,
+    resolveScenePropertiesMapPanelScene,
     resolveScenePropertiesScene,
     renderScenePropertiesPanel,
     scenePropertiesStateLocksScene,
@@ -248,6 +249,39 @@ describe("Scene properties panel", () => {
             "assets/images/scenes/draft-map.webp"
         );
         assert.equal(getScenePropertiesStagedBackgroundPath(state, { id: "scene-other" }), "");
+    });
+
+    it("resolves the generic map panel to the current scene so staged backgrounds can preview", () => {
+        const currentScene = { id: "scene-draft", name: "Draft Scene" };
+        const resolved = resolveScenePropertiesMapPanelScene({
+            panel: { id: "map" },
+            currentScene
+        });
+
+        assert.equal(resolved.sceneId, "scene-draft");
+        assert.equal(resolved.scene, currentScene);
+        assert.equal(
+            getScenePropertiesStagedBackgroundPath({
+                sceneId: "scene-draft",
+                previewPath: "blob:local-map-preview",
+                backgroundPath: "assets/images/scenes/draft-map.webp"
+            }, resolved.scene),
+            "blob:local-map-preview"
+        );
+    });
+
+    it("resolves scene-specific map panels without falling back to the current scene", () => {
+        const panelScene = { id: "scene-b", name: "Panel Scene" };
+        const currentScene = { id: "scene-a", name: "Current Scene" };
+
+        const resolved = resolveScenePropertiesMapPanelScene({
+            panel: { id: "map:scene-b", baseId: "map", sceneId: "scene-b" },
+            currentScene,
+            sceneResolver: (sceneId) => sceneId === "scene-b" ? panelScene : null
+        });
+
+        assert.equal(resolved.sceneId, "scene-b");
+        assert.equal(resolved.scene, panelScene);
     });
 
     it("keeps a saved background fallback for the open map panel without locking scene edits", () => {
