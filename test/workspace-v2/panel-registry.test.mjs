@@ -69,6 +69,25 @@ describe("WorkspacePanelRegistry", () => {
         });
     });
 
+    it("registers GM actor list and editor panels for actor management", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.deepEqual(registry.get("actors"), {
+            id: "actors",
+            title: "Actors",
+            defaultDock: "leftDock",
+            roleAccess: { gmOnly: true },
+            contextTags: ["gm", "actor", "search"]
+        });
+        assert.deepEqual(registry.get("actor-editor"), {
+            id: "actor-editor",
+            title: "Actor Details",
+            defaultDock: "leftDock",
+            roleAccess: { gmOnly: true },
+            contextTags: ["gm", "actor", "design"]
+        });
+    });
+
     it("registers the GM inspector panel for right-dock restoration", () => {
         const registry = new WorkspacePanelRegistry();
 

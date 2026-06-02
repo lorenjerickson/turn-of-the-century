@@ -1,0 +1,315 @@
+const ACTOR_TYPES = Object.freeze(["hero", "pawn", "villain"]);
+const DEFAULT_ACTOR_TYPE = "pawn";
+
+function getCollectionEntries(collection) {
+    if (!collection) return [];
+    if (Array.isArray(collection)) return collection;
+    if (Array.isArray(collection.contents)) return collection.contents;
+    if (typeof collection.values === "function") return Array.from(collection.values());
+    if (typeof collection[Symbol.iterator] === "function") return Array.from(collection);
+    return [];
+}
+
+function actorId(actor) {
+    return String(actor?.id ?? actor?._id ?? actor?.uuid ?? "");
+}
+
+function actorName(actor) {
+    return String(actor?.name ?? "Unnamed Actor");
+}
+
+function actorSystem(actor) {
+    return actor?.system ?? {};
+}
+
+function normalizeActorType(type) {
+    const value = String(type ?? "").trim().toLowerCase();
+    return ACTOR_TYPES.includes(value) ? value : DEFAULT_ACTOR_TYPE;
+}
+
+function getPathValue(source, path, fallback = "") {
+    const parts = String(path ?? "").split(".").filter(Boolean);
+    let value = source;
+    for (const part of parts) {
+        value = value?.[part];
+        if (value === undefined || value === null) return fallback;
+    }
+    return value;
+}
+
+function setPathValue(target, path, value) {
+    const parts = String(path ?? "").split(".").filter(Boolean);
+    if (!parts.length) return;
+    let cursor = target;
+    for (const part of parts.slice(0, -1)) {
+        cursor[part] ??= {};
+        cursor = cursor[part];
+    }
+    cursor[parts.at(-1)] = value;
+}
+
+function stringifyArray(value) {
+    return Array.isArray(value) ? value.join(", ") : String(value ?? "");
+}
+
+function parseArray(value) {
+    return String(value ?? "")
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+}
+
+function coerceFieldValue(path, value) {
+    const numberPaths = new Set([
+        "system.progression.level",
+        "system.progression.proficiencyBonus",
+        "system.villain.threatTier",
+        "system.villain.notoriety",
+        "system.pawn.threat",
+        "system.hero.renown",
+        "system.abilities.str.value",
+        "system.abilities.dex.value",
+        "system.abilities.con.value",
+        "system.abilities.int.value",
+        "system.abilities.wis.value",
+        "system.abilities.cha.value",
+        "system.abilities.san.value"
+    ]);
+    const arrayPaths = new Set([
+        "system.profile.tags",
+        "system.traits.languages",
+        "system.hero.bonds",
+        "system.villain.lieutenants"
+    ]);
+
+    if (arrayPaths.has(path)) return parseArray(value);
+    if (!numberPaths.has(path)) return String(value ?? "");
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function fieldValue(actor, path, staged = {}) {
+    if (Object.hasOwn(staged, path)) return staged[path];
+    const source = path === "name" ? actor : actor;
+    const value = getPathValue(source, path, "");
+    return Array.isArray(value) ? stringifyArray(value) : String(value ?? "");
+}
+
+export function buildActorListPanelModel({
+    actors = [],
+    query = "",
+    selectedActorId = "",
+    showCreate = false
+} = {}) {
+    const normalizedQuery = String(query ?? "").trim().toLowerCase();
+    const allEntries = getCollectionEntries(actors)
+        .filter(Boolean)
+        .map((actor) => {
+            const id = actorId(actor);
+            const system = actorSystem(actor);
+            return {
+                id,
+                name: actorName(actor),
+                type: normalizeActorType(actor?.type),
+                selected: Boolean(id && id === selectedActorId),
+                summary: system.profile?.summary ?? "",
+                role: system.profile?.role ?? system.pawn?.role ?? system.hero?.archetype ?? system.villain?.scheme ?? ""
+            };
+        })
+        .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
+
+    const entries = normalizedQuery
+        ? allEntries.filter((entry) => entry.name.toLowerCase().includes(normalizedQuery))
+        : allEntries;
+
+    return {
+        allCount: allEntries.length,
+        count: entries.length,
+        query: String(query ?? ""),
+        showCreate: Boolean(showCreate),
+        entries
+    };
+}
+
+export function buildActorEditorPanelModel({
+    actor = null,
+    state = {}
+} = {}) {
+    const mode = state.mode === "create" ? "create" : actor ? "edit" : "empty";
+    const actorType = normalizeActorType(state.actorType ?? actor?.type);
+    const staged = state.formData && typeof state.formData === "object" ? state.formData : {};
+
+    return {
+        mode,
+        actorId: actorId(actor),
+        actorType,
+        actorTypeOptions: ACTOR_TYPES.map((type) => ({
+            value: type,
+            label: type[0].toUpperCase() + type.slice(1),
+            selected: type === actorType
+        })),
+        isGenerating: Boolean(state.isGenerating),
+        dirty: Boolean(state.dirty),
+        status: String(state.status ?? ""),
+        error: String(state.error ?? ""),
+        additionalPrompt: String(state.additionalPrompt ?? ""),
+        fields: actor ? buildEditableActorFields(actor, staged, actorType) : []
+    };
+}
+
+export function buildEditableActorFields(actor, staged = {}, actorType = normalizeActorType(actor?.type)) {
+    const fields = [
+        { path: "name", label: "Name", type: "text", value: fieldValue(actor, "name", staged), section: "Identity" },
+        { path: "system.profile.role", label: "Role", type: "text", value: fieldValue(actor, "system.profile.role", staged), section: "Identity" },
+        { path: "system.profile.faction", label: "Faction", type: "text", value: fieldValue(actor, "system.profile.faction", staged), section: "Identity" },
+        { path: "system.classification.category", label: "Category", type: "text", value: fieldValue(actor, "system.classification.category", staged), section: "Classification" },
+        { path: "system.classification.species", label: "Species", type: "text", value: fieldValue(actor, "system.classification.species", staged), section: "Classification" },
+        { path: "system.classification.profession", label: "Profession", type: "text", value: fieldValue(actor, "system.classification.profession", staged), section: "Classification" },
+        { path: "system.progression.level", label: "Level", type: "number", value: fieldValue(actor, "system.progression.level", staged), section: "Progression" },
+        { path: "system.progression.challenge", label: "Challenge", type: "text", value: fieldValue(actor, "system.progression.challenge", staged), section: "Progression" },
+        { path: "system.profile.summary", label: "Summary", type: "textarea", value: fieldValue(actor, "system.profile.summary", staged), section: "Notes" },
+        { path: "system.biography", label: "Biography", type: "textarea", value: fieldValue(actor, "system.biography", staged), section: "Notes" },
+        { path: "system.notes", label: "GM Notes", type: "textarea", value: fieldValue(actor, "system.notes", staged), section: "Notes" },
+        { path: "system.profile.tags", label: "Tags", type: "text", value: fieldValue(actor, "system.profile.tags", staged), section: "Notes" },
+        { path: "system.traits.languages", label: "Languages", type: "text", value: fieldValue(actor, "system.traits.languages", staged), section: "Notes" }
+    ];
+
+    const abilityFields = ["str", "dex", "con", "int", "wis", "cha", "san"].map((key) => ({
+        path: `system.abilities.${key}.value`,
+        label: key.toUpperCase(),
+        type: "number",
+        value: fieldValue(actor, `system.abilities.${key}.value`, staged),
+        section: "Abilities"
+    }));
+
+    const typedFields = {
+        hero: [
+            { path: "system.hero.archetype", label: "Archetype", type: "text", value: fieldValue(actor, "system.hero.archetype", staged), section: "Hero" },
+            { path: "system.hero.rank", label: "Rank", type: "text", value: fieldValue(actor, "system.hero.rank", staged), section: "Hero" },
+            { path: "system.hero.renown", label: "Renown", type: "number", value: fieldValue(actor, "system.hero.renown", staged), section: "Hero" },
+            { path: "system.hero.bonds", label: "Bonds", type: "text", value: fieldValue(actor, "system.hero.bonds", staged), section: "Hero" }
+        ],
+        pawn: [
+            { path: "system.pawn.role", label: "Pawn Role", type: "text", value: fieldValue(actor, "system.pawn.role", staged), section: "Pawn" },
+            { path: "system.pawn.threat", label: "Threat", type: "number", value: fieldValue(actor, "system.pawn.threat", staged), section: "Pawn" },
+            { path: "system.pawn.disposition", label: "Disposition", type: "text", value: fieldValue(actor, "system.pawn.disposition", staged), section: "Pawn" },
+            { path: "system.pawn.squad", label: "Squad", type: "text", value: fieldValue(actor, "system.pawn.squad", staged), section: "Pawn" }
+        ],
+        villain: [
+            { path: "system.villain.scheme", label: "Scheme", type: "text", value: fieldValue(actor, "system.villain.scheme", staged), section: "Villain" },
+            { path: "system.villain.threatTier", label: "Threat Tier", type: "number", value: fieldValue(actor, "system.villain.threatTier", staged), section: "Villain" },
+            { path: "system.villain.notoriety", label: "Notoriety", type: "number", value: fieldValue(actor, "system.villain.notoriety", staged), section: "Villain" },
+            { path: "system.villain.lieutenants", label: "Lieutenants", type: "text", value: fieldValue(actor, "system.villain.lieutenants", staged), section: "Villain" }
+        ]
+    };
+
+    return [...fields.slice(0, 8), ...abilityFields, ...(typedFields[actorType] ?? []), ...fields.slice(8)];
+}
+
+export function buildActorUpdateDataFromFormData(formData) {
+    const updateData = {};
+    for (const [path, rawValue] of formData.entries()) {
+        if (!path || path === "actorId") continue;
+        setPathValue(updateData, path, coerceFieldValue(path, rawValue));
+    }
+    return updateData;
+}
+
+export function buildGeneratedActorDocumentData(result = {}, actorType = DEFAULT_ACTOR_TYPE) {
+    return {
+        name: String(result.name ?? "Generated Actor").trim() || "Generated Actor",
+        type: normalizeActorType(actorType),
+        system: result.system && typeof result.system === "object" ? result.system : {}
+    };
+}
+
+function renderField(field, escapeHTML) {
+    const value = escapeHTML(field.value ?? "");
+    const common = `name="${escapeHTML(field.path)}" data-action="actor-editor-field" data-actor-field="${escapeHTML(field.path)}"`;
+    const control = field.type === "textarea"
+        ? `<textarea ${common}>${value}</textarea>`
+        : `<input ${common} type="${escapeHTML(field.type ?? "text")}" value="${value}">`;
+    return `<label class="totc-v2-actor-editor__field"><span>${escapeHTML(field.label)}</span>${control}</label>`;
+}
+
+export function renderActorListPanel(model = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
+    const summary = model.query
+        ? `${model.count} of ${model.allCount} actor${model.allCount === 1 ? "" : "s"}`
+        : `${model.allCount} actor${model.allCount === 1 ? "" : "s"}`;
+    return `
+    <section class="totc-v2-actor-list-panel">
+        <button type="button" class="totc-v2-actor-list-panel__new" data-action="actor-list-new">New Actor</button>
+        <label class="totc-v2-actor-list-panel__search">
+            <span>Search actors</span>
+            <input type="search" data-action="actor-list-search" value="${escapeHTML(model.query ?? "")}" placeholder="Filter by actor name">
+        </label>
+        <header class="totc-v2-actor-list-panel__summary">${escapeHTML(summary)}</header>
+        <div class="totc-v2-actor-list-panel__list" role="list">
+            ${model.entries?.length ? model.entries.map((actor) => `
+                <article class="totc-v2-actor-list-panel__entry${actor.selected ? " is-selected" : ""}" role="listitem">
+                    <button type="button" class="totc-v2-actor-list-panel__entry-main" data-action="actor-list-select" data-actor-id="${escapeHTML(actor.id)}">
+                        <span class="totc-v2-actor-list-panel__entry-name">${escapeHTML(actor.name)}</span>
+                        <span class="totc-v2-actor-list-panel__entry-meta">${escapeHTML(actor.type)}${actor.role ? ` - ${escapeHTML(actor.role)}` : ""}</span>
+                    </button>
+                </article>`).join("") : `<div class="totc-v2-actor-list-panel__empty">No actors found.</div>`}
+        </div>
+    </section>`;
+}
+
+export function renderActorEditorPanel(model = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
+    if (model.mode === "create") {
+        return `
+        <section class="totc-v2-actor-editor">
+            <header class="totc-v2-actor-editor__header">
+                <h3>New Actor</h3>
+            </header>
+            ${model.error ? `<div class="totc-v2-actor-editor__error">${escapeHTML(model.error)}</div>` : ""}
+            <div class="totc-v2-actor-editor__create-form">
+                <label class="totc-v2-actor-editor__field">
+                    <span>Actor Type</span>
+                    <select data-action="actor-editor-create-type">
+                        ${model.actorTypeOptions.map((option) => `<option value="${escapeHTML(option.value)}" ${option.selected ? "selected" : ""}>${escapeHTML(option.label)}</option>`).join("")}
+                    </select>
+                </label>
+                <label class="totc-v2-actor-editor__field">
+                    <span>Additional Prompt</span>
+                    <textarea data-action="actor-editor-create-prompt" placeholder="Add constraints, relationships, equipment, or table needs.">${escapeHTML(model.additionalPrompt)}</textarea>
+                </label>
+                <button type="button" class="totc-v2-actor-editor__primary" data-action="actor-editor-generate" ${model.isGenerating ? "disabled" : ""}>${model.isGenerating ? "Creating..." : "Create Actor"}</button>
+            </div>
+        </section>`;
+    }
+
+    if (model.mode !== "edit") {
+        return `<section class="totc-v2-actor-editor"><div class="totc-v2-actor-editor__empty">Select an actor or create a new one.</div></section>`;
+    }
+
+    const sections = new Map();
+    for (const field of model.fields ?? []) {
+        if (!sections.has(field.section)) sections.set(field.section, []);
+        sections.get(field.section).push(field);
+    }
+
+    return `
+    <section class="totc-v2-actor-editor">
+        <header class="totc-v2-actor-editor__header">
+            <h3>Actor Details</h3>
+            <span>${escapeHTML(model.actorType)}</span>
+        </header>
+        ${model.error ? `<div class="totc-v2-actor-editor__error">${escapeHTML(model.error)}</div>` : ""}
+        ${model.status ? `<div class="totc-v2-actor-editor__status">${escapeHTML(model.status)}</div>` : ""}
+        <form class="totc-v2-actor-editor__form" data-action="actor-editor-save-form">
+            <input type="hidden" name="actorId" value="${escapeHTML(model.actorId)}">
+            <div class="totc-v2-actor-editor__sections">
+                ${Array.from(sections.entries()).map(([title, fields]) => `
+                    <fieldset class="totc-v2-actor-editor__section">
+                        <legend>${escapeHTML(title)}</legend>
+                        ${fields.map((field) => renderField(field, escapeHTML)).join("")}
+                    </fieldset>`).join("")}
+            </div>
+            <footer class="totc-v2-actor-editor__actions">
+                <button type="submit" class="totc-v2-actor-editor__primary" data-action="actor-editor-save" ${model.dirty ? "" : "disabled"}>Save</button>
+            </footer>
+        </form>
+    </section>`;
+}

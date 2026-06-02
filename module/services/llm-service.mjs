@@ -1,5 +1,5 @@
 const OPENAI_API_BASE_URL = "https://api.openai.com/v1";
-const OPENAI_DEFAULT_MODEL = "gpt-5.5";
+const OPENAI_DEFAULT_MODEL = "gpt-5.5-thinking";
 const DEFAULT_SYSTEM_PROMPT = "You are a master architect for the Turn of the Century Roleplaying Game, responsible for creating engaging, historically grounded campaigns and scenarios.";
 
 export const OPENAI_API_KEY_SETTING = "openaiApiKey";

@@ -11,6 +11,8 @@ function clonePanel(panel) {
 export const DEFAULT_WORKSPACE_PANELS = Object.freeze([
     { id: "gamemaster", title: "Gamemaster", roleAccess: { gmOnly: true }, contextTags: ["gm", "commands"] },
     { id: "scenes", title: "Scenes", defaultDock: "leftDock", contextTags: ["scene", "navigation"] },
+    { id: "actors", title: "Actors", defaultDock: "leftDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "actor", "search"] },
+    { id: "actor-editor", title: "Actor Details", defaultDock: "leftDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "actor", "design"] },
     { id: "inspector", title: "Inspector", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "design", "inspection"] },
     { id: "design-issues", title: "Design Issues", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "design", "inspection"] },
     { id: "scene-properties", title: "Scene Properties", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "scene", "design"] },

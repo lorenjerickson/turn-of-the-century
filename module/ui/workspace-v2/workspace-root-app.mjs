@@ -146,6 +146,14 @@ import {
     renderScenesPanel
 } from "./panels/scenes-panel.mjs";
 import {
+    buildActorEditorPanelModel,
+    buildActorListPanelModel,
+    buildActorUpdateDataFromFormData,
+    buildGeneratedActorDocumentData,
+    renderActorEditorPanel,
+    renderActorListPanel
+} from "./panels/actor-management-panel.mjs";
+import {
     buildCampaignBuilderPanelModel,
     renderCampaignBuilderPanel
 } from "./panels/campaign-builder-panel.mjs";
@@ -359,6 +367,9 @@ const GM_ACTION_MODELS = Object.freeze([
 
 const ROLL_LOCKED_ACTIONS = Object.freeze(new Set([
     "actor-create-npc",
+    "actor-editor-generate",
+    "actor-editor-save",
+    "actor-list-new",
     "design-lens-action",
     "gm-create-scene",
     "gm-end-combat",
@@ -763,6 +774,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.designCommandPaletteOpen = false;
         this.designCommandPaletteQuery = "";
         this.compendiumSearchQuery = "";
+        this.actorSearchQuery = "";
         this._mediaBrowserEntries = null;
         this._mediaBrowserEntriesPromise = null;
         this._mediaBrowserSelectCallback = null;
@@ -813,6 +825,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             result: null,
             error: null
         };
+        this._actorEditorState = {
+            mode: "empty",
+            actorId: "",
+            actorType: "pawn",
+            additionalPrompt: "",
+            isGenerating: false,
+            formData: {},
+            dirty: false,
+            status: "",
+            error: ""
+        };
         this._playerPanelSectionSnapshotInitialized = false;
         this._playerPanelVisibleSectionIds = new Set();
         this._sceneRefreshHandler = () => {
@@ -844,6 +867,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }
         };
         this._playerRefreshHandler = () => {
+            if (this.rendered) {
+                this.render({ force: false });
+            }
+        };
+        this._actorRefreshHandler = () => {
             if (this.rendered) {
                 this.render({ force: false });
             }
@@ -1112,6 +1140,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
 
         const worldActors = Array.from(game.actors?.contents ?? []);
+        const selectedActor = this._actorEditorState.actorId
+            ? game.actors?.get?.(this._actorEditorState.actorId)
+            : null;
         const designIssuesPanel = buildDesignIssuesPanelModel({
             scene,
             actors: worldActors,
@@ -1135,6 +1166,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             dockWeights: this.layoutEngine.getDockWeightLayout(),
             compendiumSearchQuery: this.compendiumSearchQuery,
             compendiumItems,
+            actorListPanel: buildActorListPanelModel({
+                actors: worldActors,
+                query: this.actorSearchQuery,
+                selectedActorId: this._actorEditorState.actorId,
+                showCreate: this._actorEditorState.mode === "create"
+            }),
+            actorEditorPanel: buildActorEditorPanelModel({
+                actor: selectedActor,
+                state: this._actorEditorState
+            }),
             compendiumLoadingState: !compendiumItems.length && this._compendiumHydrationRetries >= COMPENDIUM_STARTUP_RETRY_LIMIT
                 ? `No entries found after ${COMPENDIUM_STARTUP_RETRY_LIMIT} load attempts. Check the browser console for [turn-of-the-century] log messages.`
                 : null,
@@ -1346,6 +1387,97 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     max: Number(button.dataset.maxQuantity ?? 1)
                 });
                 await this.#handleMarketSell(itemId, quantity);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='actor-list-new']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this._actorEditorState = {
+                    mode: "create",
+                    actorId: "",
+                    actorType: "pawn",
+                    additionalPrompt: "",
+                    isGenerating: false,
+                    formData: {},
+                    dirty: false,
+                    status: "",
+                    error: ""
+                };
+                await this.#openActorEditorBelowList();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='actor-list-select']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const actorId = String(button.dataset.actorId ?? "").trim();
+                if (!actorId) return;
+                this._actorEditorState = {
+                    ...this._actorEditorState,
+                    mode: "edit",
+                    actorId,
+                    actorType: game.actors?.get?.(actorId)?.type ?? "pawn",
+                    additionalPrompt: "",
+                    isGenerating: false,
+                    formData: {},
+                    dirty: false,
+                    status: "",
+                    error: ""
+                };
+                await this.#openActorEditorBelowList();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='actor-editor-create-type']")?.forEach((select) => {
+            select.addEventListener("change", (event) => {
+                this._actorEditorState = {
+                    ...this._actorEditorState,
+                    actorType: event.target.value,
+                    error: "",
+                    status: ""
+                };
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='actor-editor-create-prompt']")?.forEach((textarea) => {
+            textarea.addEventListener("input", () => {
+                this._actorEditorState.additionalPrompt = String(textarea.value ?? "");
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='actor-editor-field']")?.forEach((input) => {
+            input.addEventListener("input", () => {
+                const path = String(input.dataset.actorField ?? input.name ?? "").trim();
+                if (!path) return;
+                this._actorEditorState.formData = {
+                    ...(this._actorEditorState.formData ?? {}),
+                    [path]: String(input.value ?? "")
+                };
+                this._actorEditorState.dirty = true;
+                this._actorEditorState.status = "";
+                this._actorEditorState.error = "";
+                const saveButton = input.closest("form")?.querySelector("[data-action='actor-editor-save']");
+                saveButton?.removeAttribute("disabled");
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='actor-editor-generate']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#generateActorFromEditorState();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='actor-editor-save-form']")?.forEach((form) => {
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#saveActorEditorForm(form);
             });
         });
 
@@ -2197,6 +2329,24 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         if (panel.id === "scenes") {
             return renderScenesPanel(context.scenesPanel ?? {}, {
+                escapeHTML: (value) => this.#escapeHTML(value)
+            });
+        }
+
+        if (panel.id === "actors") {
+            if (!context.gm?.isGM) {
+                return `<section class="totc-v2-actor-list-panel"><p class="totc-v2-actor-list-panel__empty">This panel is only available to the active Gamemaster.</p></section>`;
+            }
+            return renderActorListPanel(context.actorListPanel ?? {}, {
+                escapeHTML: (value) => this.#escapeHTML(value)
+            });
+        }
+
+        if (panel.id === "actor-editor") {
+            if (!context.gm?.isGM) {
+                return `<section class="totc-v2-actor-editor"><p class="totc-v2-actor-editor__empty">This panel is only available to the active Gamemaster.</p></section>`;
+            }
+            return renderActorEditorPanel(context.actorEditorPanel ?? {}, {
                 escapeHTML: (value) => this.#escapeHTML(value)
             });
         }
@@ -4472,6 +4622,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 focusWorkspaceTextInputAtEnd(this.element, "compendium-search");
                 break;
             }
+            case "actor-list-search": {
+                this.actorSearchQuery = value;
+                await this.render({ force: false });
+                focusWorkspaceTextInputAtEnd(this.element, "actor-list-search");
+                break;
+            }
             case "design-command-palette-search": {
                 this.designCommandPaletteQuery = value;
                 await this.render({ force: false });
@@ -4509,6 +4665,122 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             default:
                 break;
         }
+    }
+
+    async #openActorEditorBelowList() {
+        const panelDef = this.panelRegistry.get("actor-editor");
+        if (!panelDef) return;
+
+        const dockTarget = this.#findPanelDockLocation("actors");
+        let nextLayout;
+        if (dockTarget?.dockId && dockTarget?.stackId) {
+            nextLayout = this.layoutEngine.applyDropIntent(panelDef, {
+                kind: "local",
+                dockId: dockTarget.dockId,
+                stackId: dockTarget.stackId,
+                zone: "local-bottom"
+            });
+        } else {
+            nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "leftDock" });
+        }
+
+        await this.stateStore?.setUserLayout?.(nextLayout);
+        this.render({ force: false });
+    }
+
+    #findPanelDockLocation(panelId) {
+        const layout = this.layoutEngine.getLayout();
+        for (const dockId of WORKSPACE_V2_DOCK_IDS) {
+            const dock = layout?.root?.[dockId];
+            for (const stack of dock?.stacks ?? []) {
+                if ((stack?.panels ?? []).some((panel) => panel.id === panelId)) {
+                    return { dockId, stackId: stack.id };
+                }
+            }
+        }
+        return null;
+    }
+
+    async #generateActorFromEditorState() {
+        if (this._actorEditorState.isGenerating) return;
+        this._actorEditorState = {
+            ...this._actorEditorState,
+            isGenerating: true,
+            status: "",
+            error: ""
+        };
+        this.render({ force: false });
+
+        try {
+            const actorType = this._actorEditorState.actorType || "pawn";
+            const additionalPrompt = String(this._actorEditorState.additionalPrompt ?? "").trim();
+            const prompt = additionalPrompt || `Create a ${actorType} actor for immediate use in play.`;
+            const result = await LLMService.generate(prompt, {
+                elementType: "actor",
+                generationContext: { actorType }
+            });
+            const actor = await ActorDocumentClass.create(buildGeneratedActorDocumentData(result, actorType));
+            this._actorEditorState = {
+                mode: "edit",
+                actorId: actor?.id ?? actor?._id ?? "",
+                actorType: actor?.type ?? actorType,
+                additionalPrompt: "",
+                isGenerating: false,
+                formData: {},
+                dirty: false,
+                status: `Created ${actor?.name ?? "actor"}.`,
+                error: ""
+            };
+        } catch (error) {
+            console.error("[turn-of-the-century] Actor generation failed", error);
+            this._actorEditorState = {
+                ...this._actorEditorState,
+                isGenerating: false,
+                status: "",
+                error: error?.message ?? "Actor generation failed."
+            };
+        }
+
+        this.render({ force: false });
+    }
+
+    async #saveActorEditorForm(form) {
+        const formData = new FormData(form);
+        const actorId = String(formData.get("actorId") ?? this._actorEditorState.actorId ?? "").trim();
+        const actor = actorId ? game.actors?.get?.(actorId) : null;
+        if (!actor?.update) {
+            this._actorEditorState = {
+                ...this._actorEditorState,
+                status: "",
+                error: "Actor save is not available."
+            };
+            this.render({ force: false });
+            return;
+        }
+
+        try {
+            const updateData = buildActorUpdateDataFromFormData(formData);
+            await actor.update(updateData);
+            this._actorEditorState = {
+                ...this._actorEditorState,
+                mode: "edit",
+                actorId,
+                actorType: actor.type ?? this._actorEditorState.actorType,
+                formData: {},
+                dirty: false,
+                status: "Actor saved.",
+                error: ""
+            };
+        } catch (error) {
+            console.error("[turn-of-the-century] Actor save failed", error);
+            this._actorEditorState = {
+                ...this._actorEditorState,
+                status: "",
+                error: error?.message ?? "Actor save failed."
+            };
+        }
+
+        this.render({ force: false });
     }
 
     async _openScenePropertiesPanel() {
