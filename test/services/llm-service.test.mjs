@@ -217,7 +217,7 @@ describe("LLMService", () => {
         assert.equal(fetchCall.options.headers.Authorization, "Bearer test-key");
 
         const body = JSON.parse(fetchCall.options.body);
-        assert.equal(body.model, "gpt-5.5-thinking");
+        assert.equal(body.model, "gpt-5.5");
         assert.equal(body.input, "Hello LLM");
         assert.deepEqual(body.text.format, { type: "json_object" });
         assert.ok(body.instructions.includes("System Instruction"));
