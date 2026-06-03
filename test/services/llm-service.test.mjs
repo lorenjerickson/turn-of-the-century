@@ -3,10 +3,12 @@ import { readFileSync } from "node:fs";
 import { describe, it, beforeEach, afterEach } from "node:test";
 import {
     GENERATION_PROMPT_PATHS,
+    GENERAL_GENERATION_PROMPT_PATH,
     LLMService,
     OPENAI_API_KEY_SETTING,
     buildGenerationContextPrompt,
-    extractOpenAIResponseText
+    extractOpenAIResponseText,
+    getRelevantContentSkillPrompts
 } from "../../module/services/llm-service.mjs";
 
 describe("LLMService", () => {
@@ -52,6 +54,7 @@ describe("LLMService", () => {
     });
 
     it("maps supported generation types to prompt files", () => {
+        assert.equal(GENERAL_GENERATION_PROMPT_PATH, "prompts/general.md");
         assert.equal(GENERATION_PROMPT_PATHS.campaign, "prompts/campaign.md");
         assert.equal(GENERATION_PROMPT_PATHS.scenario, "prompts/scenario.md");
         assert.equal(GENERATION_PROMPT_PATHS["encounter-design"], "prompts/encounter-design.md");
@@ -61,26 +64,38 @@ describe("LLMService", () => {
     });
 
     it("keeps prep prompts explicit about JSON output", () => {
-        for (const promptPath of new Set(Object.values(GENERATION_PROMPT_PATHS))) {
+        for (const promptPath of new Set([GENERAL_GENERATION_PROMPT_PATH, ...Object.values(GENERATION_PROMPT_PATHS)])) {
             const promptText = readFileSync(new URL(`../../${promptPath}`, import.meta.url), "utf8");
 
             assert.match(promptText, /single valid JSON object only/i, promptPath);
-            assert.match(promptText, /schema constraints supplied by the generation service/i, promptPath);
+            assert.match(promptText, /schema constraints supplied by the generation service|specialized prompt and schema constraint/i, promptPath);
         }
     });
 
-    it("loads generation prep prompts from the prompts folder", async () => {
-        let promptUrl = "";
+    it("loads the general prompt before the generation-specific prep prompt", async () => {
+        const promptUrls = [];
         globalThis.fetch = async (url) => {
-            promptUrl = url;
+            promptUrls.push(url);
+            if (url.endsWith(GENERAL_GENERATION_PROMPT_PATH)) {
+                return { ok: true, text: async () => "General Prompt From File" };
+            }
             return { ok: true, text: async () => "Campaign Prompt From File" };
         };
 
         const systemPrompt = await LLMService.getSystemPrompt("campaign");
 
-        assert.equal(promptUrl, "systems/turn-of-the-century/prompts/campaign.md");
+        assert.deepEqual(promptUrls, [
+            "systems/turn-of-the-century/prompts/general.md",
+            "systems/turn-of-the-century/prompts/campaign.md"
+        ]);
+        assert.ok(systemPrompt.includes("General Prompt From File"));
         assert.ok(systemPrompt.includes("Campaign Prompt From File"));
         assert.ok(systemPrompt.includes("Expected JSON Structure:"));
+        assert.ok(
+            systemPrompt.indexOf("master architect for the Turn of the Century Roleplaying Game")
+                < systemPrompt.indexOf("General Prompt From File")
+        );
+        assert.ok(systemPrompt.indexOf("General Prompt From File") < systemPrompt.indexOf("Campaign Prompt From File"));
     });
 
     it("loads scenario prep prompts from the prompts folder", async () => {
@@ -142,6 +157,35 @@ describe("LLMService", () => {
         assert.ok(systemPrompt.includes('The GM selected "villain" as the actor type'));
     });
 
+    it("selects content-oriented skill guidance relevant to the generation type", () => {
+        const actorSkills = getRelevantContentSkillPrompts("actor").join("\n\n");
+        assert.match(actorSkills, /Content Skill: Language Style/);
+        assert.match(actorSkills, /Content Skill: Science, Not Magic/);
+        assert.match(actorSkills, /Content Skill: Genetic Manipulation/);
+        assert.match(actorSkills, /Content Skill: Art Style/);
+        assert.doesNotMatch(actorSkills, /Content Skill: Asset Generation/);
+
+        const weaponSkills = getRelevantContentSkillPrompts("weapon").join("\n\n");
+        assert.match(weaponSkills, /Content Skill: Asset Generation/);
+        assert.match(weaponSkills, /Content Skill: Art Style/);
+        assert.doesNotMatch(weaponSkills, /Content Skill: Genetic Manipulation/);
+    });
+
+    it("appends relevant content skill guidance after the specialized prompt", async () => {
+        globalThis.fetch = async (url) => {
+            if (url.endsWith(GENERAL_GENERATION_PROMPT_PATH)) {
+                return { ok: true, text: async () => "General Prompt From File" };
+            }
+            return { ok: true, text: async () => "Actor Prompt From File" };
+        };
+
+        const systemPrompt = await LLMService.getSystemPrompt("actor");
+
+        assert.ok(systemPrompt.indexOf("General Prompt From File") < systemPrompt.indexOf("Actor Prompt From File"));
+        assert.ok(systemPrompt.indexOf("Actor Prompt From File") < systemPrompt.indexOf("Content Skill: Language Style"));
+        assert.ok(systemPrompt.indexOf("Content Skill: Genetic Manipulation") < systemPrompt.indexOf("Expected JSON Structure:"));
+    });
+
     it("adds selected parent location context to location system prompts", async () => {
         globalThis.fetch = async () => ({ ok: true, text: async () => "Location Prompt From File" });
 
@@ -197,6 +241,9 @@ describe("LLMService", () => {
 
         let fetchCall = null;
         globalThis.fetch = async (url, options) => {
+            if (url.includes("prompts/general.md")) {
+                return { ok: true, text: async () => "General Instruction" };
+            }
             if (url.includes("prompts/campaign.md")) {
                 return { ok: true, text: async () => "System Instruction" };
             }
@@ -220,6 +267,7 @@ describe("LLMService", () => {
         assert.equal(body.model, "gpt-5.5");
         assert.equal(body.input, "Hello LLM");
         assert.deepEqual(body.text.format, { type: "json_object" });
+        assert.ok(body.instructions.includes("General Instruction"));
         assert.ok(body.instructions.includes("System Instruction"));
     });
 

@@ -1,6 +1,7 @@
 const OPENAI_API_BASE_URL = "https://api.openai.com/v1";
 const OPENAI_DEFAULT_MODEL = "gpt-5.5";
 const DEFAULT_SYSTEM_PROMPT = "You are a master architect for the Turn of the Century Roleplaying Game, responsible for creating engaging, historically grounded campaigns and scenarios.";
+export const GENERAL_GENERATION_PROMPT_PATH = "prompts/general.md";
 
 export const OPENAI_API_KEY_SETTING = "openaiApiKey";
 export const GENERATION_PROMPT_PATHS = Object.freeze({
@@ -11,6 +12,50 @@ export const GENERATION_PROMPT_PATHS = Object.freeze({
     pawn: "prompts/actor.md",
     location: "prompts/location.md"
 });
+
+const CONTENT_SKILL_PROMPTS = Object.freeze({
+    "language-style": [
+        "## Content Skill: Language Style",
+        "Write in a grave, literate late Victorian to Edwardian register: ornate enough to feel period-conscious, but always clear and useful for play.",
+        "Blend gothic dread with industrial modernity. Favour atmosphere, implication, social restraint, class pressure, fog, soot, gaslight, machinery, architecture, illness, scandal, and moral unease over modern slang, trailer language, or generic fantasy phrasing.",
+        "Draw on broad period conventions rather than imitating any single real author."
+    ].join("\n"),
+    "science-not-magic": [
+        "## Content Skill: Science, Not Magic",
+        "Frame extraordinary effects through material causes: apparatus, chemistry, electricity, medicine, nerves, optics, acoustics, pressure, contagion, heredity, mesmerism, rare minerals, experimental procedure, or disciplined training.",
+        "Avoid fantasy-magic categories and vocabulary such as spells, mana, enchanted objects, wizardry, necromancy, summoning, hexes, or arcane powers. Preserve mystery, but imply observable mechanisms, limits, costs, failures, and consequences."
+    ].join("\n"),
+    "genetic-manipulation": [
+        "## Content Skill: Genetic Manipulation",
+        "When creating creatures, altered bodies, monstrous actors, specimens, or biological horrors, ground them in flesh, heredity, pathology, breeding, mutation, surgery, glandular treatment, parasites, conditioning, environmental pressure, or laboratory intervention.",
+        "Avoid magical beast logic, mystical ancestry, elemental affinity, innate magic, or supernatural creature categories. Tie every notable trait to anatomy, behaviour, metabolism, habitat, maintenance burden, or visible defect."
+    ].join("\n"),
+    "asset-generation": [
+        "## Content Skill: Asset Generation",
+        "When creating items, equipment, talents, quirks, assets, or compendium-ready content, transform inspiration conceptually into a unique gothic-horror and steampunk analog instead of copying names, text, or identity.",
+        "Make assets period-appropriate, non-redundant, mechanically useful, richly described, and grounded in the system's data conventions. Include provenance or adaptation notes only when the specialized prompt requests them."
+    ].join("\n"),
+    "art-style": [
+        "## Content Skill: Art Style",
+        "When generating or describing visual, audio, map, token, portrait, poster, or handout assets, keep the asset materially grounded in 1890-1910 gothic-steampunk aesthetics.",
+        "Prefer hand-built machinery, brass, iron, lacquered wood, leather, etched glass, velvet, soot, gaslight, cabinet-card portraits, engravings, scientific plates, patent drawings, newspaper sketches, and lantern-slide sensibility. Avoid modern sci-fi, plastic, neon, digital overlays, superhero silhouettes, and generic medieval fantasy."
+    ].join("\n")
+});
+
+const ITEM_GENERATION_TYPES = new Set([
+    "armor",
+    "consumable",
+    "effect",
+    "equipment",
+    "item",
+    "quirk",
+    "skill",
+    "talent",
+    "weapon"
+]);
+
+const CREATURE_GENERATION_TYPES = new Set(["actor", "pawn", "encounter-design"]);
+const MEDIA_AWARE_GENERATION_TYPES = new Set(["actor", "pawn", "location", "campaign", "scenario", "encounter-design", "item", "equipment", "weapon", "armor", "consumable"]);
 
 export function extractOpenAIResponseText(data = {}) {
     if (typeof data.output_text === "string" && data.output_text.trim()) {
@@ -30,6 +75,17 @@ export function extractOpenAIResponseText(data = {}) {
 
 function stripHTML(value) {
     return String(value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+export function getRelevantContentSkillPrompts(elementType = "campaign") {
+    const normalizedType = String(elementType ?? "campaign").trim().toLowerCase();
+    const skillKeys = ["language-style", "science-not-magic"];
+
+    if (CREATURE_GENERATION_TYPES.has(normalizedType)) skillKeys.push("genetic-manipulation");
+    if (ITEM_GENERATION_TYPES.has(normalizedType)) skillKeys.push("asset-generation");
+    if (MEDIA_AWARE_GENERATION_TYPES.has(normalizedType)) skillKeys.push("art-style");
+
+    return skillKeys.map((key) => CONTENT_SKILL_PROMPTS[key]).filter(Boolean);
 }
 
 export function buildGenerationContextPrompt(context = {}) {
@@ -78,6 +134,10 @@ export class LLMService {
 
     static async getPrepPrompt(elementType = "campaign") {
         const promptPath = this.getPromptPath(elementType);
+        return this.getPromptText(promptPath, DEFAULT_SYSTEM_PROMPT);
+    }
+
+    static async getPromptText(promptPath, fallback = "") {
         try {
             const response = await fetch(`systems/turn-of-the-century/${promptPath}`);
             if (response.ok) {
@@ -88,11 +148,13 @@ export class LLMService {
             console.error(`Failed to fetch generation prompt at ${promptPath}`, error);
         }
 
-        return DEFAULT_SYSTEM_PROMPT;
+        return fallback;
     }
 
     static async getSystemPrompt(elementType = "campaign", options = {}) {
-        const basePrompt = await this.getPrepPrompt(elementType);
+        const generalPrompt = await this.getPromptText(GENERAL_GENERATION_PROMPT_PATH, "");
+        const prepPrompt = await this.getPromptText(this.getPromptPath(elementType), "");
+        const contentSkillPrompt = getRelevantContentSkillPrompts(elementType).join("\n\n");
         const generationContextPrompt = buildGenerationContextPrompt(options.generationContext ?? {});
 
         // Add structural constraints for JSON generation based on element type.
@@ -107,7 +169,15 @@ export class LLMService {
 
         const jsonConstraint = schemas[elementType] || schemas.campaign;
 
-        return `${basePrompt}${generationContextPrompt ? `\n\n${generationContextPrompt}` : ""}\n\nIMPORTANT: You must reply ONLY with valid JSON that matches the following structure. Do not include markdown formatting or backticks around the JSON. Your response will be parsed programmatically.\n\nExpected JSON Structure:\n${jsonConstraint}`;
+        return [
+            DEFAULT_SYSTEM_PROMPT,
+            generalPrompt,
+            prepPrompt,
+            contentSkillPrompt,
+            generationContextPrompt,
+            "IMPORTANT: You must reply ONLY with valid JSON that matches the following structure. Do not include markdown formatting or backticks around the JSON. Your response will be parsed programmatically.",
+            `Expected JSON Structure:\n${jsonConstraint}`
+        ].filter((section) => String(section ?? "").trim()).join("\n\n");
     }
 
     static async generate(userPrompt, options = {}) {
