@@ -171,6 +171,25 @@ describe("Scene properties panel", () => {
         });
     });
 
+    it("preserves a calibrated grid when saving a staged draft background", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: { id: "scene-draft", name: "New Scene", background: { src: "" } },
+            sceneId: "scene-draft",
+            sceneName: "Whitechapel Alley",
+            backgroundPath: "assets/images/scenes/whitechapel-alley.webp",
+            preserveGridCalibration: true,
+            createMode: true
+        });
+
+        assert.equal(model.backgroundChanged, true);
+        assert.equal(model.backgroundWillClearGrid, false);
+        assert.deepEqual(buildScenePropertiesUpdateData(model), {
+            name: "Whitechapel Alley",
+            "background.src": "assets/images/scenes/whitechapel-alley.webp"
+        });
+        assert.equal(buildScenePropertiesSavedState({ scene: { id: "scene-draft" }, model }).status, "Scene saved.");
+    });
+
     it("ignores stale edits when the viewed scene changes", () => {
         const model = buildScenePropertiesPanelModel({
             scene: { id: "scene-b", name: "Hotel Cellar" },

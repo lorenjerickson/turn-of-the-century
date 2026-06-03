@@ -810,6 +810,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             backgroundPath: "",
             previewPath: "",
             savedBackgroundPath: "",
+            preserveGridCalibration: false,
             createMode: false,
             status: "",
             error: ""
@@ -2657,6 +2658,18 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (scene) return this.#buildSceneViewModel(scene, { id: sceneId, mapSrc: stagedMapSrc });
         if (sceneId) return this.#buildSceneViewModel(null, { id: sceneId, name: panel?.title ?? "Missing Scene" });
         return context.scene ?? this.#buildSceneViewModel(null);
+    }
+
+    #getDesignActionScene(sourcePanel = null, currentScene = null) {
+        if (!this.#isMapPanel(sourcePanel)) return currentScene;
+
+        const { scene } = resolveScenePropertiesMapPanelScene({
+            panel: sourcePanel,
+            currentScene,
+            sceneResolver: (id) => this.#getSceneDocumentById(id)
+        });
+
+        return scene ?? currentScene;
     }
 
     #getPanelTitle(panel, context = {}) {
@@ -4519,6 +4532,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         try {
             await scene.update(updateData);
             this.#rememberAppliedGridOverlayState(scene, updateData);
+            const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+            if (
+                sceneId
+                && String(this._scenePropertiesState?.sceneId ?? "").trim() === sceneId
+                && (String(this._scenePropertiesState?.backgroundPath ?? "").trim() || String(this._scenePropertiesState?.previewPath ?? "").trim())
+            ) {
+                this._scenePropertiesState = {
+                    ...this._scenePropertiesState,
+                    preserveGridCalibration: true
+                };
+            }
             ui.notifications?.info(`Grid updated: ${size} px per cell (offset ${-updateData.shiftX}, ${-updateData.shiftY}).`);
         } catch (err) {
             console.error("[turn-of-the-century] Grid calibration apply failed", err);
@@ -4794,6 +4818,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             backgroundPath: "",
             previewPath: "",
             savedBackgroundPath: "",
+            preserveGridCalibration: false,
             createMode: false,
             status: "",
             error: ""
@@ -4836,6 +4861,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             backgroundPath: "",
             previewPath: "",
             savedBackgroundPath: "",
+            preserveGridCalibration: false,
             createMode: true,
             status: "New scene created. Enter a name, then upload a background image.",
             error: ""
@@ -4876,6 +4902,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     backgroundPath: "",
                     previewPath,
                     savedBackgroundPath: "",
+                    preserveGridCalibration: false,
                     createMode: Boolean(this._scenePropertiesState.createMode),
                     status: target.valid ? `Uploading ${target.filename}...` : "",
                     error: target.valid ? "" : "Choose a supported image after entering a scene name."
@@ -4897,6 +4924,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                         ...this._scenePropertiesState,
                         backgroundPath: "",
                         savedBackgroundPath: "",
+                        preserveGridCalibration: false,
                         createMode: Boolean(this._scenePropertiesState.createMode),
                         status: "",
                         error: result?.message ?? "Scene background upload failed."
@@ -4909,6 +4937,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     ...this._scenePropertiesState,
                     backgroundPath: result.path,
                     savedBackgroundPath: "",
+                    preserveGridCalibration: false,
                     createMode: Boolean(this._scenePropertiesState.createMode),
                     status: `Uploaded ${result.filename}.`,
                     error: ""
@@ -4928,6 +4957,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     backgroundPath: "",
                     previewPath: "",
                     savedBackgroundPath: "",
+                    preserveGridCalibration: false,
                     createMode: false,
                     status: "",
                     error: ""
@@ -4980,6 +5010,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     backgroundPath: "",
                     previewPath: "",
                     savedBackgroundPath: "",
+                    preserveGridCalibration: false,
                     createMode: false,
                     status: `Deleted ${sceneName}.`,
                     error: ""
@@ -5125,13 +5156,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const action = this.designActionRegistry.get(actionId);
         if (!action) return;
         const sourcePanel = panelId ? this.#resolvePanelDefinition(panelId) : this.#getPrimaryActivePanel();
+        const currentScene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
+        const actionScene = this.#getDesignActionScene(sourcePanel, currentScene);
 
         try {
             const result = await action.execute({
                 app: this,
                 panel: this.#getPrimaryActivePanel(),
                 sourcePanel,
-                scene: canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null,
+                scene: actionScene,
+                currentScene,
                 canvas,
                 ui,
                 combat: game.combats?.active ?? game.combat ?? null,

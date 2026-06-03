@@ -58,6 +58,8 @@ export function buildScenePropertiesPanelModel(state = {}) {
     const uploadedPath = String(stateApplies ? state.backgroundPath ?? "" : "").trim();
     const currentBackgroundPath = getSceneBackgroundSource(scene);
     const effectiveBackgroundPath = uploadedPath || currentBackgroundPath;
+    const backgroundChanged = Boolean(uploadedPath && uploadedPath !== currentBackgroundPath);
+    const preserveGridCalibration = Boolean(stateApplies && state.preserveGridCalibration);
 
     return {
         sceneId,
@@ -70,7 +72,9 @@ export function buildScenePropertiesPanelModel(state = {}) {
         createMode: Boolean(state.createMode),
         uploadEnabled: Boolean(sceneName),
         saveEnabled: Boolean(scene && sceneName),
-        backgroundChanged: Boolean(uploadedPath && uploadedPath !== currentBackgroundPath),
+        backgroundChanged,
+        backgroundWillClearGrid: Boolean(backgroundChanged && !preserveGridCalibration),
+        preserveGridCalibration,
         actorPlacement: buildSceneActorPlacementPanelModel({
             actors: state.actors ?? [],
             scene
@@ -132,7 +136,8 @@ export function buildScenePropertiesSavedState({ scene = null, model = {} } = {}
         previewPath: "",
         savedBackgroundPath,
         createMode: false,
-        status: model.backgroundChanged
+        preserveGridCalibration: false,
+        status: model.backgroundWillClearGrid
             ? "Scene saved. Grid calibration was cleared for the new background."
             : "Scene saved.",
         error: ""
@@ -149,10 +154,12 @@ export function buildScenePropertiesUpdateData(model = {}) {
 
     if (backgroundPath && backgroundPath !== currentBackgroundPath) {
         updateData["background.src"] = backgroundPath;
-        updateData.shiftX = 0;
-        updateData.shiftY = 0;
-        updateData["grid.type"] = 0;
-        updateData["grid.size"] = 100;
+        if (!model.preserveGridCalibration) {
+            updateData.shiftX = 0;
+            updateData.shiftY = 0;
+            updateData["grid.type"] = 0;
+            updateData["grid.size"] = 100;
+        }
     }
 
     return updateData;
@@ -247,7 +254,7 @@ export function renderScenePropertiesPanel(model = {}, { escapeHTML = safeEscape
             ${model.currentBackgroundPath ? `<div><strong>Current background</strong> ${escapeHTML(model.currentBackgroundPath)}</div>` : ""}
             <div><strong>Upload target</strong> ${escapeHTML(targetPath)}</div>
             ${model.backgroundPath ? `<div><strong>Uploaded</strong> ${escapeHTML(model.backgroundPath)}</div>` : ""}
-            ${model.backgroundChanged ? `<p class="totc-v2-scene-properties-panel__status">Saving this background will clear existing grid calibration.</p>` : ""}
+            ${model.backgroundWillClearGrid ? `<p class="totc-v2-scene-properties-panel__status">Saving this background will clear existing grid calibration.</p>` : ""}
             ${model.status ? `<p class="totc-v2-scene-properties-panel__status">${escapeHTML(model.status)}</p>` : ""}
             ${model.error ? `<p class="totc-v2-scene-properties-panel__error">${escapeHTML(model.error)}</p>` : ""}
         </div>
