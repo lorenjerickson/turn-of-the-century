@@ -1461,6 +1461,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this._actorEditorState.dirty = true;
                 this._actorEditorState.status = "";
                 this._actorEditorState.error = "";
+                const abilityModifier = input.closest(".totc-v2-actor-editor__ability")?.querySelector(".totc-v2-actor-editor__ability-modifier");
+                if (abilityModifier) {
+                    const score = Number(input.value);
+                    const modifier = Number.isFinite(score) ? Math.floor((score - 10) / 2) : 0;
+                    abilityModifier.textContent = modifier >= 0 ? `+${modifier}` : String(modifier);
+                }
                 const saveButton = input.closest("form")?.querySelector("[data-action='actor-editor-save']");
                 saveButton?.removeAttribute("disabled");
             });

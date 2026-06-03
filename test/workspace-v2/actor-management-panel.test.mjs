@@ -62,6 +62,8 @@ describe("Actor management panel", () => {
             type: "hero",
             system: {
                 profile: { role: "Inspector", tags: ["meticulous"] },
+                biography: "<p>Known for exacting ledgers.</p>",
+                notes: "<p>Secretly funded by the rail trust.</p>",
                 classification: { profession: "Detective" },
                 abilities: { str: { value: 9 }, dex: { value: 12 }, con: { value: 10 }, int: { value: 14 }, wis: { value: 13 }, cha: { value: 11 }, san: { value: 10 } },
                 hero: { archetype: "Investigator", bonds: ["Whitechapel"] }
@@ -75,6 +77,55 @@ describe("Actor management panel", () => {
         assert.match(html, /name="system.profile.role"/);
         assert.match(html, /Investigator/);
         assert.match(html, /<button type="submit"[^>]*disabled/);
+    });
+
+    it("renders actor details abilities as score boxes with derived modifiers", () => {
+        const actor = {
+            id: "a",
+            name: "Ada Finch",
+            type: "hero",
+            system: {
+                abilities: {
+                    str: { value: 9 },
+                    dex: { value: 12 },
+                    con: { value: 10 },
+                    int: { value: 14 },
+                    wis: { value: 13 },
+                    cha: { value: 11 },
+                    san: { value: 8 }
+                }
+            }
+        };
+
+        const model = buildActorEditorPanelModel({ actor, state: { mode: "edit" } });
+        const html = renderActorEditorPanel(model, { escapeHTML });
+
+        assert.match(html, /totc-v2-actor-editor__section--abilities/);
+        assert.match(html, /totc-v2-actor-editor__ability-scores/);
+        assert.match(html, /<span class="totc-v2-actor-editor__ability-label">STR<\/span>/);
+        assert.match(html, /<strong class="totc-v2-actor-editor__ability-modifier">-1<\/strong>/);
+        assert.match(html, /<strong class="totc-v2-actor-editor__ability-modifier">\+2<\/strong>/);
+        assert.match(html, /class="totc-v2-actor-editor__ability-score"[^>]+name="system\.abilities\.int\.value"[^>]+type="number"[^>]+value="14"/);
+    });
+
+    it("renders biography and GM notes as injected HTML instead of editable textareas", () => {
+        const actor = {
+            id: "a",
+            name: "Ada Finch",
+            type: "hero",
+            system: {
+                biography: "<p><strong>Ada</strong> keeps three notebooks.</p>",
+                notes: "<ul><li>Knows the night porter.</li></ul>"
+            }
+        };
+
+        const model = buildActorEditorPanelModel({ actor, state: { mode: "edit" } });
+        const html = renderActorEditorPanel(model, { escapeHTML });
+
+        assert.doesNotMatch(html, /<textarea[^>]+name="system\.biography"/);
+        assert.doesNotMatch(html, /<textarea[^>]+name="system\.notes"/);
+        assert.match(html, /<div class="totc-v2-actor-editor__html"><p><strong>Ada<\/strong> keeps three notebooks\.<\/p><\/div>/);
+        assert.match(html, /<div class="totc-v2-actor-editor__html totc-v2-actor-editor__html--gm-notes"><ul><li>Knows the night porter\.<\/li><\/ul><\/div>/);
     });
 
     it("coerces form entries to Foundry update data", () => {

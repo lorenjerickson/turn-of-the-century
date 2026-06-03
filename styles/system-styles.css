@@ -2914,6 +2914,100 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     resize: vertical;
 }
 
+.turn-of-the-century .totc-v2-actor-editor__field--html {
+    gap: 0.3rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__html {
+    background: rgba(15, 23, 42, 0.42);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 6px;
+    color: #cbd5e1;
+    line-height: 1.45;
+    min-height: 3rem;
+    overflow-wrap: anywhere;
+    padding: 0.45rem 0.55rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__html > :first-child {
+    margin-top: 0;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__html > :last-child {
+    margin-bottom: 0;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__ability-scores {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 0.6rem;
+    padding-bottom: 1rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__ability {
+    align-items: center;
+    background:
+        radial-gradient(circle at 28% 24%, rgba(248, 230, 192, 0.18), rgba(248, 230, 192, 0) 42%),
+        linear-gradient(145deg, rgba(90, 64, 44, 0.94) 0%, rgba(59, 41, 27, 0.94) 50%, rgba(42, 29, 19, 0.94) 100%);
+    border: 2px solid rgba(251, 191, 36, 0.62);
+    border-radius: 8px;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 241, 214, 0.24),
+        0 4px 9px rgba(0, 0, 0, 0.26);
+    display: flex;
+    flex: 1 1 5.5rem;
+    flex-direction: column;
+    height: 5.75rem;
+    justify-content: center;
+    max-width: 7rem;
+    min-width: 5.1rem;
+    padding: 0.7rem 0.45rem 1.25rem;
+    position: relative;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__ability-label {
+    color: #d8c7a0;
+    font-size: 0.66rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 0.45rem;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__ability-modifier {
+    color: #f8fafc;
+    font-size: 1.75rem;
+    line-height: 1;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.55);
+}
+
+.turn-of-the-century .totc-v2-actor-editor__ability-score {
+    align-items: center;
+    appearance: textfield;
+    background: linear-gradient(180deg, #2c2329 0%, #1a1418 100%);
+    border: 2px solid rgba(251, 191, 36, 0.72);
+    border-radius: 50%;
+    bottom: -1.05rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    color: #f8fafc;
+    display: flex;
+    font-size: 0.9rem;
+    font-weight: 800;
+    height: 2.1rem;
+    justify-content: center;
+    line-height: 1;
+    padding: 0;
+    position: absolute;
+    text-align: center;
+    width: 2.1rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__ability-score::-webkit-outer-spin-button,
+.turn-of-the-century .totc-v2-actor-editor__ability-score::-webkit-inner-spin-button {
+    appearance: none;
+    margin: 0;
+}
+
 .turn-of-the-century .totc-v2-actor-list-panel__summary {
     color: #94a3b8;
     font-size: 0.75rem;

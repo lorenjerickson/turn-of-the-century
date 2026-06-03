@@ -95,6 +95,18 @@ function fieldValue(actor, path, staged = {}) {
     return Array.isArray(value) ? stringifyArray(value) : String(value ?? "");
 }
 
+function abilityModifier(value) {
+    const score = Number(value);
+    if (!Number.isFinite(score)) return 0;
+    return Math.floor((score - 10) / 2);
+}
+
+function formatSignedNumber(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return "+0";
+    return numeric >= 0 ? `+${numeric}` : String(numeric);
+}
+
 export function buildActorListPanelModel({
     actors = [],
     query = "",
@@ -168,19 +180,23 @@ export function buildEditableActorFields(actor, staged = {}, actorType = normali
         { path: "system.progression.level", label: "Level", type: "number", value: fieldValue(actor, "system.progression.level", staged), section: "Progression" },
         { path: "system.progression.challenge", label: "Challenge", type: "text", value: fieldValue(actor, "system.progression.challenge", staged), section: "Progression" },
         { path: "system.profile.summary", label: "Summary", type: "textarea", value: fieldValue(actor, "system.profile.summary", staged), section: "Notes" },
-        { path: "system.biography", label: "Biography", type: "textarea", value: fieldValue(actor, "system.biography", staged), section: "Notes" },
-        { path: "system.notes", label: "GM Notes", type: "textarea", value: fieldValue(actor, "system.notes", staged), section: "Notes" },
+        { path: "system.biography", label: "Biography", type: "html", value: fieldValue(actor, "system.biography", staged), section: "Notes" },
+        { path: "system.notes", label: "GM Notes", type: "html", value: fieldValue(actor, "system.notes", staged), section: "Notes", className: "totc-v2-actor-editor__html--gm-notes" },
         { path: "system.profile.tags", label: "Tags", type: "text", value: fieldValue(actor, "system.profile.tags", staged), section: "Notes" },
         { path: "system.traits.languages", label: "Languages", type: "text", value: fieldValue(actor, "system.traits.languages", staged), section: "Notes" }
     ];
 
-    const abilityFields = ["str", "dex", "con", "int", "wis", "cha", "san"].map((key) => ({
-        path: `system.abilities.${key}.value`,
-        label: key.toUpperCase(),
-        type: "number",
-        value: fieldValue(actor, `system.abilities.${key}.value`, staged),
-        section: "Abilities"
-    }));
+    const abilityFields = ["str", "dex", "con", "int", "wis", "cha", "san"].map((key) => {
+        const value = fieldValue(actor, `system.abilities.${key}.value`, staged);
+        return {
+            path: `system.abilities.${key}.value`,
+            label: key.toUpperCase(),
+            type: "ability",
+            value,
+            modifier: formatSignedNumber(abilityModifier(value)),
+            section: "Abilities"
+        };
+    });
 
     const typedFields = {
         hero: [
@@ -224,12 +240,42 @@ export function buildGeneratedActorDocumentData(result = {}, actorType = DEFAULT
 }
 
 function renderField(field, escapeHTML) {
+    if (field.type === "html") {
+        const htmlClass = ["totc-v2-actor-editor__html", field.className].filter(Boolean).join(" ");
+        return `
+        <div class="totc-v2-actor-editor__field totc-v2-actor-editor__field--html">
+            <span>${escapeHTML(field.label)}</span>
+            <div class="${escapeHTML(htmlClass)}">${String(field.value ?? "")}</div>
+        </div>`;
+    }
+
     const value = escapeHTML(field.value ?? "");
     const common = `name="${escapeHTML(field.path)}" data-action="actor-editor-field" data-actor-field="${escapeHTML(field.path)}"`;
     const control = field.type === "textarea"
         ? `<textarea ${common}>${value}</textarea>`
         : `<input ${common} type="${escapeHTML(field.type ?? "text")}" value="${value}">`;
     return `<label class="totc-v2-actor-editor__field"><span>${escapeHTML(field.label)}</span>${control}</label>`;
+}
+
+function renderAbilityField(field, escapeHTML) {
+    const common = `name="${escapeHTML(field.path)}" data-action="actor-editor-field" data-actor-field="${escapeHTML(field.path)}"`;
+    return `
+    <label class="totc-v2-actor-editor__ability">
+        <span class="totc-v2-actor-editor__ability-label">${escapeHTML(field.label)}</span>
+        <strong class="totc-v2-actor-editor__ability-modifier">${escapeHTML(field.modifier)}</strong>
+        <input class="totc-v2-actor-editor__ability-score" ${common} type="number" value="${escapeHTML(field.value ?? "")}" aria-label="${escapeHTML(`${field.label} score`)}">
+    </label>`;
+}
+
+function renderFieldSection(title, fields, escapeHTML) {
+    const isAbilitySection = fields.every((field) => field.type === "ability");
+    return `
+    <fieldset class="totc-v2-actor-editor__section${isAbilitySection ? " totc-v2-actor-editor__section--abilities" : ""}">
+        <legend>${escapeHTML(title)}</legend>
+        ${isAbilitySection
+            ? `<div class="totc-v2-actor-editor__ability-scores">${fields.map((field) => renderAbilityField(field, escapeHTML)).join("")}</div>`
+            : fields.map((field) => renderField(field, escapeHTML)).join("")}
+    </fieldset>`;
 }
 
 export function renderActorListPanel(model = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
@@ -301,11 +347,7 @@ export function renderActorEditorPanel(model = {}, { escapeHTML = (value) => Str
         <form class="totc-v2-actor-editor__form" data-action="actor-editor-save-form">
             <input type="hidden" name="actorId" value="${escapeHTML(model.actorId)}">
             <div class="totc-v2-actor-editor__sections">
-                ${Array.from(sections.entries()).map(([title, fields]) => `
-                    <fieldset class="totc-v2-actor-editor__section">
-                        <legend>${escapeHTML(title)}</legend>
-                        ${fields.map((field) => renderField(field, escapeHTML)).join("")}
-                    </fieldset>`).join("")}
+                ${Array.from(sections.entries()).map(([title, fields]) => renderFieldSection(title, fields, escapeHTML)).join("")}
             </div>
             <footer class="totc-v2-actor-editor__actions">
                 <button type="submit" class="totc-v2-actor-editor__primary" data-action="actor-editor-save" ${model.dirty ? "" : "disabled"}>Save</button>
