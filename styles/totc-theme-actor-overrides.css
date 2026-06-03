@@ -18,16 +18,16 @@ body.totc-system-theme .turn-of-the-century.sheet.actor .totc-ability-score {
 
 body.totc-system-theme .turn-of-the-century.sheet.actor .totc-ability-score::before {
     border: 1px solid rgba(228, 198, 147, 0.6);
-    border-radius: 50%;
+    border-radius: 5px;
     content: "";
-    inset: 8px;
+    inset: 6px;
     pointer-events: none;
     position: absolute;
 }
 
-body.totc-system-theme .turn-of-the-century.sheet.actor .totc-ability-score__modifier {
+body.totc-system-theme .turn-of-the-century.sheet.actor .totc-ability-score__value {
     background: linear-gradient(180deg, #2c2329 0%, #1a1418 100%);
-    border: 1px solid var(--totc-color-brass);
+    border-color: var(--totc-color-brass);
 }
 
 body.totc-system-theme .turn-of-the-century.sheet.actor .totc-inventory-group h2,

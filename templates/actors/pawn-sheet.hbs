@@ -98,11 +98,11 @@
                 </div>
                 <div class="form-group stacked">
                     <label>{{localize "TOTC.Actor.Biography"}}</label>
-                    {{editor system.biography target="system.biography" button=true owner=owner editable=editable}}
+                    <div class="totc-inline-html">{{{system.biography}}}</div>
                 </div>
                 <div class="form-group stacked">
                     <label>{{localize "TOTC.Actor.Notes"}}</label>
-                    {{editor system.notes target="system.notes" button=true owner=owner editable=editable}}
+                    <div class="totc-inline-html totc-inline-html--gm-notes">{{{system.notes}}}</div>
                 </div>
 
             </div>
