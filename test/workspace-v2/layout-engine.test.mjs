@@ -105,6 +105,78 @@ describe("LayoutEngine", () => {
         );
     });
 
+    it("stacks local-left drops before a top dock stack", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const engine = new LayoutEngine({ panels: panelLibrary });
+        const stackId = engine.getLayout().root.topDock.stacks[0].id;
+
+        const layout = engine.applyDropIntent(
+            { id: "player", title: "Player Panel" },
+            { kind: "local", dockId: "topDock", stackId, zone: "local-left" }
+        );
+
+        assert.deepEqual(
+            layout.root.topDock.stacks.map((stack) => stack.panels[0].id),
+            ["player", "chat"]
+        );
+    });
+
+    it("stacks local-right drops after a bottom dock stack", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const engine = new LayoutEngine({ panels: panelLibrary });
+        const stackId = engine.getLayout().root.bottomDock.stacks[0].id;
+
+        const layout = engine.applyDropIntent(
+            { id: "player", title: "Player Panel" },
+            { kind: "local", dockId: "bottomDock", stackId, zone: "local-right" }
+        );
+
+        assert.deepEqual(
+            layout.root.bottomDock.stacks.map((stack) => stack.panels[0].id),
+            ["tracker", "player"]
+        );
+    });
+
+    it("treats vertical zones in horizontal docks as tab composition", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const engine = new LayoutEngine({ panels: panelLibrary });
+        const stackId = engine.getLayout().root.topDock.stacks[0].id;
+
+        const layout = engine.applyDropIntent(
+            { id: "player", title: "Player Panel" },
+            { kind: "local", dockId: "topDock", stackId, zone: "local-top" }
+        );
+
+        assert.equal(layout.root.topDock.stacks.length, 1);
+        assert.deepEqual(
+            layout.root.topDock.stacks[0].panels.map((panel) => panel.id),
+            ["chat", "player"]
+        );
+        assert.equal(layout.root.topDock.stacks[0].activePanelId, "player");
+    });
+
+    it("treats horizontal zones in vertical docks as tab composition", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const engine = new LayoutEngine({ panels: panelLibrary });
+        const mapLayout = engine.applyDropIntent(
+            { id: "map:scene-a", title: "Station Yard", baseId: "map", sceneId: "scene-a" },
+            { kind: "edge", dockId: "centerDock" }
+        );
+        const stackId = mapLayout.root.centerDock.stacks[0].id;
+
+        const layout = engine.applyDropIntent(
+            { id: "player", title: "Player Panel" },
+            { kind: "local", dockId: "centerDock", stackId, zone: "local-left" }
+        );
+
+        assert.equal(layout.root.centerDock.stacks.length, 1);
+        assert.deepEqual(
+            layout.root.centerDock.stacks[0].panels.map((panel) => panel.id),
+            ["map:scene-a", "player"]
+        );
+        assert.equal(layout.root.centerDock.stacks[0].activePanelId, "player");
+    });
+
     it("remembers and restores closed panel locations", async () => {
         const { LayoutEngine } = await loadLayoutEngine();
         const engine = new LayoutEngine({ panels: panelLibrary });

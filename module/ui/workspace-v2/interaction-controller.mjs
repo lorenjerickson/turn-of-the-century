@@ -2,6 +2,27 @@ function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
 }
 
+function isHorizontalDock(dockId) {
+    return dockId === "topDock" || dockId === "bottomDock";
+}
+
+function localZoneLabel(zone) {
+    switch (zone) {
+        case "local-center":
+            return "Compose Tab";
+        case "local-top":
+            return "Stack Above";
+        case "local-bottom":
+            return "Stack Below";
+        case "local-left":
+            return "Stack Left";
+        case "local-right":
+            return "Stack Right";
+        default:
+            return "Compose";
+    }
+}
+
 export class InteractionController {
     constructor() {
         this.activeIntent = null;
@@ -95,6 +116,24 @@ export class InteractionController {
                 });
             }
 
+            if (intent.zone === "local-left") {
+                return this.#relativeRect(rootBounds, {
+                    left: bounds.left - rootBounds.left,
+                    top: bounds.top - rootBounds.top,
+                    width: bounds.width * 0.35,
+                    height: bounds.height
+                });
+            }
+
+            if (intent.zone === "local-right") {
+                return this.#relativeRect(rootBounds, {
+                    left: bounds.right - rootBounds.left - bounds.width * 0.35,
+                    top: bounds.top - rootBounds.top,
+                    width: bounds.width * 0.35,
+                    height: bounds.height
+                });
+            }
+
             return this.#relativeRect(rootBounds, {
                 left: bounds.left - rootBounds.left,
                 top: bounds.bottom - rootBounds.top - bounds.height * 0.35,
@@ -131,21 +170,28 @@ export class InteractionController {
                 continue;
             }
 
-            const yRatio = (event.clientY - bounds.top) / Math.max(bounds.height, 1);
-            const zone = yRatio < 0.28
-                ? "local-top"
-                : yRatio > 0.72
-                    ? "local-bottom"
-                    : "local-center";
-
             const dockId = element.dataset.dockId;
             const stackId = element.dataset.stackId;
+            const xRatio = (event.clientX - bounds.left) / Math.max(bounds.width, 1);
+            const yRatio = (event.clientY - bounds.top) / Math.max(bounds.height, 1);
+            const zone = isHorizontalDock(dockId)
+                ? xRatio < 0.28
+                    ? "local-left"
+                    : xRatio > 0.72
+                        ? "local-right"
+                        : "local-center"
+                : yRatio < 0.28
+                    ? "local-top"
+                    : yRatio > 0.72
+                        ? "local-bottom"
+                        : "local-center";
+
             return {
                 kind: "local",
                 dockId,
                 stackId,
                 zone,
-                label: zone === "local-center" ? "Compose Tab" : zone === "local-top" ? "Stack Above" : "Stack Below",
+                label: localZoneLabel(zone),
                 bounds
             };
         }

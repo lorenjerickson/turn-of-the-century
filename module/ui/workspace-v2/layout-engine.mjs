@@ -3,6 +3,8 @@ import { WORKSPACE_V2_DOCK_IDS } from "./constants.mjs";
 const LOCAL_ZONE_TOP = "local-top";
 const LOCAL_ZONE_BOTTOM = "local-bottom";
 const LOCAL_ZONE_CENTER = "local-center";
+const LOCAL_ZONE_LEFT = "local-left";
+const LOCAL_ZONE_RIGHT = "local-right";
 
 function clone(value) {
     return foundry.utils.deepClone(value);
@@ -82,6 +84,10 @@ function makeDefaultPanelMemory() {
 
 function isCollapsibleDock(dockId) {
     return dockId && dockId !== "centerDock";
+}
+
+function isHorizontalDock(dock) {
+    return dock?.orientation === "horizontal";
 }
 
 function findPanelById(panels, panelId, fallbackIndex = 0) {
@@ -506,14 +512,18 @@ export class LayoutEngine {
             return;
         }
 
-        if (intent.zone === LOCAL_ZONE_CENTER) {
+        const beforeZones = isHorizontalDock(dock) ? [LOCAL_ZONE_LEFT] : [LOCAL_ZONE_TOP];
+        const afterZones = isHorizontalDock(dock) ? [LOCAL_ZONE_RIGHT] : [LOCAL_ZONE_BOTTOM];
+        const isSiblingZone = beforeZones.includes(intent.zone) || afterZones.includes(intent.zone);
+
+        if (intent.zone === LOCAL_ZONE_CENTER || !isSiblingZone) {
             dock.stacks[stackIndex].panels.push(makePanelInstance(panelDef));
             dock.stacks[stackIndex].activePanelId = panelDef.id;
             if (isCollapsibleDock(intent.dockId)) dock.collapsed = false;
             return;
         }
 
-        const targetIndex = intent.zone === LOCAL_ZONE_TOP ? stackIndex : stackIndex + 1;
+        const targetIndex = beforeZones.includes(intent.zone) ? stackIndex : stackIndex + 1;
         dock.stacks.splice(targetIndex, 0, makeStackWithPanel(panelDef));
         if (isCollapsibleDock(intent.dockId)) dock.collapsed = false;
     }
