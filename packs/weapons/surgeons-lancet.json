@@ -11,7 +11,7 @@
     },
     "commonName": "Lancet",
     "description": "<p>A slender steel instrument of uncommon precision, ground for incision and, under duress, applied at close quarters with unhappy efficiency.</p>",
-    "classification": "finesse",
+    "classification": "simpleMelee",
     "quality": "standard",
     "rarity": "common",
     "slot": "hands",

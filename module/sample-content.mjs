@@ -1240,7 +1240,7 @@ const WEAPON_CONFIGS = [
         system: {
             commonName: "Flare Pistol",
             description: html("A single-shot brass pistol firing coloured phosphor cartridges for maritime and highland signalling; seldom chosen for combat, but singularly discouraging at close range."),
-            classification: "specialised",
+            classification: "firearm",
             damage: { formula: "1d4", type: "fire" },
             handedness: "oneHanded",
             actions: {
@@ -1269,7 +1269,7 @@ const WEAPON_CONFIGS = [
         system: {
             commonName: "Lancet",
             description: html("A slender steel instrument of uncommon precision, ground for incision and, under duress, applied at close quarters with unhappy efficiency."),
-            classification: "finesse",
+            classification: "simpleMelee",
             damage: { formula: "1d4", type: "piercing" },
             handedness: "oneHanded",
             actions: {

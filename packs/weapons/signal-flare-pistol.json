@@ -11,7 +11,7 @@
     },
     "commonName": "Flare Pistol",
     "description": "<p>A single-shot brass pistol firing coloured phosphor cartridges for maritime and highland signalling; seldom chosen for combat, but singularly discouraging at close range.</p>",
-    "classification": "specialised",
+    "classification": "firearm",
     "quality": "standard",
     "rarity": "common",
     "slot": "hands",
