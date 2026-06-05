@@ -2,6 +2,7 @@ import {
     requireActorDocumentClass,
     requireItemDocumentClass
 } from "./foundry-v14-runtime.mjs";
+import { TOTC_LOBBY_SCENE_DATA } from "./seeded-scenes.mjs";
 
 const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha", "san"];
 const SKILL_ABILITY_MAP = {
@@ -2855,6 +2856,7 @@ function buildActorsWithLoadouts() {
 }
 
 export const TOTC_SAMPLE_ACTORS = buildActorsWithLoadouts();
+export const TOTC_SAMPLE_SCENES = [TOTC_LOBBY_SCENE_DATA];
 
 export const TOTC_SAMPLE_LIBRARY_STATS = {
     actors: {
@@ -2874,6 +2876,9 @@ export const TOTC_SAMPLE_LIBRARY_STATS = {
                 return map;
             }, new Map())
         )
+    },
+    scenes: {
+        total: TOTC_SAMPLE_SCENES.length
     }
 };
 
@@ -2892,6 +2897,7 @@ export const TOTC_SAMPLE_COMPENDIUMS = {
     consumables: "consumables",
     effects: "effects",
     equipment: "equipment",
+    scenes: "starter-scenes",
     actors: "starter-actors",
     items: "starter-items"
 };
@@ -2998,7 +3004,13 @@ function listCompendiumPlans({ actorTypes = [], itemTypes = [] } = {}) {
         entries: TOTC_SAMPLE_ITEMS.filter((entry) => shouldInclude(entry.type, itemTypeFilter) && predicate(entry))
     }));
 
-    return [...actorPlans, ...itemPlans].filter((plan) => plan.entries.length > 0);
+    const scenePlans = [{
+        packName: TOTC_SAMPLE_COMPENDIUMS.scenes,
+        documentType: "Scene",
+        entries: TOTC_SAMPLE_SCENES
+    }];
+
+    return [...actorPlans, ...itemPlans, ...scenePlans].filter((plan) => plan.entries.length > 0);
 }
 
 function resolveChoiceKeys(choices) {
@@ -3228,8 +3240,10 @@ export async function publishTotcSampleCompendiums({
 
     let importedActors = 0;
     let importedItems = 0;
+    let importedScenes = 0;
     let clearedActors = 0;
     let clearedItems = 0;
+    let clearedScenes = 0;
 
     for (const plan of plans) {
         const pack = game.packs.get(`${systemId}.${plan.packName}`);
@@ -3254,9 +3268,12 @@ export async function publishTotcSampleCompendiums({
         if (plan.documentType === "Actor") {
             importedActors += imported;
             clearedActors += cleared;
-        } else {
+        } else if (plan.documentType === "Item") {
             importedItems += imported;
             clearedItems += cleared;
+        } else if (plan.documentType === "Scene") {
+            importedScenes += imported;
+            clearedScenes += cleared;
         }
     }
 
@@ -3270,9 +3287,11 @@ export async function publishTotcSampleCompendiums({
         byPack,
         importedActors,
         importedItems,
-        totalImported: importedActors + importedItems,
+        importedScenes,
+        totalImported: importedActors + importedItems + importedScenes,
         clearedActors,
         clearedItems,
+        clearedScenes,
         overwrite
     };
 }

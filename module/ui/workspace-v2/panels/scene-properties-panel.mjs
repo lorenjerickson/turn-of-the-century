@@ -154,6 +154,7 @@ export function buildScenePropertiesUpdateData(model = {}) {
 
     if (backgroundPath && backgroundPath !== currentBackgroundPath) {
         updateData["background.src"] = backgroundPath;
+        updateData["texture.src"] = backgroundPath;
         if (!model.preserveGridCalibration) {
             updateData.shiftX = 0;
             updateData.shiftY = 0;
@@ -181,13 +182,11 @@ export function resolveScenePropertiesScene({
 
     const panelId = String(activePanel?.id ?? "");
     const sceneId = String(activePanel?.sceneId ?? (panelId.startsWith("map:") ? panelId.slice(4) : "")).trim();
-    const isMapPanel = activePanel?.baseId === "map" || panelId === "map" || panelId.startsWith("map:");
+    const isMapPanel = activePanel?.baseId === "map" || panelId.startsWith("map:");
 
     if (isMapPanel && sceneId) {
         return sceneResolver(sceneId) ?? viewedScene ?? defaultScene ?? null;
     }
-
-    if (isMapPanel) return defaultScene ?? viewedScene ?? null;
 
     return viewedScene ?? defaultScene ?? null;
 }

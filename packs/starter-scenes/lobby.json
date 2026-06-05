@@ -1,0 +1,37 @@
+{
+  "_id": "totclobbyscene01",
+  "name": "Lobby",
+  "active": false,
+  "navigation": true,
+  "navOrder": 0,
+  "width": 1200,
+  "height": 672,
+  "padding": 0,
+  "shiftX": 0,
+  "shiftY": 0,
+  "background": {
+    "src": "systems/turn-of-the-century/assets/images/scenes/lobby.jpg"
+  },
+  "texture": {
+    "src": "systems/turn-of-the-century/assets/images/scenes/lobby.jpg"
+  },
+  "grid": {
+    "type": 0,
+    "size": 100,
+    "distance": 5,
+    "units": "ft"
+  },
+  "drawings": [],
+  "lights": [],
+  "notes": [],
+  "sounds": [],
+  "templates": [],
+  "tiles": [],
+  "tokens": [],
+  "walls": [],
+  "flags": {
+    "turn-of-the-century": {
+      "seededLobby": true
+    }
+  }
+}

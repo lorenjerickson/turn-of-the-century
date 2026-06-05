@@ -164,6 +164,7 @@ describe("Scene properties panel", () => {
         assert.deepEqual(buildScenePropertiesUpdateData(model), {
             name: "Whitechapel Alley",
             "background.src": "assets/images/scenes/whitechapel-alley.webp",
+            "texture.src": "assets/images/scenes/whitechapel-alley.webp",
             shiftX: 0,
             shiftY: 0,
             "grid.type": 0,
@@ -185,7 +186,8 @@ describe("Scene properties panel", () => {
         assert.equal(model.backgroundWillClearGrid, false);
         assert.deepEqual(buildScenePropertiesUpdateData(model), {
             name: "Whitechapel Alley",
-            "background.src": "assets/images/scenes/whitechapel-alley.webp"
+            "background.src": "assets/images/scenes/whitechapel-alley.webp",
+            "texture.src": "assets/images/scenes/whitechapel-alley.webp"
         });
         assert.equal(buildScenePropertiesSavedState({ scene: { id: "scene-draft" }, model }).status, "Scene saved.");
     });
@@ -270,11 +272,12 @@ describe("Scene properties panel", () => {
         assert.equal(getScenePropertiesStagedBackgroundPath(state, { id: "scene-other" }), "");
     });
 
-    it("resolves the generic map panel to the current scene so staged backgrounds can preview", () => {
+    it("resolves scene-bound map panels so staged backgrounds can preview", () => {
         const currentScene = { id: "scene-draft", name: "Draft Scene" };
         const resolved = resolveScenePropertiesMapPanelScene({
-            panel: { id: "map" },
-            currentScene
+            panel: { id: "map:scene-draft", baseId: "map", sceneId: "scene-draft" },
+            currentScene,
+            sceneResolver: (sceneId) => sceneId === "scene-draft" ? currentScene : null
         });
 
         assert.equal(resolved.sceneId, "scene-draft");
@@ -343,6 +346,7 @@ describe("Scene properties panel", () => {
         });
         assert.equal(model.backgroundPath, "assets/images/scenes/draft-map.webp");
         assert.equal(buildScenePropertiesUpdateData(model)["background.src"], "assets/images/scenes/draft-map.webp");
+        assert.equal(buildScenePropertiesUpdateData(model)["texture.src"], "assets/images/scenes/draft-map.webp");
     });
 
     it("falls back to the viewed scene when a non-map panel is active", () => {
@@ -364,6 +368,7 @@ describe("Scene properties panel", () => {
         }), {
             name: "Hotel Cellar",
             "background.src": "assets/images/scenes/hotel.webp",
+            "texture.src": "assets/images/scenes/hotel.webp",
             shiftX: 0,
             shiftY: 0,
             "grid.type": 0,

@@ -20,7 +20,7 @@ describe("Design command palette", () => {
     it("ranks active-view design actions ahead of fallback actions", () => {
         const model = buildDesignCommandPaletteModel({
             active: true,
-            activePanel: { id: "map", title: "Map" },
+            activePanel: { id: "map:scene-1", title: "Lobby" },
             isGM: true,
             registry
         });
@@ -36,7 +36,7 @@ describe("Design command palette", () => {
     it("filters actions by query", () => {
         const model = buildDesignCommandPaletteModel({
             active: true,
-            activePanel: { id: "map", title: "Map" },
+            activePanel: { id: "map:scene-1", title: "Lobby" },
             isGM: true,
             query: "light",
             registry
@@ -48,7 +48,7 @@ describe("Design command palette", () => {
     it("does not activate for non-GM users", () => {
         const model = buildDesignCommandPaletteModel({
             active: true,
-            activePanel: { id: "map", title: "Map" },
+            activePanel: { id: "map:scene-1", title: "Lobby" },
             isGM: false,
             registry
         });
@@ -60,7 +60,7 @@ describe("Design command palette", () => {
     it("renders escaped action metadata", () => {
         const model = buildDesignCommandPaletteModel({
             active: true,
-            activePanel: { id: "map", title: "Map <Main>" },
+            activePanel: { id: "map:scene-1", title: "Map <Main>" },
             isGM: true,
             registry
         });

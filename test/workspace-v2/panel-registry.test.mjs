@@ -69,6 +69,13 @@ describe("WorkspacePanelRegistry", () => {
         });
     });
 
+    it("does not register a generic map panel", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.equal(registry.get("map"), null);
+        assert.equal(registry.getAvailability({ isGM: true }).some((panel) => panel.id === "map"), false);
+    });
+
     it("registers GM actor list and editor panels for actor management", () => {
         const registry = new WorkspacePanelRegistry();
 

@@ -58,6 +58,13 @@
             "system": "turn-of-the-century"
         },
         {
+            "name": "starter-scenes",
+            "label": "Starter Library: Scenes",
+            "type": "Scene",
+            "path": "packs/starter-scenes",
+            "system": "turn-of-the-century"
+        },
+        {
             "name": "professions",
             "label": "Professions",
             "type": "Item",

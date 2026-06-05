@@ -98,6 +98,7 @@ import {
     requireItemsCollection
 } from "./module/foundry-v14-runtime.mjs";
 import { OPENAI_API_KEY_SETTING } from "./module/services/llm-service.mjs";
+import { ensureTotcLobbyScene } from "./module/seeded-scenes.mjs";
 
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
 const ENCOUNTER_AP_BUDGET_SETTING = "encounterActionPointBudget";
@@ -564,6 +565,7 @@ Hooks.once("ready", async () => {
     };
 
     await maybeRunAutomatedMigrations();
+    await ensureTotcLobbyScene();
 
     workspaceV2Coordinator = new WorkspaceV2Coordinator({
         systemId: "turn-of-the-century"

@@ -21,7 +21,6 @@ export const DEFAULT_WORKSPACE_PANELS = Object.freeze([
     { id: "scenario-builder", title: "Scenario Builder", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "scenario", "design"] },
     { id: "encounter-designer", title: "Encounter Designer", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "encounter", "design"] },
     { id: "gm-assistant", title: "GM Assistant", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "llm", "design"] },
-    { id: "map", title: "Map", contextTags: ["scene", "navigation"] },
     { id: "travel", title: "Travel", contextTags: ["travel", "exploration"] },
     { id: "encounter", title: "Encounter Planner", contextTags: ["encounter", "combat"] },
     { id: "market", title: "Market", contextTags: ["economy", "inventory"] },

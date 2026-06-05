@@ -79,6 +79,7 @@ import { GridCalibrationController } from "./grid-calibration-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
 import { MapViewportController } from "./map-viewport-controller.mjs";
 import { WorkspacePanelRegistry } from "./panel-registry.mjs";
+import { getTotcLobbyScene } from "../../seeded-scenes.mjs";
 import { getDieRollRequestHostPanelId } from "./die-roll-request-routing.mjs";
 import { openFoundrySettingsView } from "./workspace-system-menu.mjs";
 import {
@@ -2622,7 +2623,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #isMapPanel(panel) {
-        return panel?.id === "map" || panel?.baseId === "map" || String(panel?.id ?? "").startsWith("map:");
+        return panel?.baseId === "map" || String(panel?.id ?? "").startsWith("map:");
     }
 
     #getSceneDocumentById(sceneId) {
@@ -2689,8 +2690,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     #getPanelSceneId(panel, context = {}) {
         if (!this.#isMapPanel(panel)) return "";
         const panelId = String(panel?.id ?? "");
-        const explicitSceneId = panel?.sceneId ?? (panelId.startsWith("map:") ? panelId.slice(4) : "");
-        return String(explicitSceneId || context.scene?.id || "").trim();
+        return String(panel?.sceneId ?? (panelId.startsWith("map:") ? panelId.slice(4) : "")).trim();
     }
 
     #getActiveSceneId() {
@@ -2778,14 +2778,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const panelDef = this.#makeSceneMapPanelDef(scene);
         if (!panelDef) return this.layoutEngine.getLayout();
 
-        const currentSceneId = String((canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed)?.id ?? "");
-        if (panelDef.sceneId === currentSceneId) {
-            const currentMap = this.#findPanelLocation("map");
-            if (currentMap?.kind === "dock") {
-                return this.layoutEngine.setActivePanel(currentMap.dockId, currentMap.stackId, "map");
-            }
-        }
-
         const existing = this.#findPanelLocation(panelDef.id);
         if (existing?.kind === "dock") {
             return this.layoutEngine.setActivePanel(existing.dockId, existing.stackId, panelDef.id);
@@ -2804,6 +2796,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 zone: "local-center"
             })
             : this.layoutEngine.applyDropIntent(panelDef, { kind: "edge", dockId: "centerDock" });
+    }
+
+    #getDefaultCenterScene() {
+        return canvas?.scene ?? game.scenes?.viewed ?? game.scenes?.active ?? getTotcLobbyScene(game.scenes);
     }
 
     async #activateScene(scene) {
@@ -5240,20 +5236,28 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #enforceRequiredDocking() {
-        const mapPanel = this.panelRegistry.get("map");
         const compendiumPanel = this.panelRegistry.get("compendium");
         const scenesPanel = this.panelRegistry.get("scenes");
-        if (!mapPanel || !compendiumPanel || !scenesPanel) return null;
+        if (!compendiumPanel || !scenesPanel) return null;
 
         let changed = false;
         const initialLayout = this.layoutEngine.getLayout();
-        if (!this.#dockHasPanel(initialLayout, "centerDock", "map")) {
-            this.layoutEngine.applyDropIntent(mapPanel, { kind: "edge", dockId: "centerDock" });
+        if (this.#dockHasPanel(initialLayout, "centerDock", "map")) {
+            this.layoutEngine.removePanel("map");
             changed = true;
         }
 
-        const nextLayout = this.layoutEngine.getLayout();
-        if (!this.#dockHasPanel(nextLayout, "rightDock", "compendium")) {
+        const layoutAfterMapRemoval = this.layoutEngine.getLayout();
+        if (!this.#dockHasAnyMapPanel(layoutAfterMapRemoval, "centerDock")) {
+            const defaultCenterPanel = this.#makeSceneMapPanelDef(this.#getDefaultCenterScene());
+            if (defaultCenterPanel) {
+                this.layoutEngine.applyDropIntent(defaultCenterPanel, { kind: "edge", dockId: "centerDock" });
+                changed = true;
+            }
+        }
+
+        const layoutAfterCenterMap = this.layoutEngine.getLayout();
+        if (!this.#dockHasPanel(layoutAfterCenterMap, "rightDock", "compendium")) {
             this.layoutEngine.applyDropIntent(compendiumPanel, { kind: "edge", dockId: "rightDock" });
             changed = true;
         }
@@ -5305,6 +5309,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (!dock?.stacks?.length) return false;
 
         return dock.stacks.some((stack) => (stack?.panels ?? []).some((panel) => panel.id === panelId));
+    }
+
+    #dockHasAnyMapPanel(layout, dockId) {
+        const dock = layout?.root?.[dockId];
+        if (!dock?.stacks?.length) return false;
+
+        return dock.stacks.some((stack) => (stack?.panels ?? []).some((panel) => this.#isMapPanel(panel)));
     }
 
     #getVisiblePanelIds(layout) {

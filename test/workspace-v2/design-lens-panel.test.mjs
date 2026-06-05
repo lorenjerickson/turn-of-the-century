@@ -8,8 +8,8 @@ import {
 } from "../../module/ui/workspace-v2/panels/design-lens-panel.mjs";
 
 describe("Design lens panel", () => {
-    it("surfaces scene design actions for the map panel", () => {
-        const actions = getDesignLensActions("map");
+    it("surfaces scene design actions for scene map panels", () => {
+        const actions = getDesignLensActions("map:scene-1");
 
         assert.deepEqual(actions.map((action) => action.id), [
             "scene.create",
@@ -37,20 +37,20 @@ describe("Design lens panel", () => {
             getApplicableActions: ({ panelId, isGM }) => [{ id: `${panelId}:${isGM}`, label: "Injected", description: "Injected action." }]
         };
 
-        assert.deepEqual(getDesignLensActions("map", { registry, isGM: true }), [
-            { id: "map:true", label: "Injected", description: "Injected action." }
+        assert.deepEqual(getDesignLensActions("map:scene-1", { registry, isGM: true }), [
+            { id: "map:scene-1:true", label: "Injected", description: "Injected action." }
         ]);
     });
 
     it("only activates for a GM with an active panel", () => {
-        assert.equal(buildDesignLensModel({ panel: { id: "map", title: "Map" }, active: true, isGM: true }).active, true);
-        assert.equal(buildDesignLensModel({ panel: { id: "map", title: "Map" }, active: true, isGM: false }).active, false);
+        assert.equal(buildDesignLensModel({ panel: { id: "map:scene-1", title: "Lobby" }, active: true, isGM: true }).active, true);
+        assert.equal(buildDesignLensModel({ panel: { id: "map:scene-1", title: "Lobby" }, active: true, isGM: false }).active, false);
         assert.equal(buildDesignLensModel({ panel: null, active: true, isGM: true }).active, false);
     });
 
     it("renders nothing when inactive", () => {
         const html = renderDesignLensSurface(buildDesignLensModel({
-            panel: { id: "map", title: "Map" },
+            panel: { id: "map:scene-1", title: "Lobby" },
             active: false,
             isGM: true
         }));
@@ -60,7 +60,7 @@ describe("Design lens panel", () => {
 
     it("renders escaped contextual design actions", () => {
         const html = renderDesignLensSurface(buildDesignLensModel({
-            panel: { id: "map", title: "Map" },
+            panel: { id: "map:scene-1", title: "Lobby" },
             active: true,
             isGM: true
         }), {
@@ -70,7 +70,7 @@ describe("Design lens panel", () => {
                 .replaceAll(">", "&gt;")
         });
 
-        assert.match(html, /Map Design/);
+        assert.match(html, /Lobby Design/);
         assert.match(html, /scene\.walls/);
         assert.match(html, /Walls/);
     });

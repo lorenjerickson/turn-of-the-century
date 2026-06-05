@@ -1,7 +1,7 @@
 /**
  * build-packs.mjs
  *
- * Extracts TOTC_SAMPLE_ACTORS and TOTC_SAMPLE_ITEMS from sample-content.mjs
+ * Extracts TOTC_SAMPLE_ACTORS, TOTC_SAMPLE_ITEMS, and TOTC_SAMPLE_SCENES from sample-content.mjs
  * and writes them as individual JSON files into the appropriate packs/ directories.
  *
  * Run with: node scripts/build-packs.mjs
@@ -12,7 +12,7 @@ import { existsSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { TOTC_SAMPLE_ACTORS, TOTC_SAMPLE_ITEMS } from "../module/sample-content.mjs";
+import { TOTC_SAMPLE_ACTORS, TOTC_SAMPLE_ITEMS, TOTC_SAMPLE_SCENES } from "../module/sample-content.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PACKS_ROOT = join(__dirname, "..", "packs");
@@ -41,6 +41,10 @@ const ITEM_PACK_FILTERS = {
     effects:          (entry) => entry.type === "effect",
     equipment:        (entry) => entry.type === "equipment" || entry.type === "item",
     "starter-items":  () => true
+};
+
+const SCENE_PACK_FILTERS = {
+    "starter-scenes": () => true
 };
 
 function slugify(name) {
@@ -72,16 +76,18 @@ function writePack(packName, documentType, entries) {
     let written = 0;
 
     for (const entry of entries) {
-        const doc = {
-            _id: stableId(entry.type, entry.name),
-            name: entry.name,
-            type: entry.type,
-            img: entry.img ?? (documentType === "Actor" ? "icons/svg/mystery-man.svg" : "icons/svg/item-bag.svg"),
-            system: entry.system ?? {},
-            ...(Array.isArray(entry.items) && entry.items.length ? { items: entry.items } : {}),
-            ...(Array.isArray(entry.effects) && entry.effects.length ? { effects: entry.effects } : {}),
-            flags: entry.flags ?? {}
-        };
+        const doc = documentType === "Scene"
+            ? { ...entry }
+            : {
+                _id: stableId(entry.type, entry.name),
+                name: entry.name,
+                type: entry.type,
+                img: entry.img ?? (documentType === "Actor" ? "icons/svg/mystery-man.svg" : "icons/svg/item-bag.svg"),
+                system: entry.system ?? {},
+                ...(Array.isArray(entry.items) && entry.items.length ? { items: entry.items } : {}),
+                ...(Array.isArray(entry.effects) && entry.effects.length ? { effects: entry.effects } : {}),
+                flags: entry.flags ?? {}
+            };
 
         const slug = uniqueSlug(slugify(entry.name), seenSlugs);
         const fileName = `${slug}.json`;
@@ -118,6 +124,17 @@ for (const [packName, predicate] of Object.entries(ITEM_PACK_FILTERS)) {
     const entries = TOTC_SAMPLE_ITEMS.filter(predicate);
     if (!entries.length) { console.log(`  ${packName}: (no entries)`); continue; }
     const { written, removed } = writePack(packName, "Item", entries);
+    console.log(`  ${packName}: ${written} written${removed ? `, ${removed} stale removed` : ""}`);
+    totals.written += written;
+    totals.removed += removed;
+    totals.packs++;
+}
+
+console.log("Building scene packs...");
+for (const [packName, predicate] of Object.entries(SCENE_PACK_FILTERS)) {
+    const entries = TOTC_SAMPLE_SCENES.filter(predicate);
+    if (!entries.length) { console.log(`  ${packName}: (no entries)`); continue; }
+    const { written, removed } = writePack(packName, "Scene", entries);
     console.log(`  ${packName}: ${written} written${removed ? `, ${removed} stale removed` : ""}`);
     totals.written += written;
     totals.removed += removed;

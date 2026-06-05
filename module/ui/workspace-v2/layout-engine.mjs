@@ -91,12 +91,15 @@ function findPanelById(panels, panelId, fallbackIndex = 0) {
     };
 }
 
+function isRemovedGenericMapPanel(panel) {
+    return panel?.id === "map" && !panel?.sceneId && !panel?.baseId;
+}
+
 export class LayoutEngine {
     static createDefaultLayout({ panels = [] } = {}) {
         const leftPanel = findPanelById(panels, "gamemaster");
         const scenesPanel = findPanelById(panels, "scenes");
         const topPanel = findPanelById(panels, "chat");
-        const centerPanel = findPanelById(panels, "map");
         const rightPanel = findPanelById(panels, "compendium");
         const bottomPanel = findPanelById(panels, "tracker");
         const floatingPanel = findPanelById(panels, "camp");
@@ -118,7 +121,7 @@ export class LayoutEngine {
                 centerDock: {
                     orientation: "vertical",
                     collapsed: false,
-                    stacks: [makeStackWithPanel(centerPanel)]
+                    stacks: []
                 },
                 rightDock: {
                     orientation: "vertical",
@@ -167,6 +170,18 @@ export class LayoutEngine {
                 return null;
             }
             dock.collapsed = isCollapsibleDock(dockId) ? Boolean(dock.collapsed) : false;
+            dock.stacks = dock.stacks
+                .map((stack) => ({
+                    ...stack,
+                    panels: (stack?.panels ?? []).filter((panel) => !isRemovedGenericMapPanel(panel))
+                }))
+                .filter((stack) => stack.panels.length > 0)
+                .map((stack) => ({
+                    ...stack,
+                    activePanelId: stack.panels.some((panel) => panel.id === stack.activePanelId)
+                        ? stack.activePanelId
+                        : stack.panels[0].id
+                }));
             for (const stack of dock.stacks) {
                 if (!stack || typeof stack !== "object") return null;
                 if (!Array.isArray(stack.panels)) return null;
@@ -179,6 +194,7 @@ export class LayoutEngine {
         } else {
             candidate.root.floatingWindows = candidate.root.floatingWindows
                 .filter((window) => window && window.panel?.id)
+                .filter((window) => !isRemovedGenericMapPanel(window.panel))
                 .map((window) => ({
                     id: window.id ?? nextId("float"),
                     panel: makePanelInstance(window.panel),
