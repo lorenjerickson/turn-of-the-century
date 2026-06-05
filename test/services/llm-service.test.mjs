@@ -8,6 +8,7 @@ import {
     OPENAI_API_KEY_SETTING,
     buildGenerationContextPrompt,
     extractOpenAIResponseText,
+    getGenerationJsonConstraint,
     getRelevantContentSkillPrompts
 } from "../../module/services/llm-service.mjs";
 
@@ -210,6 +211,45 @@ describe("LLMService", () => {
         assert.equal(buildGenerationContextPrompt({}), "");
     });
 
+    it("builds a single generation prompt from general, specialized, context, schema, and GM request", async () => {
+        globalThis.fetch = async (url) => {
+            if (url.endsWith(GENERAL_GENERATION_PROMPT_PATH)) {
+                return { ok: true, text: async () => "General JSON Requirement" };
+            }
+            return { ok: true, text: async () => "Scenario Specific Prompt" };
+        };
+
+        const prompt = await LLMService.buildComposedGenerationPrompt("Make it about a fogbound hospital.", {
+            elementType: "scenario",
+            generationContext: {
+                parentLocation: {
+                    id: "loc-whitechapel",
+                    name: "Whitechapel",
+                    locationType: "district"
+                }
+            }
+        });
+
+        assert.ok(prompt.includes("General JSON Requirement"));
+        assert.ok(prompt.includes("Scenario Specific Prompt"));
+        assert.ok(prompt.includes("Content Skill: Language Style"));
+        assert.ok(prompt.includes('The GM selected "Whitechapel" as the parent location'));
+        assert.ok(prompt.includes("Expected JSON Structure:"));
+        assert.ok(prompt.includes("Scenario Title"));
+        assert.ok(prompt.includes("## GM Request\nMake it about a fogbound hospital."));
+        assert.ok(prompt.indexOf("General JSON Requirement") < prompt.indexOf("Scenario Specific Prompt"));
+        assert.ok(prompt.indexOf("Scenario Specific Prompt") < prompt.indexOf("Expected JSON Structure:"));
+        assert.ok(prompt.indexOf("Expected JSON Structure:") < prompt.indexOf("## GM Request"));
+    });
+
+    it("keeps JSON constraints explicit for every composed prompt", () => {
+        const constraint = getGenerationJsonConstraint("actor");
+
+        assert.match(constraint, /valid JSON/i);
+        assert.match(constraint, /Expected JSON Structure:/);
+        assert.match(constraint, /Actor Name/);
+    });
+
     it("falls back when a generation prep prompt file is unavailable", async () => {
         globalThis.fetch = async () => ({ ok: false, text: async () => "" });
 
@@ -232,7 +272,7 @@ describe("LLMService", () => {
         );
     });
 
-    it("calls OpenAI Responses with the prompt, system context, and JSON output format", async () => {
+    it("calls OpenAI Responses with the composed prompt and JSON output format", async () => {
         globalThis.game = {
             settings: {
                 get: () => "test-key"
@@ -265,10 +305,12 @@ describe("LLMService", () => {
 
         const body = JSON.parse(fetchCall.options.body);
         assert.equal(body.model, "gpt-5.5");
-        assert.equal(body.input, "Hello LLM");
+        assert.ok(body.input.includes("General Instruction"));
+        assert.ok(body.input.includes("System Instruction"));
+        assert.ok(body.input.includes("Expected JSON Structure:"));
+        assert.ok(body.input.includes("## GM Request\nHello LLM"));
         assert.deepEqual(body.text.format, { type: "json_object" });
-        assert.ok(body.instructions.includes("General Instruction"));
-        assert.ok(body.instructions.includes("System Instruction"));
+        assert.equal(body.instructions, "You are a master architect for the Turn of the Century Roleplaying Game, responsible for creating engaging, historically grounded campaigns and scenarios.");
     });
 
     it("throws on OpenAI API error", async () => {

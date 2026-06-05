@@ -57,6 +57,15 @@ const ITEM_GENERATION_TYPES = new Set([
 const CREATURE_GENERATION_TYPES = new Set(["actor", "pawn", "encounter-design"]);
 const MEDIA_AWARE_GENERATION_TYPES = new Set(["actor", "pawn", "location", "campaign", "scenario", "encounter-design", "item", "equipment", "weapon", "armor", "consumable"]);
 
+const GENERATION_JSON_SCHEMAS = Object.freeze({
+    campaign: `{"name": "Campaign Title", "system": {"profile": {"summary": "Brief summary", "environment": "HTML", "culture": "HTML", "socialClimate": "HTML", "antagonist": {"name": "", "concept": "", "motivations": "HTML"}}}}`,
+    scenario: `{"name": "Scenario Title", "system": {"profile": {"summary": "Brief summary", "description": "HTML", "historicalNotes": "HTML", "resolutionCriteria": "HTML"}}}`,
+    "encounter-design": `{"name": "Encounter Title", "system": {"profile": {"summary": "Brief summary", "description": "HTML", "hazards": "HTML", "npcs": []}}}`,
+    actor: `{"name": "Actor Name", "system": {"profile": {"role": "Role", "faction": "Faction", "summary": "Brief summary", "tags": []}, "biography": "HTML", "notes": "HTML", "classification": {"category": "npc", "species": "Human", "profession": "Profession"}, "progression": {"level": 1, "challenge": ""}, "abilities": {"str": {"value": 10}, "dex": {"value": 10}, "con": {"value": 10}, "int": {"value": 10}, "wis": {"value": 10}, "cha": {"value": 10}, "san": {"value": 10}}, "inventory": {"pack": {"itemIds": []}, "combat": {"readyWeaponIds": []}}, "traits": {"languages": []}}}`,
+    pawn: `{"name": "NPC Name", "system": {"profile": {"summary": "Brief summary", "role": "Role", "faction": "Faction"}, "biography": "HTML", "notes": "HTML", "pawn": {"role": "Role", "threat": 1, "disposition": "neutral"}}}`,
+    location: `{"name": "Location Name", "system": {"locationType": "village/market/city/district/etc", "profile": {"summary": "Brief summary", "description": "HTML", "notes": "HTML"}, "features": [{"name": "Feature Name", "description": "Brief desc"}]}}`
+});
+
 export function extractOpenAIResponseText(data = {}) {
     if (typeof data.output_text === "string" && data.output_text.trim()) {
         return data.output_text;
@@ -119,6 +128,14 @@ export function buildGenerationContextPrompt(context = {}) {
     return sections.join("\n\n");
 }
 
+export function getGenerationJsonConstraint(elementType = "campaign") {
+    const jsonConstraint = GENERATION_JSON_SCHEMAS[elementType] || GENERATION_JSON_SCHEMAS.campaign;
+    return [
+        "IMPORTANT: You must reply ONLY with valid JSON that matches the following structure. Do not include markdown formatting or backticks around the JSON. Your response will be parsed programmatically.",
+        `Expected JSON Structure:\n${jsonConstraint}`
+    ].join("\n");
+}
+
 export class LLMService {
     static getApiKey() {
         return game.settings.get("turn-of-the-century", OPENAI_API_KEY_SETTING);
@@ -157,26 +174,31 @@ export class LLMService {
         const contentSkillPrompt = getRelevantContentSkillPrompts(elementType).join("\n\n");
         const generationContextPrompt = buildGenerationContextPrompt(options.generationContext ?? {});
 
-        // Add structural constraints for JSON generation based on element type.
-        const schemas = {
-            campaign: `{"name": "Campaign Title", "system": {"profile": {"summary": "Brief summary", "environment": "HTML", "culture": "HTML", "socialClimate": "HTML", "antagonist": {"name": "", "concept": "", "motivations": "HTML"}}}}`,
-            scenario: `{"name": "Scenario Title", "system": {"profile": {"summary": "Brief summary", "description": "HTML", "historicalNotes": "HTML", "resolutionCriteria": "HTML"}}}`,
-            "encounter-design": `{"name": "Encounter Title", "system": {"profile": {"summary": "Brief summary", "description": "HTML", "hazards": "HTML", "npcs": []}}}`,
-            actor: `{"name": "Actor Name", "system": {"profile": {"role": "Role", "faction": "Faction", "summary": "Brief summary", "tags": []}, "biography": "HTML", "notes": "HTML", "classification": {"category": "npc", "species": "Human", "profession": "Profession"}, "progression": {"level": 1, "challenge": ""}, "abilities": {"str": {"value": 10}, "dex": {"value": 10}, "con": {"value": 10}, "int": {"value": 10}, "wis": {"value": 10}, "cha": {"value": 10}, "san": {"value": 10}}, "inventory": {"pack": {"itemIds": []}, "combat": {"readyWeaponIds": []}}, "traits": {"languages": []}}}`,
-            pawn: `{"name": "NPC Name", "system": {"profile": {"summary": "Brief summary", "role": "Role", "faction": "Faction"}, "biography": "HTML", "notes": "HTML", "pawn": {"role": "Role", "threat": 1, "disposition": "neutral"}}}`,
-            location: `{"name": "Location Name", "system": {"locationType": "village/market/city/district/etc", "profile": {"summary": "Brief summary", "description": "HTML", "notes": "HTML"}, "features": [{"name": "Feature Name", "description": "Brief desc"}]}}`
-        };
-
-        const jsonConstraint = schemas[elementType] || schemas.campaign;
-
         return [
             DEFAULT_SYSTEM_PROMPT,
             generalPrompt,
             prepPrompt,
             contentSkillPrompt,
             generationContextPrompt,
-            "IMPORTANT: You must reply ONLY with valid JSON that matches the following structure. Do not include markdown formatting or backticks around the JSON. Your response will be parsed programmatically.",
-            `Expected JSON Structure:\n${jsonConstraint}`
+            getGenerationJsonConstraint(elementType)
+        ].filter((section) => String(section ?? "").trim()).join("\n\n");
+    }
+
+    static async buildComposedGenerationPrompt(userPrompt, options = {}) {
+        const { elementType = "campaign", generationContext = {} } = options;
+        const generalPrompt = await this.getPromptText(GENERAL_GENERATION_PROMPT_PATH, "");
+        const prepPrompt = await this.getPromptText(this.getPromptPath(elementType), "");
+        const contentSkillPrompt = getRelevantContentSkillPrompts(elementType).join("\n\n");
+        const generationContextPrompt = buildGenerationContextPrompt(generationContext);
+        const gmPrompt = String(userPrompt ?? "").trim();
+
+        return [
+            generalPrompt,
+            prepPrompt,
+            contentSkillPrompt,
+            generationContextPrompt,
+            getGenerationJsonConstraint(elementType),
+            gmPrompt ? ["## GM Request", gmPrompt].join("\n") : ""
         ].filter((section) => String(section ?? "").trim()).join("\n\n");
     }
 
@@ -189,14 +211,16 @@ export class LLMService {
 
         const requestBody = {
             model: this.getModel(),
-            input: userPrompt,
+            input: useSystemPrompt
+                ? await this.buildComposedGenerationPrompt(userPrompt, { elementType, generationContext })
+                : userPrompt,
             text: {
                 format: { type: "json_object" }
             }
         };
 
         if (useSystemPrompt) {
-            requestBody.instructions = await this.getSystemPrompt(elementType, { generationContext });
+            requestBody.instructions = DEFAULT_SYSTEM_PROMPT;
         }
 
         const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
