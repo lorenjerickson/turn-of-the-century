@@ -67,8 +67,8 @@ function isSeededLobbyScene(scene) {
         ?? scene?._source?.flags?.["turn-of-the-century"]?.seededLobby);
 }
 
-function hasLobbyBackground(scene) {
-    return sceneBackgroundSrc(scene) === TOTC_LOBBY_SCENE_BACKGROUND;
+function hasSceneBackground(scene) {
+    return Boolean(sceneBackgroundSrc(scene));
 }
 
 function makeLobbySceneUpdateData() {
@@ -113,7 +113,7 @@ export async function ensureTotcLobbyScene({ SceneClass = null } = {}) {
 
     const existing = getTotcLobbyScene();
     if (existing) {
-        if (isFoundryWelcomeScene(existing) || !hasLobbyBackground(existing) || !isSeededLobbyScene(existing)) {
+        if (isFoundryWelcomeScene(existing) || !hasSceneBackground(existing) || !isSeededLobbyScene(existing)) {
             return updateSceneAsLobby(existing);
         }
         return existing;

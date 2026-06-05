@@ -163,8 +163,8 @@ describe("Scene properties panel", () => {
 
         assert.deepEqual(buildScenePropertiesUpdateData(model), {
             name: "Whitechapel Alley",
-            "background.src": "assets/images/scenes/whitechapel-alley.webp",
-            "texture.src": "assets/images/scenes/whitechapel-alley.webp",
+            background: { src: "assets/images/scenes/whitechapel-alley.webp" },
+            texture: { src: "assets/images/scenes/whitechapel-alley.webp" },
             shiftX: 0,
             shiftY: 0,
             "grid.type": 0,
@@ -186,8 +186,8 @@ describe("Scene properties panel", () => {
         assert.equal(model.backgroundWillClearGrid, false);
         assert.deepEqual(buildScenePropertiesUpdateData(model), {
             name: "Whitechapel Alley",
-            "background.src": "assets/images/scenes/whitechapel-alley.webp",
-            "texture.src": "assets/images/scenes/whitechapel-alley.webp"
+            background: { src: "assets/images/scenes/whitechapel-alley.webp" },
+            texture: { src: "assets/images/scenes/whitechapel-alley.webp" }
         });
         assert.equal(buildScenePropertiesSavedState({ scene: { id: "scene-draft" }, model }).status, "Scene saved.");
     });
@@ -345,8 +345,8 @@ describe("Scene properties panel", () => {
             ...state
         });
         assert.equal(model.backgroundPath, "assets/images/scenes/draft-map.webp");
-        assert.equal(buildScenePropertiesUpdateData(model)["background.src"], "assets/images/scenes/draft-map.webp");
-        assert.equal(buildScenePropertiesUpdateData(model)["texture.src"], "assets/images/scenes/draft-map.webp");
+        assert.equal(buildScenePropertiesUpdateData(model).background.src, "assets/images/scenes/draft-map.webp");
+        assert.equal(buildScenePropertiesUpdateData(model).texture.src, "assets/images/scenes/draft-map.webp");
     });
 
     it("falls back to the viewed scene when a non-map panel is active", () => {
@@ -367,8 +367,8 @@ describe("Scene properties panel", () => {
             currentBackgroundPath: "assets/images/scenes/old.webp"
         }), {
             name: "Hotel Cellar",
-            "background.src": "assets/images/scenes/hotel.webp",
-            "texture.src": "assets/images/scenes/hotel.webp",
+            background: { src: "assets/images/scenes/hotel.webp" },
+            texture: { src: "assets/images/scenes/hotel.webp" },
             shiftX: 0,
             shiftY: 0,
             "grid.type": 0,
@@ -380,7 +380,47 @@ describe("Scene properties panel", () => {
             backgroundPath: "assets/images/scenes/old.webp",
             currentBackgroundPath: "assets/images/scenes/old.webp"
         }), {
-            name: "Hotel Cellar"
+            name: "Hotel Cellar",
+            background: { src: "assets/images/scenes/old.webp" },
+            texture: { src: "assets/images/scenes/old.webp" },
+            shiftX: 0,
+            shiftY: 0,
+            "grid.type": 0,
+            "grid.size": 100
+        });
+    });
+
+    it("still writes a staged upload path when the current background appears to match", () => {
+        assert.deepEqual(buildScenePropertiesUpdateData({
+            sceneName: "Lobby",
+            backgroundPath: "assets/images/scenes/lobby.jpg",
+            currentBackgroundPath: "assets/images/scenes/lobby.jpg",
+            preserveGridCalibration: true
+        }), {
+            name: "Lobby",
+            background: { src: "assets/images/scenes/lobby.jpg" },
+            texture: { src: "assets/images/scenes/lobby.jpg" }
+        });
+    });
+
+    it("preserves existing scene background metadata while replacing the saved source", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: {
+                id: "scene-a",
+                name: "Station Yard",
+                background: { src: "assets/images/scenes/old.webp", tint: "#ffffff" },
+                texture: { src: "assets/images/scenes/old.webp", scaleX: 1.2 }
+            },
+            sceneId: "scene-a",
+            sceneName: "Station Yard",
+            backgroundPath: "assets/images/scenes/new.webp",
+            preserveGridCalibration: true
+        });
+
+        assert.deepEqual(buildScenePropertiesUpdateData(model), {
+            name: "Station Yard",
+            background: { src: "assets/images/scenes/new.webp", tint: "#ffffff" },
+            texture: { src: "assets/images/scenes/new.webp", scaleX: 1.2 }
         });
     });
 

@@ -158,4 +158,32 @@ describe("seeded scenes", () => {
         assert.equal(updateData.texture.src, TOTC_LOBBY_SCENE_BACKGROUND);
         assert.equal(updateData.flags["turn-of-the-century"].seededLobby, true);
     });
+
+    it("does not overwrite an existing Lobby scene with a saved world background", async () => {
+        let updateCalled = false;
+        const lobbyScene = {
+            id: TOTC_LOBBY_SCENE_ID,
+            name: "Lobby",
+            background: { src: "assets/images/scenes/lobby.jpg" },
+            flags: { "turn-of-the-century": { seededLobby: true } },
+            update: async () => {
+                updateCalled = true;
+                return lobbyScene;
+            }
+        };
+
+        globalThis.game = {
+            ready: true,
+            user: { isGM: true },
+            scenes: {
+                get: () => lobbyScene,
+                contents: [lobbyScene]
+            }
+        };
+
+        const result = await ensureTotcLobbyScene();
+
+        assert.equal(result, lobbyScene);
+        assert.equal(updateCalled, false);
+    });
 });

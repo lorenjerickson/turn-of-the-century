@@ -44,6 +44,25 @@ export function buildSceneBackgroundUploadTarget({ sceneName = "", filename = ""
     };
 }
 
+function clonePlainObject(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return { ...value };
+}
+
+function getSceneBackgroundData(scene = null) {
+    return {
+        ...clonePlainObject(scene?._source?.background),
+        ...clonePlainObject(scene?.background)
+    };
+}
+
+function getSceneTextureData(scene = null) {
+    return {
+        ...clonePlainObject(scene?._source?.texture),
+        ...clonePlainObject(scene?.texture)
+    };
+}
+
 export function buildScenePropertiesPanelModel(state = {}) {
     const scene = state.scene ?? null;
     const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
@@ -69,6 +88,8 @@ export function buildScenePropertiesPanelModel(state = {}) {
         backgroundPath: uploadedPath,
         currentBackgroundPath,
         effectiveBackgroundPath,
+        currentBackgroundData: getSceneBackgroundData(scene),
+        currentTextureData: getSceneTextureData(scene),
         createMode: Boolean(state.createMode),
         uploadEnabled: Boolean(sceneName),
         saveEnabled: Boolean(scene && sceneName),
@@ -147,14 +168,19 @@ export function buildScenePropertiesSavedState({ scene = null, model = {} } = {}
 export function buildScenePropertiesUpdateData(model = {}) {
     const sceneName = String(model.sceneName ?? "").trim();
     const backgroundPath = String(model.backgroundPath ?? "").trim();
-    const currentBackgroundPath = String(model.currentBackgroundPath ?? "").trim();
     const updateData = {};
 
     if (sceneName) updateData.name = sceneName;
 
-    if (backgroundPath && backgroundPath !== currentBackgroundPath) {
-        updateData["background.src"] = backgroundPath;
-        updateData["texture.src"] = backgroundPath;
+    if (backgroundPath) {
+        updateData.background = {
+            ...clonePlainObject(model.currentBackgroundData),
+            src: backgroundPath
+        };
+        updateData.texture = {
+            ...clonePlainObject(model.currentTextureData),
+            src: backgroundPath
+        };
         if (!model.preserveGridCalibration) {
             updateData.shiftX = 0;
             updateData.shiftY = 0;
