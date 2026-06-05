@@ -1541,12 +1541,12 @@ const CONSUMABLE_CONFIGS = [
         system: {
             commonName: "Vapour Cartridge",
             description: html("A compressed cylinder of filtered air fitted with a rubber mouthpiece; permits coherent movement through smog, chemical fume, and coal-gas without immediate injury."),
-            category: "apparatus",
-            use: { method: "breathe" },
+            category: "chemical",
+            use: { method: "inhale" },
             quantity: { value: 5, max: 5, unit: "breath" },
             timing: { duration: "5 rounds", recoveryInterval: "short rest" },
             effects: [
-                { label: "Clear Breath", type: "grantImmunity", target: "suffocation", formula: "", value: 1, condition: "while using cartridge", notes: html("Each use grants one round of breathable air.") }
+                { label: "Clear Breath", type: "grantResistance", target: "suffocation", formula: "", value: 1, condition: "while using cartridge", notes: html("Each use grants one round of breathable air.") }
             ],
             physical: { weight: 0.8, bulk: 0, perishable: true, shelfLife: "6 months" },
             properties: { tags: ["breathing", "industrial", "chemical"] }

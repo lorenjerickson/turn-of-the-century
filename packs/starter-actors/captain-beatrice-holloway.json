@@ -653,12 +653,12 @@
         },
         "commonName": "Vapour Cartridge",
         "description": "<p>A compressed cylinder of filtered air fitted with a rubber mouthpiece; permits coherent movement through smog, chemical fume, and coal-gas without immediate injury.</p>",
-        "category": "apparatus",
+        "category": "chemical",
         "quality": "standard",
         "rarity": "common",
         "slot": "belt",
         "use": {
-          "method": "breathe",
+          "method": "inhale",
           "actionCost": 1,
           "consumesCharge": true,
           "requiresHands": true
@@ -690,7 +690,7 @@
         "effects": [
           {
             "label": "Clear Breath",
-            "type": "grantImmunity",
+            "type": "grantResistance",
             "target": "suffocation",
             "formula": "",
             "value": 1,
