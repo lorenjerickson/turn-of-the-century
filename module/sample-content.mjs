@@ -986,6 +986,42 @@ const ARMOR_CONFIGS = [
             encumbrance: { weight: 10, bulk: 2, movementPenalty: -5 },
             properties: { tags: ["dock", "industrial"], noisy: true }
         }
+    },
+    {
+        name: "Storm Warden's Oilcloak",
+        system: {
+            description: html("A waxed canvas longcoat with triple-sealed seams and weighted hem, issued to aerostat crews and highland marshals who cannot afford to be wet."),
+            category: "light",
+            quality: "fine",
+            rarity: "uncommon",
+            armorClass: { increment: 1 },
+            encumbrance: { weight: 5, bulk: 1 },
+            properties: { tags: ["weatherproof", "expedition"], concealable: false }
+        }
+    },
+    {
+        name: "Surgeon's Rubber Apron",
+        system: {
+            description: html("Vulcanised rubber over canvas, fastened behind the neck and tied at the waist; impermeable to most biological fluids and common reagents."),
+            category: "light",
+            quality: "standard",
+            rarity: "common",
+            armorClass: { increment: 1 },
+            encumbrance: { weight: 3, bulk: 0 },
+            properties: { tags: ["medical", "fluid-resistant"] }
+        }
+    },
+    {
+        name: "Mechanist's Canvas Duster",
+        system: {
+            description: html("A long coat of boiled canvas with riveted interior pockets and a leather collar reinforced against abrasion and flying scale from the grinding wheel."),
+            category: "light",
+            quality: "standard",
+            rarity: "common",
+            armorClass: { increment: 1 },
+            encumbrance: { weight: 4, bulk: 1 },
+            properties: { tags: ["industrial", "workshop"] }
+        }
     }
 ];
 
@@ -1196,6 +1232,76 @@ const WEAPON_CONFIGS = [
             handedness: "oneHanded",
             physical: { weight: 0.3, bulk: 0, range: { normal: 5, long: 5 } },
             properties: { tags: ["silent", "wire"], concealable: true }
+        }
+    },
+    {
+        name: "Signal Flare Pistol",
+        img: "icons/weapons/guns/gun-pistol-flintlock-black.webp",
+        system: {
+            commonName: "Flare Pistol",
+            description: html("A single-shot brass pistol firing coloured phosphor cartridges for maritime and highland signalling; seldom chosen for combat, but singularly discouraging at close range."),
+            classification: "specialised",
+            damage: { formula: "1d4", type: "fire" },
+            handedness: "oneHanded",
+            actions: {
+                defaultActionId: "flareShot",
+                variants: [
+                    {
+                        id: "flareShot",
+                        label: "Fire Signal",
+                        type: "attack",
+                        apCost: 3,
+                        requiresToHit: true,
+                        toHitBonus: -1,
+                        notes: "Single discharge; imposes Blinded on target if fired within 10 feet."
+                    }
+                ]
+            },
+            ammunition: { required: true, type: "flare-cartridge", capacity: 1, loaded: 1, consumedPerAttack: 1 },
+            prerequisites: { abilityMinimums: { ...ABILITY_MINIMUMS_NONE, dex: 10 } },
+            physical: { weight: 2, bulk: 0, range: { normal: 30, long: 60 } },
+            properties: { tags: ["sidearm", "signal", "firearm"], concealable: true, noisy: true }
+        }
+    },
+    {
+        name: "Surgeon's Lancet",
+        img: "icons/weapons/daggers/dagger-silver-blue.webp",
+        system: {
+            commonName: "Lancet",
+            description: html("A slender steel instrument of uncommon precision, ground for incision and, under duress, applied at close quarters with unhappy efficiency."),
+            classification: "finesse",
+            damage: { formula: "1d4", type: "piercing" },
+            handedness: "oneHanded",
+            actions: {
+                defaultActionId: "precisionStrike",
+                variants: [
+                    {
+                        id: "precisionStrike",
+                        label: "Precision Strike",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 1,
+                        notes: "Advantage on attacks against unaware or restrained targets."
+                    }
+                ]
+            },
+            prerequisites: { abilityMinimums: { ...ABILITY_MINIMUMS_NONE, dex: 11 } },
+            physical: { weight: 0.3, bulk: 0, range: { normal: 5, long: 5 } },
+            properties: { tags: ["medical", "finesse"], concealable: true }
+        }
+    },
+    {
+        name: "Rivet Hammer",
+        img: "icons/weapons/hammers/hammer-riveted.webp",
+        system: {
+            commonName: "Rivet Hammer",
+            description: html("A heavy-headed iron hammer used to set rivets in plate and girder; foundry workers rarely surrender it, and its weight makes that preference apparent."),
+            classification: "simpleMelee",
+            damage: { formula: "1d6", type: "bludgeoning" },
+            handedness: "oneHanded",
+            physical: { weight: 3, bulk: 0, range: { normal: 5, long: 5 } },
+            properties: { tags: ["industrial", "improvised"] }
         }
     }
 ];
@@ -1429,6 +1535,57 @@ const CONSUMABLE_CONFIGS = [
             sideEffects: [{ label: "Fogged Focus", type: "applyModifier", target: "skills.investigation.value", formula: "", value: -1, condition: "for 1 scene", notes: html("Sharp analysis suffers briefly.") }],
             properties: { tags: ["ether", "stimulant"], restricted: true }
         }
+    },
+    {
+        name: "Ironlung Vapour Cartridge",
+        system: {
+            commonName: "Vapour Cartridge",
+            description: html("A compressed cylinder of filtered air fitted with a rubber mouthpiece; permits coherent movement through smog, chemical fume, and coal-gas without immediate injury."),
+            category: "apparatus",
+            use: { method: "breathe" },
+            quantity: { value: 5, max: 5, unit: "breath" },
+            timing: { duration: "5 rounds", recoveryInterval: "short rest" },
+            effects: [
+                { label: "Clear Breath", type: "grantImmunity", target: "suffocation", formula: "", value: 1, condition: "while using cartridge", notes: html("Each use grants one round of breathable air.") }
+            ],
+            physical: { weight: 0.8, bulk: 0, perishable: true, shelfLife: "6 months" },
+            properties: { tags: ["breathing", "industrial", "chemical"] }
+        }
+    },
+    {
+        name: "Vital Saline Infusion",
+        system: {
+            commonName: "Saline Infusion",
+            description: html("A glass ampoule of sterile salt solution administered by needle to stabilise blood loss and restore circulatory volume after heavy exertion or wound trauma."),
+            category: "medicine",
+            use: { method: "inject" },
+            effects: [
+                { label: "Restore Volume", type: "restoreResource", target: "resources.health", formula: "1d6", value: 0, condition: "", notes: html("Administered over one round.") }
+            ],
+            sideEffects: [
+                { label: "Chill", type: "applyModifier", target: "skills.athletics.value", formula: "", value: -1, condition: "for 10 minutes", notes: html("Cold fluid briefly reduces vigour.") }
+            ],
+            physical: { weight: 0.4, bulk: 0, perishable: true, shelfLife: "12 months" },
+            properties: { tags: ["medical", "restorative"] }
+        }
+    },
+    {
+        name: "Acid-Wash Solution",
+        system: {
+            commonName: "Acid Wash",
+            description: html("A stoppered glass vial of dilute vitriol intended for descaling boiler parts; applied to corroded locks or seized mechanisms, it softens both metal and the confidence of their makers."),
+            category: "chemical",
+            use: { method: "apply" },
+            quantity: { value: 3, max: 3, unit: "application" },
+            effects: [
+                { label: "Dissolve Obstruction", type: "removePenalty", target: "rusted", formula: "", value: 1, condition: "applied to corroded mechanism", notes: html("Reduces lock difficulty by 2 per application.") }
+            ],
+            sideEffects: [
+                { label: "Acid Fume", type: "causeCondition", target: "eyes", formula: "", value: 1, condition: "if exposed unprotected", notes: html("Inflames mucous membranes without protective eyewear.") }
+            ],
+            physical: { weight: 0.6, bulk: 0, perishable: false, shelfLife: "indefinite" },
+            properties: { tags: ["chemical", "tool"], restricted: true }
+        }
     }
 ];
 
@@ -1628,6 +1785,35 @@ const EFFECT_CONFIGS = [
             duration: { value: 1, unit: "day" },
             impacts: [{ label: "Fume Tolerance", targetType: "resource", target: "resources.grit", path: "", operation: "add", value: 1, formula: "", condition: "in polluted zones", notes: html("Improves grit under smog pressure.") }],
             affectedKeys: { abilities: ["con"], skills: [], actions: [] }
+        }
+    },
+    {
+        name: "Vapour Blindness",
+        system: {
+            description: html("Exposure to caustic vapour or bright chemical flash inflames the corneas and obscures vision for a distressing interval."),
+            disposition: "detrimental",
+            category: "chemical",
+            duration: { value: 1, unit: "scene" },
+            impacts: [
+                { label: "Compromised Sight", targetType: "skill", target: "perception", path: "", operation: "add", value: -2, formula: "", condition: "while affected", notes: html("Heavily penalises sight-dependent tasks.") }
+            ],
+            affectedKeys: { abilities: ["dex"], skills: ["perception", "investigation"], actions: [] },
+            removal: { removable: true, method: "Clean water irrigation and resting in darkness", difficulty: 10 }
+        }
+    },
+    {
+        name: "Surgical Fever",
+        system: {
+            description: html("Post-operative inflammation; the body answers even competent surgery with a brief and alarming elevation of temperature."),
+            disposition: "detrimental",
+            category: "medical",
+            duration: { value: 1, unit: "day" },
+            impacts: [
+                { label: "Febrile State", targetType: "ability", target: "con", path: "", operation: "add", value: -1, formula: "", condition: "while feverish", notes: html("Penalties to constitution-based tests.") },
+                { label: "Heightened Sensitivity", targetType: "ability", target: "san", path: "", operation: "add", value: 1, formula: "", condition: "while feverish", notes: html("Dreams and perceptions become unusually vivid.") }
+            ],
+            affectedKeys: { abilities: ["con", "san"], skills: ["athletics"], actions: [] },
+            removal: { removable: true, method: "Physician-prescribed rest and febrifuge", difficulty: 10 }
         }
     }
 ];
@@ -2005,6 +2191,22 @@ const QUIRK_CONFIGS = [
             source: { type: "profession", label: "Railway Marshal" },
             effects: [{ label: "Hold Fast", targetType: "skill", target: "athletics", operation: "add", value: 1, path: "", condition: "during grapples", appliesWhenEncumbered: true }]
         }
+    },
+    {
+        name: "Compass Bone",
+        system: {
+            description: html("A residual sense of true north, confirmed by years of high-altitude navigation and refined by intimate acquaintance with the magnetics of the upper atmosphere."),
+            source: { type: "profession", label: "Railway Marshal" },
+            effects: [{ label: "Innate Bearing", targetType: "skill", target: "survival", operation: "add", value: 1, path: "", condition: "outdoors or in unfamiliar terrain", appliesWhenEncumbered: false }]
+        }
+    },
+    {
+        name: "Parish Memory",
+        system: {
+            description: html("A chaplain's trained recall for names, dates, and family connections preserves genealogical links others overlook or entirely misremember."),
+            source: { type: "profession", label: "Field Surgeon" },
+            effects: [{ label: "Recorded Connections", targetType: "skill", target: "history", operation: "add", value: 1, path: "", condition: "when recalling social or family links", appliesWhenEncumbered: false }]
+        }
     }
 ];
 
@@ -2197,6 +2399,53 @@ const EQUIPMENT_CONFIGS = [
             physical: { weight: 2.3, bulk: 1, quantity: 1, unit: "tool" },
             properties: { tags: ["boiler", "inspection"] }
         }
+    },
+    {
+        name: "Pocket Altitude Gauge",
+        img: "icons/tools/navigation/compass-brass-blue-red.webp",
+        system: {
+            commonName: "Altitude Gauge",
+            description: html("A barometric pressure capsule in a brass housing, graduated in feet; used by aerostat crews, highland surveyors, and anyone who must know precisely how far above the sea their feet presently stand."),
+            category: "instrument",
+            slot: "belt",
+            quality: "fine",
+            use: { skillCheck: { skill: "nature", difficulty: 10, purpose: html("Determine current altitude or predict pressure-related weather change.") } },
+            physical: { weight: 0.5, bulk: 0, quantity: 1, unit: "instrument" },
+            value: { price: 8, currency: "pounds" },
+            properties: { tags: ["navigation", "precision"] }
+        }
+    },
+    {
+        name: "Surgeon's Field Case",
+        img: "icons/tools/hand/tool-scissors-orange.webp",
+        system: {
+            commonName: "Field Case",
+            description: html("A leather roll containing probes, forceps, suture needle and gut, a small bone saw, and spirit-soaked lint pads; sufficient for emergency treatment where no hospital is available."),
+            category: "tool",
+            slot: "belt",
+            quality: "fine",
+            use: { skillCheck: { skill: "medicine", difficulty: 11, purpose: html("Perform field surgery, stabilise critical wounds, or remove embedded fragments.") } },
+            effects: [{ label: "Surgical Edge", targetType: "skill", target: "medicine", operation: "add", value: 1, formula: "", condition: "kit present", notes: html("Bonus to medicine checks requiring tools.") }],
+            physical: { weight: 2.5, bulk: 1, quantity: 1, unit: "case" },
+            value: { price: 14, currency: "pounds" },
+            properties: { tags: ["medical", "surgical"] }
+        }
+    },
+    {
+        name: "Smoke Lens Goggles",
+        img: "icons/equipment/head/goggles-lens-blue.webp",
+        system: {
+            commonName: "Smoke Goggles",
+            description: html("Riveted brass frames fitted with smoked glass lenses and a gum-leather seal; reduce the glare of furnace light and permit useful vision through moderate fog and workshop soot."),
+            category: "apparatus",
+            slot: "head",
+            quality: "fine",
+            use: { skillCheck: { skill: "perception", difficulty: 9, purpose: html("Maintain vision through smoke, light glare, or airborne debris.") } },
+            effects: [{ label: "Clear Sight", targetType: "skill", target: "perception", operation: "add", value: 1, formula: "", condition: "in smoke or glare", notes: html("Reduces vision penalties in smoky environments.") }],
+            physical: { weight: 0.4, bulk: 0, quantity: 1, unit: "pair" },
+            value: { price: 6, currency: "pounds" },
+            properties: { tags: ["optics", "industrial"] }
+        }
     }
 ];
 
@@ -2375,6 +2624,54 @@ const ITEM_CONFIGS = [
             physical: { weight: 0.2, bulk: 0, quantity: 1, unit: "glass" },
             properties: { tags: ["timing", "forensic"], fragile: true }
         }
+    },
+    {
+        name: "Signal Almanac",
+        img: "icons/sundries/books/book-embossed-compass-blue.webp",
+        system: {
+            commonName: "Signal Almanac",
+            description: html("A waterproof-covered compendium of railway, telegraph, and flag signal codes, updated annually by the Board of Trade; essential on expeditions where any word must travel before any person."),
+            category: "document",
+            slot: "belt",
+            quality: "standard",
+            rarity: "common",
+            use: { skillCheck: { skill: "history", difficulty: 10, purpose: html("Decode or compose a recognised signal sequence.") } },
+            physical: { weight: 0.4, bulk: 0, quantity: 1, unit: "book" },
+            value: { price: 1, currency: "pounds" },
+            properties: { tags: ["document", "navigation"], concealable: true }
+        }
+    },
+    {
+        name: "Parish Register Carbon",
+        img: "icons/sundries/documents/document-worn-folded.webp",
+        system: {
+            commonName: "Register Copy",
+            description: html("A carbon impression of selected parish ledger pages, folded into a waxed envelope; baptisms, marriages, and burials recorded here often carry more than genealogical interest."),
+            category: "document",
+            slot: "belt",
+            quality: "standard",
+            rarity: "common",
+            use: { skillCheck: { skill: "history", difficulty: 11, purpose: html("Cross-reference identities against church or civil records.") } },
+            physical: { weight: 0.2, bulk: 0, quantity: 1, unit: "document" },
+            value: { price: 1, currency: "pounds" },
+            properties: { tags: ["document", "evidence"], concealable: true, fragile: true }
+        }
+    },
+    {
+        name: "Caliper Rule Set",
+        img: "icons/tools/hand/claw-hammer.webp",
+        system: {
+            commonName: "Caliper Set",
+            description: html("A matched pair of spring callipers and a folding steel rule in a chamois roll; permits precise measurement of tolerances in locks, mechanisms, and suspected counterfeit castings."),
+            category: "tool",
+            slot: "belt",
+            quality: "fine",
+            rarity: "uncommon",
+            use: { skillCheck: { skill: "investigation", difficulty: 10, purpose: html("Measure a mechanical component precisely enough to detect irregularity or wear.") } },
+            physical: { weight: 0.6, bulk: 0, quantity: 1, unit: "set" },
+            value: { price: 4, currency: "pounds" },
+            properties: { tags: ["tool", "precision"] }
+        }
     }
 ];
 
@@ -2484,6 +2781,32 @@ const SKILL_ITEM_CONFIGS = [
             use: { requiresHands: false, skillCheck: { skill: "perception", difficulty: 10, purpose: html("Read signs and threats in underground passages.") } },
             physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
             properties: { tags: ["skill", "recon"] }
+        }
+    },
+    {
+        name: "Aerial Navigation",
+        img: "icons/environment/wilderness/weather-wind-gusts.webp",
+        system: {
+            commonName: "Aerial Navigation",
+            description: html("Compass reading, barometric trend recognition, and chart correction for high-altitude travel by aerostat or mountain traverse."),
+            category: "tool",
+            use: { requiresHands: false, skillCheck: { skill: "survival", difficulty: 12, purpose: html("Plan or execute movement above the treeline or in unpredictable airstreams.") } },
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            value: { price: 0, currency: "pounds" },
+            properties: { tags: ["skill", "navigation", "expedition"] }
+        }
+    },
+    {
+        name: "Mechanism Disassembly",
+        img: "icons/tools/hand/tool-cog-yellow.webp",
+        system: {
+            commonName: "Mechanism Disassembly",
+            description: html("A precise discipline for removing, cataloguing, and reassembling mechanical components without loss or damage; useful for both study and deliberate interference."),
+            category: "tool",
+            use: { requiresHands: false, skillCheck: { skill: "investigation", difficulty: 11, purpose: html("Take apart a mechanical assembly and reassemble it, or identify its original design from its parts.") } },
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            value: { price: 0, currency: "pounds" },
+            properties: { tags: ["skill", "industrial", "mechanical"] }
         }
     }
 ];
@@ -2605,6 +2928,34 @@ const TALENT_CONFIGS = [
             effects: [{ label: "Steady Nerve", targetType: "ability", target: "san", operation: "add", value: 1, formula: "", condition: "when outnumbered", notes: html("Grants composure in dire scenes.") }],
             physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
             properties: { tags: ["talent", "morale"] }
+        }
+    },
+    {
+        name: "Storm Orientation",
+        img: "icons/environment/wilderness/weather-wind.webp",
+        system: {
+            commonName: "Storm Orientation",
+            description: html("Maintains a working sense of direction through fog, downpour, soot-cloud, and near-darkness by reading wind, pressure, and ground slope."),
+            category: "miscellaneous",
+            use: { actionCost: 0, requiresHands: false, skillCheck: { skill: "survival", difficulty: 11, purpose: html("Maintain bearing and navigation in severe atmospheric conditions.") } },
+            effects: [{ label: "Weather Sense", targetType: "skill", target: "survival", operation: "add", value: 1, formula: "", condition: "in adverse weather", notes: html("Applies during storms, smog, and low-visibility scenes.") }],
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            value: { price: 0, currency: "pounds" },
+            properties: { tags: ["talent", "expedition"] }
+        }
+    },
+    {
+        name: "Code-Breaker's Eye",
+        img: "icons/sundries/books/book-stack.webp",
+        system: {
+            commonName: "Code-Breaker's Eye",
+            description: html("Trained pattern recognition in written material; identifies recurring substitutions, transposition schemes, and steganographic concealment in ordinary documents."),
+            category: "miscellaneous",
+            use: { actionCost: 0, requiresHands: false, skillCheck: { skill: "history", difficulty: 12, purpose: html("Identify cipher type and suggest probable key structure.") } },
+            effects: [{ label: "Pattern Recognition", targetType: "skill", target: "history", operation: "add", value: 1, formula: "", condition: "when analysing written ciphers", notes: html("Improves decoding checks.") }],
+            physical: { weight: 0, bulk: 0, quantity: 1, unit: "training" },
+            value: { price: 0, currency: "pounds" },
+            properties: { tags: ["talent", "cipher", "analytical"] }
         }
     }
 ];
@@ -2748,6 +3099,52 @@ const STARTER_ACTOR_LOADOUTS = {
         ],
         pack: [
             { type: "equipment", name: "Surveyor's Transit" }
+        ]
+    },
+    "Captain Beatrice Holloway": {
+        equipped: [
+            { type: "weapon", name: "Service Revolver", slot: "hands", position: 1 },
+            { type: "equipment", name: "Surveyor's Transit", slot: "hands", position: 2 },
+            { type: "armor", name: "Storm Warden's Oilcloak", slot: "torso", position: 1 },
+            { type: "equipment", name: "Pocket Altitude Gauge", slot: "belt", position: 1 },
+            { type: "consumable", name: "Ironlung Vapour Cartridge", slot: "belt", position: 2 },
+            { type: "consumable", name: "Field Bandage Roll", slot: "belt", position: 3 },
+            { type: "item", name: "Signal Almanac", slot: "belt", position: 4 },
+            { type: "item", name: "Brass Oil Flask", slot: "belt", position: 5 }
+        ],
+        pack: [
+            { type: "equipment", name: "Coiled Hemp Rope" }
+        ]
+    },
+    "Brother Lucien March": {
+        equipped: [
+            { type: "weapon", name: "Surgeon's Lancet", slot: "hands", position: 1 },
+            { type: "armor", name: "Surgeon's Rubber Apron", slot: "torso", position: 1 },
+            { type: "equipment", name: "Surgeon's Field Case", slot: "belt", position: 1 },
+            { type: "consumable", name: "Vital Saline Infusion", slot: "belt", position: 2 },
+            { type: "consumable", name: "Antitoxin Ampoule", slot: "belt", position: 3 },
+            { type: "item", name: "Parish Register Carbon", slot: "belt", position: 4 }
+        ],
+        pack: [
+            { type: "consumable", name: "Field Bandage Roll" },
+            { type: "item", name: "Pocket Reliquary" }
+        ]
+    },
+    "Ada Kingsley": {
+        equipped: [
+            { type: "weapon", name: "Rivet Hammer", slot: "hands", position: 1 },
+            { type: "armor", name: "Mechanist's Canvas Duster", slot: "torso", position: 1 },
+            { type: "equipment", name: "Smoke Lens Goggles", slot: "head", position: 1 },
+            { type: "equipment", name: "Locksmith Roll", slot: "belt", position: 1 },
+            { type: "equipment", name: "Field Investigator Kit", slot: "belt", position: 2 },
+            { type: "equipment", name: "Pocket Tool Roll", slot: "belt", position: 3 },
+            { type: "consumable", name: "Acid-Wash Solution", slot: "belt", position: 4 },
+            { type: "item", name: "Caliper Rule Set", slot: "belt", position: 5 },
+            { type: "item", name: "Cipher Notebook", slot: "belt", position: 6 },
+            { type: "item", name: "Brass Oil Flask", slot: "belt", position: 7 }
+        ],
+        pack: [
+            { type: "equipment", name: "Folding Pry Hook" }
         ]
     }
 };

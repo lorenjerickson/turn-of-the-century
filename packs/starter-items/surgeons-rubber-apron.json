@@ -1,0 +1,52 @@
+{
+  "_id": "c0e682e8f9e89117",
+  "name": "Surgeon's Rubber Apron",
+  "type": "armor",
+  "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "caption": "Protective wear",
+      "credit": "Core icon set"
+    },
+    "description": "<p>Vulcanised rubber over canvas, fastened behind the neck and tied at the waist; impermeable to most biological fluids and common reagents.</p>",
+    "category": "light",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "torso",
+    "armorClass": {
+      "increment": 1,
+      "appliesWhenWorn": true
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 0,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiresTraining": false,
+      "requiredTrait": "",
+      "notes": "<p>No formal training requirement.</p>"
+    },
+    "encumbrance": {
+      "weight": 3,
+      "bulk": 0,
+      "stealthPenalty": 0,
+      "movementPenalty": 0
+    },
+    "properties": {
+      "tags": [
+        "medical",
+        "fluid-resistant"
+      ],
+      "concealable": false,
+      "noisy": false,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

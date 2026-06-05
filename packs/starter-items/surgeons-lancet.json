@@ -1,0 +1,78 @@
+{
+  "_id": "663bebbe3c25e294",
+  "name": "Surgeon's Lancet",
+  "type": "weapon",
+  "img": "icons/weapons/daggers/dagger-silver-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/weapons/swords/sword-guard-steel.webp",
+      "caption": "Combat implement",
+      "credit": "Core icon set"
+    },
+    "commonName": "Lancet",
+    "description": "<p>A slender steel instrument of uncommon precision, ground for incision and, under duress, applied at close quarters with unhappy efficiency.</p>",
+    "classification": "finesse",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "damage": {
+      "formula": "1d4",
+      "type": "piercing",
+      "versatileFormula": "",
+      "bonus": 0
+    },
+    "handedness": "oneHanded",
+    "actions": {
+      "defaultActionId": "precisionStrike",
+      "variants": [
+        {
+          "id": "precisionStrike",
+          "label": "Precision Strike",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 1,
+          "notes": "Advantage on attacks against unaware or restrained targets."
+        }
+      ]
+    },
+    "ammunition": {
+      "required": false,
+      "type": "",
+      "capacity": 0,
+      "loaded": 0,
+      "consumedPerAttack": 0
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 11,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiredProficiencies": [],
+      "notes": "<p>Commonly understood handling.</p>"
+    },
+    "physical": {
+      "weight": 0.3,
+      "bulk": 0,
+      "range": {
+        "normal": 5,
+        "long": 5
+      }
+    },
+    "properties": {
+      "tags": [
+        "medical",
+        "finesse"
+      ],
+      "concealable": true,
+      "noisy": false,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

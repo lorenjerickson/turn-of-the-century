@@ -1,0 +1,87 @@
+{
+  "_id": "d6d36e3b8f8f99cf",
+  "name": "Acid-Wash Solution",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Acid Wash",
+    "description": "<p>A stoppered glass vial of dilute vitriol intended for descaling boiler parts; applied to corroded locks or seized mechanisms, it softens both metal and the confidence of their makers.</p>",
+    "category": "chemical",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "method": "apply",
+      "actionCost": 1,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeItem",
+      "variants": [
+        {
+          "id": "consumeItem",
+          "label": "Consume Item",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "quantity": {
+      "value": 3,
+      "max": 3,
+      "unit": "application"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "",
+      "recoveryInterval": ""
+    },
+    "effects": [
+      {
+        "label": "Dissolve Obstruction",
+        "type": "removePenalty",
+        "target": "rusted",
+        "formula": "",
+        "value": 1,
+        "condition": "applied to corroded mechanism",
+        "notes": "<p>Reduces lock difficulty by 2 per application.</p>"
+      }
+    ],
+    "sideEffects": [
+      {
+        "label": "Acid Fume",
+        "type": "causeCondition",
+        "target": "eyes",
+        "formula": "",
+        "value": 1,
+        "condition": "if exposed unprotected",
+        "notes": "<p>Inflames mucous membranes without protective eyewear.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0.6,
+      "bulk": 0,
+      "perishable": false,
+      "shelfLife": "indefinite"
+    },
+    "properties": {
+      "tags": [
+        "chemical",
+        "tool"
+      ],
+      "addictive": false,
+      "experimental": false,
+      "restricted": true
+    }
+  },
+  "flags": {}
+}

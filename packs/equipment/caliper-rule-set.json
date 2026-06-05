@@ -1,0 +1,66 @@
+{
+  "_id": "86bdf41b31d33ebe",
+  "name": "Caliper Rule Set",
+  "type": "item",
+  "img": "icons/tools/hand/claw-hammer.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Caliper Set",
+    "description": "<p>A matched pair of spring callipers and a folding steel rule in a chamois roll; permits precise measurement of tolerances in locks, mechanisms, and suspected counterfeit castings.</p>",
+    "category": "tool",
+    "quality": "fine",
+    "rarity": "uncommon",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "investigation",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Measure a mechanical component precisely enough to detect irregularity or wear.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.6,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "set"
+    },
+    "value": {
+      "price": 4,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "tool",
+        "precision"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

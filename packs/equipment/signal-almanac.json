@@ -1,0 +1,66 @@
+{
+  "_id": "43cb44ad032f46bb",
+  "name": "Signal Almanac",
+  "type": "item",
+  "img": "icons/sundries/books/book-embossed-compass-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Signal Almanac",
+    "description": "<p>A waterproof-covered compendium of railway, telegraph, and flag signal codes, updated annually by the Board of Trade; essential on expeditions where any word must travel before any person.</p>",
+    "category": "document",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "history",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Decode or compose a recognised signal sequence.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.4,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "book"
+    },
+    "value": {
+      "price": 1,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "document",
+        "navigation"
+      ],
+      "concealable": true,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

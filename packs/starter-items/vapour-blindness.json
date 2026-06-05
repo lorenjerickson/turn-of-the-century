@@ -1,0 +1,64 @@
+{
+  "_id": "57bddf9411403a8a",
+  "name": "Vapour Blindness",
+  "type": "effect",
+  "img": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/magic/perception/eye-ringed-glow-angry-small-teal.webp",
+      "caption": "Condition marker",
+      "credit": "Core icon set"
+    },
+    "name": "Vapour Blindness",
+    "description": "<p>Exposure to caustic vapour or bright chemical flash inflames the corneas and obscures vision for a distressing interval.</p>",
+    "disposition": "detrimental",
+    "category": "chemical",
+    "duration": {
+      "value": 1,
+      "unit": "scene",
+      "rounds": 0,
+      "startTime": 0,
+      "expiresOnRest": false
+    },
+    "impacts": [
+      {
+        "label": "Compromised Sight",
+        "targetType": "skill",
+        "target": "perception",
+        "path": "",
+        "operation": "add",
+        "value": -2,
+        "formula": "",
+        "condition": "while affected",
+        "notes": "<p>Heavily penalises sight-dependent tasks.</p>"
+      }
+    ],
+    "affectedKeys": {
+      "abilities": [
+        "dex"
+      ],
+      "skills": [
+        "perception",
+        "investigation"
+      ],
+      "actions": []
+    },
+    "removal": {
+      "removable": true,
+      "method": "Clean water irrigation and resting in darkness",
+      "difficulty": 10
+    },
+    "stacking": {
+      "stackable": false,
+      "maxStacks": 1,
+      "stackKey": ""
+    },
+    "source": {
+      "type": "",
+      "itemId": "",
+      "actorId": "",
+      "notes": ""
+    }
+  },
+  "flags": {}
+}

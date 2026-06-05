@@ -1,0 +1,66 @@
+{
+  "_id": "ff8833348b339ebb",
+  "name": "Pocket Altitude Gauge",
+  "type": "equipment",
+  "img": "icons/tools/navigation/compass-brass-blue-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Altitude Gauge",
+    "description": "<p>A barometric pressure capsule in a brass housing, graduated in feet; used by aerostat crews, highland surveyors, and anyone who must know precisely how far above the sea their feet presently stand.</p>",
+    "category": "instrument",
+    "quality": "fine",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "nature",
+        "difficulty": 10,
+        "required": false,
+        "purpose": "<p>Determine current altitude or predict pressure-related weather change.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [],
+    "physical": {
+      "weight": 0.5,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "instrument"
+    },
+    "value": {
+      "price": 8,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "navigation",
+        "precision"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

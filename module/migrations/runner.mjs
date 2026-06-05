@@ -1,4 +1,4 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 11;
+export const TOTC_WORLD_SCHEMA_VERSION = 12;
 
 import { migrateTotcItems } from "./items.mjs";
 
@@ -11,6 +11,7 @@ export async function runTotcMigrations({
     migrateEncounterActions,
     migrateModifiers,
     migrateStarterCompendiums,
+    seedMissingActors,
     notify = true
 } = {}) {
     if (!game?.ready) throw new Error("Game is not ready yet.");
@@ -34,6 +35,9 @@ export async function runTotcMigrations({
     }
     if (typeof migrateStarterCompendiums !== "function") {
         throw new Error("runTotcMigrations requires a migrateStarterCompendiums function.");
+    }
+    if (typeof seedMissingActors !== "function") {
+        throw new Error("runTotcMigrations requires a seedMissingActors function.");
     }
 
     let appliedVersion = Number(currentVersion) || 0;
@@ -173,6 +177,17 @@ export async function runTotcMigrations({
         appliedVersion = 11;
     }
 
+    // v12: seed any world actors defined in ACTOR_CONFIGS that are not yet in the world
+    if (appliedVersion < 12) {
+        const report = await seedMissingActors({ notify: false });
+        appliedSteps.push({
+            version: 12,
+            key: "seed-missing-actors",
+            report
+        });
+        appliedVersion = 12;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -203,6 +218,10 @@ export async function runTotcMigrations({
                 if (step.key === "starter-compendiums-repair") {
                     if (step.report.skipped) return `${step.key}: skipped (${step.report.existingDocuments} existing documents)`;
                     return `${step.key}: ${step.report.totalImported} documents imported`;
+                }
+
+                if (step.key === "seed-missing-actors") {
+                    return `${step.key}: ${step.report.createdActors} actors seeded`;
                 }
 
                 return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;

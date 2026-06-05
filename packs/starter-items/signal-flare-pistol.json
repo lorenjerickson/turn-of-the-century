@@ -1,0 +1,79 @@
+{
+  "_id": "9eadc76dc311f8b6",
+  "name": "Signal Flare Pistol",
+  "type": "weapon",
+  "img": "icons/weapons/guns/gun-pistol-flintlock-black.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/weapons/swords/sword-guard-steel.webp",
+      "caption": "Combat implement",
+      "credit": "Core icon set"
+    },
+    "commonName": "Flare Pistol",
+    "description": "<p>A single-shot brass pistol firing coloured phosphor cartridges for maritime and highland signalling; seldom chosen for combat, but singularly discouraging at close range.</p>",
+    "classification": "specialised",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "hands",
+    "damage": {
+      "formula": "1d4",
+      "type": "fire",
+      "versatileFormula": "",
+      "bonus": 0
+    },
+    "handedness": "oneHanded",
+    "actions": {
+      "defaultActionId": "flareShot",
+      "variants": [
+        {
+          "id": "flareShot",
+          "label": "Fire Signal",
+          "type": "attack",
+          "apCost": 3,
+          "requiresToHit": true,
+          "toHitBonus": -1,
+          "notes": "Single discharge; imposes Blinded on target if fired within 10 feet."
+        }
+      ]
+    },
+    "ammunition": {
+      "required": true,
+      "type": "flare-cartridge",
+      "capacity": 1,
+      "loaded": 1,
+      "consumedPerAttack": 1
+    },
+    "prerequisites": {
+      "abilityMinimums": {
+        "str": 0,
+        "dex": 10,
+        "con": 0,
+        "int": 0,
+        "wis": 0,
+        "cha": 0,
+        "san": 0
+      },
+      "requiredProficiencies": [],
+      "notes": "<p>Commonly understood handling.</p>"
+    },
+    "physical": {
+      "weight": 2,
+      "bulk": 0,
+      "range": {
+        "normal": 30,
+        "long": 60
+      }
+    },
+    "properties": {
+      "tags": [
+        "sidearm",
+        "signal",
+        "firearm"
+      ],
+      "concealable": true,
+      "noisy": true,
+      "experimental": false
+    }
+  },
+  "flags": {}
+}

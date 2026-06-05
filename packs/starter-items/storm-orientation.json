@@ -1,0 +1,77 @@
+{
+  "_id": "6cd7d8753ccba910",
+  "name": "Storm Orientation",
+  "type": "talent",
+  "img": "icons/environment/wilderness/weather-wind.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Storm Orientation",
+    "description": "<p>Maintains a working sense of direction through fog, downpour, soot-cloud, and near-darkness by reading wind, pressure, and ground slope.</p>",
+    "category": "miscellaneous",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 0,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "survival",
+        "difficulty": 11,
+        "required": false,
+        "purpose": "<p>Maintain bearing and navigation in severe atmospheric conditions.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [
+      {
+        "label": "Weather Sense",
+        "targetType": "skill",
+        "target": "survival",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "in adverse weather",
+        "notes": "<p>Applies during storms, smog, and low-visibility scenes.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "training"
+    },
+    "value": {
+      "price": 0,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "talent",
+        "expedition"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

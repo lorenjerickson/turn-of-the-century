@@ -1,0 +1,33 @@
+{
+  "_id": "f2774d6eea4a9729",
+  "name": "Parish Memory",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A chaplain's trained recall for names, dates, and family connections preserves genealogical links others overlook or entirely misremember.</p>",
+    "source": {
+      "type": "profession",
+      "itemId": "",
+      "label": "Field Surgeon"
+    },
+    "effects": [
+      {
+        "label": "Recorded Connections",
+        "targetType": "skill",
+        "target": "history",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "when recalling social or family links",
+        "appliesWhenEncumbered": false
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

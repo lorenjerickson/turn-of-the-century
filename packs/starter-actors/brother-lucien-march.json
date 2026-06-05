@@ -287,7 +287,9 @@
             "equipment",
             "item"
           ],
-          "itemIds": []
+          "itemIds": [
+            "ld0d000000000001"
+          ]
         },
         "hands": {
           "label": "Hands",
@@ -299,7 +301,9 @@
             "tool",
             "equipment"
           ],
-          "itemIds": []
+          "itemIds": [
+            "ld0d000000000000"
+          ]
         },
         "legs": {
           "label": "Legs",
@@ -332,11 +336,19 @@
             "consumable",
             "item"
           ],
-          "itemIds": []
+          "itemIds": [
+            "ld0d000000000002",
+            "ld0d000000000003",
+            "ld0d000000000004",
+            "ld0d000000000005"
+          ]
         }
       },
       "pack": {
-        "itemIds": [],
+        "itemIds": [
+          "ld0d000000000006",
+          "ld0d000000000007"
+        ],
         "capacity": 20,
         "encumbrance": 0
       },
@@ -355,5 +367,588 @@
       "vulnerabilities": []
     }
   },
+  "items": [
+    {
+      "name": "Surgeon's Lancet",
+      "type": "weapon",
+      "img": "icons/weapons/daggers/dagger-silver-blue.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/weapons/swords/sword-guard-steel.webp",
+          "caption": "Combat implement",
+          "credit": "Core icon set"
+        },
+        "commonName": "Lancet",
+        "description": "<p>A slender steel instrument of uncommon precision, ground for incision and, under duress, applied at close quarters with unhappy efficiency.</p>",
+        "classification": "finesse",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "hands",
+        "damage": {
+          "formula": "1d4",
+          "type": "piercing",
+          "versatileFormula": "",
+          "bonus": 0
+        },
+        "handedness": "oneHanded",
+        "actions": {
+          "defaultActionId": "precisionStrike",
+          "variants": [
+            {
+              "id": "precisionStrike",
+              "label": "Precision Strike",
+              "type": "attack",
+              "apCost": 2,
+              "requiresToHit": true,
+              "toHitBonus": 1,
+              "notes": "Advantage on attacks against unaware or restrained targets."
+            }
+          ]
+        },
+        "ammunition": {
+          "required": false,
+          "type": "",
+          "capacity": 0,
+          "loaded": 0,
+          "consumedPerAttack": 0
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 11,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiredProficiencies": [],
+          "notes": "<p>Commonly understood handling.</p>"
+        },
+        "physical": {
+          "weight": 0.3,
+          "bulk": 0,
+          "range": {
+            "normal": 5,
+            "long": 5
+          }
+        },
+        "properties": {
+          "tags": [
+            "medical",
+            "finesse"
+          ],
+          "concealable": true,
+          "noisy": false,
+          "experimental": false
+        }
+      },
+      "_id": "ld0d000000000000"
+    },
+    {
+      "name": "Surgeon's Rubber Apron",
+      "type": "armor",
+      "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+          "caption": "Protective wear",
+          "credit": "Core icon set"
+        },
+        "description": "<p>Vulcanised rubber over canvas, fastened behind the neck and tied at the waist; impermeable to most biological fluids and common reagents.</p>",
+        "category": "light",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "torso",
+        "armorClass": {
+          "increment": 1,
+          "appliesWhenWorn": true
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 0,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiresTraining": false,
+          "requiredTrait": "",
+          "notes": "<p>No formal training requirement.</p>"
+        },
+        "encumbrance": {
+          "weight": 3,
+          "bulk": 0,
+          "stealthPenalty": 0,
+          "movementPenalty": 0
+        },
+        "properties": {
+          "tags": [
+            "medical",
+            "fluid-resistant"
+          ],
+          "concealable": false,
+          "noisy": false,
+          "experimental": false
+        }
+      },
+      "_id": "ld0d000000000001"
+    },
+    {
+      "name": "Surgeon's Field Case",
+      "type": "equipment",
+      "img": "icons/tools/hand/tool-scissors-orange.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Field Case",
+        "description": "<p>A leather roll containing probes, forceps, suture needle and gut, a small bone saw, and spirit-soaked lint pads; sufficient for emergency treatment where no hospital is available.</p>",
+        "category": "tool",
+        "quality": "fine",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "medicine",
+            "difficulty": 11,
+            "required": false,
+            "purpose": "<p>Perform field surgery, stabilise critical wounds, or remove embedded fragments.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [
+          {
+            "label": "Surgical Edge",
+            "targetType": "skill",
+            "target": "medicine",
+            "operation": "add",
+            "value": 1,
+            "formula": "",
+            "condition": "kit present",
+            "notes": "<p>Bonus to medicine checks requiring tools.</p>"
+          }
+        ],
+        "physical": {
+          "weight": 2.5,
+          "bulk": 1,
+          "quantity": 1,
+          "unit": "case"
+        },
+        "value": {
+          "price": 14,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "medical",
+            "surgical"
+          ],
+          "concealable": false,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0d000000000002"
+    },
+    {
+      "name": "Vital Saline Infusion",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Saline Infusion",
+        "description": "<p>A glass ampoule of sterile salt solution administered by needle to stabilise blood loss and restore circulatory volume after heavy exertion or wound trauma.</p>",
+        "category": "medicine",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "method": "inject",
+          "actionCost": 1,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeItem",
+          "variants": [
+            {
+              "id": "consumeItem",
+              "label": "Consume Item",
+              "type": "consumable",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "max": 1,
+          "unit": "dose"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "",
+          "recoveryInterval": ""
+        },
+        "effects": [
+          {
+            "label": "Restore Volume",
+            "type": "restoreResource",
+            "target": "resources.health",
+            "formula": "1d6",
+            "value": 0,
+            "condition": "",
+            "notes": "<p>Administered over one round.</p>"
+          }
+        ],
+        "sideEffects": [
+          {
+            "label": "Chill",
+            "type": "applyModifier",
+            "target": "skills.athletics.value",
+            "formula": "",
+            "value": -1,
+            "condition": "for 10 minutes",
+            "notes": "<p>Cold fluid briefly reduces vigour.</p>"
+          }
+        ],
+        "physical": {
+          "weight": 0.4,
+          "bulk": 0,
+          "perishable": true,
+          "shelfLife": "12 months"
+        },
+        "properties": {
+          "tags": [
+            "medical",
+            "restorative"
+          ],
+          "addictive": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0d000000000003"
+    },
+    {
+      "name": "Antitoxin Ampoule",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Antitoxin",
+        "description": "<p>A cloudy serum prepared against common industrial venoms.</p>",
+        "category": "antidote",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "method": "inject",
+          "actionCost": 1,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeItem",
+          "variants": [
+            {
+              "id": "consumeItem",
+              "label": "Consume Item",
+              "type": "consumable",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "max": 1,
+          "unit": "dose"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "",
+          "recoveryInterval": ""
+        },
+        "effects": [
+          {
+            "label": "Counter Poison",
+            "type": "cureCondition",
+            "target": "poisoned",
+            "formula": "",
+            "value": 1,
+            "condition": "",
+            "notes": "<p>Attempts to neutralize ongoing toxins.</p>"
+          }
+        ],
+        "sideEffects": [
+          {
+            "label": "Nausea",
+            "type": "causeCondition",
+            "target": "queasy",
+            "formula": "",
+            "value": 1,
+            "condition": "for 10 minutes",
+            "notes": "<p>Mild nausea follows injection.</p>"
+          }
+        ],
+        "physical": {
+          "weight": 0.1,
+          "bulk": 0,
+          "perishable": false,
+          "shelfLife": "12 months"
+        },
+        "properties": {
+          "tags": [
+            "antidote",
+            "injectable"
+          ],
+          "addictive": false,
+          "experimental": false,
+          "restricted": true
+        }
+      },
+      "_id": "ld0d000000000004"
+    },
+    {
+      "name": "Parish Register Carbon",
+      "type": "item",
+      "img": "icons/sundries/documents/document-worn-folded.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Register Copy",
+        "description": "<p>A carbon impression of selected parish ledger pages, folded into a waxed envelope; baptisms, marriages, and burials recorded here often carry more than genealogical interest.</p>",
+        "category": "document",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "history",
+            "difficulty": 11,
+            "required": false,
+            "purpose": "<p>Cross-reference identities against church or civil records.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.2,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "document"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "document",
+            "evidence"
+          ],
+          "concealable": true,
+          "fragile": true,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0d000000000005"
+    },
+    {
+      "name": "Field Bandage Roll",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Bandage Roll",
+        "description": "<p>Sterile cloth and clasp pins wrapped for rapid field dressing.</p>",
+        "category": "bandage",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "method": "apply",
+          "actionCost": 1,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeItem",
+          "variants": [
+            {
+              "id": "consumeItem",
+              "label": "Consume Item",
+              "type": "consumable",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "quantity": {
+          "value": 3,
+          "max": 3,
+          "unit": "wrap"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "",
+          "recoveryInterval": ""
+        },
+        "effects": [
+          {
+            "label": "Staunch Bleeding",
+            "type": "removePenalty",
+            "target": "bleeding",
+            "formula": "",
+            "value": 1,
+            "condition": "",
+            "notes": "<p>Ends minor ongoing bleed conditions.</p>"
+          }
+        ],
+        "sideEffects": [],
+        "physical": {
+          "weight": 0.4,
+          "bulk": 0,
+          "perishable": false,
+          "shelfLife": "24 months"
+        },
+        "properties": {
+          "tags": [
+            "first-aid"
+          ],
+          "addictive": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0d000000000006"
+    },
+    {
+      "name": "Pocket Reliquary",
+      "type": "item",
+      "img": "icons/commodities/treasure/token-gold-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Reliquary",
+        "description": "<p>A small silver case containing a relic, prayer slip, and lock of hair.</p>",
+        "category": "trinket",
+        "quality": "exceptional",
+        "rarity": "rare",
+        "slot": "neck",
+        "use": {
+          "actionCost": 0,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "religion",
+            "difficulty": 12,
+            "required": false,
+            "purpose": "<p>Calm panic during uncanny encounters.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.2,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "reliquary"
+        },
+        "value": {
+          "price": 9,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "devotional",
+            "ward"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": true
+        }
+      },
+      "_id": "ld0d000000000007"
+    }
+  ],
   "flags": {}
 }

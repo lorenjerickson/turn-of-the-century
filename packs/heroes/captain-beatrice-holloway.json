@@ -287,7 +287,9 @@
             "equipment",
             "item"
           ],
-          "itemIds": []
+          "itemIds": [
+            "ld0c000000000002"
+          ]
         },
         "hands": {
           "label": "Hands",
@@ -299,7 +301,10 @@
             "tool",
             "equipment"
           ],
-          "itemIds": []
+          "itemIds": [
+            "ld0c000000000000",
+            "ld0c000000000001"
+          ]
         },
         "legs": {
           "label": "Legs",
@@ -332,11 +337,19 @@
             "consumable",
             "item"
           ],
-          "itemIds": []
+          "itemIds": [
+            "ld0c000000000003",
+            "ld0c000000000004",
+            "ld0c000000000005",
+            "ld0c000000000006",
+            "ld0c000000000007"
+          ]
         }
       },
       "pack": {
-        "itemIds": [],
+        "itemIds": [
+          "ld0c000000000008"
+        ],
         "capacity": 20,
         "encumbrance": 0
       },
@@ -354,5 +367,627 @@
       "vulnerabilities": []
     }
   },
+  "items": [
+    {
+      "name": "Service Revolver",
+      "type": "weapon",
+      "img": "icons/weapons/guns/gun-pistol-brass.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/weapons/swords/sword-guard-steel.webp",
+          "caption": "Combat implement",
+          "credit": "Core icon set"
+        },
+        "commonName": "Revolver",
+        "description": "<p>A six-shot sidearm trusted by inspectors and discreet bodyguards.</p>",
+        "classification": "firearm",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "hands",
+        "damage": {
+          "formula": "1d8",
+          "type": "ballistic",
+          "versatileFormula": "",
+          "bonus": 0
+        },
+        "handedness": "oneHanded",
+        "actions": {
+          "defaultActionId": "pistolAimedShot",
+          "variants": [
+            {
+              "id": "pistolQuickShot",
+              "label": "Quick Shot",
+              "type": "attack",
+              "apCost": 2,
+              "requiresToHit": true,
+              "toHitBonus": -2,
+              "notes": "Fast draw and fire with reduced accuracy."
+            },
+            {
+              "id": "pistolAimedShot",
+              "label": "Aim and Fire",
+              "type": "attack",
+              "apCost": 3,
+              "requiresToHit": true,
+              "toHitBonus": 0,
+              "notes": "Deliberate shot with full accuracy."
+            }
+          ]
+        },
+        "ammunition": {
+          "required": true,
+          "type": "revolver-round",
+          "capacity": 6,
+          "loaded": 6,
+          "consumedPerAttack": 1
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 10,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiredProficiencies": [
+            {
+              "type": "firearm",
+              "key": "",
+              "label": "Firearm Training"
+            }
+          ],
+          "notes": "<p>Commonly understood handling.</p>"
+        },
+        "physical": {
+          "weight": 2.5,
+          "bulk": 1,
+          "range": {
+            "normal": 40,
+            "long": 120
+          }
+        },
+        "properties": {
+          "tags": [
+            "sidearm",
+            "firearm"
+          ],
+          "concealable": true,
+          "noisy": true,
+          "experimental": false
+        }
+      },
+      "_id": "ld0c000000000000"
+    },
+    {
+      "name": "Surveyor's Transit",
+      "type": "equipment",
+      "img": "icons/tools/navigation/spyglass-brass.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Transit",
+        "description": "<p>Tripod optics for line-of-sight measurement and distance estimation.</p>",
+        "category": "instrument",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "hands",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "nature",
+            "difficulty": 11,
+            "required": false,
+            "purpose": "<p>Chart terrain and establish bearings.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 5,
+          "bulk": 2,
+          "quantity": 1,
+          "unit": "instrument"
+        },
+        "value": {
+          "price": 15,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "survey",
+            "optics"
+          ],
+          "concealable": false,
+          "fragile": true,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0c000000000001"
+    },
+    {
+      "name": "Storm Warden's Oilcloak",
+      "type": "armor",
+      "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+          "caption": "Protective wear",
+          "credit": "Core icon set"
+        },
+        "description": "<p>A waxed canvas longcoat with triple-sealed seams and weighted hem, issued to aerostat crews and highland marshals who cannot afford to be wet.</p>",
+        "category": "light",
+        "quality": "fine",
+        "rarity": "uncommon",
+        "slot": "torso",
+        "armorClass": {
+          "increment": 1,
+          "appliesWhenWorn": true
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 0,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiresTraining": false,
+          "requiredTrait": "",
+          "notes": "<p>No formal training requirement.</p>"
+        },
+        "encumbrance": {
+          "weight": 5,
+          "bulk": 1,
+          "stealthPenalty": 0,
+          "movementPenalty": 0
+        },
+        "properties": {
+          "tags": [
+            "weatherproof",
+            "expedition"
+          ],
+          "concealable": false,
+          "noisy": false,
+          "experimental": false
+        }
+      },
+      "_id": "ld0c000000000002"
+    },
+    {
+      "name": "Pocket Altitude Gauge",
+      "type": "equipment",
+      "img": "icons/tools/navigation/compass-brass-blue-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Altitude Gauge",
+        "description": "<p>A barometric pressure capsule in a brass housing, graduated in feet; used by aerostat crews, highland surveyors, and anyone who must know precisely how far above the sea their feet presently stand.</p>",
+        "category": "instrument",
+        "quality": "fine",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "nature",
+            "difficulty": 10,
+            "required": false,
+            "purpose": "<p>Determine current altitude or predict pressure-related weather change.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.5,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "instrument"
+        },
+        "value": {
+          "price": 8,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "navigation",
+            "precision"
+          ],
+          "concealable": false,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0c000000000003"
+    },
+    {
+      "name": "Ironlung Vapour Cartridge",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Vapour Cartridge",
+        "description": "<p>A compressed cylinder of filtered air fitted with a rubber mouthpiece; permits coherent movement through smog, chemical fume, and coal-gas without immediate injury.</p>",
+        "category": "apparatus",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "method": "breathe",
+          "actionCost": 1,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeItem",
+          "variants": [
+            {
+              "id": "consumeItem",
+              "label": "Consume Item",
+              "type": "consumable",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "quantity": {
+          "value": 5,
+          "max": 5,
+          "unit": "breath"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "5 rounds",
+          "recoveryInterval": "short rest"
+        },
+        "effects": [
+          {
+            "label": "Clear Breath",
+            "type": "grantImmunity",
+            "target": "suffocation",
+            "formula": "",
+            "value": 1,
+            "condition": "while using cartridge",
+            "notes": "<p>Each use grants one round of breathable air.</p>"
+          }
+        ],
+        "sideEffects": [],
+        "physical": {
+          "weight": 0.8,
+          "bulk": 0,
+          "perishable": true,
+          "shelfLife": "6 months"
+        },
+        "properties": {
+          "tags": [
+            "breathing",
+            "industrial",
+            "chemical"
+          ],
+          "addictive": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0c000000000004"
+    },
+    {
+      "name": "Field Bandage Roll",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Bandage Roll",
+        "description": "<p>Sterile cloth and clasp pins wrapped for rapid field dressing.</p>",
+        "category": "bandage",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "method": "apply",
+          "actionCost": 1,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeItem",
+          "variants": [
+            {
+              "id": "consumeItem",
+              "label": "Consume Item",
+              "type": "consumable",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "quantity": {
+          "value": 3,
+          "max": 3,
+          "unit": "wrap"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "",
+          "recoveryInterval": ""
+        },
+        "effects": [
+          {
+            "label": "Staunch Bleeding",
+            "type": "removePenalty",
+            "target": "bleeding",
+            "formula": "",
+            "value": 1,
+            "condition": "",
+            "notes": "<p>Ends minor ongoing bleed conditions.</p>"
+          }
+        ],
+        "sideEffects": [],
+        "physical": {
+          "weight": 0.4,
+          "bulk": 0,
+          "perishable": false,
+          "shelfLife": "24 months"
+        },
+        "properties": {
+          "tags": [
+            "first-aid"
+          ],
+          "addictive": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0c000000000005"
+    },
+    {
+      "name": "Signal Almanac",
+      "type": "item",
+      "img": "icons/sundries/books/book-embossed-compass-blue.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Signal Almanac",
+        "description": "<p>A waterproof-covered compendium of railway, telegraph, and flag signal codes, updated annually by the Board of Trade; essential on expeditions where any word must travel before any person.</p>",
+        "category": "document",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "history",
+            "difficulty": 10,
+            "required": false,
+            "purpose": "<p>Decode or compose a recognised signal sequence.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.4,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "book"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "document",
+            "navigation"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0c000000000006"
+    },
+    {
+      "name": "Brass Oil Flask",
+      "type": "item",
+      "img": "icons/consumables/potions/bottle-round-corked-yellow.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Oil Flask",
+        "description": "<p>A stoppered brass flask of lamp oil for torches, lanterns, and burners.</p>",
+        "category": "container",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": true,
+          "skillCheck": {
+            "skill": "investigation",
+            "difficulty": 8,
+            "required": false,
+            "purpose": "<p>Refuel light sources and lubricate mechanisms.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.5,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "flask"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "fuel",
+            "utility"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0c000000000007"
+    },
+    {
+      "name": "Coiled Hemp Rope",
+      "type": "equipment",
+      "img": "icons/sundries/survival/rope-coiled-brown.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Hemp Rope",
+        "description": "<p>A compact thirty-foot coil with brass clips for harnessing and descent.</p>",
+        "category": "tool",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "athletics",
+            "difficulty": 10,
+            "required": false,
+            "purpose": "<p>Secure climbs and controlled descents.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 3,
+          "bulk": 1,
+          "quantity": 1,
+          "unit": "coil"
+        },
+        "value": {
+          "price": 2,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "climbing",
+            "utility"
+          ],
+          "concealable": false,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0c000000000008"
+    }
+  ],
   "flags": {}
 }

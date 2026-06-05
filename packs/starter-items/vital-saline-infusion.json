@@ -1,0 +1,87 @@
+{
+  "_id": "81563f16233e977d",
+  "name": "Vital Saline Infusion",
+  "type": "consumable",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "caption": "Medical or chemical dose",
+      "credit": "Core icon set"
+    },
+    "commonName": "Saline Infusion",
+    "description": "<p>A glass ampoule of sterile salt solution administered by needle to stabilise blood loss and restore circulatory volume after heavy exertion or wound trauma.</p>",
+    "category": "medicine",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "method": "inject",
+      "actionCost": 1,
+      "consumesCharge": true,
+      "requiresHands": true
+    },
+    "actions": {
+      "defaultActionId": "consumeItem",
+      "variants": [
+        {
+          "id": "consumeItem",
+          "label": "Consume Item",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "quantity": {
+      "value": 1,
+      "max": 1,
+      "unit": "dose"
+    },
+    "timing": {
+      "onset": "immediate",
+      "duration": "",
+      "recoveryInterval": ""
+    },
+    "effects": [
+      {
+        "label": "Restore Volume",
+        "type": "restoreResource",
+        "target": "resources.health",
+        "formula": "1d6",
+        "value": 0,
+        "condition": "",
+        "notes": "<p>Administered over one round.</p>"
+      }
+    ],
+    "sideEffects": [
+      {
+        "label": "Chill",
+        "type": "applyModifier",
+        "target": "skills.athletics.value",
+        "formula": "",
+        "value": -1,
+        "condition": "for 10 minutes",
+        "notes": "<p>Cold fluid briefly reduces vigour.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0.4,
+      "bulk": 0,
+      "perishable": true,
+      "shelfLife": "12 months"
+    },
+    "properties": {
+      "tags": [
+        "medical",
+        "restorative"
+      ],
+      "addictive": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

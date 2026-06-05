@@ -1,5 +1,6 @@
 import {
     TOTC_SAMPLE_COMPENDIUMS,
+    createTotcSampleContent,
     publishTotcSampleCompendiums
 } from "../sample-content.mjs";
 
@@ -51,6 +52,27 @@ export async function migrateTotcStarterCompendiums({
     if (notify) {
         ui.notifications?.info(
             `Turn of the Century starter compendiums refreshed (${report.totalImported} imported across ${Object.keys(report.byPack ?? {}).length} packs).`
+        );
+    }
+
+    return report;
+}
+
+export async function migrateSeedMissingWorldActors({ notify = true } = {}) {
+    if (!game?.ready) throw new Error("Game is not ready yet.");
+    if (!game.user?.isGM) {
+        throw new Error("Only a GM can seed world actors.");
+    }
+
+    const report = await createTotcSampleContent({
+        createActors: true,
+        createItems: false,
+        overwrite: false
+    });
+
+    if (notify && report.createdActors > 0) {
+        ui.notifications?.info(
+            `Turn of the Century: seeded ${report.createdActors} missing world actor${report.createdActors === 1 ? "" : "s"}.`
         );
     }
 

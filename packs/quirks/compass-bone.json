@@ -1,0 +1,33 @@
+{
+  "_id": "efa95f7a35553726",
+  "name": "Compass Bone",
+  "type": "quirk",
+  "img": "icons/skills/social/diplomacy-handshake.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/skills/social/diplomacy-handshake.webp",
+      "caption": "Personal edge",
+      "credit": "Core icon set"
+    },
+    "description": "<p>A residual sense of true north, confirmed by years of high-altitude navigation and refined by intimate acquaintance with the magnetics of the upper atmosphere.</p>",
+    "source": {
+      "type": "profession",
+      "itemId": "",
+      "label": "Railway Marshal"
+    },
+    "effects": [
+      {
+        "label": "Innate Bearing",
+        "targetType": "skill",
+        "target": "survival",
+        "operation": "add",
+        "value": 1,
+        "path": "",
+        "condition": "outdoors or in unfamiliar terrain",
+        "appliesWhenEncumbered": false
+      }
+    ],
+    "notes": "<p>Apply when fiction and conditions support it.</p>"
+  },
+  "flags": {}
+}

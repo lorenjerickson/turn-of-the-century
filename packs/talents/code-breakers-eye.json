@@ -1,0 +1,78 @@
+{
+  "_id": "1a46a266f8c29d86",
+  "name": "Code-Breaker's Eye",
+  "type": "talent",
+  "img": "icons/sundries/books/book-stack.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Code-Breaker's Eye",
+    "description": "<p>Trained pattern recognition in written material; identifies recurring substitutions, transposition schemes, and steganographic concealment in ordinary documents.</p>",
+    "category": "miscellaneous",
+    "quality": "standard",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 0,
+      "requiresHands": false,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "history",
+        "difficulty": 12,
+        "required": false,
+        "purpose": "<p>Identify cipher type and suggest probable key structure.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [
+      {
+        "label": "Pattern Recognition",
+        "targetType": "skill",
+        "target": "history",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "when analysing written ciphers",
+        "notes": "<p>Improves decoding checks.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "training"
+    },
+    "value": {
+      "price": 0,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "talent",
+        "cipher",
+        "analytical"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

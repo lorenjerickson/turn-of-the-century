@@ -1,0 +1,77 @@
+{
+  "_id": "30c57b614720b70d",
+  "name": "Smoke Lens Goggles",
+  "type": "equipment",
+  "img": "icons/equipment/head/goggles-lens-blue.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Smoke Goggles",
+    "description": "<p>Riveted brass frames fitted with smoked glass lenses and a gum-leather seal; reduce the glare of furnace light and permit useful vision through moderate fog and workshop soot.</p>",
+    "category": "apparatus",
+    "quality": "fine",
+    "rarity": "common",
+    "slot": "head",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "perception",
+        "difficulty": 9,
+        "required": false,
+        "purpose": "<p>Maintain vision through smoke, light glare, or airborne debris.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [
+      {
+        "label": "Clear Sight",
+        "targetType": "skill",
+        "target": "perception",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "in smoke or glare",
+        "notes": "<p>Reduces vision penalties in smoky environments.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 0.4,
+      "bulk": 0,
+      "quantity": 1,
+      "unit": "pair"
+    },
+    "value": {
+      "price": 6,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "optics",
+        "industrial"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}

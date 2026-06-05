@@ -266,7 +266,9 @@
             "armor",
             "equipment"
           ],
-          "itemIds": []
+          "itemIds": [
+            "ld0e000000000002"
+          ]
         },
         "neck": {
           "label": "Neck",
@@ -287,7 +289,9 @@
             "equipment",
             "item"
           ],
-          "itemIds": []
+          "itemIds": [
+            "ld0e000000000001"
+          ]
         },
         "hands": {
           "label": "Hands",
@@ -299,7 +303,9 @@
             "tool",
             "equipment"
           ],
-          "itemIds": []
+          "itemIds": [
+            "ld0e000000000000"
+          ]
         },
         "legs": {
           "label": "Legs",
@@ -332,11 +338,21 @@
             "consumable",
             "item"
           ],
-          "itemIds": []
+          "itemIds": [
+            "ld0e000000000003",
+            "ld0e000000000004",
+            "ld0e000000000005",
+            "ld0e000000000006",
+            "ld0e000000000007",
+            "ld0e000000000008",
+            "ld0e000000000009"
+          ]
         }
       },
       "pack": {
-        "itemIds": [],
+        "itemIds": [
+          "ld0e00000000000a"
+        ],
         "capacity": 20,
         "encumbrance": 0
       },
@@ -353,5 +369,762 @@
       "vulnerabilities": []
     }
   },
+  "items": [
+    {
+      "name": "Rivet Hammer",
+      "type": "weapon",
+      "img": "icons/weapons/hammers/hammer-riveted.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/weapons/swords/sword-guard-steel.webp",
+          "caption": "Combat implement",
+          "credit": "Core icon set"
+        },
+        "commonName": "Rivet Hammer",
+        "description": "<p>A heavy-headed iron hammer used to set rivets in plate and girder; foundry workers rarely surrender it, and its weight makes that preference apparent.</p>",
+        "classification": "simpleMelee",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "hands",
+        "damage": {
+          "formula": "1d6",
+          "type": "bludgeoning",
+          "versatileFormula": "",
+          "bonus": 0
+        },
+        "handedness": "oneHanded",
+        "actions": {
+          "defaultActionId": "weaponAttack",
+          "variants": [
+            {
+              "id": "weaponAttack",
+              "label": "Attack",
+              "type": "attack",
+              "apCost": 2,
+              "requiresToHit": true,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "ammunition": {
+          "required": false,
+          "type": "",
+          "capacity": 0,
+          "loaded": 0,
+          "consumedPerAttack": 0
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 0,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiredProficiencies": [],
+          "notes": "<p>Commonly understood handling.</p>"
+        },
+        "physical": {
+          "weight": 3,
+          "bulk": 0,
+          "range": {
+            "normal": 5,
+            "long": 5
+          }
+        },
+        "properties": {
+          "tags": [
+            "industrial",
+            "improvised"
+          ],
+          "concealable": false,
+          "noisy": false,
+          "experimental": false
+        }
+      },
+      "_id": "ld0e000000000000"
+    },
+    {
+      "name": "Mechanist's Canvas Duster",
+      "type": "armor",
+      "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/equipment/chest/breastplate-layered-steel.webp",
+          "caption": "Protective wear",
+          "credit": "Core icon set"
+        },
+        "description": "<p>A long coat of boiled canvas with riveted interior pockets and a leather collar reinforced against abrasion and flying scale from the grinding wheel.</p>",
+        "category": "light",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "torso",
+        "armorClass": {
+          "increment": 1,
+          "appliesWhenWorn": true
+        },
+        "prerequisites": {
+          "abilityMinimums": {
+            "str": 0,
+            "dex": 0,
+            "con": 0,
+            "int": 0,
+            "wis": 0,
+            "cha": 0,
+            "san": 0
+          },
+          "requiresTraining": false,
+          "requiredTrait": "",
+          "notes": "<p>No formal training requirement.</p>"
+        },
+        "encumbrance": {
+          "weight": 4,
+          "bulk": 1,
+          "stealthPenalty": 0,
+          "movementPenalty": 0
+        },
+        "properties": {
+          "tags": [
+            "industrial",
+            "workshop"
+          ],
+          "concealable": false,
+          "noisy": false,
+          "experimental": false
+        }
+      },
+      "_id": "ld0e000000000001"
+    },
+    {
+      "name": "Smoke Lens Goggles",
+      "type": "equipment",
+      "img": "icons/equipment/head/goggles-lens-blue.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Smoke Goggles",
+        "description": "<p>Riveted brass frames fitted with smoked glass lenses and a gum-leather seal; reduce the glare of furnace light and permit useful vision through moderate fog and workshop soot.</p>",
+        "category": "apparatus",
+        "quality": "fine",
+        "rarity": "common",
+        "slot": "head",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "perception",
+            "difficulty": 9,
+            "required": false,
+            "purpose": "<p>Maintain vision through smoke, light glare, or airborne debris.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [
+          {
+            "label": "Clear Sight",
+            "targetType": "skill",
+            "target": "perception",
+            "operation": "add",
+            "value": 1,
+            "formula": "",
+            "condition": "in smoke or glare",
+            "notes": "<p>Reduces vision penalties in smoky environments.</p>"
+          }
+        ],
+        "physical": {
+          "weight": 0.4,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "pair"
+        },
+        "value": {
+          "price": 6,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "optics",
+            "industrial"
+          ],
+          "concealable": false,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0e000000000002"
+    },
+    {
+      "name": "Locksmith Roll",
+      "type": "equipment",
+      "img": "icons/tools/hand/pick-steel-white.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Locksmith Tools",
+        "description": "<p>Fine picks, torsion bars, and graphite cloth for stubborn wards.</p>",
+        "category": "tool",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "sleightOfHand",
+            "difficulty": 12,
+            "required": false,
+            "purpose": "<p>Manipulate locks and catches.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 1,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "roll"
+        },
+        "value": {
+          "price": 5,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "lockpicking"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": true
+        }
+      },
+      "_id": "ld0e000000000003"
+    },
+    {
+      "name": "Field Investigator Kit",
+      "type": "equipment",
+      "img": "icons/tools/scribal/lens-glass-brown.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Investigator Kit",
+        "description": "<p>Casebook, lens, gloves, and envelopes for deliberate scene work.</p>",
+        "category": "tool",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "investigation",
+            "difficulty": 10,
+            "required": false,
+            "purpose": "<p>Aids structured scene examination.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [
+          {
+            "label": "Documented Scene",
+            "targetType": "skill",
+            "target": "investigation",
+            "operation": "add",
+            "value": 1,
+            "formula": "",
+            "condition": "kit present",
+            "notes": "<p>Bonus to scene analysis.</p>"
+          }
+        ],
+        "physical": {
+          "weight": 3,
+          "bulk": 1,
+          "quantity": 1,
+          "unit": "kit"
+        },
+        "value": {
+          "price": 7,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "investigation",
+            "fieldwork"
+          ],
+          "concealable": false,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0e000000000004"
+    },
+    {
+      "name": "Pocket Tool Roll",
+      "type": "equipment",
+      "img": "icons/tools/hand/hammer-and-nail.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Tool Roll",
+        "description": "<p>Needles, wire, and a miniature spanner for field adjustments.</p>",
+        "category": "tool",
+        "quality": "fine",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "investigation",
+            "difficulty": 10,
+            "required": false,
+            "purpose": "<p>Perform hasty repairs on delicate gear.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.8,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "roll"
+        },
+        "value": {
+          "price": 4,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "repair",
+            "utility"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0e000000000005"
+    },
+    {
+      "name": "Acid-Wash Solution",
+      "type": "consumable",
+      "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/consumables/potions/potion-vial-corked-red.webp",
+          "caption": "Medical or chemical dose",
+          "credit": "Core icon set"
+        },
+        "commonName": "Acid Wash",
+        "description": "<p>A stoppered glass vial of dilute vitriol intended for descaling boiler parts; applied to corroded locks or seized mechanisms, it softens both metal and the confidence of their makers.</p>",
+        "category": "chemical",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "method": "apply",
+          "actionCost": 1,
+          "consumesCharge": true,
+          "requiresHands": true
+        },
+        "actions": {
+          "defaultActionId": "consumeItem",
+          "variants": [
+            {
+              "id": "consumeItem",
+              "label": "Consume Item",
+              "type": "consumable",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "quantity": {
+          "value": 3,
+          "max": 3,
+          "unit": "application"
+        },
+        "timing": {
+          "onset": "immediate",
+          "duration": "",
+          "recoveryInterval": ""
+        },
+        "effects": [
+          {
+            "label": "Dissolve Obstruction",
+            "type": "removePenalty",
+            "target": "rusted",
+            "formula": "",
+            "value": 1,
+            "condition": "applied to corroded mechanism",
+            "notes": "<p>Reduces lock difficulty by 2 per application.</p>"
+          }
+        ],
+        "sideEffects": [
+          {
+            "label": "Acid Fume",
+            "type": "causeCondition",
+            "target": "eyes",
+            "formula": "",
+            "value": 1,
+            "condition": "if exposed unprotected",
+            "notes": "<p>Inflames mucous membranes without protective eyewear.</p>"
+          }
+        ],
+        "physical": {
+          "weight": 0.6,
+          "bulk": 0,
+          "perishable": false,
+          "shelfLife": "indefinite"
+        },
+        "properties": {
+          "tags": [
+            "chemical",
+            "tool"
+          ],
+          "addictive": false,
+          "experimental": false,
+          "restricted": true
+        }
+      },
+      "_id": "ld0e000000000006"
+    },
+    {
+      "name": "Caliper Rule Set",
+      "type": "item",
+      "img": "icons/tools/hand/claw-hammer.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Caliper Set",
+        "description": "<p>A matched pair of spring callipers and a folding steel rule in a chamois roll; permits precise measurement of tolerances in locks, mechanisms, and suspected counterfeit castings.</p>",
+        "category": "tool",
+        "quality": "fine",
+        "rarity": "uncommon",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "investigation",
+            "difficulty": 10,
+            "required": false,
+            "purpose": "<p>Measure a mechanical component precisely enough to detect irregularity or wear.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.6,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "set"
+        },
+        "value": {
+          "price": 4,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "tool",
+            "precision"
+          ],
+          "concealable": false,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0e000000000007"
+    },
+    {
+      "name": "Cipher Notebook",
+      "type": "item",
+      "img": "icons/sundries/books/book-red-exclamation.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Pocket Cipher Book",
+        "description": "<p>Wax-sealed pages indexed by private shorthand and witness initials.</p>",
+        "category": "document",
+        "quality": "fine",
+        "rarity": "uncommon",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "history",
+            "difficulty": 11,
+            "required": false,
+            "purpose": "<p>Recover old links across current investigations.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.5,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "book"
+        },
+        "value": {
+          "price": 2,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "document",
+            "cipher"
+          ],
+          "concealable": true,
+          "fragile": true,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0e000000000008"
+    },
+    {
+      "name": "Brass Oil Flask",
+      "type": "item",
+      "img": "icons/consumables/potions/bottle-round-corked-yellow.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Oil Flask",
+        "description": "<p>A stoppered brass flask of lamp oil for torches, lanterns, and burners.</p>",
+        "category": "container",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": true,
+          "skillCheck": {
+            "skill": "investigation",
+            "difficulty": 8,
+            "required": false,
+            "purpose": "<p>Refuel light sources and lubricate mechanisms.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 0.5,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "flask"
+        },
+        "value": {
+          "price": 1,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "fuel",
+            "utility"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0e000000000009"
+    },
+    {
+      "name": "Folding Pry Hook",
+      "type": "equipment",
+      "img": "icons/tools/hand/crowbar-steel.webp",
+      "system": {
+        "artwork": {
+          "image": "icons/svg/item-bag.svg",
+          "caption": "Utility item",
+          "credit": "Core icon set"
+        },
+        "commonName": "Pry Hook",
+        "description": "<p>A short folding lever for crates, stuck hatches, and iron hasps.</p>",
+        "category": "tool",
+        "quality": "standard",
+        "rarity": "common",
+        "slot": "belt",
+        "use": {
+          "actionCost": 1,
+          "requiresHands": true,
+          "consumedOnUse": false,
+          "skillCheck": {
+            "skill": "athletics",
+            "difficulty": 11,
+            "required": false,
+            "purpose": "<p>Force simple barriers and jammed catches.</p>"
+          }
+        },
+        "actions": {
+          "defaultActionId": "useItem",
+          "variants": [
+            {
+              "id": "useItem",
+              "label": "Use Item",
+              "type": "utility",
+              "apCost": 1,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "notes": ""
+            }
+          ]
+        },
+        "effects": [],
+        "physical": {
+          "weight": 1.2,
+          "bulk": 0,
+          "quantity": 1,
+          "unit": "tool"
+        },
+        "value": {
+          "price": 3,
+          "currency": "pounds"
+        },
+        "properties": {
+          "tags": [
+            "breach",
+            "utility"
+          ],
+          "concealable": true,
+          "fragile": false,
+          "experimental": false,
+          "restricted": false
+        }
+      },
+      "_id": "ld0e00000000000a"
+    }
+  ],
   "flags": {}
 }

@@ -1,0 +1,77 @@
+{
+  "_id": "096e6b0a7e93fe22",
+  "name": "Surgeon's Field Case",
+  "type": "equipment",
+  "img": "icons/tools/hand/tool-scissors-orange.webp",
+  "system": {
+    "artwork": {
+      "image": "icons/svg/item-bag.svg",
+      "caption": "Utility item",
+      "credit": "Core icon set"
+    },
+    "commonName": "Field Case",
+    "description": "<p>A leather roll containing probes, forceps, suture needle and gut, a small bone saw, and spirit-soaked lint pads; sufficient for emergency treatment where no hospital is available.</p>",
+    "category": "tool",
+    "quality": "fine",
+    "rarity": "common",
+    "slot": "belt",
+    "use": {
+      "actionCost": 1,
+      "requiresHands": true,
+      "consumedOnUse": false,
+      "skillCheck": {
+        "skill": "medicine",
+        "difficulty": 11,
+        "required": false,
+        "purpose": "<p>Perform field surgery, stabilise critical wounds, or remove embedded fragments.</p>"
+      }
+    },
+    "actions": {
+      "defaultActionId": "useItem",
+      "variants": [
+        {
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "notes": ""
+        }
+      ]
+    },
+    "effects": [
+      {
+        "label": "Surgical Edge",
+        "targetType": "skill",
+        "target": "medicine",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "kit present",
+        "notes": "<p>Bonus to medicine checks requiring tools.</p>"
+      }
+    ],
+    "physical": {
+      "weight": 2.5,
+      "bulk": 1,
+      "quantity": 1,
+      "unit": "case"
+    },
+    "value": {
+      "price": 14,
+      "currency": "pounds"
+    },
+    "properties": {
+      "tags": [
+        "medical",
+        "surgical"
+      ],
+      "concealable": false,
+      "fragile": false,
+      "experimental": false,
+      "restricted": false
+    }
+  },
+  "flags": {}
+}
