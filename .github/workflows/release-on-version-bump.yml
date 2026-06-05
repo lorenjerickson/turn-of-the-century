@@ -45,14 +45,6 @@ jobs:
             exit 0
           fi
 
-          if git rev-parse "${current_tag}" >/dev/null 2>&1; then
-            echo "Tag ${current_tag} already exists; skipping release creation."
-            echo "release_required=false" >> "$GITHUB_OUTPUT"
-            echo "version=${current_version}" >> "$GITHUB_OUTPUT"
-            echo "tag=${current_tag}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
           echo "release_required=true" >> "$GITHUB_OUTPUT"
           echo "version=${current_version}" >> "$GITHUB_OUTPUT"
           echo "tag=${current_tag}" >> "$GITHUB_OUTPUT"
@@ -61,11 +53,30 @@ jobs:
         if: steps.version.outputs.release_required == 'true'
         run: bash scripts/release.sh
 
-      - name: Create GitHub release
+      - name: Create or update GitHub release
         if: steps.version.outputs.release_required == 'true'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
+          fail_on_unmatched_files: true
           files: |
             dist/*
+
+      - name: Verify release assets
+        if: steps.version.outputs.release_required == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          assets="$(gh release view "${{ steps.version.outputs.tag }}" --json assets --jq '.assets[].name')"
+          for required_asset in system.json turn-of-the-century.zip; do
+            if ! grep -qx "${required_asset}" <<< "${assets}"; then
+              echo "Missing required release asset: ${required_asset}"
+              echo "Uploaded assets:"
+              echo "${assets}"
+              exit 1
+            fi
+          done
