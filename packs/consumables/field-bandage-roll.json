@@ -22,45 +22,23 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "dressWound",
+      "defaultActionId": "useItem",
       "variants": [
         {
-          "id": "dressWound",
-          "label": "Dress Wound",
+          "id": "useItem",
+          "label": "Use",
           "type": "consumable",
           "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "targetSelf": true,
-          "targetAlly": false,
-          "requiresAdjacency": false,
-          "conditions": [],
-          "notes": "<p>Apply a bandage to your own wound. Stops a bleeding condition. Consumes one wrap.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "bindAllyWound",
-          "label": "Bind Ally's Wound",
-          "type": "consumable",
-          "apCost": 3,
-          "requiresToHit": false,
-          "toHitBonus": 0,
-          "targetSelf": false,
-          "targetAlly": true,
-          "requiresAdjacency": true,
-          "conditions": [],
-          "notes": "<p>Dress an adjacent ally's wound. Stops their bleeding condition. Consumes one wrap.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": [
+            {
+              "field": "system.quantity.value",
+              "op": "gt",
+              "value": 0,
+              "fieldRef": ""
+            }
+          ]
         }
       ]
     },
@@ -99,7 +77,10 @@
       "addictive": false,
       "experimental": false,
       "restricted": false
-    }
+    },
+    "traits": [
+      "usableItem"
+    ]
   },
   "flags": {}
 }

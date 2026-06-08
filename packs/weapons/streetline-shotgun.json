@@ -23,69 +23,55 @@
     },
     "handedness": "twoHanded",
     "actions": {
-      "defaultActionId": "pointBlastShot",
+      "defaultActionId": "aimedShot",
       "variants": [
         {
-          "id": "pointBlastShot",
-          "label": "Point Blast",
+          "id": "quickShot",
+          "label": "Quick Shot",
           "type": "attack",
           "apCost": 2,
           "requiresToHit": true,
-          "toHitBonus": 1,
-          "consumesAmmo": 1,
-          "requiresAmmo": 1,
-          "reloadsAmmo": 0,
-          "rangeType": "normal",
-          "conditions": [],
-          "notes": "<p>Devastating at close range. Bonus to hit reflects wide spread.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "toHitBonus": -2,
+          "requirements": [
+            {
+              "field": "system.ammunition.loaded",
+              "op": "gt",
+              "value": 0,
+              "fieldRef": ""
+            }
+          ]
         },
         {
-          "id": "doubleBarrel",
-          "label": "Both Barrels",
+          "id": "aimedShot",
+          "label": "Aim and Fire",
           "type": "attack",
           "apCost": 3,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "consumesAmmo": 2,
-          "requiresAmmo": 2,
-          "reloadsAmmo": 0,
-          "rangeType": "normal",
-          "conditions": [
-            "staggered"
-          ],
-          "notes": "<p>Fire both barrels simultaneously. Expends all remaining shot. Target is staggered on hit.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": [
+            {
+              "field": "system.ammunition.loaded",
+              "op": "gt",
+              "value": 0,
+              "fieldRef": ""
+            }
+          ]
         },
         {
           "id": "reload",
           "label": "Reload",
-          "type": "reload",
-          "apCost": 3,
+          "type": "utility",
+          "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 2,
-          "rangeType": "melee",
-          "conditions": [],
-          "notes": "<p>Break open the action and seat fresh shells.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": [
+            {
+              "field": "system.ammunition.loaded",
+              "op": "lt",
+              "value": 0,
+              "fieldRef": "system.ammunition.capacity"
+            }
+          ]
         }
       ]
     },
@@ -124,7 +110,12 @@
       "concealable": false,
       "noisy": true,
       "experimental": false
-    }
+    },
+    "traits": [
+      "firearm",
+      "projectileAmmo",
+      "twoHanded"
+    ]
   },
   "flags": {}
 }

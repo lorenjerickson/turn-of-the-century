@@ -22,45 +22,23 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "fieldStitch",
+      "defaultActionId": "useItem",
       "variants": [
         {
-          "id": "fieldStitch",
-          "label": "Field Stitch",
+          "id": "useItem",
+          "label": "Use",
           "type": "consumable",
           "apCost": 3,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "targetSelf": true,
-          "targetAlly": false,
-          "requiresAdjacency": false,
-          "conditions": [],
-          "notes": "<p>Suture a wound under field conditions. Stops bleeding and provides minor health restoration. Requires both hands.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "stitchAlly",
-          "label": "Stitch Ally",
-          "type": "consumable",
-          "apCost": 4,
-          "requiresToHit": false,
-          "toHitBonus": 0,
-          "targetSelf": false,
-          "targetAlly": true,
-          "requiresAdjacency": true,
-          "conditions": [],
-          "notes": "<p>Perform field surgery on an adjacent ally. More time-intensive than self-treatment. Stops bleeding and restores health.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": [
+            {
+              "field": "system.quantity.value",
+              "op": "gt",
+              "value": 0,
+              "fieldRef": ""
+            }
+          ]
         }
       ]
     },
@@ -100,7 +78,10 @@
       "addictive": false,
       "experimental": false,
       "restricted": false
-    }
+    },
+    "traits": [
+      "usableItem"
+    ]
   },
   "flags": {}
 }

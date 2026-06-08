@@ -23,67 +23,34 @@
     },
     "handedness": "versatile",
     "actions": {
-      "defaultActionId": "thrustStrike",
+      "defaultActionId": "meleeStrike",
       "variants": [
         {
-          "id": "thrustStrike",
-          "label": "Thrust",
+          "id": "meleeStrike",
+          "label": "Strike",
           "type": "attack",
           "apCost": 1,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "melee",
-          "conditions": [],
-          "notes": "<p>Standard melee thrust. Fast and reliable.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": []
         },
         {
-          "id": "lunge",
-          "label": "Lunge",
+          "id": "thrownAttack",
+          "label": "Throw",
           "type": "attack",
           "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "melee",
-          "conditions": [],
-          "notes": "<p>Extended reach attack. Can strike targets one step further than normal melee range.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": []
         },
         {
-          "id": "throwSpear",
-          "label": "Throw",
+          "id": "twoHandedStrike",
+          "label": "Two-Handed Strike",
           "type": "attack",
-          "apCost": 3,
+          "apCost": 2,
           "requiresToHit": true,
-          "toHitBonus": -1,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "normal",
-          "conditions": [],
-          "notes": "<p>Hurl the spear at range. The spear must be retrieved afterward.</p>",
-          "completionPhaseIncrement": 1,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "toHitBonus": 1,
+          "requirements": []
         }
       ]
     },
@@ -123,7 +90,12 @@
       "concealable": false,
       "noisy": false,
       "experimental": false
-    }
+    },
+    "traits": [
+      "meleeWeapon",
+      "thrownWeapon",
+      "versatileGrip"
+    ]
   },
   "flags": {}
 }

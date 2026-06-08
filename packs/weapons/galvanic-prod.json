@@ -23,51 +23,16 @@
     },
     "handedness": "oneHanded",
     "actions": {
-      "defaultActionId": "shockStrike",
+      "defaultActionId": "meleeStrike",
       "variants": [
         {
-          "id": "shockStrike",
-          "label": "Shock Strike",
+          "id": "meleeStrike",
+          "label": "Strike",
           "type": "attack",
-          "apCost": 2,
+          "apCost": 1,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "melee",
-          "conditions": [
-            "stunned"
-          ],
-          "notes": "<p>Drive the prod into a target and discharge. On a critical hit, the target is stunned for one tick.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "arcBurst",
-          "label": "Arc Burst",
-          "type": "attack",
-          "apCost": 3,
-          "requiresToHit": true,
-          "toHitBonus": -1,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "melee",
-          "conditions": [
-            "stunned"
-          ],
-          "notes": "<p>Overload the galvanic cell in a wide arc. Wider chance to hit an adjacent secondary target. Stuns on hit.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": []
         }
       ]
     },
@@ -113,7 +78,11 @@
       "concealable": false,
       "noisy": true,
       "experimental": true
-    }
+    },
+    "traits": [
+      "meleeWeapon",
+      "singleHanded"
+    ]
   },
   "flags": {}
 }

@@ -23,69 +23,16 @@
     },
     "handedness": "oneHanded",
     "actions": {
-      "defaultActionId": "clubBlow",
+      "defaultActionId": "meleeStrike",
       "variants": [
         {
-          "id": "clubBlow",
-          "label": "Club Blow",
+          "id": "meleeStrike",
+          "label": "Strike",
           "type": "attack",
           "apCost": 1,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "melee",
-          "conditions": [],
-          "notes": "<p>Standard truncheon swing.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "staggerBlow",
-          "label": "Stagger Blow",
-          "type": "attack",
-          "apCost": 2,
-          "requiresToHit": true,
-          "toHitBonus": 0,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "melee",
-          "conditions": [
-            "staggered"
-          ],
-          "notes": "<p>A heavy blow aimed to knock the target off balance. Staggered on hit.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "guardBreak",
-          "label": "Guard Break",
-          "type": "defense",
-          "apCost": 2,
-          "requiresToHit": true,
-          "toHitBonus": 0,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "melee",
-          "conditions": [],
-          "notes": "<p>Parry and immediately counter. Use when a melee attack is declared against you; disrupt their action and set up your next strike.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": false,
-          "isReaction": true,
-          "reactionTriggerType": "incomingAttack"
+          "requirements": []
         }
       ]
     },
@@ -125,7 +72,11 @@
       "concealable": true,
       "noisy": false,
       "experimental": false
-    }
+    },
+    "traits": [
+      "meleeWeapon",
+      "singleHanded"
+    ]
   },
   "flags": {}
 }

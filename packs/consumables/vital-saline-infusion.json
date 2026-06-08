@@ -22,45 +22,23 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "injectSelf",
+      "defaultActionId": "useItem",
       "variants": [
         {
-          "id": "injectSelf",
-          "label": "Infuse Self",
+          "id": "useItem",
+          "label": "Use",
           "type": "consumable",
           "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "targetSelf": true,
-          "targetAlly": false,
-          "requiresAdjacency": false,
-          "conditions": [],
-          "notes": "<p>Administer the saline infusion to yourself. Slower than a belt dose \u2014 the procedure takes time. Stabilises critical health loss.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "injectAlly",
-          "label": "Infuse Ally",
-          "type": "consumable",
-          "apCost": 3,
-          "requiresToHit": false,
-          "toHitBonus": 0,
-          "targetSelf": false,
-          "targetAlly": true,
-          "requiresAdjacency": true,
-          "conditions": [],
-          "notes": "<p>Administer to an adjacent downed or critical ally. Stabilises them.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": [
+            {
+              "field": "system.quantity.value",
+              "op": "gt",
+              "value": 0,
+              "fieldRef": ""
+            }
+          ]
         }
       ]
     },
@@ -110,7 +88,10 @@
       "addictive": false,
       "experimental": false,
       "restricted": false
-    }
+    },
+    "traits": [
+      "usableItem"
+    ]
   },
   "flags": {}
 }

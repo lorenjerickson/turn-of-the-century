@@ -23,49 +23,25 @@
     },
     "handedness": "oneHanded",
     "actions": {
-      "defaultActionId": "quickStab",
+      "defaultActionId": "meleeStrike",
       "variants": [
         {
-          "id": "quickStab",
-          "label": "Quick Stab",
+          "id": "meleeStrike",
+          "label": "Strike",
           "type": "attack",
           "apCost": 1,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "melee",
-          "conditions": [],
-          "notes": "<p>Fast light strike. Low AP cost allows chaining actions.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": []
         },
         {
-          "id": "precisionThrust",
-          "label": "Precision Thrust",
+          "id": "thrownAttack",
+          "label": "Throw",
           "type": "attack",
           "apCost": 2,
           "requiresToHit": true,
-          "toHitBonus": 1,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "melee",
-          "conditions": [
-            "bleeding"
-          ],
-          "notes": "<p>Find a gap in armour or exposed flesh. Bonus to hit; causes bleeding on a hit.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "toHitBonus": 0,
+          "requirements": []
         }
       ]
     },
@@ -105,7 +81,12 @@
       "concealable": true,
       "noisy": false,
       "experimental": false
-    }
+    },
+    "traits": [
+      "meleeWeapon",
+      "thrownWeapon",
+      "singleHanded"
+    ]
   },
   "flags": {}
 }

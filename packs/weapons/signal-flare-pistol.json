@@ -23,69 +23,55 @@
     },
     "handedness": "oneHanded",
     "actions": {
-      "defaultActionId": "flareShot",
+      "defaultActionId": "aimedShot",
       "variants": [
         {
-          "id": "flareShot",
-          "label": "Fire Signal Flare",
-          "type": "utility",
+          "id": "quickShot",
+          "label": "Quick Shot",
+          "type": "attack",
           "apCost": 2,
-          "requiresToHit": false,
-          "toHitBonus": 0,
-          "consumesAmmo": 1,
-          "requiresAmmo": 1,
-          "reloadsAmmo": 0,
-          "rangeType": "long",
-          "conditions": [],
-          "notes": "<p>Fire a flare skyward or at a distant surface. Illuminates a wide area; visible for miles. No attack roll required.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requiresToHit": true,
+          "toHitBonus": -2,
+          "requirements": [
+            {
+              "field": "system.ammunition.loaded",
+              "op": "gt",
+              "value": 0,
+              "fieldRef": ""
+            }
+          ]
         },
         {
-          "id": "dazzleBlast",
-          "label": "Dazzle Blast",
+          "id": "aimedShot",
+          "label": "Aim and Fire",
           "type": "attack",
           "apCost": 3,
           "requiresToHit": true,
-          "toHitBonus": -1,
-          "consumesAmmo": 1,
-          "requiresAmmo": 1,
-          "reloadsAmmo": 0,
-          "rangeType": "normal",
-          "conditions": [
-            "blinded"
-          ],
-          "notes": "<p>Fire directly at a target. On hit, the flare burst blinds the target until end of next round.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "toHitBonus": 0,
+          "requirements": [
+            {
+              "field": "system.ammunition.loaded",
+              "op": "gt",
+              "value": 0,
+              "fieldRef": ""
+            }
+          ]
         },
         {
           "id": "reload",
           "label": "Reload",
-          "type": "reload",
+          "type": "utility",
           "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 1,
-          "rangeType": "melee",
-          "conditions": [],
-          "notes": "<p>Seat a fresh flare cartridge into the single-shot breech.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": [
+            {
+              "field": "system.ammunition.loaded",
+              "op": "lt",
+              "value": 0,
+              "fieldRef": "system.ammunition.capacity"
+            }
+          ]
         }
       ]
     },
@@ -126,7 +112,12 @@
       "concealable": true,
       "noisy": true,
       "experimental": false
-    }
+    },
+    "traits": [
+      "firearm",
+      "projectileAmmo",
+      "singleHanded"
+    ]
   },
   "flags": {}
 }

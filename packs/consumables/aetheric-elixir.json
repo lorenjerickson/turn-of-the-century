@@ -25,23 +25,20 @@
       "defaultActionId": "drinkSelf",
       "variants": [
         {
-          "id": "drinkSelf",
-          "label": "Drink",
+          "id": "consumeBeltElixir",
+          "label": "Consume",
           "type": "consumable",
           "apCost": 1,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "targetSelf": true,
-          "targetAlly": false,
-          "requiresAdjacency": false,
-          "conditions": [],
-          "notes": "<p>Drink the elixir. Restores sanity or steadies frayed nerves.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": [
+            {
+              "field": "system.quantity.value",
+              "op": "gt",
+              "value": 0,
+              "fieldRef": ""
+            }
+          ]
         }
       ]
     },
@@ -91,7 +88,10 @@
       "addictive": false,
       "experimental": true,
       "restricted": false
-    }
+    },
+    "traits": [
+      "beltConsumable"
+    ]
   },
   "flags": {}
 }

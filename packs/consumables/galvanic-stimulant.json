@@ -22,26 +22,23 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "drinkSelf",
+      "defaultActionId": "useItem",
       "variants": [
         {
-          "id": "drinkSelf",
-          "label": "Drink",
+          "id": "useItem",
+          "label": "Use",
           "type": "consumable",
           "apCost": 1,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "targetSelf": true,
-          "targetAlly": false,
-          "requiresAdjacency": false,
-          "conditions": [],
-          "notes": "<p>Down the stimulant from the belt. Briefly boosts grit and sharpens reflexes.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": [
+            {
+              "field": "system.quantity.value",
+              "op": "gt",
+              "value": 0,
+              "fieldRef": ""
+            }
+          ]
         }
       ]
     },
@@ -91,7 +88,10 @@
       "addictive": false,
       "experimental": false,
       "restricted": false
-    }
+    },
+    "traits": [
+      "usableItem"
+    ]
   },
   "flags": {}
 }

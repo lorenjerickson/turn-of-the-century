@@ -23,87 +23,55 @@
     },
     "handedness": "twoHanded",
     "actions": {
-      "defaultActionId": "steadyShot",
+      "defaultActionId": "aimedShot",
       "variants": [
         {
-          "id": "snapFire",
-          "label": "Snap Fire",
+          "id": "quickShot",
+          "label": "Quick Shot",
           "type": "attack",
           "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": -2,
-          "consumesAmmo": 1,
-          "requiresAmmo": 1,
-          "reloadsAmmo": 0,
-          "rangeType": "normal",
-          "conditions": [],
-          "notes": "<p>Hurried shot without proper aim. Penalty to hit.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": [
+            {
+              "field": "system.ammunition.loaded",
+              "op": "gt",
+              "value": 0,
+              "fieldRef": ""
+            }
+          ]
         },
         {
-          "id": "steadyShot",
-          "label": "Steady Shot",
+          "id": "aimedShot",
+          "label": "Aim and Fire",
           "type": "attack",
           "apCost": 3,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "consumesAmmo": 1,
-          "requiresAmmo": 1,
-          "reloadsAmmo": 0,
-          "rangeType": "normal",
-          "conditions": [],
-          "notes": "<p>Standard aimed fire. Full accuracy.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "braceAndFire",
-          "label": "Brace and Fire",
-          "type": "attack",
-          "apCost": 4,
-          "requiresToHit": true,
-          "toHitBonus": 1,
-          "consumesAmmo": 1,
-          "requiresAmmo": 1,
-          "reloadsAmmo": 0,
-          "rangeType": "long",
-          "conditions": [],
-          "notes": "<p>Rest the carbine against cover or a surface for a supported long-range shot.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": [
+            {
+              "field": "system.ammunition.loaded",
+              "op": "gt",
+              "value": 0,
+              "fieldRef": ""
+            }
+          ]
         },
         {
           "id": "reload",
           "label": "Reload",
-          "type": "reload",
+          "type": "utility",
           "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 5,
-          "rangeType": "melee",
-          "conditions": [],
-          "notes": "<p>Feed rounds from a stripper clip or tube magazine.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": [
+            {
+              "field": "system.ammunition.loaded",
+              "op": "lt",
+              "value": 0,
+              "fieldRef": "system.ammunition.capacity"
+            }
+          ]
         }
       ]
     },
@@ -148,7 +116,12 @@
       "concealable": false,
       "noisy": true,
       "experimental": false
-    }
+    },
+    "traits": [
+      "firearm",
+      "projectileAmmo",
+      "twoHanded"
+    ]
   },
   "flags": {}
 }

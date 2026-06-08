@@ -23,70 +23,16 @@
     },
     "handedness": "oneHanded",
     "actions": {
-      "defaultActionId": "whiplash",
+      "defaultActionId": "meleeStrike",
       "variants": [
         {
-          "id": "whiplash",
-          "label": "Whiplash",
+          "id": "meleeStrike",
+          "label": "Strike",
           "type": "attack",
           "apCost": 1,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "melee",
-          "conditions": [],
-          "notes": "<p>A fast lashing strike with the wire. Light damage but very fast.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "grabAndChoke",
-          "label": "Grab and Choke",
-          "type": "attack",
-          "apCost": 3,
-          "requiresToHit": true,
-          "toHitBonus": 0,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "melee",
-          "conditions": [
-            "grappled",
-            "bleeding"
-          ],
-          "notes": "<p>Loop the wire around a target's throat. Requires approaching from behind or surprise. Grappled and bleeding on hit; applies ongoing damage each tick while maintained.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "tighten",
-          "label": "Tighten",
-          "type": "attack",
-          "apCost": 1,
-          "requiresToHit": true,
-          "toHitBonus": 1,
-          "consumesAmmo": 0,
-          "requiresAmmo": 0,
-          "reloadsAmmo": 0,
-          "rangeType": "melee",
-          "conditions": [],
-          "notes": "<p>Continue strangling a grappled target. Requires an active Grab and Choke. Bonus to hit while maintaining the choke.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "requirements": []
         }
       ]
     },
@@ -126,7 +72,11 @@
       "concealable": true,
       "noisy": false,
       "experimental": false
-    }
+    },
+    "traits": [
+      "meleeWeapon",
+      "singleHanded"
+    ]
   },
   "flags": {}
 }
