@@ -378,7 +378,6 @@ const ROLL_LOCKED_ACTIONS = Object.freeze(new Set([
     "scene-actors-add-selected",
     "scene-properties-delete",
     "scene-properties-set-default",
-    "scenes-activate-scene",
     "scenes-create-scene"
 ]));
 
@@ -1802,6 +1801,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 }
 
                 const nextLayout = this.#openSceneMapPanel(sceneId);
+                // Bind the scene-properties panel to this map's scene.
+                this._scenePropertiesState = { ...this._scenePropertiesState, sceneId, status: "", error: "" };
                 await this.stateStore?.setUserLayout?.(nextLayout);
                 this.render({ force: false });
             });
@@ -2597,7 +2598,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return game.scenes?.viewed ?? canvas?.scene ?? game.scenes?.active ?? null;
     }
 
-    #getScenePropertiesScene(activePanel = this.#getPrimaryActivePanel()) {
+    #getScenePropertiesScene() {
+        // Primary: use the sceneId stored in state (set when a map panel is opened).
+        // This is stable across panel focus changes — prevents the properties panel
+        // from drifting to canvas.scene when the user interacts with the properties panel itself.
+        const storedId = String(this._scenePropertiesState?.sceneId ?? "").trim();
+        if (storedId) {
+            const stored = this.#getSceneDocumentById(storedId);
+            if (stored) return stored;
+        }
+        // Fallback: derive from the currently active map panel (e.g., on first render before any map is opened)
+        const activePanel = this.#getPrimaryActivePanel();
         const currentScene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
         const { scene } = resolveScenePropertiesMapPanelScene({
             panel: activePanel,
@@ -4981,17 +4992,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.preventDefault();
                 event.stopPropagation();
                 const scene = this.#getScenePropertiesScene();
-                await this.#activateScene(scene);
-            });
-        });
-
-        // Activate scene from scene list rows
-        this.element?.querySelectorAll("[data-action='scenes-activate-scene']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const sceneId = String(button.dataset.sceneId ?? "").trim();
-                const scene = sceneId ? this.#getSceneDocumentById(sceneId) : this.#getScenePropertiesScene();
                 await this.#activateScene(scene);
             });
         });

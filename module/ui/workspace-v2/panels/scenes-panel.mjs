@@ -60,30 +60,26 @@ export function renderScenesPanel(panelModel = {}, { escapeHTML = (value) => Str
     <section class="totc-v2-scenes-panel">
         <header class="totc-v2-scenes-panel__toolbar">
             <span class="totc-v2-scenes-panel__summary">${escapeHTML(summary)}</span>
-            <button type="button" class="totc-v2-scenes-panel__create" data-action="scenes-create-scene" title="Create scene">+</button>
+            <button type="button" class="totc-v2-scenes-panel__create" data-action="scenes-create-scene" title="Create scene">Create Scene</button>
         </header>
         <div class="totc-v2-scenes-panel__list" role="list">
             ${entries.length ? entries.map((scene) => {
                 const bgStyle = scene.mapSrc
-                    ? ` style="background-image: url('${escapeHTML(scene.mapSrc)}')"`
+                    ? ` style="background-image:linear-gradient(rgba(5,10,20,0.68),rgba(5,10,20,0.68)),url('${escapeHTML(scene.mapSrc)}');background-size:cover;background-position:center"`
                     : "";
 
-                const pills = [
+                const badges = [
                     scene.gridless ? "Gridless" : "",
                     !scene.hasMap ? "No map" : "",
                     scene.isDefault ? "Default" : ""
                 ].filter(Boolean);
 
-                const activeTitle = scene.active ? "Scene is active" : "Activate scene";
-
                 return `
                 <article class="totc-v2-scenes-panel__entry${scene.current ? " is-current" : ""}${scene.active ? " is-active" : ""}" role="listitem" data-scene-id="${escapeHTML(scene.id)}"${bgStyle}>
-                    <div class="totc-v2-scenes-panel__entry-overlay" aria-hidden="true"></div>
-                    <button type="button" class="totc-v2-scenes-panel__entry-main" data-action="open-scene-map" data-scene-id="${escapeHTML(scene.id)}" title="Open scene map">
+                    <button type="button" class="totc-v2-scenes-panel__entry-main" data-action="open-scene-map" data-scene-id="${escapeHTML(scene.id)}" title="Open scene map (double-click to activate)">
                         <span class="totc-v2-scenes-panel__entry-name">${escapeHTML(scene.name)}</span>
-                        ${pills.length ? `<div class="totc-v2-scenes-panel__pills">${pills.map((p) => `<span class="totc-v2-scenes-panel__pill">${escapeHTML(p)}</span>`).join("")}</div>` : ""}
+                        ${badges.length ? `<div class="totc-v2-scenes-panel__badges">${badges.map((b) => `<span class="totc-v2-scenes-panel__badge">${escapeHTML(b)}</span>`).join("")}</div>` : ""}
                     </button>
-                    <button type="button" class="totc-v2-scenes-panel__activate${scene.active ? " is-active" : ""}" data-action="scenes-activate-scene" data-scene-id="${escapeHTML(scene.id)}" title="${escapeHTML(activeTitle)}" aria-pressed="${scene.active}">&#9654;</button>
                 </article>`;
             }).join("") : `<div class="totc-v2-scenes-panel__empty">No scenes defined.</div>`}
         </div>

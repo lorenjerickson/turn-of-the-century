@@ -70,6 +70,7 @@ describe("Scenes panel", () => {
         const html = renderScenesPanel(buildScenesPanelModel());
 
         assert.match(html, /data-action="scenes-create-scene"/);
+        assert.match(html, /Create Scene/);
         assert.match(html, /0 scenes/);
         assert.match(html, /No scenes defined/);
     });
@@ -84,33 +85,21 @@ describe("Scenes panel", () => {
         assert.match(html, /data-action="open-scene-map"/);
         assert.match(html, /data-scene-id="scene-a"/);
         assert.match(html, /Station Yard/);
+        assert.doesNotMatch(html, /data-action="scenes-activate-scene"/);
     });
 
-    it("renders an activate button for each scene row", () => {
-        const model = buildScenesPanelModel({
-            scenes: [
-                { id: "scene-a", name: "Station Yard", active: true, grid: { type: 1 } },
-                { id: "scene-b", name: "Hotel Cellar", grid: { type: 1 } }
-            ]
-        });
-
-        const html = renderScenesPanel(model);
-
-        const matches = html.match(/data-action="scenes-activate-scene"/g);
-        assert.equal(matches?.length, 2);
-    });
-
-    it("renders Gridless and No map pills", () => {
+    it("renders Gridless and No map badges", () => {
         const model = buildScenesPanelModel({
             scenes: [{ id: "scene-a", name: "Empty Lot", grid: { type: 0 } }]
         });
 
         const html = renderScenesPanel(model);
+        assert.match(html, /totc-v2-scenes-panel__badge/);
         assert.match(html, /Gridless/);
         assert.match(html, /No map/);
     });
 
-    it("renders Default pill for the default scene", () => {
+    it("renders Default badge for the default scene", () => {
         const model = buildScenesPanelModel({
             scenes: [{
                 id: "scene-a",
@@ -125,13 +114,15 @@ describe("Scenes panel", () => {
         assert.match(html, /Default/);
     });
 
-    it("applies background-image style when mapSrc is available", () => {
+    it("applies a background-image gradient style when mapSrc is available", () => {
         const model = buildScenesPanelModel({
             scenes: [{ id: "scene-a", name: "Station Yard", background: { src: "yard.webp" }, grid: { type: 1 } }]
         });
 
         const html = renderScenesPanel(model);
-        assert.match(html, /background-image: url\('yard\.webp'\)/);
+        assert.match(html, /background-image:linear-gradient/);
+        assert.match(html, /url\('yard\.webp'\)/);
+        assert.match(html, /background-size:cover/);
     });
 
     it("escapes scene names in rendered markup", () => {
