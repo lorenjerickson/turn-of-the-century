@@ -30,7 +30,8 @@ export const DEFAULT_WORKSPACE_PANELS = Object.freeze([
     { id: "chat", title: "Chat and Messages", contextTags: ["chat", "messages"] },
     { id: "roll-feed", title: "Dice and Roll Feed", defaultDock: "bottomDock", contextTags: ["dice", "rolls", "messages"] },
     { id: "tracker", title: "Turn Tracker", contextTags: ["combat", "turns"] },
-    { id: "die-roll-request", title: "Die Roll Request", defaultDock: "bottomDock", roleAccess: { internalOnly: true }, contextTags: ["dice", "rolls", "request", "player"] }
+    { id: "die-roll-request", title: "Die Roll Request", defaultDock: "bottomDock", roleAccess: { internalOnly: true }, contextTags: ["dice", "rolls", "request", "player"] },
+    { id: "logging", title: "Debug Log", defaultDock: "bottomDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "debug"] }
 ]);
 
 export class WorkspacePanelRegistry {

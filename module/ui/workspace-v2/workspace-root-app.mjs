@@ -112,6 +112,11 @@ import {
     renderMediaBrowserPanel
 } from "./panels/media-browser-panel.mjs";
 import { getSceneBackgroundSource } from "./scene-background-source.mjs";
+import { totcLogger } from "./logger.mjs";
+import {
+    buildLoggingPanelModel,
+    renderLoggingPanel
+} from "./panels/logging-panel.mjs";
 import { WorkspaceDesignActionRegistry } from "./design-action-registry.mjs";
 import {
     getCompendiumPacks,
@@ -828,7 +833,24 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
         this._playerPanelSectionSnapshotInitialized = false;
         this._playerPanelVisibleSectionIds = new Set();
-        this._sceneRefreshHandler = () => {
+        this._sceneRefreshHandler = (scene, changes) => {
+            // Log detailed scene update info when called from updateScene hook (has args).
+            if (scene && changes) {
+                totcLogger.debug("[hook:updateScene] Scene updated — re-rendering workspace", {
+                    sceneId: scene?.id,
+                    sceneName: scene?.name,
+                    changes,
+                    "scene.background.src": scene?.background?.src,
+                    "scene._source.background.src": scene?._source?.background?.src,
+                    "scene.texture.src": scene?.texture?.src,
+                    "scene._source.texture.src": scene?._source?.texture?.src
+                });
+            } else if (scene && !changes) {
+                // Called from canvasReady or canvasTearDown — scene arg may be the canvas/scene object
+                totcLogger.debug("[hook:canvas] Canvas hook fired — re-rendering workspace", {
+                    hookScene: scene?.id ? { id: scene.id, name: scene.name } : null
+                });
+            }
             if (this.rendered) {
                 this.render({ force: false });
             }
@@ -871,6 +893,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
         this._dieRollRequestUnsubscribe = dieRollRequestManager.onChange((change) => {
             void this.#handleDieRollRequestChange(change);
+        });
+        this._loggerUnsubscribe = totcLogger.subscribe(() => {
+            if (this.rendered) this.render({ force: false });
         });
         this._sceneHooksBound = false;
         this._compendiumHooksBound = false;
@@ -1206,6 +1231,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 status: this._scenePropertiesState.status,
                 error: this._scenePropertiesState.error
             }),
+            loggingPanel: buildLoggingPanelModel({ entries: totcLogger.getEntries() }),
             campaignBuilderPanel: buildCampaignBuilderPanelModel({
                 campaigns: Array.from(game.items?.contents || []).filter(i => i.type === "campaign")
             }),
@@ -1803,6 +1829,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const nextLayout = this.#openSceneMapPanel(sceneId);
                 // Bind the scene-properties panel to this map's scene.
                 this._scenePropertiesState = { ...this._scenePropertiesState, sceneId, status: "", error: "" };
+
+                const openedScene = this.#getSceneDocumentById(sceneId);
+                totcLogger.info("[open-scene-map] Map panel opened", {
+                    sceneId,
+                    sceneName: openedScene?.name ?? null,
+                    "scene.background.src": openedScene?.background?.src ?? null,
+                    "scene._source.background.src": openedScene?._source?.background?.src ?? null,
+                    "scene.texture.src": openedScene?.texture?.src ?? null,
+                    "getSceneBackgroundSource()": getSceneBackgroundSource(openedScene)
+                });
+
                 await this.stateStore?.setUserLayout?.(nextLayout);
                 this.render({ force: false });
             });
@@ -2071,6 +2108,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#wireMapInteractionHandlers();
         this.#wireGridCalibrationHandlers();
         this.#wireScenePropertiesHandlers();
+        this.#wireLoggingPanelHandlers();
 
         this.#wireInteractionHandlers();
         this.#wireResizeHandlers();
@@ -2084,6 +2122,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#unbindDesignIssuesHooks();
         this.#endMapPanSession();
         this.gridCalibrationController.close();
+        this._loggerUnsubscribe?.();
         return await super.close?.(options);
     }
 
@@ -2426,6 +2465,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             return this.#renderGamemasterPanel(context.gmPanel, context.gm, context.dieRollRequestPanel);
         }
 
+        if (panel.id === "logging") {
+            return renderLoggingPanel(context.loggingPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
+        }
+
         return `<div class="totc-v2-panel-placeholder">${this.#escapeHTML(panel.title)}</div>`;
     }
 
@@ -2657,14 +2700,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             currentScene,
             sceneResolver: (id) => this.#getSceneDocumentById(id)
         });
-        if (globalThis.CONFIG?.debug?.totc) {
-            console.debug("[totc] #getMapPanelScene", {
-                panelId: panel?.id,
-                sceneId,
-                "scene.background.src": scene?.background?.src,
-                "_source.background.src": scene?._source?.background?.src
-            });
-        }
+
+        const backgroundSrc = getSceneBackgroundSource(scene);
+        totcLogger.debug("[render] #getMapPanelScene", {
+            panelId: panel?.id,
+            resolvedSceneId: sceneId,
+            sceneName: scene?.name ?? null,
+            "scene.background.src": scene?.background?.src ?? null,
+            "scene._source.background.src": scene?._source?.background?.src ?? null,
+            "scene.texture.src": scene?.texture?.src ?? null,
+            "getSceneBackgroundSource()": backgroundSrc,
+            mapSrcWillBe: backgroundSrc || "(empty — __empty div will render)"
+        });
+
         if (scene) return this.#buildSceneViewModel(scene, { id: sceneId });
         if (sceneId) return this.#buildSceneViewModel(null, { id: sceneId, name: panel?.title ?? "Missing Scene" });
         return context.scene ?? this.#buildSceneViewModel(null);
@@ -4679,9 +4727,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const trimmedName = String(value ?? "").trim();
                 if (scene && trimmedName) {
                     try {
+                        totcLogger.info("[scene-name] Auto-saving scene name", { sceneId: scene.id, oldName: scene.name, newName: trimmedName });
                         await scene.update({ name: trimmedName });
+                        totcLogger.info("[scene-name] Name saved OK", { sceneId: scene.id, name: scene.name });
                     } catch (err) {
                         console.error("[turn-of-the-century] Scene name auto-save failed", err);
+                        totcLogger.error("[scene-name] scene.update() FAILED", { sceneId: scene?.id, error: err?.message ?? String(err) });
                         this._scenePropertiesState = { ...this._scenePropertiesState, error: "Scene name save failed." };
                     }
                 }
@@ -4867,6 +4918,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
     }
 
+    #wireLoggingPanelHandlers() {
+        this.element?.querySelectorAll("[data-action='logging-clear']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                totcLogger.clear();
+                this.render({ force: false });
+            });
+        });
+    }
+
     #wireScenePropertiesHandlers() {
         // Background image upload — auto-saves to the scene immediately on success
         this.element?.querySelectorAll("[data-action='scene-properties-background-upload']")?.forEach((input) => {
@@ -4878,6 +4940,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const sceneName = String(scene?.name ?? "").trim();
                 const target = buildSceneBackgroundUploadTarget({ sceneName, filename: file.name });
 
+                totcLogger.info("[bg-upload] File selected", {
+                    filename: file.name,
+                    size: file.size,
+                    sceneId: scene?.id ?? null,
+                    sceneName,
+                    targetValid: target.valid,
+                    targetPath: target.path || null,
+                    "scene.background.src (before)": scene?.background?.src ?? null,
+                    "scene._source.background.src (before)": scene?._source?.background?.src ?? null
+                });
+
                 this._scenePropertiesState = {
                     ...this._scenePropertiesState,
                     status: target.valid ? `Uploading ${target.filename}...` : "",
@@ -4885,8 +4958,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 };
                 this.render({ force: false });
 
-                if (!target.valid) return;
+                if (!target.valid) {
+                    totcLogger.warn("[bg-upload] Upload target invalid — aborting", { target });
+                    return;
+                }
 
+                totcLogger.info("[bg-upload] Uploading file to server", { targetPath: target.path });
                 const result = await uploadSceneBackgroundFile({
                     file,
                     target,
@@ -4895,7 +4972,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     ui
                 });
 
+                totcLogger.info("[bg-upload] Upload result", {
+                    ok: result?.ok,
+                    path: result?.path ?? null,
+                    filename: result?.filename ?? null,
+                    message: result?.message ?? null
+                });
+
                 if (!result?.ok) {
+                    totcLogger.error("[bg-upload] Upload FAILED", { result });
                     this._scenePropertiesState = {
                         ...this._scenePropertiesState,
                         status: "",
@@ -4909,7 +4994,22 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (scene) {
                     try {
                         const updateData = buildSceneBackgroundUpdateData(result.path);
+                        totcLogger.info("[bg-upload] Calling scene.update()", {
+                            sceneId: scene.id,
+                            sceneName: scene.name,
+                            updateData,
+                            "scene.background.src (pre-update)": scene?.background?.src ?? null,
+                            "scene._source.background.src (pre-update)": scene?._source?.background?.src ?? null
+                        });
                         await scene.update(updateData);
+                        totcLogger.info("[bg-upload] scene.update() resolved — reading back scene state", {
+                            sceneId: scene.id,
+                            "scene.background.src (post-update)": scene?.background?.src ?? null,
+                            "scene._source.background.src (post-update)": scene?._source?.background?.src ?? null,
+                            "scene.texture.src (post-update)": scene?.texture?.src ?? null,
+                            "scene._source.texture.src (post-update)": scene?._source?.texture?.src ?? null,
+                            "getSceneBackgroundSource() (post-update)": getSceneBackgroundSource(scene)
+                        });
                         this._scenePropertiesState = {
                             ...this._scenePropertiesState,
                             status: `Background saved: ${result.filename}.`,
@@ -4917,6 +5017,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                         };
                     } catch (err) {
                         console.error("[turn-of-the-century] Scene background auto-save failed", err);
+                        totcLogger.error("[bg-upload] scene.update() THREW AN ERROR", {
+                            sceneId: scene?.id,
+                            error: err?.message ?? String(err)
+                        });
                         this._scenePropertiesState = {
                             ...this._scenePropertiesState,
                             status: "",
@@ -4924,6 +5028,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                         };
                     }
                 } else {
+                    totcLogger.warn("[bg-upload] No scene available — upload saved to server but not applied to any scene");
                     this._scenePropertiesState = {
                         ...this._scenePropertiesState,
                         status: `Uploaded ${result.filename}. Open a scene map to apply.`,
@@ -4974,13 +5079,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const scene = this.#getScenePropertiesScene();
                 if (!scene) return;
                 try {
+                    totcLogger.info("[default-scene] Setting default scene", { sceneId: scene.id, sceneName: scene.name, checked: checkbox.checked });
                     if (checkbox.checked) {
                         await setDefaultScene(scene, game.scenes);
                     } else {
                         await clearDefaultScene(scene);
                     }
+                    totcLogger.info("[default-scene] Default scene updated OK", { sceneId: scene.id, isDefault: checkbox.checked });
                 } catch (err) {
                     console.error("[turn-of-the-century] Default scene update failed", err);
+                    totcLogger.error("[default-scene] FAILED", { sceneId: scene?.id, error: err?.message ?? String(err) });
                 }
                 this.render({ force: false });
             });

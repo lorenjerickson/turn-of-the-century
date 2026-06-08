@@ -154,7 +154,7 @@ export function renderScenePropertiesPanel(model = {}, {
     if (!model.sceneId) {
         return `
         <section class="totc-v2-scene-properties-panel">
-            <p class="totc-v2-scene-properties-panel__status">Open a scene map panel to edit its properties.</p>
+            <p class="totc-v2-scene-properties-panel__idle">No scene open. Click a scene in the Scenes panel to open its map.</p>
         </section>`;
     }
 
@@ -169,12 +169,7 @@ export function renderScenePropertiesPanel(model = {}, {
                 <span>Background image</span>
                 <input type="file" data-action="scene-properties-background-upload" accept="${accept}" ${uploadDisabled}>
             </label>
-        </div>
-        <div class="totc-v2-scene-properties-panel__summary">
-            ${model.backgroundPath ? `<div><strong>Background</strong> ${escapeHTML(model.backgroundPath)}</div>` : `<div class="totc-v2-scene-properties-panel__status">No background set — enter a scene name then upload an image.</div>`}
-            <div><strong>Upload target</strong> ${escapeHTML(targetPath)}</div>
-            ${model.status ? `<p class="totc-v2-scene-properties-panel__status">${escapeHTML(model.status)}</p>` : ""}
-            ${model.error ? `<p class="totc-v2-scene-properties-panel__error">${escapeHTML(model.error)}</p>` : ""}
+            ${model.backgroundPath ? `<div class="totc-v2-scene-properties-panel__bg-path">${escapeHTML(model.backgroundPath)}</div>` : ""}
         </div>
         <footer class="totc-v2-scene-properties-panel__actions">
             <label class="totc-v2-scene-properties-panel__default-label">

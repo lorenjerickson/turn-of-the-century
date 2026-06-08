@@ -4587,3 +4587,136 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
         font-size: 0.6rem;
     }
 }
+
+/* ── Debug Logging Panel ─────────────────────────────────────── */
+.turn-of-the-century .totc-v2-logging-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    font-family: monospace;
+    font-size: 0.72rem;
+    overflow: hidden;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    flex-shrink: 0;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__count {
+    flex: 1;
+    color: rgba(255,255,255,0.5);
+    font-size: 0.68rem;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__clear-btn {
+    padding: 2px 8px;
+    font-size: 0.68rem;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #ccc;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__clear-btn:hover {
+    background: rgba(255,255,255,0.15);
+}
+
+.turn-of-the-century .totc-v2-logging-panel__list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2px 0;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__empty {
+    padding: 12px;
+    color: rgba(255,255,255,0.4);
+    font-style: italic;
+    font-family: inherit;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__entry {
+    display: grid;
+    grid-template-columns: 11ch 4.5ch 1fr;
+    gap: 0 6px;
+    padding: 2px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    line-height: 1.4;
+    align-items: baseline;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__entry.is-error {
+    background: rgba(220, 50, 50, 0.12);
+    color: #f88;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__entry.is-warn {
+    background: rgba(200, 150, 20, 0.10);
+    color: #fc8;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__entry.is-debug {
+    color: rgba(255,255,255,0.45);
+}
+
+.turn-of-the-century .totc-v2-logging-panel__entry.is-info {
+    color: rgba(200,230,255,0.85);
+}
+
+.turn-of-the-century .totc-v2-logging-panel__ts {
+    color: rgba(255,255,255,0.35);
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__level {
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__msg {
+    word-break: break-all;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__data {
+    grid-column: 1 / -1;
+    margin-top: 2px;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__data summary {
+    cursor: pointer;
+    color: rgba(255,255,255,0.4);
+    font-size: 0.65rem;
+    padding-left: 4px;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__pre {
+    margin: 4px 0 4px 12px;
+    padding: 4px 6px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 3px;
+    overflow-x: auto;
+    white-space: pre;
+    color: rgba(255,255,255,0.7);
+    font-size: 0.65rem;
+    max-height: 200px;
+}
+
+/* Scene-properties panel: idle state */
+.turn-of-the-century .totc-v2-scene-properties-panel__idle {
+    padding: 16px 12px;
+    color: rgba(255,255,255,0.45);
+    font-style: italic;
+    font-size: 0.8rem;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__bg-path {
+    padding: 2px 0;
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.5);
+    word-break: break-all;
+}

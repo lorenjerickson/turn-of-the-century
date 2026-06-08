@@ -137,7 +137,7 @@ describe("Scene properties panel", () => {
 
     it("renders placeholder when no scene is open", () => {
         const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({}));
-        assert.match(html, /Open a scene map panel/);
+        assert.match(html, /No scene open/);
     });
 
     it("renders name input and upload controls when a scene is bound", () => {
