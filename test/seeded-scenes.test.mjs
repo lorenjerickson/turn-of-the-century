@@ -1,189 +1,82 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it } from "node:test";
+import { describe, it } from "node:test";
 
 import {
-    getFoundryWelcomeScene,
-    TOTC_LOBBY_SCENE_BACKGROUND,
-    TOTC_LOBBY_SCENE_DATA,
-    TOTC_LOBBY_SCENE_ID,
-    ensureTotcLobbyScene,
-    getTotcLobbyScene,
-    isFoundryWelcomeScene
+    getDefaultScene,
+    isDefaultScene,
+    setDefaultScene,
+    clearDefaultScene
 } from "../module/seeded-scenes.mjs";
-import { TOTC_SAMPLE_COMPENDIUMS, TOTC_SAMPLE_SCENES } from "../module/sample-content.mjs";
 
-const originalGame = globalThis.game;
-const originalFoundry = globalThis.foundry;
+const SYSTEM_ID = "turn-of-the-century";
 
-afterEach(() => {
-    globalThis.game = originalGame;
-    globalThis.foundry = originalFoundry;
-});
+function makeScene(id, { defaultScene = false, name = id } = {}) {
+    return {
+        id,
+        name,
+        flags: defaultScene ? { [SYSTEM_ID]: { defaultScene: true } } : {},
+        _updates: [],
+        update(data) {
+            this._updates.push(data);
+            if (data[`flags.${SYSTEM_ID}.defaultScene`] !== undefined) {
+                this.flags[SYSTEM_ID] = this.flags[SYSTEM_ID] ?? {};
+                this.flags[SYSTEM_ID].defaultScene = data[`flags.${SYSTEM_ID}.defaultScene`];
+            }
+            return Promise.resolve(this);
+        }
+    };
+}
 
 describe("seeded scenes", () => {
-    it("includes the Lobby scene in sample scene content and starter pack mapping", () => {
-        assert.equal(TOTC_SAMPLE_COMPENDIUMS.scenes, "starter-scenes");
-        assert.deepEqual(TOTC_SAMPLE_SCENES, [TOTC_LOBBY_SCENE_DATA]);
-        assert.equal(TOTC_LOBBY_SCENE_DATA._id, TOTC_LOBBY_SCENE_ID);
-        assert.equal(TOTC_LOBBY_SCENE_DATA.background.src, TOTC_LOBBY_SCENE_BACKGROUND);
-        assert.equal(TOTC_LOBBY_SCENE_DATA.texture.src, TOTC_LOBBY_SCENE_BACKGROUND);
+    it("isDefaultScene returns true only when the flag is set", () => {
+        assert.equal(isDefaultScene(makeScene("a", { defaultScene: true })), true);
+        assert.equal(isDefaultScene(makeScene("b", { defaultScene: false })), false);
+        assert.equal(isDefaultScene(null), false);
+        assert.equal(isDefaultScene(undefined), false);
     });
 
-    it("resolves existing Lobby scenes by id, seed flag, or name", () => {
-        const byId = { id: TOTC_LOBBY_SCENE_ID, name: "Different" };
-        assert.equal(getTotcLobbyScene({ get: () => byId, contents: [] }), byId);
+    it("getDefaultScene returns the scene flagged as default", () => {
+        const a = makeScene("a");
+        const b = makeScene("b", { defaultScene: true });
+        const c = makeScene("c");
 
-        const byFlag = { id: "other", flags: { "turn-of-the-century": { seededLobby: true } } };
-        assert.equal(getTotcLobbyScene({ get: () => null, contents: [byFlag] }), byFlag);
-
-        const byName = { id: "named", name: "Lobby" };
-        assert.equal(getTotcLobbyScene({ get: () => null, contents: [byName] }), byName);
+        const scenes = { contents: [a, b, c] };
+        assert.equal(getDefaultScene(scenes), b);
     });
 
-    it("recognizes Foundry welcome scenes as adoptable Lobby candidates", () => {
-        const activeWelcome = { id: "welcome-active", name: "Welcome to Foundry Virtual Tabletop", active: true };
-        const inactiveWelcome = { id: "welcome-inactive", name: "Welcome", active: false };
-        const userLobby = { id: "named", name: "Lobby" };
-
-        assert.equal(isFoundryWelcomeScene(activeWelcome), true);
-        assert.equal(isFoundryWelcomeScene(userLobby), false);
-        assert.equal(
-            getFoundryWelcomeScene({ get: () => null, contents: [inactiveWelcome, activeWelcome] }),
-            activeWelcome
-        );
-        assert.equal(
-            getTotcLobbyScene({ get: () => null, contents: [userLobby, activeWelcome] }),
-            activeWelcome
-        );
+    it("getDefaultScene returns null when no scene is flagged as default", () => {
+        const scenes = { contents: [makeScene("a"), makeScene("b")] };
+        assert.equal(getDefaultScene(scenes), null);
     });
 
-    it("creates the Lobby scene for GMs when no Lobby exists", async () => {
-        let createdData = null;
-        globalThis.game = {
-            ready: true,
-            user: { isGM: true },
-            scenes: {
-                get: () => null,
-                contents: []
-            }
-        };
-        globalThis.foundry = {
-            utils: {
-                deepClone: (value) => structuredClone(value)
-            }
-        };
-
-        const createdScene = { id: TOTC_LOBBY_SCENE_ID, name: "Lobby" };
-        const result = await ensureTotcLobbyScene({
-            SceneClass: {
-                create: async (data) => {
-                    createdData = data;
-                    return createdScene;
-                }
-            }
-        });
-
-        assert.equal(result, createdScene);
-        assert.equal(createdData._id, TOTC_LOBBY_SCENE_ID);
-        assert.equal(createdData.background.src, TOTC_LOBBY_SCENE_BACKGROUND);
+    it("getDefaultScene returns null for an empty collection", () => {
+        assert.equal(getDefaultScene({ contents: [] }), null);
     });
 
-    it("adopts an existing Foundry welcome scene as the Lobby scene", async () => {
-        let updateData = null;
-        const welcomeScene = {
-            id: "foundry-welcome",
-            name: "Welcome to Foundry Virtual Tabletop",
-            active: true,
-            background: { src: "" },
-            update: async (data) => {
-                updateData = data;
-                return { ...welcomeScene, ...data };
-            }
-        };
+    it("setDefaultScene flags one scene and clears the flag from all others", async () => {
+        const a = makeScene("a", { defaultScene: true });
+        const b = makeScene("b");
+        const c = makeScene("c");
 
-        globalThis.game = {
-            ready: true,
-            user: { isGM: true },
-            scenes: {
-                get: () => null,
-                contents: [welcomeScene]
-            }
-        };
-        globalThis.foundry = {
-            utils: {
-                deepClone: (value) => structuredClone(value)
-            }
-        };
+        await setDefaultScene(b, { contents: [a, b, c] });
 
-        const result = await ensureTotcLobbyScene();
-
-        assert.equal(result.name, "Lobby");
-        assert.equal(updateData._id, undefined);
-        assert.equal(updateData.active, undefined);
-        assert.equal(updateData.background.src, TOTC_LOBBY_SCENE_BACKGROUND);
-        assert.equal(updateData.texture.src, TOTC_LOBBY_SCENE_BACKGROUND);
-        assert.equal(updateData.flags["turn-of-the-century"].seededLobby, true);
+        assert.equal(isDefaultScene(b), true);
+        assert.equal(isDefaultScene(a), false);
+        assert.equal(isDefaultScene(c), false);
     });
 
-    it("repairs an existing Lobby scene that is missing the shipped background", async () => {
-        let updateData = null;
-        const lobbyScene = {
-            id: TOTC_LOBBY_SCENE_ID,
-            name: "Lobby",
-            background: { src: "" },
-            update: async (data) => {
-                updateData = data;
-                return { ...lobbyScene, ...data };
-            }
-        };
-
-        globalThis.game = {
-            ready: true,
-            user: { isGM: true },
-            scenes: {
-                get: () => lobbyScene,
-                contents: [lobbyScene]
-            }
-        };
-        globalThis.foundry = {
-            utils: {
-                deepClone: (value) => structuredClone(value)
-            }
-        };
-
-        const result = await ensureTotcLobbyScene();
-
-        assert.equal(result.name, "Lobby");
-        assert.equal(updateData.background.src, TOTC_LOBBY_SCENE_BACKGROUND);
-        assert.equal(updateData.texture.src, TOTC_LOBBY_SCENE_BACKGROUND);
-        assert.equal(updateData.flags["turn-of-the-century"].seededLobby, true);
+    it("setDefaultScene does nothing when called with a null scene", async () => {
+        // Should not throw
+        await setDefaultScene(null, { contents: [] });
     });
 
-    it("does not overwrite an existing Lobby scene with a saved world background", async () => {
-        let updateCalled = false;
-        const lobbyScene = {
-            id: TOTC_LOBBY_SCENE_ID,
-            name: "Lobby",
-            background: { src: "assets/images/scenes/lobby.jpg" },
-            flags: { "turn-of-the-century": { seededLobby: true } },
-            update: async () => {
-                updateCalled = true;
-                return lobbyScene;
-            }
-        };
+    it("clearDefaultScene removes the default flag from a scene", async () => {
+        const scene = makeScene("a", { defaultScene: true });
+        await clearDefaultScene(scene);
+        assert.equal(isDefaultScene(scene), false);
+    });
 
-        globalThis.game = {
-            ready: true,
-            user: { isGM: true },
-            scenes: {
-                get: () => lobbyScene,
-                contents: [lobbyScene]
-            }
-        };
-
-        const result = await ensureTotcLobbyScene();
-
-        assert.equal(result, lobbyScene);
-        assert.equal(updateCalled, false);
+    it("clearDefaultScene does nothing when called with a null scene", async () => {
+        await clearDefaultScene(null);
     });
 });

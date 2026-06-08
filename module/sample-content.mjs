@@ -2,7 +2,6 @@ import {
     requireActorDocumentClass,
     requireItemDocumentClass
 } from "./foundry-v14-runtime.mjs";
-import { TOTC_LOBBY_SCENE_DATA } from "./seeded-scenes.mjs";
 
 const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha", "san"];
 const SKILL_ABILITY_MAP = {
@@ -3253,7 +3252,7 @@ function buildActorsWithLoadouts() {
 }
 
 export const TOTC_SAMPLE_ACTORS = buildActorsWithLoadouts();
-export const TOTC_SAMPLE_SCENES = [TOTC_LOBBY_SCENE_DATA];
+export const TOTC_SAMPLE_SCENES = [];
 
 export const TOTC_SAMPLE_LIBRARY_STATS = {
     actors: {

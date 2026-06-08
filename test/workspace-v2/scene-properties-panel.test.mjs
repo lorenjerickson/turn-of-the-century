@@ -2,16 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+    buildSceneBackgroundUpdateData,
     buildSceneBackgroundUploadTarget,
     buildScenePropertiesPanelModel,
-    buildScenePropertiesNameInputState,
-    buildScenePropertiesSavedState,
-    buildScenePropertiesUpdateData,
-    getScenePropertiesStagedBackgroundPath,
     resolveScenePropertiesMapPanelScene,
-    resolveScenePropertiesScene,
     renderScenePropertiesPanel,
-    scenePropertiesStateLocksScene,
     slugifySceneName
 } from "../../module/ui/workspace-v2/panels/scene-properties-panel.mjs";
 
@@ -40,239 +35,69 @@ describe("Scene properties panel", () => {
         assert.equal(buildSceneBackgroundUploadTarget({ sceneName: "Whitechapel", filename: "map.txt" }).valid, false);
     });
 
-    it("shows viewed scene properties and enables save for an existing scene", () => {
-        const beforeUpload = buildScenePropertiesPanelModel({
+    it("reads scene name and background directly from the scene document", () => {
+        const model = buildScenePropertiesPanelModel({
             scene: {
                 id: "scene-a",
                 name: "Whitechapel",
                 background: { src: "assets/images/scenes/whitechapel.webp" }
             }
         });
-        assert.equal(beforeUpload.uploadEnabled, true);
-        assert.equal(beforeUpload.saveEnabled, true);
-        assert.equal(beforeUpload.sceneName, "Whitechapel");
-        assert.equal(beforeUpload.currentBackgroundPath, "assets/images/scenes/whitechapel.webp");
-
-        const afterUpload = buildScenePropertiesPanelModel({
-            scene: { id: "scene-a", name: "Whitechapel", background: { src: "assets/images/scenes/old.webp" } },
-            sceneId: "scene-a",
-            sceneName: "Whitechapel",
-            backgroundPath: "assets/images/scenes/whitechapel.webp"
-        });
-        assert.equal(afterUpload.saveEnabled, true);
-        assert.equal(afterUpload.backgroundChanged, true);
+        assert.equal(model.sceneId, "scene-a");
+        assert.equal(model.sceneName, "Whitechapel");
+        assert.equal(model.backgroundPath, "assets/images/scenes/whitechapel.webp");
+        assert.equal(model.uploadEnabled, true);
+        assert.equal(model.deleteEnabled, true);
     });
 
-    it("uses live scene background data when raw source still has an empty draft background", () => {
+    it("disables upload when no scene is provided", () => {
+        const model = buildScenePropertiesPanelModel({});
+        assert.equal(model.sceneId, "");
+        assert.equal(model.uploadEnabled, false);
+        assert.equal(model.deleteEnabled, false);
+    });
+
+    it("disables upload when scene has no name", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: { id: "scene-draft", name: "", background: { src: "" } }
+        });
+        assert.equal(model.uploadEnabled, false);
+    });
+
+    it("reads isDefault from scene flags", () => {
         const model = buildScenePropertiesPanelModel({
             scene: {
-                id: "scene-draft",
-                name: "Whitechapel",
-                _source: { background: { src: "" } },
-                background: { src: "assets/images/scenes/whitechapel.webp" }
+                id: "scene-a",
+                name: "Station Yard",
+                flags: { "turn-of-the-century": { defaultScene: true } }
             }
         });
-
-        assert.equal(model.currentBackgroundPath, "assets/images/scenes/whitechapel.webp");
-        assert.equal(model.effectiveBackgroundPath, "assets/images/scenes/whitechapel.webp");
-        assert.deepEqual(buildScenePropertiesUpdateData(model), {
-            name: "Whitechapel"
-        });
+        assert.equal(model.isDefault, true);
     });
 
-    it("shows create mode for a newly-created draft scene bound to the panel", () => {
+    it("passes through status and error messages", () => {
         const model = buildScenePropertiesPanelModel({
-            scene: { id: "scene-draft", name: "New Scene", background: { src: "" } },
-            sceneId: "scene-draft",
-            sceneName: "",
-            createMode: true,
-            status: "New scene created."
-        });
-
-        assert.equal(model.createMode, true);
-        assert.equal(model.sceneId, "scene-draft");
-        assert.equal(model.sceneName, "");
-        assert.equal(model.uploadEnabled, false);
-        assert.equal(model.saveEnabled, false);
-
-        const html = renderScenePropertiesPanel(model);
-        assert.match(html, /Create mode/);
-        assert.match(html, /New scene created\./);
-    });
-
-    it("enables saving and upload in create mode after a draft scene is named", () => {
-        const model = buildScenePropertiesPanelModel({
-            scene: { id: "scene-draft", name: "New Scene", background: { src: "" } },
-            sceneId: "scene-draft",
-            sceneName: "Whitechapel Alley",
-            selectedFilename: "map.webp",
-            createMode: true
-        });
-
-        assert.equal(model.uploadEnabled, true);
-        assert.equal(model.saveEnabled, true);
-        assert.equal(model.target.path, "assets/images/scenes/whitechapel-alley.webp");
-    });
-
-    it("preserves an uploaded background path while debounced name edits settle", () => {
-        const state = buildScenePropertiesNameInputState({
-            sceneId: "scene-draft",
-            sceneName: "Whitechapel",
-            selectedFilename: "whitechapel.webp",
-            backgroundPath: "assets/images/scenes/whitechapel.webp",
-            createMode: true,
-            status: "Uploaded whitechapel.webp.",
+            scene: { id: "scene-a", name: "Whitechapel" },
+            status: "Uploading...",
             error: ""
-        }, { id: "scene-draft" }, "Whitechapel Alley");
-
-        assert.equal(state.sceneName, "Whitechapel Alley");
-        assert.equal(state.selectedFilename, "whitechapel.webp");
-        assert.equal(state.backgroundPath, "assets/images/scenes/whitechapel.webp");
-        assert.equal(state.createMode, true);
+        });
+        assert.equal(model.status, "Uploading...");
+        assert.equal(model.error, "");
     });
 
-    it("keeps create-mode name input usable before the debounce render fires", () => {
-        const state = buildScenePropertiesNameInputState({
-            sceneId: "scene-draft",
-            sceneName: "",
-            selectedFilename: "",
-            backgroundPath: "",
-            createMode: true,
-            status: "New scene created.",
-            error: ""
-        }, { id: "scene-draft" }, "Whitechapel");
-
-        const model = buildScenePropertiesPanelModel({
-            ...state,
-            scene: { id: "scene-draft", name: "New Scene", background: { src: "" } }
-        });
-
-        assert.equal(model.sceneName, "Whitechapel");
-        assert.equal(model.uploadEnabled, true);
-        assert.equal(model.saveEnabled, true);
-    });
-
-    it("saves a named draft scene with the uploaded background association", () => {
-        const model = buildScenePropertiesPanelModel({
-            scene: { id: "scene-draft", name: "New Scene", background: { src: "" } },
-            sceneId: "scene-draft",
-            sceneName: "Whitechapel Alley",
-            backgroundPath: "assets/images/scenes/whitechapel-alley.webp",
-            createMode: true
-        });
-
-        assert.deepEqual(buildScenePropertiesUpdateData(model), {
-            name: "Whitechapel Alley",
-            background: { src: "assets/images/scenes/whitechapel-alley.webp" },
-            texture: { src: "assets/images/scenes/whitechapel-alley.webp" },
-            shiftX: 0,
-            shiftY: 0,
-            "grid.type": 0,
-            "grid.size": 100
+    it("builds background update data for scene.update()", () => {
+        assert.deepEqual(buildSceneBackgroundUpdateData("assets/images/scenes/whitechapel.webp"), {
+            background: { src: "assets/images/scenes/whitechapel.webp" },
+            texture: { src: "assets/images/scenes/whitechapel.webp" }
         });
     });
 
-    it("preserves a calibrated grid when saving a staged draft background", () => {
-        const model = buildScenePropertiesPanelModel({
-            scene: { id: "scene-draft", name: "New Scene", background: { src: "" } },
-            sceneId: "scene-draft",
-            sceneName: "Whitechapel Alley",
-            backgroundPath: "assets/images/scenes/whitechapel-alley.webp",
-            preserveGridCalibration: true,
-            createMode: true
-        });
-
-        assert.equal(model.backgroundChanged, true);
-        assert.equal(model.backgroundWillClearGrid, false);
-        assert.deepEqual(buildScenePropertiesUpdateData(model), {
-            name: "Whitechapel Alley",
-            background: { src: "assets/images/scenes/whitechapel-alley.webp" },
-            texture: { src: "assets/images/scenes/whitechapel-alley.webp" }
-        });
-        assert.equal(buildScenePropertiesSavedState({ scene: { id: "scene-draft" }, model }).status, "Scene saved.");
+    it("returns empty object when background path is empty", () => {
+        assert.deepEqual(buildSceneBackgroundUpdateData(""), {});
+        assert.deepEqual(buildSceneBackgroundUpdateData(), {});
     });
 
-    it("ignores stale edits when the viewed scene changes", () => {
-        const model = buildScenePropertiesPanelModel({
-            scene: { id: "scene-b", name: "Hotel Cellar" },
-            sceneId: "scene-a",
-            sceneName: "Station Yard",
-            backgroundPath: "assets/images/scenes/station.webp",
-            status: "Uploaded station.webp."
-        });
-
-        assert.equal(model.sceneName, "Hotel Cellar");
-        assert.equal(model.backgroundPath, "");
-        assert.equal(model.status, "");
-    });
-
-    it("resolves properties from the currently visible map panel scene", () => {
-        const viewedScene = { id: "scene-a", name: "Viewed Scene" };
-        const visibleScene = { id: "scene-b", name: "Visible Map Scene" };
-
-        const resolved = resolveScenePropertiesScene({
-            activePanel: { id: "map:scene-b", title: "Visible Map Scene", baseId: "map", sceneId: "scene-b" },
-            viewedScene,
-            sceneResolver: (sceneId) => sceneId === "scene-b" ? visibleScene : null
-        });
-
-        assert.equal(resolved, visibleScene);
-    });
-
-    it("resolves properties from the bound draft scene before viewed scene fallback", () => {
-        const viewedScene = { id: "scene-a", name: "Viewed Scene" };
-        const draftScene = { id: "scene-draft", name: "Draft Scene" };
-
-        const resolved = resolveScenePropertiesScene({
-            stateSceneId: "scene-draft",
-            stateLocksScene: true,
-            activePanel: { id: "scene-properties", title: "Scene Properties" },
-            viewedScene,
-            sceneResolver: (sceneId) => sceneId === "scene-draft" ? draftScene : null
-        });
-
-        assert.equal(resolved, draftScene);
-    });
-
-    it("does not pin properties to a saved scene without unsaved edits", () => {
-        const savedScene = { id: "scene-a", name: "Saved Scene" };
-        const viewedScene = { id: "scene-b", name: "Viewed Scene" };
-
-        const resolved = resolveScenePropertiesScene({
-            stateSceneId: "scene-a",
-            stateLocksScene: false,
-            activePanel: { id: "scene-properties", title: "Scene Properties" },
-            viewedScene,
-            sceneResolver: (sceneId) => sceneId === "scene-a" ? savedScene : null
-        });
-
-        assert.equal(resolved, viewedScene);
-    });
-
-    it("locks scene properties only while edits are in progress", () => {
-        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", sceneName: null, backgroundPath: "", selectedFilename: "", createMode: false }), false);
-        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", sceneName: "Edited Name", createMode: false }), true);
-        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", sceneName: "", createMode: false }), true);
-        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", previewPath: "blob:map" }), true);
-        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", backgroundPath: "assets/images/scenes/map.webp" }), true);
-        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", selectedFilename: "map.webp" }), true);
-        assert.equal(scenePropertiesStateLocksScene({ sceneId: "scene-a", createMode: true }), true);
-    });
-
-    it("exposes a staged background preview only for the bound scene", () => {
-        const state = {
-            sceneId: "scene-draft",
-            backgroundPath: "assets/images/scenes/draft-map.webp"
-        };
-
-        assert.equal(
-            getScenePropertiesStagedBackgroundPath(state, { id: "scene-draft" }),
-            "assets/images/scenes/draft-map.webp"
-        );
-        assert.equal(getScenePropertiesStagedBackgroundPath(state, { id: "scene-other" }), "");
-    });
-
-    it("resolves scene-bound map panels so staged backgrounds can preview", () => {
+    it("resolves scene-bound map panels by explicit sceneId", () => {
         const currentScene = { id: "scene-draft", name: "Draft Scene" };
         const resolved = resolveScenePropertiesMapPanelScene({
             panel: { id: "map:scene-draft", baseId: "map", sceneId: "scene-draft" },
@@ -282,14 +107,6 @@ describe("Scene properties panel", () => {
 
         assert.equal(resolved.sceneId, "scene-draft");
         assert.equal(resolved.scene, currentScene);
-        assert.equal(
-            getScenePropertiesStagedBackgroundPath({
-                sceneId: "scene-draft",
-                previewPath: "blob:local-map-preview",
-                backgroundPath: "assets/images/scenes/draft-map.webp"
-            }, resolved.scene),
-            "blob:local-map-preview"
-        );
     });
 
     it("resolves scene-specific map panels without falling back to the current scene", () => {
@@ -306,167 +123,77 @@ describe("Scene properties panel", () => {
         assert.equal(resolved.scene, panelScene);
     });
 
-    it("keeps a saved background fallback for the open map panel without locking scene edits", () => {
-        const state = buildScenePropertiesSavedState({
-            scene: { id: "scene-draft" },
-            model: {
-                sceneId: "scene-draft",
-                backgroundPath: "assets/images/scenes/draft-map.webp",
-                currentBackgroundPath: "",
-                effectiveBackgroundPath: "assets/images/scenes/draft-map.webp",
-                backgroundChanged: true
-            }
+    it("falls back to currentScene when panel has no explicit sceneId", () => {
+        const currentScene = { id: "scene-a", name: "Current Scene" };
+
+        const resolved = resolveScenePropertiesMapPanelScene({
+            panel: { id: "scene-properties" },
+            currentScene,
+            sceneResolver: () => null
         });
 
-        assert.equal(state.backgroundPath, "");
-        assert.equal(state.previewPath, "");
-        assert.equal(state.savedBackgroundPath, "assets/images/scenes/draft-map.webp");
-        assert.equal(scenePropertiesStateLocksScene(state), false);
-        assert.equal(
-            getScenePropertiesStagedBackgroundPath(state, { id: "scene-draft" }),
-            "assets/images/scenes/draft-map.webp"
-        );
+        assert.equal(resolved.scene, currentScene);
     });
 
-    it("prefers the selected local preview while retaining the upload path for save", () => {
-        const state = {
-            sceneId: "scene-draft",
-            previewPath: "blob:local-map-preview",
-            backgroundPath: "assets/images/scenes/draft-map.webp"
-        };
-
-        assert.equal(
-            getScenePropertiesStagedBackgroundPath(state, { id: "scene-draft" }),
-            "blob:local-map-preview"
-        );
-
-        const model = buildScenePropertiesPanelModel({
-            scene: { id: "scene-draft", name: "Draft", background: { src: "" } },
-            ...state
-        });
-        assert.equal(model.backgroundPath, "assets/images/scenes/draft-map.webp");
-        assert.equal(buildScenePropertiesUpdateData(model).background.src, "assets/images/scenes/draft-map.webp");
-        assert.equal(buildScenePropertiesUpdateData(model).texture.src, "assets/images/scenes/draft-map.webp");
-    });
-
-    it("falls back to the viewed scene when a non-map panel is active", () => {
-        const viewedScene = { id: "scene-a", name: "Viewed Scene" };
-        const defaultScene = { id: "scene-b", name: "Canvas Scene" };
-
-        assert.equal(resolveScenePropertiesScene({
-            activePanel: { id: "compendium", title: "Compendium" },
-            viewedScene,
-            defaultScene
-        }), viewedScene);
-    });
-
-    it("builds scene update data and clears grid metadata when background changes", () => {
-        assert.deepEqual(buildScenePropertiesUpdateData({
-            sceneName: "Hotel Cellar",
-            backgroundPath: "assets/images/scenes/hotel.webp",
-            currentBackgroundPath: "assets/images/scenes/old.webp"
-        }), {
-            name: "Hotel Cellar",
-            background: { src: "assets/images/scenes/hotel.webp" },
-            texture: { src: "assets/images/scenes/hotel.webp" },
-            shiftX: 0,
-            shiftY: 0,
-            "grid.type": 0,
-            "grid.size": 100
-        });
-
-        assert.deepEqual(buildScenePropertiesUpdateData({
-            sceneName: "Hotel Cellar",
-            backgroundPath: "assets/images/scenes/old.webp",
-            currentBackgroundPath: "assets/images/scenes/old.webp"
-        }), {
-            name: "Hotel Cellar",
-            background: { src: "assets/images/scenes/old.webp" },
-            texture: { src: "assets/images/scenes/old.webp" },
-            shiftX: 0,
-            shiftY: 0,
-            "grid.type": 0,
-            "grid.size": 100
-        });
-    });
-
-    it("still writes a staged upload path when the current background appears to match", () => {
-        assert.deepEqual(buildScenePropertiesUpdateData({
-            sceneName: "Lobby",
-            backgroundPath: "assets/images/scenes/lobby.jpg",
-            currentBackgroundPath: "assets/images/scenes/lobby.jpg",
-            preserveGridCalibration: true
-        }), {
-            name: "Lobby",
-            background: { src: "assets/images/scenes/lobby.jpg" },
-            texture: { src: "assets/images/scenes/lobby.jpg" }
-        });
-    });
-
-    it("preserves existing scene background metadata while replacing the saved source", () => {
-        const model = buildScenePropertiesPanelModel({
-            scene: {
-                id: "scene-a",
-                name: "Station Yard",
-                background: { src: "assets/images/scenes/old.webp", tint: "#ffffff" },
-                texture: { src: "assets/images/scenes/old.webp", scaleX: 1.2 }
-            },
-            sceneId: "scene-a",
-            sceneName: "Station Yard",
-            backgroundPath: "assets/images/scenes/new.webp",
-            preserveGridCalibration: true
-        });
-
-        assert.deepEqual(buildScenePropertiesUpdateData(model), {
-            name: "Station Yard",
-            background: { src: "assets/images/scenes/new.webp", tint: "#ffffff" },
-            texture: { src: "assets/images/scenes/new.webp", scaleX: 1.2 }
-        });
-    });
-
-    it("renders disabled upload and save controls until prerequisites are met", () => {
+    it("renders placeholder when no scene is open", () => {
         const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({}));
-        assert.match(html, /data-action="scene-properties-background-upload"[^>]*disabled/);
-        assert.match(html, /data-action="scene-properties-save"[^>]*disabled/);
-        assert.match(html, /data-action="scene-properties-activate"[^>]*disabled/);
-        assert.match(html, /data-action="scene-properties-delete"[^>]*disabled/);
-        assert.doesNotMatch(html, /Create Scene/);
+        assert.match(html, /Open a scene map panel/);
     });
 
-    it("renders scene actions enabled for an existing viewed scene", () => {
+    it("renders name input and upload controls when a scene is bound", () => {
         const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
             scene: { id: "scene-a", name: "Whitechapel" }
         }));
 
-        assert.match(html, /data-action="scene-properties-activate"/);
-        assert.doesNotMatch(html, /data-action="scene-properties-activate"[^>]*disabled/);
+        assert.match(html, /data-action="scene-properties-name"/);
+        assert.match(html, /data-action="scene-properties-background-upload"/);
         assert.match(html, /data-action="scene-properties-delete"/);
-        assert.doesNotMatch(html, /data-action="scene-properties-delete"[^>]*disabled/);
+        assert.match(html, /data-action="scene-properties-set-default"/);
     });
 
-    it("renders actor placement controls grouped by actor type", () => {
+    it("does not render Save or Reset buttons", () => {
         const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
-            scene: { id: "scene-a", name: "Whitechapel" },
-            actors: [
-                { id: "h1", name: "Ada", type: "hero", img: "ada.webp" },
-                { id: "p1", name: "Constable", type: "pawn", img: "constable.webp" },
-                { id: "v1", name: "Moriarty", type: "villain", img: "moriarty.webp" }
-            ]
+            scene: { id: "scene-a", name: "Whitechapel" }
         }));
+
+        assert.doesNotMatch(html, /data-action="scene-properties-save"/);
+        assert.doesNotMatch(html, /data-action="scene-properties-reset"/);
+    });
+
+    it("renders actor placement controls when actorPlacement model is provided", () => {
+        const actorPlacement = {
+            heroes: [{ id: "h1", name: "Ada", img: "ada.webp" }],
+            pawns: [{ id: "p1", name: "Constable", img: "" }],
+            villains: [{ id: "v1", name: "Moriarty", img: "" }]
+        };
+
+        const html = renderScenePropertiesPanel(
+            buildScenePropertiesPanelModel({ scene: { id: "scene-a", name: "Whitechapel" } }),
+            { actorPlacement }
+        );
 
         assert.match(html, /data-action="scene-actors-add-heroes"/);
         assert.match(html, /Heroes/);
         assert.match(html, /Pawns/);
         assert.match(html, /Villains/);
-        assert.match(html, /value="p1"/);
-        assert.match(html, /value="v1"/);
     });
 
     it("escapes rendered scene values", () => {
         const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
-            sceneName: "A <Scene>",
-            backgroundPath: "assets/images/scenes/a-scene.webp"
+            scene: { id: "x", name: "A <Scene>" }
         }));
         assert.match(html, /A &lt;Scene&gt;/);
+    });
+
+    it("renders the default-scene checkbox as checked when isDefault is true", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: {
+                id: "scene-a",
+                name: "Station Yard",
+                flags: { "turn-of-the-century": { defaultScene: true } }
+            }
+        });
+        const html = renderScenePropertiesPanel(model);
+        assert.match(html, /data-action="scene-properties-set-default"[^>]*checked/);
     });
 });

@@ -13,24 +13,6 @@ function defaultMapSourceResolver(scene) {
     return getSceneBackgroundSource(scene);
 }
 
-function formatDimensions(scene) {
-    const width = Number(scene?.width ?? 0);
-    const height = Number(scene?.height ?? 0);
-    return width > 0 && height > 0 ? `${width} x ${height}` : "No dimensions";
-}
-
-function formatGrid(scene) {
-    const gridType = Number(scene?.grid?.type ?? 0);
-    if (!gridType) return "Gridless";
-
-    const size = Number(scene?.grid?.size ?? 0);
-    const distance = Number(scene?.grid?.distance ?? 0);
-    const units = String(scene?.grid?.units ?? "").trim();
-    const cell = size > 0 ? `${size}px` : "grid";
-    const scale = distance > 0 ? `, ${distance}${units ? ` ${units}` : ""}` : "";
-    return `${cell}${scale}`;
-}
-
 function getSceneId(scene) {
     return String(scene?.id ?? scene?._id ?? scene?.uuid ?? "");
 }
@@ -47,15 +29,19 @@ export function buildScenesPanelModel({
         .filter(Boolean)
         .map((scene) => {
             const id = getSceneId(scene);
+            const mapSrc = mapSourceResolver(scene) || "";
+            const gridType = Number(scene?.grid?.type ?? 0);
+            const isDefault = Boolean(scene?.flags?.["turn-of-the-century"]?.defaultScene);
             return {
                 id,
                 name: String(scene?.name ?? "Untitled Scene"),
                 active: Boolean(scene?.active),
                 current: Boolean(id && id === currentSceneId),
                 viewed: Boolean(id && id === viewedSceneId),
-                dimensions: formatDimensions(scene),
-                grid: formatGrid(scene),
-                hasMap: Boolean(mapSourceResolver(scene))
+                isDefault,
+                mapSrc,
+                hasMap: Boolean(mapSrc),
+                gridless: gridType === 0
             };
         });
 
@@ -67,35 +53,39 @@ export function buildScenesPanelModel({
 
 export function renderScenesPanel(panelModel = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
     const entries = Array.isArray(panelModel.entries) ? panelModel.entries : [];
-    const summary = `${Number(panelModel.count ?? entries.length)} defined scene${Number(panelModel.count ?? entries.length) === 1 ? "" : "s"}`;
+    const count = Number(panelModel.count ?? entries.length);
+    const summary = `${count} scene${count === 1 ? "" : "s"}`;
 
     return `
     <section class="totc-v2-scenes-panel">
-        <button type="button" class="totc-v2-scenes-panel__create" data-action="scenes-create-scene">Create Scene</button>
-        <header class="totc-v2-scenes-panel__summary">${escapeHTML(summary)}</header>
+        <header class="totc-v2-scenes-panel__toolbar">
+            <span class="totc-v2-scenes-panel__summary">${escapeHTML(summary)}</span>
+            <button type="button" class="totc-v2-scenes-panel__create" data-action="scenes-create-scene" title="Create scene">+</button>
+        </header>
         <div class="totc-v2-scenes-panel__list" role="list">
             ${entries.length ? entries.map((scene) => {
-                const badges = [
-                    scene.current ? "Current" : "",
-                    !scene.current && scene.viewed ? "Viewed" : "",
-                    scene.active ? "Active" : "",
-                    scene.hasMap ? "Map" : "No map"
+                const bgStyle = scene.mapSrc
+                    ? ` style="background-image: url('${escapeHTML(scene.mapSrc)}')"`
+                    : "";
+
+                const pills = [
+                    scene.gridless ? "Gridless" : "",
+                    !scene.hasMap ? "No map" : "",
+                    scene.isDefault ? "Default" : ""
                 ].filter(Boolean);
 
+                const activeTitle = scene.active ? "Scene is active" : "Activate scene";
+
                 return `
-                <article class="totc-v2-scenes-panel__entry${scene.current ? " is-current" : ""}" role="listitem" data-scene-id="${escapeHTML(scene.id)}">
+                <article class="totc-v2-scenes-panel__entry${scene.current ? " is-current" : ""}${scene.active ? " is-active" : ""}" role="listitem" data-scene-id="${escapeHTML(scene.id)}"${bgStyle}>
+                    <div class="totc-v2-scenes-panel__entry-overlay" aria-hidden="true"></div>
                     <button type="button" class="totc-v2-scenes-panel__entry-main" data-action="open-scene-map" data-scene-id="${escapeHTML(scene.id)}" title="Open scene map">
                         <span class="totc-v2-scenes-panel__entry-name">${escapeHTML(scene.name)}</span>
-                        <span class="totc-v2-scenes-panel__entry-dimensions">${escapeHTML(scene.dimensions)}</span>
+                        ${pills.length ? `<div class="totc-v2-scenes-panel__pills">${pills.map((p) => `<span class="totc-v2-scenes-panel__pill">${escapeHTML(p)}</span>`).join("")}</div>` : ""}
                     </button>
-                    <div class="totc-v2-scenes-panel__entry-meta">
-                        <span>${escapeHTML(scene.grid)}</span>
-                    </div>
-                    <div class="totc-v2-scenes-panel__badges">
-                        ${badges.map((badge) => `<span class="totc-v2-scenes-panel__badge">${escapeHTML(badge)}</span>`).join("")}
-                    </div>
+                    <button type="button" class="totc-v2-scenes-panel__activate${scene.active ? " is-active" : ""}" data-action="scenes-activate-scene" data-scene-id="${escapeHTML(scene.id)}" title="${escapeHTML(activeTitle)}" aria-pressed="${scene.active}">&#9654;</button>
                 </article>`;
-            }).join("") : `<div class="totc-v2-scenes-panel__empty">No scenes have been defined yet.</div>`}
+            }).join("") : `<div class="totc-v2-scenes-panel__empty">No scenes defined.</div>`}
         </div>
     </section>`;
 }

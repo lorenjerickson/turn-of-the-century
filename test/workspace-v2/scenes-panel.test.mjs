@@ -7,22 +7,18 @@ import {
 } from "../../module/ui/workspace-v2/panels/scenes-panel.mjs";
 
 describe("Scenes panel", () => {
-    it("builds entries for defined scenes and marks the current scene", () => {
+    it("builds entries for defined scenes and marks the current and active scene", () => {
         const scenes = [
             {
                 id: "scene-a",
                 name: "Station Yard",
                 active: true,
-                width: 2400,
-                height: 1800,
-                grid: { type: 1, size: 100, distance: 5, units: "ft" },
-                background: { src: "yard.webp" }
+                background: { src: "yard.webp" },
+                grid: { type: 1 }
             },
             {
                 id: "scene-b",
                 name: "Hotel Cellar",
-                width: 1200,
-                height: 900,
                 grid: { type: 0 }
             }
         ];
@@ -34,18 +30,27 @@ describe("Scenes panel", () => {
         });
 
         assert.equal(model.count, 2);
-        assert.deepEqual(model.entries[0], {
-            id: "scene-a",
-            name: "Station Yard",
-            active: true,
-            current: true,
-            viewed: false,
-            dimensions: "2400 x 1800",
-            grid: "100px, 5 ft",
-            hasMap: true
-        });
+        assert.equal(model.entries[0].id, "scene-a");
+        assert.equal(model.entries[0].name, "Station Yard");
+        assert.equal(model.entries[0].active, true);
+        assert.equal(model.entries[0].current, true);
+        assert.equal(model.entries[0].viewed, false);
+        assert.equal(model.entries[0].hasMap, true);
+        assert.equal(model.entries[0].gridless, false);
         assert.equal(model.entries[1].viewed, true);
-        assert.equal(model.entries[1].grid, "Gridless");
+        assert.equal(model.entries[1].gridless, true);
+    });
+
+    it("marks the default scene from flags", () => {
+        const model = buildScenesPanelModel({
+            scenes: [{
+                id: "scene-a",
+                name: "Station Yard",
+                flags: { "turn-of-the-century": { defaultScene: true } },
+                grid: { type: 1 }
+            }]
+        });
+        assert.equal(model.entries[0].isDefault, true);
     });
 
     it("recognizes a saved map when draft raw source is empty but scene background is populated", () => {
@@ -65,28 +70,73 @@ describe("Scenes panel", () => {
         const html = renderScenesPanel(buildScenesPanelModel());
 
         assert.match(html, /data-action="scenes-create-scene"/);
-        assert.match(html, /Create Scene/);
-        assert.match(html, /0 defined scenes/);
-        assert.match(html, /No scenes have been defined yet/);
+        assert.match(html, /0 scenes/);
+        assert.match(html, /No scenes defined/);
     });
 
     it("renders scene names as map-opening controls", () => {
         const model = buildScenesPanelModel({
-            scenes: [{ id: "scene-a", name: "Station Yard", active: true, grid: { type: 1, size: 100 } }]
+            scenes: [{ id: "scene-a", name: "Station Yard", active: true, grid: { type: 1 } }]
         });
 
         const html = renderScenesPanel(model);
 
         assert.match(html, /data-action="open-scene-map"/);
         assert.match(html, /data-scene-id="scene-a"/);
-        assert.match(html, /title="Open scene map"/);
-        assert.match(html, />Active</);
         assert.match(html, /Station Yard/);
+    });
+
+    it("renders an activate button for each scene row", () => {
+        const model = buildScenesPanelModel({
+            scenes: [
+                { id: "scene-a", name: "Station Yard", active: true, grid: { type: 1 } },
+                { id: "scene-b", name: "Hotel Cellar", grid: { type: 1 } }
+            ]
+        });
+
+        const html = renderScenesPanel(model);
+
+        const matches = html.match(/data-action="scenes-activate-scene"/g);
+        assert.equal(matches?.length, 2);
+    });
+
+    it("renders Gridless and No map pills", () => {
+        const model = buildScenesPanelModel({
+            scenes: [{ id: "scene-a", name: "Empty Lot", grid: { type: 0 } }]
+        });
+
+        const html = renderScenesPanel(model);
+        assert.match(html, /Gridless/);
+        assert.match(html, /No map/);
+    });
+
+    it("renders Default pill for the default scene", () => {
+        const model = buildScenesPanelModel({
+            scenes: [{
+                id: "scene-a",
+                name: "Station Yard",
+                flags: { "turn-of-the-century": { defaultScene: true } },
+                grid: { type: 1 },
+                background: { src: "yard.webp" }
+            }]
+        });
+
+        const html = renderScenesPanel(model);
+        assert.match(html, /Default/);
+    });
+
+    it("applies background-image style when mapSrc is available", () => {
+        const model = buildScenesPanelModel({
+            scenes: [{ id: "scene-a", name: "Station Yard", background: { src: "yard.webp" }, grid: { type: 1 } }]
+        });
+
+        const html = renderScenesPanel(model);
+        assert.match(html, /background-image: url\('yard\.webp'\)/);
     });
 
     it("escapes scene names in rendered markup", () => {
         const model = buildScenesPanelModel({
-            scenes: [{ id: "x", name: "<script>", grid: { type: 1, size: 50 } }]
+            scenes: [{ id: "x", name: "<script>", grid: { type: 1 } }]
         });
 
         const html = renderScenesPanel(model, {

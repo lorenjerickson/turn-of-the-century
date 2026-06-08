@@ -79,7 +79,7 @@ import { GridCalibrationController } from "./grid-calibration-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
 import { MapViewportController } from "./map-viewport-controller.mjs";
 import { WorkspacePanelRegistry } from "./panel-registry.mjs";
-import { getTotcLobbyScene } from "../../seeded-scenes.mjs";
+import { getDefaultScene, setDefaultScene, clearDefaultScene } from "../../seeded-scenes.mjs";
 import { getDieRollRequestHostPanelId } from "./die-roll-request-routing.mjs";
 import { openFoundrySettingsView } from "./workspace-system-menu.mjs";
 import {
@@ -131,15 +131,10 @@ import {
 } from "./panels/grid-calibration.mjs";
 import {
     buildSceneBackgroundUploadTarget,
+    buildSceneBackgroundUpdateData,
     buildScenePropertiesPanelModel,
-    buildScenePropertiesNameInputState,
-    buildScenePropertiesSavedState,
-    buildScenePropertiesUpdateData,
-    getScenePropertiesStagedBackgroundPath,
     resolveScenePropertiesMapPanelScene,
-    resolveScenePropertiesScene,
-    renderScenePropertiesPanel,
-    scenePropertiesStateLocksScene
+    renderScenePropertiesPanel
 } from "./panels/scene-properties-panel.mjs";
 import { buildSceneActorTokenData } from "./scene-actor-placement.mjs";
 import {
@@ -382,7 +377,8 @@ const ROLL_LOCKED_ACTIONS = Object.freeze(new Set([
     "scene-actors-add-heroes",
     "scene-actors-add-selected",
     "scene-properties-delete",
-    "scene-properties-save",
+    "scene-properties-set-default",
+    "scenes-activate-scene",
     "scenes-create-scene"
 ]));
 
@@ -806,13 +802,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
         this._scenePropertiesState = {
             sceneId: "",
-            sceneName: null,
-            selectedFilename: "",
-            backgroundPath: "",
-            previewPath: "",
-            savedBackgroundPath: "",
-            preserveGridCalibration: false,
-            createMode: false,
             status: "",
             error: ""
         };
@@ -1214,9 +1203,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             playerPanel: highlightedPlayerPanel,
             designIssuesPanel,
             scenePropertiesPanel: buildScenePropertiesPanelModel({
-                ...this._scenePropertiesState,
                 scene: scenePropertiesScene,
-                actors: worldActors
+                status: this._scenePropertiesState.status,
+                error: this._scenePropertiesState.error
             }),
             campaignBuilderPanel: buildCampaignBuilderPanelModel({
                 campaigns: Array.from(game.items?.contents || []).filter(i => i.type === "campaign")
@@ -2608,18 +2597,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return game.scenes?.viewed ?? canvas?.scene ?? game.scenes?.active ?? null;
     }
 
-    #getScenePropertiesScene(activePanel = this.#getPrimaryActivePanel(), {
-        viewedScene = this.#getViewedScene(),
-        defaultScene = canvas?.scene ?? game.scenes?.active ?? viewedScene
-    } = {}) {
-        return resolveScenePropertiesScene({
-            stateSceneId: this._scenePropertiesState?.sceneId,
-            stateLocksScene: scenePropertiesStateLocksScene(this._scenePropertiesState),
-            activePanel,
-            viewedScene,
-            defaultScene,
-            sceneResolver: (sceneId) => this.#getSceneDocumentById(sceneId)
+    #getScenePropertiesScene(activePanel = this.#getPrimaryActivePanel()) {
+        const currentScene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
+        const { scene } = resolveScenePropertiesMapPanelScene({
+            panel: activePanel,
+            currentScene,
+            sceneResolver: (id) => this.#getSceneDocumentById(id)
         });
+        return scene ?? null;
     }
 
     #isMapPanel(panel) {
@@ -2661,21 +2646,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             currentScene,
             sceneResolver: (id) => this.#getSceneDocumentById(id)
         });
-        const stagedMapSrc = getScenePropertiesStagedBackgroundPath(this._scenePropertiesState, scene);
-        const resolvedSrc = stagedMapSrc || this.#getSceneMapSource(scene) || "";
         if (globalThis.CONFIG?.debug?.totc) {
             console.debug("[totc] #getMapPanelScene", {
                 panelId: panel?.id,
                 sceneId,
                 "scene.background.src": scene?.background?.src,
-                "_source.background.src": scene?._source?.background?.src,
-                stagedMapSrc,
-                resolvedSrc,
-                stateSceneId: this._scenePropertiesState?.sceneId,
-                savedBackgroundPath: this._scenePropertiesState?.savedBackgroundPath
+                "_source.background.src": scene?._source?.background?.src
             });
         }
-        if (scene) return this.#buildSceneViewModel(scene, { id: sceneId, mapSrc: stagedMapSrc });
+        if (scene) return this.#buildSceneViewModel(scene, { id: sceneId });
         if (sceneId) return this.#buildSceneViewModel(null, { id: sceneId, name: panel?.title ?? "Missing Scene" });
         return context.scene ?? this.#buildSceneViewModel(null);
     }
@@ -2812,7 +2791,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #getDefaultCenterScene() {
-        return canvas?.scene ?? game.scenes?.viewed ?? game.scenes?.active ?? getTotcLobbyScene(game.scenes);
+        return canvas?.scene ?? game.scenes?.viewed ?? game.scenes?.active ?? getDefaultScene(game.scenes) ?? null;
     }
 
     async #activateScene(scene) {
@@ -4552,17 +4531,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         try {
             await scene.update(updateData);
             this.#rememberAppliedGridOverlayState(scene, updateData);
-            const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-            if (
-                sceneId
-                && String(this._scenePropertiesState?.sceneId ?? "").trim() === sceneId
-                && (String(this._scenePropertiesState?.backgroundPath ?? "").trim() || String(this._scenePropertiesState?.previewPath ?? "").trim())
-            ) {
-                this._scenePropertiesState = {
-                    ...this._scenePropertiesState,
-                    preserveGridCalibration: true
-                };
-            }
             ui.notifications?.info(`Grid updated: ${size} px per cell (offset ${-updateData.shiftX}, ${-updateData.shiftY}).`);
         } catch (err) {
             console.error("[turn-of-the-century] Grid calibration apply failed", err);
@@ -4641,10 +4609,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     query: value
                 };
             }
-            if (action === "scene-properties-name") {
-                const scene = this.#getScenePropertiesScene();
-                this._scenePropertiesState = buildScenePropertiesNameInputState(this._scenePropertiesState, scene, value);
-            }
             if (action === "gm-assistant-set-prompt") {
                 this._gmAssistantState.prompt = value;
                 this._gmAssistantState.promptTextareaHeight = input.offsetHeight || input.clientHeight || 0;
@@ -4701,7 +4665,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }
             case "scene-properties-name": {
                 const scene = this.#getScenePropertiesScene();
-                this._scenePropertiesState = buildScenePropertiesNameInputState(this._scenePropertiesState, scene, value);
+                const trimmedName = String(value ?? "").trim();
+                if (scene && trimmedName) {
+                    try {
+                        await scene.update({ name: trimmedName });
+                    } catch (err) {
+                        console.error("[turn-of-the-century] Scene name auto-save failed", err);
+                        this._scenePropertiesState = { ...this._scenePropertiesState, error: "Scene name save failed." };
+                    }
+                }
                 await this.render({ force: false });
                 focusWorkspaceTextInputAtEnd(this.element, "scene-properties-name");
                 break;
@@ -4833,13 +4805,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this._scenePropertiesState = {
             sceneId: "",
-            sceneName: null,
-            selectedFilename: "",
-            backgroundPath: "",
-            previewPath: "",
-            savedBackgroundPath: "",
-            preserveGridCalibration: false,
-            createMode: false,
             status: "",
             error: ""
         };
@@ -4876,13 +4841,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this._scenePropertiesState = {
             sceneId,
-            sceneName: "",
-            selectedFilename: "",
-            backgroundPath: "",
-            previewPath: "",
-            savedBackgroundPath: "",
-            preserveGridCalibration: false,
-            createMode: true,
             status: "New scene created. Enter a name, then upload a background image.",
             error: ""
         };
@@ -4899,31 +4857,18 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #wireScenePropertiesHandlers() {
+        // Background image upload — auto-saves to the scene immediately on success
         this.element?.querySelectorAll("[data-action='scene-properties-background-upload']")?.forEach((input) => {
             input.addEventListener("change", async () => {
                 const file = input.files?.[0] ?? null;
                 if (!file) return;
 
                 const scene = this.#getScenePropertiesScene();
-                const sceneName = String(this._scenePropertiesState.sceneName ?? scene?.name ?? "").trim();
-                const previewPath = globalThis.URL?.createObjectURL
-                    ? globalThis.URL.createObjectURL(file)
-                    : "";
-                const target = buildSceneBackgroundUploadTarget({
-                    sceneName,
-                    filename: file.name
-                });
+                const sceneName = String(scene?.name ?? "").trim();
+                const target = buildSceneBackgroundUploadTarget({ sceneName, filename: file.name });
 
                 this._scenePropertiesState = {
                     ...this._scenePropertiesState,
-                    sceneId: scene?.id ?? scene?._id ?? "",
-                    sceneName,
-                    selectedFilename: file.name,
-                    backgroundPath: "",
-                    previewPath,
-                    savedBackgroundPath: "",
-                    preserveGridCalibration: false,
-                    createMode: Boolean(this._scenePropertiesState.createMode),
                     status: target.valid ? `Uploading ${target.filename}...` : "",
                     error: target.valid ? "" : "Choose a supported image after entering a scene name."
                 };
@@ -4942,10 +4887,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (!result?.ok) {
                     this._scenePropertiesState = {
                         ...this._scenePropertiesState,
-                        backgroundPath: "",
-                        savedBackgroundPath: "",
-                        preserveGridCalibration: false,
-                        createMode: Boolean(this._scenePropertiesState.createMode),
                         status: "",
                         error: result?.message ?? "Scene background upload failed."
                     };
@@ -4953,39 +4894,36 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     return;
                 }
 
-                this._scenePropertiesState = {
-                    ...this._scenePropertiesState,
-                    backgroundPath: result.path,
-                    savedBackgroundPath: "",
-                    preserveGridCalibration: false,
-                    createMode: Boolean(this._scenePropertiesState.createMode),
-                    status: `Uploaded ${result.filename}.`,
-                    error: ""
-                };
+                // Auto-save to scene document immediately
+                if (scene) {
+                    try {
+                        const updateData = buildSceneBackgroundUpdateData(result.path);
+                        await scene.update(updateData);
+                        this._scenePropertiesState = {
+                            ...this._scenePropertiesState,
+                            status: `Background saved: ${result.filename}.`,
+                            error: ""
+                        };
+                    } catch (err) {
+                        console.error("[turn-of-the-century] Scene background auto-save failed", err);
+                        this._scenePropertiesState = {
+                            ...this._scenePropertiesState,
+                            status: "",
+                            error: "Background uploaded but scene save failed — see console."
+                        };
+                    }
+                } else {
+                    this._scenePropertiesState = {
+                        ...this._scenePropertiesState,
+                        status: `Uploaded ${result.filename}. Open a scene map to apply.`,
+                        error: ""
+                    };
+                }
                 this.render({ force: false });
             });
         });
 
-        this.element?.querySelectorAll("[data-action='scene-properties-reset']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                const scene = this.#getScenePropertiesScene();
-                this._scenePropertiesState = {
-                    sceneId: scene?.id ?? scene?._id ?? "",
-                    sceneName: null,
-                    selectedFilename: "",
-                    backgroundPath: "",
-                    previewPath: "",
-                    savedBackgroundPath: "",
-                    preserveGridCalibration: false,
-                    createMode: false,
-                    status: "",
-                    error: ""
-                };
-                this.render({ force: false });
-            });
-        });
-
+        // Delete scene
         this.element?.querySelectorAll("[data-action='scene-properties-delete']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
@@ -4993,12 +4931,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 const scene = this.#getScenePropertiesScene();
                 if (!scene) {
-                    this._scenePropertiesState = {
-                        ...this._scenePropertiesState,
-                        status: "",
-                        createMode: Boolean(this._scenePropertiesState.createMode),
-                        error: "No viewed scene is available to delete."
-                    };
+                    this._scenePropertiesState = { ...this._scenePropertiesState, status: "", error: "No scene is available to delete." };
                     this.render({ force: false });
                     return;
                 }
@@ -5013,42 +4946,57 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     await this.#removeDeletedSceneMapPanel(scene);
                 } catch (error) {
                     console.error("[turn-of-the-century] Scene delete failed", error);
-                    this._scenePropertiesState = {
-                        ...this._scenePropertiesState,
-                        status: "",
-                        createMode: Boolean(this._scenePropertiesState.createMode),
-                        error: "Scene delete failed - see console for details."
-                    };
+                    this._scenePropertiesState = { ...this._scenePropertiesState, status: "", error: "Scene delete failed — see console." };
                     this.render({ force: false });
                     return;
                 }
 
-                this._scenePropertiesState = {
-                    sceneId: "",
-                    sceneName: null,
-                    selectedFilename: "",
-                    backgroundPath: "",
-                    previewPath: "",
-                    savedBackgroundPath: "",
-                    preserveGridCalibration: false,
-                    createMode: false,
-                    status: `Deleted ${sceneName}.`,
-                    error: ""
-                };
+                this._scenePropertiesState = { sceneId: "", status: `Deleted ${sceneName}.`, error: "" };
                 this.render({ force: false });
             });
         });
 
+        // Set / clear default scene
+        this.element?.querySelectorAll("[data-action='scene-properties-set-default']")?.forEach((checkbox) => {
+            checkbox.addEventListener("change", async (event) => {
+                event.preventDefault();
+                const scene = this.#getScenePropertiesScene();
+                if (!scene) return;
+                try {
+                    if (checkbox.checked) {
+                        await setDefaultScene(scene, game.scenes);
+                    } else {
+                        await clearDefaultScene(scene);
+                    }
+                } catch (err) {
+                    console.error("[turn-of-the-century] Default scene update failed", err);
+                }
+                this.render({ force: false });
+            });
+        });
+
+        // Activate scene from scene-properties panel (legacy; kept for compatibility)
         this.element?.querySelectorAll("[data-action='scene-properties-activate']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-
                 const scene = this.#getScenePropertiesScene();
                 await this.#activateScene(scene);
             });
         });
 
+        // Activate scene from scene list rows
+        this.element?.querySelectorAll("[data-action='scenes-activate-scene']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const sceneId = String(button.dataset.sceneId ?? "").trim();
+                const scene = sceneId ? this.#getSceneDocumentById(sceneId) : this.#getScenePropertiesScene();
+                await this.#activateScene(scene);
+            });
+        });
+
+        // Scene actors
         this.element?.querySelectorAll("[data-action='scene-actors-add-heroes']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
@@ -5071,74 +5019,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 await this.#addActorsToScene(actors);
             });
         });
-
-        this.element?.querySelectorAll("[data-action='scene-properties-save']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-
-                const scene = this.#getScenePropertiesScene();
-                if (!scene) {
-                    this._scenePropertiesState = {
-                        ...this._scenePropertiesState,
-                        status: "",
-                        createMode: Boolean(this._scenePropertiesState.createMode),
-                        error: "No viewed scene is available to save."
-                    };
-                    this.render({ force: false });
-                    return;
-                }
-
-                const model = buildScenePropertiesPanelModel({
-                    ...this._scenePropertiesState,
-                    scene
-                });
-                const updateData = buildScenePropertiesUpdateData(model);
-
-                console.info("[totc] scene-properties-save: updating scene", scene.id, updateData);
-                try {
-                    await scene.update(updateData);
-                    console.info("[totc] scene-properties-save: update resolved, background.src =", scene.background?.src);
-                } catch (error) {
-                    console.error("[turn-of-the-century] Scene properties save failed", error);
-                    this._scenePropertiesState = {
-                        ...this._scenePropertiesState,
-                        status: "",
-                        createMode: Boolean(this._scenePropertiesState.createMode),
-                        error: "Scene save failed - see console for details."
-                    };
-                    this.render({ force: false });
-                    return;
-                }
-
-                this._scenePropertiesState = buildScenePropertiesSavedState({ scene, model });
-                this.render({ force: false });
-            });
-        });
     }
 
     async #addActorsToScene(actors = []) {
         const scene = this.#getScenePropertiesScene();
         if (!scene) {
-            this._scenePropertiesState = {
-                ...this._scenePropertiesState,
-                status: "",
-                createMode: Boolean(this._scenePropertiesState.createMode),
-                error: "No viewed scene is available for actor placement."
-            };
+            this._scenePropertiesState = { ...this._scenePropertiesState, status: "", error: "No scene is available for actor placement." };
             this.render({ force: false });
             return;
         }
 
         const selectedActors = Array.from(actors ?? []).filter(Boolean);
         if (!selectedActors.length) {
-            this._scenePropertiesState = {
-                ...this._scenePropertiesState,
-                sceneId: scene?.id ?? scene?._id ?? "",
-                status: "",
-                createMode: Boolean(this._scenePropertiesState.createMode),
-                error: "Choose at least one actor to add to the scene."
-            };
+            this._scenePropertiesState = { ...this._scenePropertiesState, status: "", error: "Choose at least one actor to add to the scene." };
             this.render({ force: false });
             return;
         }
@@ -5147,28 +5040,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             if (typeof scene.createEmbeddedDocuments !== "function") {
                 throw new Error("Scene token creation is not available.");
             }
-            const tokenData = await buildSceneActorTokenData({
-                actors: selectedActors,
-                scene
-            });
+            const tokenData = await buildSceneActorTokenData({ actors: selectedActors, scene });
             if (!tokenData.length) throw new Error("No token data could be built for the selected actors.");
             await scene.createEmbeddedDocuments("Token", tokenData);
             this._scenePropertiesState = {
                 ...this._scenePropertiesState,
-                sceneId: scene?.id ?? scene?._id ?? "",
-                createMode: Boolean(this._scenePropertiesState.createMode),
                 status: `Added ${tokenData.length} actor${tokenData.length === 1 ? "" : "s"} to ${scene.name ?? "scene"}.`,
                 error: ""
             };
         } catch (error) {
             console.error("[turn-of-the-century] Scene actor placement failed", error);
-            this._scenePropertiesState = {
-                ...this._scenePropertiesState,
-                sceneId: scene?.id ?? scene?._id ?? "",
-                status: "",
-                createMode: Boolean(this._scenePropertiesState.createMode),
-                error: "Actor placement failed - see console for details."
-            };
+            this._scenePropertiesState = { ...this._scenePropertiesState, status: "", error: "Actor placement failed — see console." };
         }
 
         this.render({ force: false });
