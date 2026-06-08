@@ -88,14 +88,15 @@ export function buildScenePropertiesPanelModel({
 
 /**
  * Build the update data to send to scene.update() when saving a background.
- * Sends only src — Foundry deep-merges, preserving other background properties.
+ * Uses dot-notation keys (matching Foundry v14's expected format for nested
+ * DataModel updates, consistent with buildGridCalibrationSceneUpdate).
  */
 export function buildSceneBackgroundUpdateData(backgroundPath = "") {
     const src = String(backgroundPath ?? "").trim();
     if (!src) return {};
     return {
-        background: { src },
-        texture: { src }
+        "background.src": src,
+        "texture.src": src
     };
 }
 

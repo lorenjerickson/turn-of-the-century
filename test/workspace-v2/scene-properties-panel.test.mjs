@@ -85,10 +85,10 @@ describe("Scene properties panel", () => {
         assert.equal(model.error, "");
     });
 
-    it("builds background update data for scene.update()", () => {
+    it("builds background update data using dot-notation keys for scene.update()", () => {
         assert.deepEqual(buildSceneBackgroundUpdateData("assets/images/scenes/whitechapel.webp"), {
-            background: { src: "assets/images/scenes/whitechapel.webp" },
-            texture: { src: "assets/images/scenes/whitechapel.webp" }
+            "background.src": "assets/images/scenes/whitechapel.webp",
+            "texture.src": "assets/images/scenes/whitechapel.webp"
         });
     });
 
