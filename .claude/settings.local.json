@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awk -F/ '{print $\\(NF-1\\)}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(node scripts/build-packs.mjs)",
+      "Bash(python3 -c ' *)",
+      "Bash(node --test)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('system.json'\\)\\); print\\(d['version']\\)\")",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('package.json'\\)\\); print\\(d['version']\\)\")",
+      "Bash(sed -i '' 's/\"version\": \"0.0.160\"/\"version\": \"0.0.161\"/' system.json package.json)",
+      "Bash(python3 -c \"import json; print\\(json.load\\(open\\('system.json'\\)\\)['version']\\)\")",
+      "Bash(python3 -c \"import json; print\\(json.load\\(open\\('package.json'\\)\\)['version']\\)\")",
+      "Bash(git push *)",
+      "Bash(sed -i '' 's/\"version\": \"0.0.161\"/\"version\": \"0.0.162\"/' system.json package.json)",
+      "Bash(python3 -c \"import json; print\\(json.load\\(open\\('system.json'\\)\\)['version'], json.load\\(open\\('package.json'\\)\\)['version']\\)\")",
+      "Bash(sed -i '' 's/\"version\": \"0.0.162\"/\"version\": \"0.0.163\"/' system.json package.json)"
+    ]
+  }
+}

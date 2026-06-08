@@ -33,6 +33,42 @@ function createArtworkField() {
     });
 }
 
+/**
+ * Action variants for worn armor that can be used offensively or defensively
+ * during an encounter (shield bash, bracer block, shoulder shove, etc.).
+ *
+ * Most armor has no combat actions and will carry an empty variants array.
+ * Items that do — shields, pneumatic bracers, reinforced gauntlets — define
+ * their own variants here, keeping action definitions on the items that
+ * enable them rather than in a global catalog.
+ *
+ * NOTE: No shield currently exists in the compendium. When one is added it
+ * should define at minimum: shieldBash (attack, 2AP, staggered) and
+ * shoulderShove (attack, 2AP, grappled/prone).
+ */
+function createActionVariantField() {
+    return new SchemaField({
+        id: new StringField({ required: true, blank: false, initial: "armorStrike" }),
+        label: new StringField({ required: true, blank: false, initial: "Strike" }),
+        // Action type: "attack" | "defense" | "utility"
+        type: new StringField({ required: true, blank: false, initial: "attack" }),
+        apCost: new NumberField({ required: true, integer: true, min: 1, initial: 2 }),
+        requiresToHit: new BooleanField({ required: true, initial: true }),
+        toHitBonus: new NumberField({ required: true, integer: true, initial: 0 }),
+        // Which range band this action uses: "melee" | "normal" | "long"
+        rangeType: new StringField({ required: true, blank: false, initial: "melee" }),
+        // Condition IDs applied on a successful hit (e.g. "stunned", "staggered", "prone")
+        conditions: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] }),
+        completionPhaseIncrement: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+        cpiPerFeet: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+        autoResolve: new BooleanField({ required: true, initial: false }),
+        interruptible: new BooleanField({ required: true, initial: true }),
+        isReaction: new BooleanField({ required: true, initial: false }),
+        reactionTriggerType: new StringField({ required: true, blank: true, initial: "" }),
+        notes: new HTMLField({ required: true, blank: true })
+    });
+}
+
 export class ArmorDataModel extends foundry.abstract.TypeDataModel {
     static defineSchema() {
         return {
@@ -77,6 +113,13 @@ export class ArmorDataModel extends foundry.abstract.TypeDataModel {
                 bulk: new NumberField({ required: true, min: 0, initial: 0 }),
                 stealthPenalty: new NumberField({ required: true, integer: true, initial: 0 }),
                 movementPenalty: new NumberField({ required: true, integer: true, initial: 0 })
+            }),
+            actions: new SchemaField({
+                defaultActionId: new StringField({ required: true, blank: true, initial: "" }),
+                variants: new ArrayField(
+                    createActionVariantField(),
+                    { required: true, initial: () => [] }
+                )
             }),
             properties: new SchemaField({
                 tags: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] }),

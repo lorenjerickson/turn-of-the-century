@@ -46,6 +46,47 @@
       "concealable": false,
       "noisy": true,
       "experimental": true
+    },
+    "actions": {
+      "defaultActionId": "bracerBash",
+      "variants": [
+        {
+          "id": "bracerBash",
+          "label": "Bracer Bash",
+          "type": "attack",
+          "apCost": 1,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "rangeType": "melee",
+          "conditions": [],
+          "notes": "<p>Drive the pneumatic bracer assembly into a target. Fast, armoured blow. The brass cylinder mass deals solid bludgeoning damage at 1 AP cost \u2014 useful when a weapon hand is occupied.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "energizedBlock",
+          "label": "Energized Block",
+          "type": "defense",
+          "apCost": 2,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "rangeType": "melee",
+          "conditions": [
+            "stunned"
+          ],
+          "notes": "<p>Extend the bracer to intercept an incoming melee strike and discharge the pneumatic cylinder on impact. Reduces damage from one incoming melee attack this round. On a critical block, the discharge stuns the attacker for one tick.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": false,
+          "isReaction": true,
+          "reactionTriggerType": "incomingAttack"
+        }
+      ]
     }
   },
   "flags": {}

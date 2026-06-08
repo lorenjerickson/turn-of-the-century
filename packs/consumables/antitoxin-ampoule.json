@@ -22,16 +22,45 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "consumeItem",
+      "defaultActionId": "injectSelf",
       "variants": [
         {
-          "id": "consumeItem",
-          "label": "Consume Item",
+          "id": "injectSelf",
+          "label": "Inject Self",
           "type": "consumable",
           "apCost": 1,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "notes": ""
+          "targetSelf": true,
+          "targetAlly": false,
+          "requiresAdjacency": false,
+          "conditions": [],
+          "notes": "<p>Self-inject the antitoxin from the belt. Counters active poison conditions.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "injectAlly",
+          "label": "Inject Ally",
+          "type": "consumable",
+          "apCost": 2,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "targetSelf": false,
+          "targetAlly": true,
+          "requiresAdjacency": true,
+          "conditions": [],
+          "notes": "<p>Administer the antitoxin to an adjacent poisoned ally.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

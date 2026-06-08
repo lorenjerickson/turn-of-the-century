@@ -22,16 +22,28 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "consumeItem",
+      "defaultActionId": "deployCartridge",
       "variants": [
         {
-          "id": "consumeItem",
-          "label": "Consume Item",
-          "type": "consumable",
-          "apCost": 1,
+          "id": "deployCartridge",
+          "label": "Deploy Cartridge",
+          "type": "utility",
+          "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "notes": ""
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": false,
+          "conditions": [
+            "poisoned"
+          ],
+          "notes": "<p>Crack the cartridge and release the vapour cloud in a 10ft radius. All unprotected combatants in the area gain the poisoned condition.</p>",
+          "completionPhaseIncrement": 1,
+          "cpiPerFeet": 0,
+          "autoResolve": true,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

@@ -23,16 +23,49 @@
     },
     "handedness": "oneHanded",
     "actions": {
-      "defaultActionId": "weaponAttack",
+      "defaultActionId": "chop",
       "variants": [
         {
-          "id": "weaponAttack",
-          "label": "Attack",
+          "id": "chop",
+          "label": "Chop",
+          "type": "attack",
+          "apCost": 1,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 0,
+          "rangeType": "melee",
+          "conditions": [],
+          "notes": "<p>Fast improvised chop. Brutally effective at close quarters.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "heavyChop",
+          "label": "Heavy Chop",
           "type": "attack",
           "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "notes": ""
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 0,
+          "rangeType": "melee",
+          "conditions": [
+            "bleeding"
+          ],
+          "notes": "<p>A full-weight blow. Causes bleeding on hit.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

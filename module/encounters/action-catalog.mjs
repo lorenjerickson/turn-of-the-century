@@ -3,7 +3,18 @@ export const TOTC_ENCOUNTER_PHASES = ["planning", "locked", "resolving", "roundC
 export const TOTC_BASE_ACTION_POINT_BUDGET = 6;
 export const TOTC_MOVEMENT_FEET_PER_AP = 10;
 
+/**
+ * Base action catalog — actions available to all combatants regardless of equipment.
+ * Item-specific actions (snapshot, parry, etc.) live on the items themselves.
+ *
+ * Each entry includes the full action variant field set so the resolution engine
+ * can treat catalog actions and item actions uniformly.
+ */
 export const TOTC_ACTION_CATALOG = {
+    /**
+     * Move: spend 1 AP per 10ft of movement. Variable AP 1–6.
+     * CPI = 0 — movement is continuous, position updates each AP slot.
+     */
     move: {
         id: "move",
         label: "Move",
@@ -13,72 +24,92 @@ export const TOTC_ACTION_CATALOG = {
         apMax: 6,
         variableAp: true,
         movementFeetPerAp: 10,
-        requiresToHit: false
+        requiresToHit: false,
+        toHitBonus: 0,
+        completionPhaseIncrement: 0,
+        cpiPerFeet: 0,
+        autoResolve: false,
+        interruptible: true,
+        isReaction: false,
+        reactionTriggerType: ""
     },
-    defend: {
-        id: "defend",
-        label: "Defend",
+
+    /**
+     * Hunker Down: spend 1–6 AP crouching behind cover. Any ranged attack whose
+     * effectSlot falls within the hunkered AP window suffers a to-hit penalty on
+     * the attacker's roll (resolved during reconciliation). Variable AP lets the
+     * player decide how long to stay down.
+     */
+    hunkDown: {
+        id: "hunkDown",
+        label: "Hunker Down",
         type: "defense",
         apCost: 1,
         apMin: 1,
         apMax: 6,
         variableAp: true,
-        requiresToHit: false
-    },
-    pistolQuickShot: {
-        id: "pistolQuickShot",
-        label: "Quick Shot",
-        type: "attack",
-        apCost: 2,
-        apMin: 2,
-        apMax: 2,
-        variableAp: false,
-        toHitBonus: -2,
-        requiresToHit: true
-    },
-    pistolAimedShot: {
-        id: "pistolAimedShot",
-        label: "Aim and Fire",
-        type: "attack",
-        apCost: 3,
-        apMin: 3,
-        apMax: 3,
-        variableAp: false,
-        toHitBonus: 0,
-        requiresToHit: true
-    },
-    consumeBeltElixir: {
-        id: "consumeBeltElixir",
-        label: "Consume Belt Elixir",
-        type: "consumable",
-        apCost: 2,
-        apMin: 2,
-        apMax: 2,
-        variableAp: false,
         requiresToHit: false,
-        requiresSlot: "belt"
+        toHitBonus: 0,
+        completionPhaseIncrement: 0,
+        cpiPerFeet: 0,
+        autoResolve: false,
+        interruptible: false,
+        isReaction: false,
+        reactionTriggerType: "",
+        // To-hit penalty applied to ranged attackers whose shot lands during this window
+        rangedToHitPenalty: -3
     },
-    meleeAttack: {
-        id: "meleeAttack",
-        label: "Melee Attack",
-        type: "attack",
+
+    /**
+     * Dodge: a dexterity-based reaction available to any combatant regardless of
+     * equipment. Declared as a reaction entry in the plan. If an incoming attack's
+     * effectSlot falls within the dodge's AP window, a contested roll is made:
+     * defender's dex modifier + d20 vs attacker's to-hit total. Dodge wins → attack
+     * negated. The only defensive reaction available without a parry-capable weapon.
+     */
+    dodge: {
+        id: "dodge",
+        label: "Dodge",
+        type: "defense",
         apCost: 1,
         apMin: 1,
-        apMax: 1,
-        variableAp: false,
-        requiresToHit: false,
-        requiresSlot: "melee"
-    },
-    rangedAttack: {
-        id: "rangedAttack",
-        label: "Ranged Attack",
-        type: "attack",
-        apCost: 2,
-        apMin: 2,
         apMax: 2,
-        variableAp: false,
+        variableAp: true,
         requiresToHit: false,
-        requiresSlot: "ranged"
+        toHitBonus: 0,
+        completionPhaseIncrement: 0,
+        cpiPerFeet: 0,
+        autoResolve: false,
+        interruptible: false,
+        isReaction: true,
+        reactionTriggerType: "incomingAttack"
+    },
+
+    /**
+     * Overwatch: reserve AP to attack the first hostile that enters effective weapon
+     * range during the declared window. Always fires using the equipped weapon's
+     * lowest-AP-cost attack action. If the trigger fires with fewer remaining AP in
+     * the window than that attack costs, overwatch does not fire.
+     * Melee-range entry incurs a to-hit penalty (caught watching for distant threats).
+     */
+    overwatch: {
+        id: "overwatch",
+        label: "Overwatch",
+        type: "defense",
+        apCost: 1,
+        apMin: 1,
+        apMax: 6,
+        variableAp: true,
+        requiresToHit: false,
+        toHitBonus: 0,
+        completionPhaseIncrement: 0,
+        cpiPerFeet: 0,
+        autoResolve: false,
+        interruptible: false,
+        isReaction: true,
+        reactionTriggerType: "overwatch",
+        // Applied when the overwatch trigger fires at melee range
+        meleeRangeToHitPenalty: -2
     }
 };
 

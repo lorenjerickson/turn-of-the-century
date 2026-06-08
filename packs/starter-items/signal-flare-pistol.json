@@ -32,7 +32,13 @@
           "apCost": 3,
           "requiresToHit": true,
           "toHitBonus": -1,
-          "notes": "Single discharge; imposes Blinded on target if fired within 10 feet."
+          "notes": "Single discharge; imposes Blinded on target if fired within 10 feet.",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

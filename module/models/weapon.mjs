@@ -74,10 +74,33 @@ function createActionVariantField({ defaultId = "weaponAttack", defaultLabel = "
     return new SchemaField({
         id: new StringField({ required: true, blank: false, initial: defaultId }),
         label: new StringField({ required: true, blank: false, initial: defaultLabel }),
+        // Action type: "attack" | "reload" | "utility" | "defense"
         type: new StringField({ required: true, blank: false, initial: "attack" }),
         apCost: new NumberField({ required: true, integer: true, min: 1, initial: defaultApCost }),
         requiresToHit: new BooleanField({ required: true, initial: true }),
         toHitBonus: new NumberField({ required: true, integer: true, initial: defaultToHitBonus }),
+        // Ammunition economy
+        consumesAmmo: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+        requiresAmmo: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+        reloadsAmmo: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+        // Which range band this action uses: "melee" | "normal" | "long"
+        rangeType: new StringField({ required: true, blank: false, initial: "normal" }),
+        // Condition IDs applied on a successful hit (e.g. "stunned", "bleeding", "blinded")
+        conditions: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] }),
+                // Completion phase increment: additional AP slots after action's last AP before effect lands.
+        // Bullets = 0 (instantaneous). Thrown items = 1 (travel + landing). Lit fuse = 2+.
+        completionPhaseIncrement: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+        // Distance-based CPI override: if > 0, CPI = floor(targetDistance / cpiPerFeet).
+        // Arrows: 30 (1 CPI per 30ft). Ballista bolt: 50. 0 = use fixed completionPhaseIncrement.
+        cpiPerFeet: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+        // If true, effect resolves even if the actor is incapacitated (lit fuse, grenade in flight).
+        autoResolve: new BooleanField({ required: true, initial: false }),
+        // If autoResolve is true, a correctly-timed reaction can cancel the effect before it lands.
+        interruptible: new BooleanField({ required: true, initial: true }),
+        // If true, this action is declared as a reaction entry in the plan, not a proactive action.
+        isReaction: new BooleanField({ required: true, initial: false }),
+        // Trigger type for reaction actions: "incomingAttack" | "allyInjured" | "overwatch" | "defuse" | ""
+        reactionTriggerType: new StringField({ required: true, blank: true, initial: "" }),
         notes: new HTMLField({ required: true, blank: true })
     });
 }

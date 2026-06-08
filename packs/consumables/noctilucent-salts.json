@@ -22,16 +22,47 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "consumeItem",
+      "defaultActionId": "scatterForLight",
       "variants": [
         {
-          "id": "consumeItem",
-          "label": "Consume Item",
-          "type": "consumable",
-          "apCost": 1,
+          "id": "scatterForLight",
+          "label": "Scatter for Light",
+          "type": "utility",
+          "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "notes": ""
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": false,
+          "conditions": [],
+          "notes": "<p>Fling the salts across a surface or into the air. The bioluminescent glow illuminates a 20ft radius for the remainder of the scene.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "throwAtFace",
+          "label": "Throw at Face",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": true,
+          "conditions": [
+            "blinded"
+          ],
+          "notes": "<p>Hurl the salts directly at an adjacent target's face. On hit, the intense glow blinds them for one round.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

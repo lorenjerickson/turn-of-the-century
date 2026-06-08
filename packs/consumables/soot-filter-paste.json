@@ -22,16 +22,26 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "consumeItem",
+      "defaultActionId": "applyPaste",
       "variants": [
         {
-          "id": "consumeItem",
-          "label": "Consume Item",
+          "id": "applyPaste",
+          "label": "Apply Paste",
           "type": "consumable",
           "apCost": 1,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "notes": ""
+          "targetSelf": true,
+          "targetAlly": false,
+          "requiresAdjacency": false,
+          "conditions": [],
+          "notes": "<p>Smear the paste around nose and mouth. Provides protection against smoke and inhaled toxins for the scene. Self-only.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

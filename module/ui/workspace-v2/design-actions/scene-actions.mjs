@@ -115,6 +115,9 @@ export function buildSceneCreationData({ backgroundPath = "", name = "", navigat
         background: {
             src: safeBackgroundPath
         },
+        texture: {
+            src: safeBackgroundPath
+        },
         flags: {
             "turn-of-the-century": {
                 designCreated: true,

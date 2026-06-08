@@ -22,16 +22,45 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "consumeItem",
+      "defaultActionId": "inhaleSelf",
       "variants": [
         {
-          "id": "consumeItem",
-          "label": "Consume Item",
+          "id": "inhaleSelf",
+          "label": "Inhale",
           "type": "consumable",
           "apCost": 1,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "notes": ""
+          "targetSelf": true,
+          "targetAlly": false,
+          "requiresAdjacency": false,
+          "conditions": [],
+          "notes": "<p>Snap open the vial under your nose. Clears dazed or minor stunning effects immediately.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "administerAlly",
+          "label": "Revive Ally",
+          "type": "consumable",
+          "apCost": 1,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "targetSelf": false,
+          "targetAlly": true,
+          "requiresAdjacency": true,
+          "conditions": [],
+          "notes": "<p>Hold the vial under an adjacent ally's nose. Clears their dazed condition. No AP overhead \u2014 administering to another is just as fast.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

@@ -22,16 +22,47 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "consumeItem",
+      "defaultActionId": "throwFlask",
       "variants": [
         {
-          "id": "consumeItem",
-          "label": "Consume Item",
-          "type": "consumable",
-          "apCost": 1,
+          "id": "throwFlask",
+          "label": "Throw Flask",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": false,
+          "conditions": [
+            "burning"
+          ],
+          "notes": "<p>Hurl the flask at a target up to 15ft. On hit, acid splashes dealing damage and burning condition.</p>",
+          "completionPhaseIncrement": 1,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "applyToObject",
+          "label": "Apply to Object",
+          "type": "utility",
+          "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "notes": ""
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": true,
+          "conditions": [],
+          "notes": "<p>Pour the solution directly onto a lock, chain, or metal fitting. Corrodes and weakens the material over the round.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

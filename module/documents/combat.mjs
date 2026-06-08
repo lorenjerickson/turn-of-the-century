@@ -125,8 +125,171 @@ function clampActionData(action, index = 0) {
         requiresToHit: Boolean(action.requiresToHit || action.type === "attack"),
         toHitBonus: Number(action.toHitBonus || 0),
         movementFeet: Number(action.movementFeet || 0),
-        movementFeetPerAp: Number(action.movementFeetPerAp || 0)
+        movementFeetPerAp: Number(action.movementFeetPerAp || 0),
+        rangeType: String(action.rangeType || "melee"),
+        conditions: toArray(action.conditions),
+        // AP timeline fields
+        completionPhaseIncrement: Math.max(0, Math.floor(Number(action.completionPhaseIncrement || 0))),
+        cpiPerFeet: Math.max(0, Math.floor(Number(action.cpiPerFeet || 0))),
+        // Autonomous resolution — effect continues if actor is incapacitated
+        autoResolve: Boolean(action.autoResolve),
+        interruptible: action.interruptible !== false,
+        // Reaction fields — entryType and trigger set when added to the plan
+        entryType: String(action.entryType || "action"),
+        isReaction: Boolean(action.isReaction),
+        reactionTriggerType: String(action.reactionTriggerType || ""),
+        consumesAmmo: Math.max(0, Math.floor(Number(action.consumesAmmo || 0))),
+        requiresAmmo: Math.max(0, Math.floor(Number(action.requiresAmmo || 0))),
+        reloadsAmmo: Math.max(0, Math.floor(Number(action.reloadsAmmo || 0)))
     };
+}
+
+/**
+ * Build the AP timeline for a single combatant's plan. Returns an array of
+ * timeline entries, one per plan entry, each annotated with:
+ *  - apStart / apEnd   — the AP slots this entry occupies
+ *  - effectSlot        — the slot when its effect actually lands (apEnd + CPI)
+ *
+ * @param {object[]} plan         - The combatant's normalized plan entries
+ * @param {number}   apBudget     - Maximum AP available (typically 6)
+ * @param {Function} [getDistance] - Optional: (targetId) => feet; used for cpiPerFeet actions
+ * @returns {object[]}
+ */
+function buildCombatantTimeline(plan, apBudget, getDistance = null) {
+    const timeline = [];
+    let cursor = 0;
+
+    for (const entry of plan) {
+        const cost = Math.max(1, Number(entry.apCost || 1));
+        const apStart = cursor + 1;
+        const apEnd = Math.min(cursor + cost, apBudget);
+
+        // Calculate CPI: distance-based overrides fixed if cpiPerFeet > 0
+        let cpi = Number(entry.completionPhaseIncrement || 0);
+        if (entry.cpiPerFeet > 0 && getDistance && entry.targetId) {
+            const dist = getDistance(entry.targetId) ?? 0;
+            cpi = Math.floor(dist / entry.cpiPerFeet);
+        }
+
+        const effectSlot = apEnd + cpi;
+
+        timeline.push({
+            ...entry,
+            apStart,
+            apEnd,
+            cpi,
+            effectSlot,
+            // Reconciliation state — populated during reconciliation pass
+            negated: false,
+            penaltyApplied: 0,
+            outcome: null
+        });
+
+        cursor += cost;
+        if (cursor >= apBudget) break;
+    }
+
+    return timeline;
+}
+
+/**
+ * Pre-roll all outcomes for a combatant's timeline against the frozen round-start
+ * game state. Outcomes are recorded on the timeline entries themselves.
+ * Modifiers and reactions are NOT applied here — that happens in reconciliation.
+ *
+ * @param {object[]}  timeline    - Entries from buildCombatantTimeline
+ * @param {object}    combatant   - Foundry Combatant document
+ * @param {Map}       snapshot    - Round-start state snapshot keyed by combatantId
+ * @returns {object[]}            - Same timeline array with .roll / .damageRoll populated
+ */
+async function preRollTimelineOutcomes(timeline, combatant, snapshot) {
+    const actor = combatant.actor;
+
+    for (const entry of timeline) {
+        if (entry.entryType === "reaction") {
+            // Pre-roll the reaction's own check (e.g. parry, dodge)
+            if (entry.requiresToHit || entry.isReaction) {
+                const reactionRoll = await new Roll("1d20").roll({ async: true });
+                entry.reactionRoll = Number(reactionRoll.total ?? 0);
+                entry.reactionAbilityBonus = getReactionAbilityBonus(actor, entry);
+                entry.reactionTotal = entry.reactionRoll + entry.reactionAbilityBonus + Number(entry.toHitBonus || 0);
+            }
+            continue;
+        }
+
+        if (!entry.requiresToHit) continue;
+
+        const toHitRoll = await new Roll("1d20").roll({ async: true });
+        entry.roll = Number(toHitRoll.total ?? 0);
+
+        const abilityBonus = getAttackAbilityBonusFromSnapshot(actor, snapshot, entry);
+        entry.abilityBonus = abilityBonus;
+        entry.total = entry.roll + abilityBonus + Number(entry.toHitBonus || 0);
+
+        // Resolve target AC from snapshot (not live state)
+        const targetSnap = snapshot.get(entry.targetId);
+        entry.targetArmorClass = toNumber(targetSnap?.armorClass, 10);
+        entry.hitsUnmodified = entry.roll === 20 || (entry.roll !== 1 && entry.total >= entry.targetArmorClass);
+
+        // Pre-roll damage
+        const item = entry.itemId ? actor?.items?.get(entry.itemId) : null;
+        const weaponData = item?.system ?? {};
+        const damageFormula = String(weaponData?.damage?.formula || "1").trim() || "1";
+        const damageBonus = toNumber(weaponData?.damage?.bonus, 0);
+        const compiled = damageBonus ? `${damageFormula} + ${damageBonus}` : damageFormula;
+        const damageRoll = await new Roll(compiled, { actor: actor?.system ?? {} }).roll({ async: true });
+        entry.damageRoll = Math.max(0, Number(damageRoll.total ?? 0));
+    }
+
+    return timeline;
+}
+
+/**
+ * Ability bonus for reaction checks (dodge = dex, parry = weapon skill or str/dex).
+ */
+function getReactionAbilityBonus(actor, entry) {
+    if (!actor) return 0;
+    if (entry.id === "dodge") {
+        return toNumber(actor.system?.abilities?.dex?.bonus, 0);
+    }
+    // Parry and melee weapon reactions use str bonus (or dex for finesse weapons — future)
+    return toNumber(actor.system?.abilities?.str?.bonus, 0);
+}
+
+/**
+ * Resolve an attacker's ability bonus from the round-start snapshot.
+ * Ranged weapons use dex; melee use str.
+ */
+function getAttackAbilityBonusFromSnapshot(actor, snapshot, entry) {
+    if (!actor) return 0;
+    const item = entry.itemId ? actor?.items?.get(entry.itemId) : null;
+    const classification = String(item?.system?.classification ?? "");
+    const rangedClassifications = new Set(["simpleRanged", "martialRanged", "firearm", "explosive", "thrown"]);
+    const abilityKey = rangedClassifications.has(classification) ? "dex" : "str";
+    // Read from live actor — snapshot holds HP/conditions, not ability scores
+    return toNumber(actor.system?.abilities?.[abilityKey]?.bonus, 0);
+}
+
+/**
+ * Snapshot the round-start game state for all combatants. The resolution engine
+ * evaluates ALL outcomes against this snapshot so that damage dealt in one AP
+ * slice does not affect rolls or AC calculations in another.
+ *
+ * @param {Combatant[]} combatants
+ * @returns {Map<string, object>}  keyed by combatant ID
+ */
+function snapshotRoundState(combatants) {
+    const snap = new Map();
+    for (const combatant of combatants) {
+        const actor = combatant.actor;
+        snap.set(combatant.id, {
+            health: toNumber(actor?.system?.resources?.health?.value, 0),
+            armorClass: toNumber(actor?.system?.defenses?.armorClass, 10),
+            incapacitated: false,
+            conditions: new Set() // populated from active effects in future
+        });
+    }
+    return snap;
 }
 
 /**
@@ -932,281 +1095,322 @@ export class TurnOfTheCenturyEncounter {
     }
 
     /**
-     * Run the full AP-tick resolution loop for the current round. Iterates over
-     * all AP ticks in initiative order, executes each combatant's planned actions,
-     * applies damage, builds a timeline, publishes GM-only narration to chat, and
-     * emits {@link TOTC_ENCOUNTER_EVENTS.ROUND_RESOLVED}. GM only.
+     * Resolve a complete encounter round using the snapshot/pre-roll/reconciliation model:
      *
-     * @returns {Promise<object[]>} The completed timeline — one entry per AP tick per combatant.
+     *   1. Freeze round-start game state (HP, AC, conditions).
+     *   2. Build an AP timeline for every combatant — each plan entry gets apStart,
+     *      apEnd, and effectSlot (apEnd + CPI).
+     *   3. Pre-roll all outcomes (to-hit, damage, reaction rolls) against the snapshot.
+     *   4. Reconciliation pass: walk AP slices 1–N in order. Within each slice all
+     *      effects land simultaneously. Apply in-slice modifiers (hunker-down penalties,
+     *      parry/dodge contests) before committing outcomes. Mark incapacitated
+     *      combatants and invalidate their remaining non-autoResolve effects.
+     *   5. Apply final damage to live actor documents.
+     *   6. Publish round narrative and emit ROUND_RESOLVED.
+     *
+     * GM only.
+     *
+     * @returns {Promise<object[]>} Completed timeline of reconciled outcome entries.
      */
     async resolveEncounterRound() {
         this.#requireGm("resolve encounter rounds");
         this.#requireInitiativeReady();
 
-        const initialState = this.state;
-        const perCombatant = foundry.utils.deepClone(initialState.perCombatant ?? {});
-        const timeline = [];
-
         await this.setEncounterPhase("locked");
         await this.setEncounterPhase("resolving");
 
-        const orderedCombatants = sortByInitiativeDescending(this.#combat.combatants?.contents ?? []);
-        const movementFeetPerAp = Number(getMovementFeetPerAp() || 10);
-        for (let tick = 1; tick <= this.apBudget; tick += 1) {
-            for (const combatant of orderedCombatants) {
-                const state = perCombatant[combatant.id];
-                if (!state || state.remainingAp <= 0) continue;
+        const combatants = this.#combat.combatants?.contents ?? [];
+        const apBudget = this.apBudget;
+        const round = this.#combat.round || this.state.round || 1;
 
-                const action = state.plan?.[state.pointer];
-                if (!action) {
-                    state.remainingAp = Math.max(0, state.remainingAp - 1);
-                    state.spentAp += 1;
-                    timeline.push({
-                        tick,
-                        combatantId: combatant.id,
-                        combatantName: combatant.name,
-                        action: null,
-                        outcome: {
-                            result: "forfeit",
-                            detail: `${combatant.name} forfeits 1 AP with no planned action.`
-                        }
-                    });
-                    continue;
-                }
+        // ── Step 1: Freeze round-start state ─────────────────────────────────────
+        const snapshot = snapshotRoundState(combatants);
 
-                state.remainingAp = Math.max(0, state.remainingAp - 1);
-                state.spentAp += 1;
-                state.progress += 1;
+        // ── Step 2: Build timelines ───────────────────────────────────────────────
+        const combatantTimelines = new Map();
+        for (const combatant of combatants) {
+            const plan = this.getCombatantPlan(combatant.id);
+            const timeline = buildCombatantTimeline(plan, apBudget);
+            combatantTimelines.set(combatant.id, { combatant, timeline });
+        }
 
-                if (action.type === "movement") {
-                    const stepFeet = Number(action.movementFeetPerAp || movementFeetPerAp || 10);
-                    timeline.push({
-                        tick,
-                        combatantId: combatant.id,
-                        combatantName: combatant.name,
-                        action,
-                        outcome: {
-                            result: "movementStep",
-                            detail: `${combatant.name} moves ${stepFeet} ft.`
-                        }
-                    });
-                } else if (state.progress < action.apCost) {
-                    timeline.push({
-                        tick,
-                        combatantId: combatant.id,
-                        combatantName: combatant.name,
-                        action,
-                        outcome: {
-                            result: "progress",
-                            detail: `${combatant.name} continues ${action.label} (${state.progress}/${action.apCost} AP).`
-                        }
-                    });
-                }
+        // ── Step 3: Pre-roll all outcomes ─────────────────────────────────────────
+        for (const { combatant, timeline } of combatantTimelines.values()) {
+            await preRollTimelineOutcomes(timeline, combatant, snapshot);
+        }
 
-                if (state.progress < action.apCost) continue;
-
-                if (action.type !== "movement") {
-                    const outcome = await this.#resolveAction(combatant, action);
-                    timeline.push({
-                        tick,
-                        combatantId: combatant.id,
-                        combatantName: combatant.name,
-                        action,
-                        outcome
-                    });
-                }
-
-                state.pointer += 1;
-                state.progress = 0;
+        // ── Step 4: Reconciliation ────────────────────────────────────────────────
+        // Collect every unique effectSlot across all combatants (including CPI>0)
+        const allSlots = new Set();
+        for (const { timeline } of combatantTimelines.values()) {
+            for (const entry of timeline) {
+                if (entry.effectSlot >= 1) allSlots.add(entry.effectSlot);
             }
         }
+        const sortedSlots = [...allSlots].sort((a, b) => a - b);
+
+        // Track damage to apply after all reconciliation, keyed by combatantId
+        const pendingDamage = new Map();
+        const masterTimeline = [];
+
+        for (const slot of sortedSlots) {
+            // Collect everything resolving this slot
+            const slotEntries = [];
+            for (const { combatant, timeline } of combatantTimelines.values()) {
+                const snap = snapshot.get(combatant.id);
+                for (const entry of timeline) {
+                    if (entry.effectSlot !== slot) continue;
+                    // Non-autoResolve actions from incapacitated combatants are skipped
+                    if (snap?.incapacitated && !entry.autoResolve) {
+                        entry.outcome = { result: "invalidated", detail: `${combatant.name} is incapacitated.` };
+                        masterTimeline.push({ slot, combatantId: combatant.id, combatantName: combatant.name, entry });
+                        continue;
+                    }
+                    slotEntries.push({ combatant, entry, snap });
+                }
+            }
+
+            // ── Apply hunker-down penalties to attacks landing this slot ─────────
+            // Find any combatant hunkered whose AP window covers this slot
+            const hunkeredIds = new Set();
+            for (const { combatant, timeline } of combatantTimelines.values()) {
+                for (const entry of timeline) {
+                    if (entry.id !== "hunkDown" && entry.type !== "defense") continue;
+                    if (entry.apStart <= slot && entry.apEnd >= slot) {
+                        hunkeredIds.add(combatant.id);
+                    }
+                }
+            }
+
+            for (const item of slotEntries) {
+                const { entry } = item;
+                if (!entry.requiresToHit || entry.entryType === "reaction") continue;
+                const targetId = entry.targetId;
+                if (!targetId || !hunkeredIds.has(targetId)) continue;
+
+                // Apply ranged to-hit penalty (only for ranged attacks)
+                const isRanged = ["normal", "long"].includes(entry.rangeType);
+                if (isRanged) {
+                    const penalty = -3; // matches hunkDown.rangedToHitPenalty in catalog
+                    entry.penaltyApplied += penalty;
+                    entry.total = (entry.total ?? 0) + penalty;
+                    entry.hitsUnmodified = entry.roll === 20 || (entry.roll !== 1 && entry.total >= entry.targetArmorClass);
+                }
+            }
+
+            // ── Resolve reactions firing this slot ───────────────────────────────
+            // For each attack landing this slot, check if target has an active reaction
+            for (const item of slotEntries) {
+                const { entry: attackEntry, combatant: attacker } = item;
+                if (attackEntry.entryType === "reaction") continue;
+                if (!attackEntry.requiresToHit) continue;
+                if (attackEntry.negated) continue;
+
+                const targetId = attackEntry.targetId;
+                if (!targetId) continue;
+
+                const targetData = combatantTimelines.get(targetId);
+                if (!targetData) continue;
+
+                for (const reactionEntry of targetData.timeline) {
+                    if (reactionEntry.entryType !== "reaction") continue;
+                    if (reactionEntry.reactionTriggerType !== "incomingAttack") continue;
+                    if (reactionEntry.apStart > slot || reactionEntry.apEnd < slot) continue;
+
+                    // Contested roll: reaction total vs attack total
+                    const reactionTotal = reactionEntry.reactionTotal ?? 0;
+                    const attackTotal = attackEntry.total ?? 0;
+                    const reactionSucceeds = reactionTotal >= attackTotal;
+
+                    reactionEntry.outcome = {
+                        result: reactionSucceeds ? "reactionSuccess" : "reactionFailed",
+                        contestedAttackId: attackEntry.id,
+                        attackerId: attacker.id,
+                        reactionTotal,
+                        attackTotal,
+                        detail: reactionSucceeds
+                            ? `${targetData.combatant.name} ${reactionEntry.label}s the attack from ${attacker.name} (${reactionTotal} vs ${attackTotal}).`
+                            : `${targetData.combatant.name}'s ${reactionEntry.label} fails against ${attacker.name}'s attack (${reactionTotal} vs ${attackTotal}).`
+                    };
+
+                    if (reactionSucceeds) {
+                        attackEntry.negated = true;
+                        attackEntry.negatedBy = reactionEntry.id;
+                    }
+
+                    masterTimeline.push({
+                        slot,
+                        combatantId: targetData.combatant.id,
+                        combatantName: targetData.combatant.name,
+                        entry: reactionEntry
+                    });
+                    break; // one reaction per attack
+                }
+            }
+
+            // ── Apply surviving attack outcomes ───────────────────────────────────
+            for (const { combatant, entry, snap } of slotEntries) {
+                if (entry.entryType === "reaction") continue; // already handled above
+                if (entry.outcome) continue; // already set (invalidated, etc.)
+
+                entry.outcome = this.#buildOutcome(combatant, entry, combatantTimelines, snapshot);
+
+                // Accumulate damage for application after full reconciliation
+                if (entry.outcome?.damage > 0 && entry.outcome?.targetCombatantId) {
+                    const tid = entry.outcome.targetCombatantId;
+                    pendingDamage.set(tid, (pendingDamage.get(tid) ?? 0) + entry.outcome.damage);
+
+                    // Check incapacitation against snapshot health
+                    const targetSnap = snapshot.get(tid);
+                    if (targetSnap && (targetSnap.health - (pendingDamage.get(tid) ?? 0)) <= 0) {
+                        targetSnap.incapacitated = true;
+                    }
+                }
+
+                masterTimeline.push({ slot, combatantId: combatant.id, combatantName: combatant.name, entry });
+            }
+        }
+
+        // ── Step 5: Apply accumulated damage to live actors ───────────────────────
+        for (const [combatantId, totalDamage] of pendingDamage.entries()) {
+            const combatant = getCombatantFromId(this.#combat, combatantId);
+            if (!combatant?.actor) continue;
+            const actor = combatant.actor;
+            const current = toNumber(actor.system?.resources?.health?.value, 0);
+            await actor.update({ "system.resources.health.value": Math.max(0, current - totalDamage) });
+        }
+
+        // ── Step 6: Persist state, publish, emit ─────────────────────────────────
+        const flatTimeline = masterTimeline.map((t) => ({
+            slot: t.slot,
+            combatantId: t.combatantId,
+            combatantName: t.combatantName,
+            action: t.entry,
+            outcome: t.entry.outcome
+        }));
 
         await this.#setState({
             ...this.state,
             phase: "roundComplete",
-            timeline,
-            planningStartedAt: 0,
-            perCombatant
+            timeline: flatTimeline,
+            planningStartedAt: 0
         });
 
-        this.emit(TOTC_ENCOUNTER_EVENTS.PHASE_CHANGED, {
-            phase: "roundComplete",
-            previousPhase: "resolving"
-        });
-        this.emit(TOTC_ENCOUNTER_EVENTS.ROUND_RESOLVED, {
-            round: this.#combat.round || this.state.round || 1,
-            timeline
-        });
+        this.emit(TOTC_ENCOUNTER_EVENTS.PHASE_CHANGED, { phase: "roundComplete", previousPhase: "resolving" });
+        this.emit(TOTC_ENCOUNTER_EVENTS.ROUND_RESOLVED, { round, timeline: flatTimeline });
 
-        await this.#publishRoundReplay(timeline);
-        return timeline;
+        await this.#publishRoundReplay(flatTimeline);
+        return flatTimeline;
     }
 
-    async #resolveAction(combatant, action) {
+    /**
+     * Build a narrative outcome object for a single resolved plan entry.
+     * Uses pre-rolled values from the entry; does not re-roll anything.
+     */
+    #buildOutcome(combatant, entry, combatantTimelines, snapshot) {
         const actor = combatant.actor;
-        const item = action.itemId ? actor?.items?.get(action.itemId) : null;
+        const name = combatant.name;
 
-        if (item) {
-            const useResult = await item.executeEncounterAction?.({
-                actor,
-                actionId: action.actionId,
-                consume: true
-            });
-
-            if (useResult && !useResult.success) {
-                return {
-                    result: "failed",
-                    detail: `${combatant.name} cannot complete ${action.label} (${useResult.reason}).`
-                };
-            }
+        if (entry.type === "movement") {
+            const feet = Number(entry.movementFeetPerAp || getMovementFeetPerAp() || 10) * entry.apCost;
+            return { result: "moved", detail: `${name} moves ${feet} ft.` };
         }
 
-        if (action.type === "movement") {
+        if (entry.type === "reload") {
+            return { result: "reloaded", reloadsAmmo: entry.reloadsAmmo, detail: `${name} reloads (${entry.reloadsAmmo} rounds).` };
+        }
+
+        if (entry.type === "defense" && !entry.isReaction) {
+            return { result: "defended", detail: `${name} hunkers down.` };
+        }
+
+        if (!entry.requiresToHit) {
+            return { result: "resolved", detail: `${name} completes ${entry.label}.` };
+        }
+
+        if (entry.negated) {
             return {
-                result: "moved",
-                detail: `${combatant.name} advances ${toNumber(action.movementFeet, 10)} ft.`
+                result: "negated",
+                negatedBy: entry.negatedBy,
+                detail: `${name}'s ${entry.label} is negated by a reaction.`
             };
         }
 
-        if (action.type === "defense") {
-            return {
-                result: "defended",
-                detail: `${combatant.name} braces defensively for ${Math.max(1, toNumber(action.apCost, 1))} AP.`
-            };
-        }
+        // Attack resolution using pre-rolled values
+        const natural = entry.roll ?? 0;
+        const total = entry.total ?? 0;
+        const targetArmorClass = entry.targetArmorClass ?? 10;
+        const hits = natural === 20 || (natural !== 1 && total >= targetArmorClass);
+        const baseDamage = entry.damageRoll ?? 0;
 
-        if (!action.requiresToHit && action.type !== "attack") {
-            return {
-                result: "resolved",
-                detail: `${combatant.name} completes ${action.label}.`
-            };
-        }
-
-        const targetCombatant = this.#resolveDeclaredTarget(combatant.id, action.targetId);
-        const weaponData = item?.system ?? {};
-        const attackAbilityBonus = this.#getAttackAbilityBonus(actor, item);
-        const toHitFlatBonus = Number(action.toHitBonus || 0);
-
-        const roll = await (new Roll("1d20")).roll({ async: true });
-        const natural = Number(roll.total ?? 0);
-
-        const targetForFumble = this.#selectCriticalFailureTarget(combatant.id, action.targetId);
-
-        const targetArmorClass = toNumber(targetCombatant?.actor?.system?.defenses?.armorClass, 10);
-        const toHitTotal = natural + attackAbilityBonus + toHitFlatBonus;
-        const hits = natural === 20 || (natural !== 1 && toHitTotal >= targetArmorClass);
-
-        const damageRoll = await this.#rollDamageForAction({ actor, item, action, weaponData });
-        const baseDamage = Math.max(0, toNumber(damageRoll.total, 0));
+        // Resolve actual target combatant document
+        const targetId = entry.targetId;
+        const targetData = targetId ? combatantTimelines.get(targetId) : null;
+        const targetCombatant = targetData?.combatant ?? this.#fallbackTarget(combatant.id);
+        const targetName = targetCombatant?.name ?? game.i18n.localize("TOTC.Encounter.TargetUnspecified");
 
         if (natural === 20) {
-            const appliedDamage = baseDamage * 2;
-            await this.#applyDamageToCombatant(targetCombatant, appliedDamage);
-
+            const damage = baseDamage * 2;
             return {
                 result: "criticalHit",
-                roll: natural,
-                total: toHitTotal,
-                damageMultiplier: 2,
-                damage: appliedDamage,
-                targetCombatantId: targetCombatant?.id ?? null,
-                targetName: targetCombatant?.name ?? game.i18n.localize("TOTC.Encounter.TargetUnspecified"),
-                detail: `${combatant.name} critically hits ${targetCombatant?.name ?? "the target"} with ${action.label} for ${formatDamageText(appliedDamage)}.`
+                roll: natural, total, damage, damageMultiplier: 2,
+                targetCombatantId: targetCombatant?.id ?? null, targetName,
+                detail: `${name} critically hits ${targetName} with ${entry.label} for ${formatDamageText(damage)}.`
             };
         }
 
         if (natural === 1) {
-            const redirectedTarget = targetForFumble;
-            const appliedDamage = baseDamage * 2;
-            await this.#applyDamageToCombatant(redirectedTarget, appliedDamage);
-
+            const fumbleTarget = this.#selectCriticalFailureTarget(combatant.id, targetId);
+            const damage = baseDamage * 2;
             return {
                 result: "criticalFailure",
-                roll: natural,
-                total: toHitTotal,
-                damageMultiplier: 2,
-                damage: appliedDamage,
-                redirectedTargetId: redirectedTarget?.id ?? null,
-                redirectedTargetName: redirectedTarget?.name ?? null,
-                detail: `${combatant.name} critically fumbles ${action.label}, dealing ${formatDamageText(appliedDamage)} to ${redirectedTarget?.name ?? "an unintended target"}.`
+                roll: natural, total, damage, damageMultiplier: 2,
+                redirectedTargetId: fumbleTarget?.id ?? null,
+                redirectedTargetName: fumbleTarget?.name ?? null,
+                targetCombatantId: fumbleTarget?.id ?? null,
+                detail: `${name} critically fumbles ${entry.label}, dealing ${formatDamageText(damage)} to ${fumbleTarget?.name ?? "an unintended target"}.`
             };
-        }
-
-        if (hits) {
-            await this.#applyDamageToCombatant(targetCombatant, baseDamage);
         }
 
         return {
             result: hits ? "hit" : "miss",
-            roll: natural,
-            total: toHitTotal,
-            targetArmorClass,
+            roll: natural, total, targetArmorClass,
             damage: hits ? baseDamage : 0,
-            targetCombatantId: targetCombatant?.id ?? null,
-            targetName: targetCombatant?.name ?? game.i18n.localize("TOTC.Encounter.TargetUnspecified"),
+            targetCombatantId: hits ? (targetCombatant?.id ?? null) : null,
+            targetName,
             detail: hits
-                ? `${combatant.name} hits ${targetCombatant?.name ?? "the target"} with ${action.label} (AC ${targetArmorClass}) for ${formatDamageText(baseDamage)}.`
-                : `${combatant.name} misses ${targetCombatant?.name ?? "the target"} with ${action.label} (AC ${targetArmorClass}, total ${toHitTotal}).`
+                ? `${name} hits ${targetName} with ${entry.label} (AC ${targetArmorClass}) for ${formatDamageText(baseDamage)}.`
+                : `${name} misses ${targetName} with ${entry.label} (rolled ${total} vs AC ${targetArmorClass}).`
         };
     }
 
-    #resolveDeclaredTarget(sourceCombatantId, targetCombatantId) {
-        if (targetCombatantId) {
-            return this.#combat.combatants?.get(targetCombatantId) ?? null;
-        }
-
-        const candidates = (this.#combat.combatants?.contents ?? []).filter((combatant) => combatant.id !== sourceCombatantId);
+    #fallbackTarget(sourceCombatantId) {
+        const candidates = (this.#combat.combatants?.contents ?? []).filter((c) => c.id !== sourceCombatantId);
         return candidates[0] ?? null;
     }
 
-    #getAttackAbilityBonus(actor, item) {
-        const classification = String(item?.system?.classification ?? "");
-        const dexClassifications = new Set(["simpleRanged", "martialRanged", "firearm", "explosive", "thrown"]);
-        const abilityKey = dexClassifications.has(classification) ? "dex" : "str";
-        return toNumber(actor?.system?.abilities?.[abilityKey]?.bonus, 0);
-    }
-
-    async #rollDamageForAction({ actor, item, action, weaponData }) {
-        const formula = String(weaponData?.damage?.formula || "1").trim() || "1";
-        const bonus = toNumber(weaponData?.damage?.bonus, 0);
-        const compiled = bonus ? `${formula} + ${bonus}` : formula;
-
-        const rollData = {
-            actor: actor?.getRollData?.() ?? actor?.system ?? {},
-            item: item?.getRollData?.() ?? item?.system ?? {},
-            action
-        };
-
-        return (new Roll(compiled, rollData)).roll({ async: true });
+    #selectCriticalFailureTarget(sourceCombatantId, intendedTargetId) {
+        const candidates = (this.#combat.combatants?.contents ?? []).filter((c) => {
+            if (!c?.id) return false;
+            if (c.id === intendedTargetId) return false;
+            return true;
+        });
+        if (!candidates.length) return this.#combat.combatants?.get(sourceCombatantId) ?? null;
+        return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
     }
 
     async #applyDamageToCombatant(combatant, amount) {
         if (!combatant?.actor) return;
         const actor = combatant.actor;
         const current = toNumber(actor.system?.resources?.health?.value, 0);
-        const next = Math.max(0, current - Math.max(0, toNumber(amount, 0)));
-        await actor.update({ "system.resources.health.value": next });
-    }
-
-    #selectCriticalFailureTarget(sourceCombatantId, intendedTargetId) {
-        const candidates = (this.#combat.combatants?.contents ?? []).filter((candidate) => {
-            if (!candidate?.id) return false;
-            if (candidate.id === intendedTargetId) return false;
-            return true;
-        });
-
-        if (!candidates.length) {
-            return this.#combat.combatants?.get(sourceCombatantId) ?? null;
-        }
-
-        return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
+        await actor.update({ "system.resources.health.value": Math.max(0, current - Math.max(0, toNumber(amount, 0))) });
     }
 
     async #publishRoundReplay(timeline) {
         if (!timeline.length) return;
 
         const round = this.#combat.round || this.state.round || 1;
-        const gmLines = timeline.map((entry) => createNarrationMessage(round, entry.tick, entry.outcome.detail));
+        const gmLines = timeline.map((entry) => createNarrationMessage(round, entry.slot ?? entry.tick, entry.outcome?.detail ?? ""));
         const summaryText = game.i18n.format("TOTC.Encounter.RoundSummary", {
             round,
             actionCount: timeline.length

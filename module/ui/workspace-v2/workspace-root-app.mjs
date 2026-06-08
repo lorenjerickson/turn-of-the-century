@@ -2662,6 +2662,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             sceneResolver: (id) => this.#getSceneDocumentById(id)
         });
         const stagedMapSrc = getScenePropertiesStagedBackgroundPath(this._scenePropertiesState, scene);
+        const resolvedSrc = stagedMapSrc || this.#getSceneMapSource(scene) || "";
+        if (globalThis.CONFIG?.debug?.totc) {
+            console.debug("[totc] #getMapPanelScene", {
+                panelId: panel?.id,
+                sceneId,
+                "scene.background.src": scene?.background?.src,
+                "_source.background.src": scene?._source?.background?.src,
+                stagedMapSrc,
+                resolvedSrc,
+                stateSceneId: this._scenePropertiesState?.sceneId,
+                savedBackgroundPath: this._scenePropertiesState?.savedBackgroundPath
+            });
+        }
         if (scene) return this.#buildSceneViewModel(scene, { id: sceneId, mapSrc: stagedMapSrc });
         if (sceneId) return this.#buildSceneViewModel(null, { id: sceneId, name: panel?.title ?? "Missing Scene" });
         return context.scene ?? this.#buildSceneViewModel(null);
@@ -2949,6 +2962,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     #bindSceneHooks() {
         if (this._sceneHooksBound) return;
         Hooks.on("canvasReady", this._sceneRefreshHandler);
+        // canvasTearDown fires in Foundry V12+ when the canvas tears down a scene.
+        // Re-render so map panels that relied on _scenePropertiesState fall back to
+        // scene.background.src, which reflects the persisted database value.
+        Hooks.on("canvasTearDown", this._sceneRefreshHandler);
         Hooks.on("updateScene", this._sceneRefreshHandler);
         Hooks.on("createScene", this._sceneRefreshHandler);
         Hooks.on("deleteScene", this._deletedSceneHandler);
@@ -2991,6 +3008,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     #unbindSceneHooks() {
         if (!this._sceneHooksBound) return;
         Hooks.off("canvasReady", this._sceneRefreshHandler);
+        Hooks.off("canvasTearDown", this._sceneRefreshHandler);
         Hooks.off("updateScene", this._sceneRefreshHandler);
         Hooks.off("createScene", this._sceneRefreshHandler);
         Hooks.off("deleteScene", this._deletedSceneHandler);
@@ -5077,8 +5095,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 });
                 const updateData = buildScenePropertiesUpdateData(model);
 
+                console.info("[totc] scene-properties-save: updating scene", scene.id, updateData);
                 try {
                     await scene.update(updateData);
+                    console.info("[totc] scene-properties-save: update resolved, background.src =", scene.background?.src);
                 } catch (error) {
                     console.error("[turn-of-the-century] Scene properties save failed", error);
                     this._scenePropertiesState = {

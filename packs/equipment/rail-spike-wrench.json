@@ -27,16 +27,47 @@
       }
     },
     "actions": {
-      "defaultActionId": "useItem",
+      "defaultActionId": "wrenchStrike",
       "variants": [
         {
-          "id": "useItem",
-          "label": "Use Item",
-          "type": "utility",
+          "id": "wrenchStrike",
+          "label": "Wrench Strike",
+          "type": "attack",
           "apCost": 1,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "rangeType": "melee",
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": true,
+          "conditions": [],
+          "notes": "<p>Improvised blow with the heavy wrench head. Deals bludgeoning damage.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "useAsWrench",
+          "label": "Turn Fitting",
+          "type": "utility",
+          "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "notes": ""
+          "rangeType": "melee",
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": true,
+          "conditions": [],
+          "notes": "<p>Use the wrench to turn rail spikes, bolts, or valve fittings. Non-combat utility.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

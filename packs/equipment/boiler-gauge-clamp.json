@@ -27,16 +27,49 @@
       }
     },
     "actions": {
-      "defaultActionId": "useItem",
+      "defaultActionId": "clampStrike",
       "variants": [
         {
-          "id": "useItem",
-          "label": "Use Item",
-          "type": "utility",
-          "apCost": 1,
-          "requiresToHit": false,
+          "id": "clampStrike",
+          "label": "Clamp Strike",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
           "toHitBonus": 0,
-          "notes": ""
+          "rangeType": "melee",
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": true,
+          "conditions": [],
+          "notes": "<p>Drive the heavy brass clamp into a target. Bludgeoning damage from a solid instrument.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "lockClamp",
+          "label": "Lock Clamp",
+          "type": "attack",
+          "apCost": 3,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "rangeType": "melee",
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": true,
+          "conditions": [
+            "grappled"
+          ],
+          "notes": "<p>Clamp the gauge housing onto a limb, wrist, or collar and tighten. On hit: grappled. Requires a free hand to operate the locking mechanism.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

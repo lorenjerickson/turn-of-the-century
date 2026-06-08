@@ -22,16 +22,26 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "consumeBeltElixir",
+      "defaultActionId": "drinkSelf",
       "variants": [
         {
-          "id": "consumeBeltElixir",
-          "label": "Consume Belt Elixir",
+          "id": "drinkSelf",
+          "label": "Drink",
           "type": "consumable",
-          "apCost": 2,
+          "apCost": 1,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "notes": "Retrieve from belt and consume under pressure."
+          "targetSelf": true,
+          "targetAlly": false,
+          "requiresAdjacency": false,
+          "conditions": [],
+          "notes": "<p>Drink the elixir. Restores sanity or steadies frayed nerves.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

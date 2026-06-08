@@ -66,10 +66,25 @@ function createActionVariantField({ defaultId = "useItem", defaultLabel = "Use I
     return new SchemaField({
         id: new StringField({ required: true, blank: false, initial: defaultId }),
         label: new StringField({ required: true, blank: false, initial: defaultLabel }),
+        // Action type: "attack" | "utility" | "defense" | "consumable"
         type: new StringField({ required: true, blank: false, initial: defaultType }),
         apCost: new NumberField({ required: true, integer: true, min: 1, initial: defaultApCost }),
         requiresToHit: new BooleanField({ required: true, initial: false }),
         toHitBonus: new NumberField({ required: true, integer: true, initial: 0 }),
+        // Which range band this action uses: "melee" | "normal" | "long"
+        rangeType: new StringField({ required: true, blank: false, initial: "melee" }),
+        // Targeting (relevant for support/utility actions)
+        targetSelf: new BooleanField({ required: true, initial: false }),
+        targetAlly: new BooleanField({ required: true, initial: false }),
+        requiresAdjacency: new BooleanField({ required: true, initial: false }),
+        // Condition IDs applied on a successful hit or use
+                conditions: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] }),
+        completionPhaseIncrement: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+        cpiPerFeet: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+        autoResolve: new BooleanField({ required: true, initial: false }),
+        interruptible: new BooleanField({ required: true, initial: true }),
+        isReaction: new BooleanField({ required: true, initial: false }),
+        reactionTriggerType: new StringField({ required: true, blank: true, initial: "" }),
         notes: new HTMLField({ required: true, blank: true })
     });
 }

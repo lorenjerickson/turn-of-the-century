@@ -27,16 +27,69 @@
       }
     },
     "actions": {
-      "defaultActionId": "useItem",
+      "defaultActionId": "strikeWithHook",
       "variants": [
         {
-          "id": "useItem",
-          "label": "Use Item",
-          "type": "utility",
+          "id": "strikeWithHook",
+          "label": "Strike",
+          "type": "attack",
           "apCost": 1,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "rangeType": "melee",
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": true,
+          "conditions": [],
+          "notes": "<p>Quick improvised blow with the folded steel hook. Deals bludgeoning damage.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "hookAndLever",
+          "label": "Hook and Lever",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "rangeType": "melee",
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": true,
+          "conditions": [
+            "grappled"
+          ],
+          "notes": "<p>Hook onto clothing, a belt, or a limb and yank. On hit: target is off-balance (grappled) and loses their footing.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "leverageOpen",
+          "label": "Force Open",
+          "type": "utility",
+          "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "notes": ""
+          "rangeType": "melee",
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": true,
+          "conditions": [],
+          "notes": "<p>Apply the hook to a stuck hatch, crate, or iron fitting and lever it open. Not an attack \u2014 used against objects.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

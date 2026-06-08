@@ -27,12 +27,65 @@
       "variants": [
         {
           "id": "flareShot",
-          "label": "Fire Signal",
+          "label": "Fire Signal Flare",
+          "type": "utility",
+          "apCost": 2,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "consumesAmmo": 1,
+          "requiresAmmo": 1,
+          "reloadsAmmo": 0,
+          "rangeType": "long",
+          "conditions": [],
+          "notes": "<p>Fire a flare skyward or at a distant surface. Illuminates a wide area; visible for miles. No attack roll required.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "dazzleBlast",
+          "label": "Dazzle Blast",
           "type": "attack",
           "apCost": 3,
           "requiresToHit": true,
           "toHitBonus": -1,
-          "notes": "Single discharge; imposes Blinded on target if fired within 10 feet."
+          "consumesAmmo": 1,
+          "requiresAmmo": 1,
+          "reloadsAmmo": 0,
+          "rangeType": "normal",
+          "conditions": [
+            "blinded"
+          ],
+          "notes": "<p>Fire directly at a target. On hit, the flare burst blinds the target until end of next round.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "reload",
+          "label": "Reload",
+          "type": "reload",
+          "apCost": 2,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 1,
+          "rangeType": "melee",
+          "conditions": [],
+          "notes": "<p>Seat a fresh flare cartridge into the single-shot breech.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

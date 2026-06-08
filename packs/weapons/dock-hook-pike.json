@@ -23,16 +23,69 @@
     },
     "handedness": "twoHanded",
     "actions": {
-      "defaultActionId": "weaponAttack",
+      "defaultActionId": "hookStrike",
       "variants": [
         {
-          "id": "weaponAttack",
-          "label": "Attack",
+          "id": "hookStrike",
+          "label": "Hook Strike",
+          "type": "attack",
+          "apCost": 1,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 0,
+          "rangeType": "melee",
+          "conditions": [],
+          "notes": "<p>Standard swing with the hooked head.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "dragAndHook",
+          "label": "Drag and Hook",
           "type": "attack",
           "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "notes": ""
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 0,
+          "rangeType": "melee",
+          "conditions": [
+            "grappled"
+          ],
+          "notes": "<p>Catch the hook on clothing or armour and wrench the target off balance. Grappled on hit.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "sweepStrike",
+          "label": "Sweep",
+          "type": "attack",
+          "apCost": 3,
+          "requiresToHit": true,
+          "toHitBonus": -1,
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 0,
+          "rangeType": "melee",
+          "conditions": [],
+          "notes": "<p>Wide sweeping arc. Can strike multiple adjacent targets.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

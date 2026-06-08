@@ -65,10 +65,29 @@ function createActionVariantField({ defaultId = "consumeItem", defaultLabel = "C
     return new SchemaField({
         id: new StringField({ required: true, blank: false, initial: defaultId }),
         label: new StringField({ required: true, blank: false, initial: defaultLabel }),
+        // Action type: "consumable" | "attack" | "utility"
         type: new StringField({ required: true, blank: false, initial: "consumable" }),
         apCost: new NumberField({ required: true, integer: true, min: 1, initial: defaultApCost }),
         requiresToHit: new BooleanField({ required: true, initial: false }),
         toHitBonus: new NumberField({ required: true, integer: true, initial: 0 }),
+        // Targeting
+        targetSelf: new BooleanField({ required: true, initial: true }),
+        targetAlly: new BooleanField({ required: true, initial: false }),
+        requiresAdjacency: new BooleanField({ required: true, initial: false }),
+        // Condition IDs applied on use
+        conditions: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] }),
+        // Completion phase increment: additional AP slots after action completes before effect lands
+        completionPhaseIncrement: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+        // Distance-based CPI: if > 0, CPI = floor(targetDistance / cpiPerFeet)
+        cpiPerFeet: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+        // Effect continues after actor incapacitation (e.g. thrown flask already in flight)
+        autoResolve: new BooleanField({ required: true, initial: false }),
+        // A correctly-timed reaction can cancel an autoResolve effect before it lands
+        interruptible: new BooleanField({ required: true, initial: true }),
+        // Declared as a reaction entry in the plan rather than a proactive action
+        isReaction: new BooleanField({ required: true, initial: false }),
+        // Trigger type: "incomingAttack" | "allyInjured" | "overwatch" | "defuse" | ""
+        reactionTriggerType: new StringField({ required: true, blank: true, initial: "" }),
         notes: new HTMLField({ required: true, blank: true })
     });
 }

@@ -23,16 +23,71 @@
     },
     "handedness": "oneHanded",
     "actions": {
-      "defaultActionId": "weaponAttack",
+      "defaultActionId": "hammerblow",
       "variants": [
         {
-          "id": "weaponAttack",
-          "label": "Attack",
+          "id": "hammerblow",
+          "label": "Hammer Blow",
+          "type": "attack",
+          "apCost": 1,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 0,
+          "rangeType": "melee",
+          "conditions": [],
+          "notes": "<p>A solid strike with the iron head.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "crushingBlow",
+          "label": "Crushing Blow",
           "type": "attack",
           "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "notes": ""
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 0,
+          "rangeType": "melee",
+          "conditions": [
+            "stunned"
+          ],
+          "notes": "<p>A heavy driven blow. Stuns the target on a critical hit.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "overhandSmash",
+          "label": "Overhand Smash",
+          "type": "attack",
+          "apCost": 3,
+          "requiresToHit": true,
+          "toHitBonus": -1,
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 0,
+          "rangeType": "melee",
+          "conditions": [
+            "stunned"
+          ],
+          "notes": "<p>Raise the hammer high and bring it down with full force. Penalty to hit; maximum damage die on a critical.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

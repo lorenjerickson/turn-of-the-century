@@ -23,16 +23,49 @@
     },
     "handedness": "thrown",
     "actions": {
-      "defaultActionId": "weaponAttack",
+      "defaultActionId": "lightAndThrow",
       "variants": [
         {
-          "id": "weaponAttack",
-          "label": "Attack",
-          "type": "attack",
+          "id": "lightAndThrow",
+          "label": "Light and Throw",
+          "type": "utility",
           "apCost": 2,
-          "requiresToHit": true,
+          "requiresToHit": false,
           "toHitBonus": 0,
-          "notes": ""
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 0,
+          "rangeType": "normal",
+          "conditions": [],
+          "notes": "<p>Strike the igniter and lob the bomb to a chosen area. Illuminates a 20ft radius for the scene. No attack roll required.</p>",
+          "completionPhaseIncrement": 1,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "blastThrow",
+          "label": "Blind Throw",
+          "type": "attack",
+          "apCost": 3,
+          "requiresToHit": true,
+          "toHitBonus": -1,
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 0,
+          "rangeType": "normal",
+          "conditions": [
+            "blinded"
+          ],
+          "notes": "<p>Hurl the bomb directly at a target. On hit, the burst blinds all within 10ft until end of next round.</p>",
+          "completionPhaseIncrement": 1,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

@@ -31,7 +31,13 @@
           "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "notes": "Retrieve from belt and consume under pressure."
+          "notes": "Retrieve from belt and consume under pressure.",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

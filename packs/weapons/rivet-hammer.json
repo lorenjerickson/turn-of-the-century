@@ -23,16 +23,47 @@
     },
     "handedness": "oneHanded",
     "actions": {
-      "defaultActionId": "weaponAttack",
+      "defaultActionId": "strike",
       "variants": [
         {
-          "id": "weaponAttack",
-          "label": "Attack",
+          "id": "strike",
+          "label": "Strike",
+          "type": "attack",
+          "apCost": 1,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 0,
+          "rangeType": "melee",
+          "conditions": [],
+          "notes": "<p>Quick club blow with the rivet end.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "hammerBlow",
+          "label": "Hammer Blow",
           "type": "attack",
           "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "notes": ""
+          "consumesAmmo": 0,
+          "requiresAmmo": 0,
+          "reloadsAmmo": 0,
+          "rangeType": "melee",
+          "conditions": [],
+          "notes": "<p>Driven two-handed strike for maximum impact.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

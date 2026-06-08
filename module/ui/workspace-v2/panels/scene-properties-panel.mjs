@@ -46,6 +46,12 @@ export function buildSceneBackgroundUploadTarget({ sceneName = "", filename = ""
 
 function clonePlainObject(value) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    // Prefer toObject() for Foundry DataModel instances to avoid spreading
+    // prototype-defined or non-enumerable getters incorrectly. Plain objects
+    // don't have toObject, so the spread fallback handles them correctly.
+    if (typeof value.toObject === "function") {
+        try { return value.toObject(); } catch { /* fall through to spread */ }
+    }
     return { ...value };
 }
 
@@ -173,6 +179,8 @@ export function buildScenePropertiesUpdateData(model = {}) {
     if (sceneName) updateData.name = sceneName;
 
     if (backgroundPath) {
+        // clonePlainObject uses toObject() for Foundry DataModel instances to
+        // avoid spreading prototype-defined getters with internal state.
         updateData.background = {
             ...clonePlainObject(model.currentBackgroundData),
             src: backgroundPath
@@ -187,6 +195,10 @@ export function buildScenePropertiesUpdateData(model = {}) {
             updateData["grid.type"] = 0;
             updateData["grid.size"] = 100;
         }
+    }
+
+    if (globalThis.CONFIG?.debug?.totc) {
+        console.debug("[totc] buildScenePropertiesUpdateData", { model, updateData });
     }
 
     return updateData;

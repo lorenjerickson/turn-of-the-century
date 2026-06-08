@@ -32,7 +32,13 @@
           "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "notes": ""
+          "notes": "",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

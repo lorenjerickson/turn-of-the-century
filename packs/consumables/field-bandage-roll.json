@@ -22,16 +22,45 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "consumeItem",
+      "defaultActionId": "dressWound",
       "variants": [
         {
-          "id": "consumeItem",
-          "label": "Consume Item",
+          "id": "dressWound",
+          "label": "Dress Wound",
           "type": "consumable",
-          "apCost": 1,
+          "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "notes": ""
+          "targetSelf": true,
+          "targetAlly": false,
+          "requiresAdjacency": false,
+          "conditions": [],
+          "notes": "<p>Apply a bandage to your own wound. Stops a bleeding condition. Consumes one wrap.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "bindAllyWound",
+          "label": "Bind Ally's Wound",
+          "type": "consumable",
+          "apCost": 3,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "targetSelf": false,
+          "targetAlly": true,
+          "requiresAdjacency": true,
+          "conditions": [],
+          "notes": "<p>Dress an adjacent ally's wound. Stops their bleeding condition. Consumes one wrap.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

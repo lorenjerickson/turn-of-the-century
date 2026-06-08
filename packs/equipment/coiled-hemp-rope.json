@@ -27,16 +27,74 @@
       }
     },
     "actions": {
-      "defaultActionId": "useItem",
+      "defaultActionId": "bindOpponent",
       "variants": [
         {
-          "id": "useItem",
-          "label": "Use Item",
-          "type": "utility",
-          "apCost": 1,
-          "requiresToHit": false,
+          "id": "bindOpponent",
+          "label": "Bind Opponent",
+          "type": "attack",
+          "apCost": 3,
+          "requiresToHit": true,
           "toHitBonus": 0,
-          "notes": ""
+          "rangeType": "melee",
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": true,
+          "conditions": [
+            "grappled",
+            "restrained"
+          ],
+          "notes": "<p>Loop and secure rope around an adjacent opponent. On hit: grappled. If maintained next round: restrained. Requires a free hand.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "chokeWithRope",
+          "label": "Choke",
+          "type": "attack",
+          "apCost": 3,
+          "requiresToHit": true,
+          "toHitBonus": 0,
+          "rangeType": "melee",
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": true,
+          "conditions": [
+            "stunned"
+          ],
+          "notes": "<p>Pull the rope across the throat of an adjacent target. Requires approaching from behind or target already grappled. Ongoing damage each tick while maintained.</p>",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
+        },
+        {
+          "id": "throwRopeAndTrip",
+          "label": "Throw and Trip",
+          "type": "attack",
+          "apCost": 2,
+          "requiresToHit": true,
+          "toHitBonus": -1,
+          "rangeType": "normal",
+          "targetSelf": false,
+          "targetAlly": false,
+          "requiresAdjacency": false,
+          "conditions": [
+            "prone"
+          ],
+          "notes": "<p>Hurl a loop of rope at a target's legs. On hit: target is tripped prone. Short range (15ft). Penalty to hit from imprecision.</p>",
+          "completionPhaseIncrement": 1,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },

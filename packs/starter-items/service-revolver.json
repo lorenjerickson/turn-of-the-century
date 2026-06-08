@@ -32,7 +32,13 @@
           "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": -2,
-          "notes": "Fast draw and fire with reduced accuracy."
+          "notes": "Fast draw and fire with reduced accuracy.",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         },
         {
           "id": "pistolAimedShot",
@@ -41,7 +47,13 @@
           "apCost": 3,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "notes": "Deliberate shot with full accuracy."
+          "notes": "Deliberate shot with full accuracy.",
+          "completionPhaseIncrement": 0,
+          "cpiPerFeet": 0,
+          "autoResolve": false,
+          "interruptible": true,
+          "isReaction": false,
+          "reactionTriggerType": ""
         }
       ]
     },
