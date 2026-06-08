@@ -24,7 +24,7 @@ function makeScene(overrides = {}) {
     return {
         id: "scene-1",
         name: "Whitechapel Alley",
-        background: { src: "scenes/whitechapel.webp" },
+        img: "scenes/whitechapel.webp",
         walls: { size: 12 },
         lights: { size: 0 },
         darkness: 0,
@@ -99,7 +99,7 @@ describe("scanDesignIssues — scene checks", () => {
     });
 
     it("flags a scene with no background src", () => {
-        const scene = makeScene({ background: { src: "" } });
+        const scene = makeScene({ img: "" });
         const issues = scanDesignIssues({ scene });
         assert.ok(issues.some((i) => i.id === "scene.no-background"), "expected scene.no-background");
         const issue = issues.find((i) => i.id === "scene.no-background");
@@ -110,14 +110,14 @@ describe("scanDesignIssues — scene checks", () => {
         assert.equal(issue.navigateAction, "navigate.scene.config");
     });
 
-    it("flags a scene with null background", () => {
-        const scene = makeScene({ background: null, img: null });
+    it("flags a scene with null img", () => {
+        const scene = makeScene({ img: null });
         const issues = scanDesignIssues({ scene });
         assert.ok(issues.some((i) => i.id === "scene.no-background"));
     });
 
     it("accepts an old source img fallback as background without touching the Scene img getter", () => {
-        const scene = makeScene({ background: null, _source: { img: "scenes/fallback.webp" } });
+        const scene = makeScene({ img: undefined, _source: { img: "scenes/fallback.webp" } });
         Object.defineProperty(scene, "img", {
             get() {
                 throw new Error("deprecated Scene#img getter was touched");
@@ -127,14 +127,11 @@ describe("scanDesignIssues — scene checks", () => {
         assert.ok(!issues.some((i) => i.id === "scene.no-background"), "should not flag source img fallback");
     });
 
-    it("accepts live background data when an empty draft source has not caught up", () => {
-        const scene = makeScene({
-            _source: { background: { src: "" } },
-            background: { src: "scenes/saved-map.webp" }
-        });
+    it("accepts a scene with img set as not missing background", () => {
+        const scene = makeScene({ img: "scenes/saved-map.webp" });
         const issues = scanDesignIssues({ scene });
 
-        assert.ok(!issues.some((i) => i.id === "scene.no-background"), "should not flag saved live background");
+        assert.ok(!issues.some((i) => i.id === "scene.no-background"), "should not flag scene with img set");
     });
 
     it("flags a scene with no walls", () => {
@@ -193,7 +190,7 @@ describe("scanDesignIssues — scene checks", () => {
     });
 
     it("includes the scene name in issue detail text", () => {
-        const scene = makeScene({ name: "Grimshaw Mausoleum", background: { src: "" } });
+        const scene = makeScene({ name: "Grimshaw Mausoleum", img: "" });
         const issues = scanDesignIssues({ scene });
         const issue = issues.find((i) => i.id === "scene.no-background");
         assert.match(issue.detail, /Grimshaw Mausoleum/);
@@ -449,7 +446,7 @@ describe("scanDesignIssues — encounter checks", () => {
 describe("scanDesignIssues — combined output", () => {
     it("returns issues from all three categories in a single call", () => {
         const scene = makeScene({
-            background: { src: "" },
+            img: "",
             walls: { size: 0 },
             darkness: 0.5,
             lights: { size: 0 },
@@ -466,7 +463,7 @@ describe("scanDesignIssues — combined output", () => {
     });
 
     it("all returned issues have the required fields", () => {
-        const scene = makeScene({ background: { src: "" } });
+        const scene = makeScene({ img: "" });
         const actors = [makeActor({ img: null })];
         const issues = scanDesignIssues({ scene, actors });
         for (const issue of issues) {

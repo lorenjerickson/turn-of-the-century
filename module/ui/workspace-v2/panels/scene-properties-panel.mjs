@@ -88,14 +88,20 @@ export function buildScenePropertiesPanelModel({
 
 /**
  * Build the update data to send to scene.update() when saving a background.
- * Uses dot-notation keys (matching Foundry v14's expected format for nested
- * DataModel updates, consistent with buildGridCalibrationSceneUpdate).
+ *
+ * Foundry v14 deprecated Scene#background and Scene#texture as getters/setters.
+ * The primary scene image field in v14 is `img` (restored from pre-v12 API).
+ * We set `img` as the main field and also set `"texture.src"` for compatibility
+ * with Foundry's canvas rendering which reads from `texture.src` in some paths.
+ *
+ * Do NOT use `"background.src"` — in Foundry v14 that key routes through the
+ * deprecated Level#background setter and may be silently dropped.
  */
 export function buildSceneBackgroundUpdateData(backgroundPath = "") {
     const src = String(backgroundPath ?? "").trim();
     if (!src) return {};
     return {
-        "background.src": src,
+        img: src,
         "texture.src": src
     };
 }

@@ -35,12 +35,12 @@ describe("Scene properties panel", () => {
         assert.equal(buildSceneBackgroundUploadTarget({ sceneName: "Whitechapel", filename: "map.txt" }).valid, false);
     });
 
-    it("reads scene name and background directly from the scene document", () => {
+    it("reads scene name and background via scene.img (Foundry v14 primary field)", () => {
         const model = buildScenePropertiesPanelModel({
             scene: {
                 id: "scene-a",
                 name: "Whitechapel",
-                background: { src: "assets/images/scenes/whitechapel.webp" }
+                img: "assets/images/scenes/whitechapel.webp"
             }
         });
         assert.equal(model.sceneId, "scene-a");
@@ -48,6 +48,17 @@ describe("Scene properties panel", () => {
         assert.equal(model.backgroundPath, "assets/images/scenes/whitechapel.webp");
         assert.equal(model.uploadEnabled, true);
         assert.equal(model.deleteEnabled, true);
+    });
+
+    it("reads background from _source.background.src as fallback", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: {
+                id: "scene-b",
+                name: "Whitechapel",
+                _source: { background: { src: "assets/images/scenes/whitechapel.webp" } }
+            }
+        });
+        assert.equal(model.backgroundPath, "assets/images/scenes/whitechapel.webp");
     });
 
     it("disables upload when no scene is provided", () => {
@@ -59,7 +70,7 @@ describe("Scene properties panel", () => {
 
     it("disables upload when scene has no name", () => {
         const model = buildScenePropertiesPanelModel({
-            scene: { id: "scene-draft", name: "", background: { src: "" } }
+            scene: { id: "scene-draft", name: "" }
         });
         assert.equal(model.uploadEnabled, false);
     });
@@ -85,9 +96,9 @@ describe("Scene properties panel", () => {
         assert.equal(model.error, "");
     });
 
-    it("builds background update data using dot-notation keys for scene.update()", () => {
+    it("builds background update data using Foundry v14 img key for scene.update()", () => {
         assert.deepEqual(buildSceneBackgroundUpdateData("assets/images/scenes/whitechapel.webp"), {
-            "background.src": "assets/images/scenes/whitechapel.webp",
+            img: "assets/images/scenes/whitechapel.webp",
             "texture.src": "assets/images/scenes/whitechapel.webp"
         });
     });

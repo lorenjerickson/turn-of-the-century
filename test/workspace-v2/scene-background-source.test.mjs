@@ -4,19 +4,29 @@ import { describe, it } from "node:test";
 import { getSceneBackgroundSource } from "../../module/ui/workspace-v2/scene-background-source.mjs";
 
 describe("Scene background source", () => {
-    it("prefers live scene background data over stale raw source data", () => {
+    it("prefers scene.img (Foundry v14 primary field) over all fallbacks", () => {
         assert.equal(getSceneBackgroundSource({
-            _source: { background: { src: "assets/images/scenes/old.webp" } },
-            background: { src: "assets/images/scenes/current.webp" }
+            img: "assets/images/scenes/current.webp",
+            _source: { img: "assets/images/scenes/old.webp", background: { src: "assets/images/scenes/older.webp" } }
         }), "assets/images/scenes/current.webp");
     });
 
-    it("falls back through texture and raw source background paths", () => {
+    it("falls back through _source.img, _source.background.src, _source.texture.src", () => {
         assert.equal(getSceneBackgroundSource({
-            texture: { src: "assets/images/scenes/texture.webp" }
-        }), "assets/images/scenes/texture.webp");
+            _source: { img: "assets/images/scenes/raw-img.webp" }
+        }), "assets/images/scenes/raw-img.webp");
+
         assert.equal(getSceneBackgroundSource({
-            _source: { background: { src: "assets/images/scenes/raw.webp" } }
-        }), "assets/images/scenes/raw.webp");
+            _source: { background: { src: "assets/images/scenes/raw-bg.webp" } }
+        }), "assets/images/scenes/raw-bg.webp");
+
+        assert.equal(getSceneBackgroundSource({
+            _source: { texture: { src: "assets/images/scenes/raw-tex.webp" } }
+        }), "assets/images/scenes/raw-tex.webp");
+    });
+
+    it("returns empty string when no background path is found", () => {
+        assert.equal(getSceneBackgroundSource({}), "");
+        assert.equal(getSceneBackgroundSource(null), "");
     });
 });

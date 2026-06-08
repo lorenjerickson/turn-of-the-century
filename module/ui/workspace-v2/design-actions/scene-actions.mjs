@@ -109,15 +109,12 @@ export function buildSceneCreationData({ backgroundPath = "", name = "", navigat
     const filename = normalizeSlashPath(safeBackgroundPath).split("/").pop() ?? "";
     const sceneName = String(name ?? "").trim() || titleCaseFromSlug(filename);
 
+    // Use `img` as the primary background field (Foundry v14 API).
+    // scene.background / scene.texture are deprecated in v14.
     return {
         name: sceneName,
         navigation: Boolean(navigation),
-        background: {
-            src: safeBackgroundPath
-        },
-        texture: {
-            src: safeBackgroundPath
-        },
+        img: safeBackgroundPath,
         flags: {
             "turn-of-the-century": {
                 designCreated: true,
@@ -133,9 +130,6 @@ export function buildBlankSceneCreationData({ name = "", navigation = true } = {
     return {
         name: sceneName,
         navigation: Boolean(navigation),
-        background: {
-            src: ""
-        },
         flags: {
             "turn-of-the-century": {
                 designCreated: true,

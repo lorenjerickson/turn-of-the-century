@@ -13,7 +13,7 @@ describe("Scenes panel", () => {
                 id: "scene-a",
                 name: "Station Yard",
                 active: true,
-                background: { src: "yard.webp" },
+                img: "yard.webp",
                 grid: { type: 1 }
             },
             {
@@ -53,13 +53,12 @@ describe("Scenes panel", () => {
         assert.equal(model.entries[0].isDefault, true);
     });
 
-    it("recognizes a saved map when draft raw source is empty but scene background is populated", () => {
+    it("recognizes a saved map when img is set on the scene", () => {
         const model = buildScenesPanelModel({
             scenes: [{
                 id: "scene-draft",
                 name: "Draft Map",
-                _source: { background: { src: "" } },
-                background: { src: "assets/images/scenes/draft-map.webp" }
+                img: "assets/images/scenes/draft-map.webp"
             }]
         });
 
@@ -106,7 +105,7 @@ describe("Scenes panel", () => {
                 name: "Station Yard",
                 flags: { "turn-of-the-century": { defaultScene: true } },
                 grid: { type: 1 },
-                background: { src: "yard.webp" }
+                img: "yard.webp"
             }]
         });
 
@@ -116,7 +115,7 @@ describe("Scenes panel", () => {
 
     it("applies a background-image gradient style when mapSrc is available", () => {
         const model = buildScenesPanelModel({
-            scenes: [{ id: "scene-a", name: "Station Yard", background: { src: "yard.webp" }, grid: { type: 1 } }]
+            scenes: [{ id: "scene-a", name: "Station Yard", img: "yard.webp", grid: { type: 1 } }]
         });
 
         const html = renderScenesPanel(model);

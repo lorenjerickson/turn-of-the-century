@@ -24,7 +24,7 @@ function makeScene(overrides = {}) {
     return {
         id: "scene-1",
         name: "Irongate Station",
-        background: { src: "scenes/irongate.webp" },
+        img: "scenes/irongate.webp",
         walls: { size: 8 },
         lights: { size: 0 },
         darkness: 0,
@@ -62,7 +62,7 @@ describe("buildDesignIssuesPanelModel", () => {
     });
 
     it("groups issues into categories in scene → actor → encounter order", () => {
-        const scene = makeScene({ background: { src: "" } });
+        const scene = makeScene({ img: "" });
         const actor = makeActor({ img: null });
         const model = buildDesignIssuesPanelModel({ scene, actors: [actor] });
 
@@ -73,14 +73,14 @@ describe("buildDesignIssuesPanelModel", () => {
     });
 
     it("each category carries a human-readable label", () => {
-        const scene = makeScene({ background: { src: "" } });
+        const scene = makeScene({ img: "" });
         const model = buildDesignIssuesPanelModel({ scene });
         const sceneCat = model.categories.find((c) => c.id === "scene");
         assert.equal(sceneCat.label, "Scene");
     });
 
     it("totalCount reflects the sum across all categories", () => {
-        const scene = makeScene({ background: { src: "" }, walls: { size: 0 } });
+        const scene = makeScene({ img: "", walls: { size: 0 } });
         const actor = makeActor({ img: null });
         const model = buildDesignIssuesPanelModel({ scene, actors: [actor] });
         assert.equal(model.totalCount, model.categories.reduce((sum, cat) => sum + cat.issues.length, 0));
@@ -108,21 +108,21 @@ describe("renderDesignIssuesPanel", () => {
     });
 
     it("renders issue count in the heading when issues exist", () => {
-        const scene = makeScene({ background: { src: "" }, walls: { size: 0 } });
+        const scene = makeScene({ img: "", walls: { size: 0 } });
         const model = buildDesignIssuesPanelModel({ scene });
         const html = renderDesignIssuesPanel(model, { escapeHTML: escape });
         assert.match(html, /2 issues found/);
     });
 
     it("renders singular 'issue' for a count of 1", () => {
-        const scene = makeScene({ background: { src: "" } });
+        const scene = makeScene({ img: "" });
         const model = buildDesignIssuesPanelModel({ scene });
         const html = renderDesignIssuesPanel(model, { escapeHTML: escape });
         assert.match(html, /1 issue found/);
     });
 
     it("renders navigate-design-issue data-actions on issue buttons", () => {
-        const scene = makeScene({ background: { src: "" } });
+        const scene = makeScene({ img: "" });
         const model = buildDesignIssuesPanelModel({ scene });
         const html = renderDesignIssuesPanel(model, { escapeHTML: escape });
         assert.match(html, /data-action="navigate-design-issue"/);
@@ -133,21 +133,21 @@ describe("renderDesignIssuesPanel", () => {
         const scene = makeScene({ name: "Grim<shaw> & Sons" });
         // This will produce a detail mentioning the scene name — escaping must protect it
         const model = buildDesignIssuesPanelModel({
-            scene: { ...scene, background: { src: "" } }
+            scene: { ...scene, img: "" }
         });
         const html = renderDesignIssuesPanel(model, { escapeHTML: escape });
         assert.ok(!html.includes("<shaw>"), "unescaped HTML tag found in render output");
     });
 
     it("renders a warning severity class on warning issues", () => {
-        const scene = makeScene({ background: { src: "" } });
+        const scene = makeScene({ img: "" });
         const model = buildDesignIssuesPanelModel({ scene });
         const html = renderDesignIssuesPanel(model, { escapeHTML: escape });
         assert.match(html, /totc-v2-issues-panel__issue--warning/);
     });
 
     it("renders category sections in scene → actor → encounter order", () => {
-        const scene = makeScene({ background: { src: "" } });
+        const scene = makeScene({ img: "" });
         const actor = makeActor({ img: null });
         const model = buildDesignIssuesPanelModel({ scene, actors: [actor] });
         const html = renderDesignIssuesPanel(model, { escapeHTML: escape });

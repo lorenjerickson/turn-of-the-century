@@ -38,8 +38,8 @@ describe("scene design actions", () => {
 
         assert.equal(data.name, "Whitechapel Alley Night");
         assert.equal(data.navigation, true);
-        assert.deepEqual(data.background, { src: "assets/images/scenes/whitechapel-alley-night.webp" });
-        assert.equal(Object.hasOwn(data, "img"), false);
+        assert.equal(data.img, "assets/images/scenes/whitechapel-alley-night.webp");
+        assert.equal(Object.hasOwn(data, "background"), false);
         assert.equal(data.flags["turn-of-the-century"].designCreated, true);
         assert.equal(data.flags["turn-of-the-century"].assetContext, "images/scenes");
     });
@@ -49,7 +49,8 @@ describe("scene design actions", () => {
 
         assert.equal(data.name, "New Scene");
         assert.equal(data.navigation, true);
-        assert.deepEqual(data.background, { src: "" });
+        assert.equal(Object.hasOwn(data, "background"), false);
+        assert.equal(Object.hasOwn(data, "img"), false);
         assert.equal(data.flags["turn-of-the-century"].designCreated, true);
         assert.equal(data.flags["turn-of-the-century"].designDraft, true);
     });
@@ -68,7 +69,7 @@ describe("scene design actions", () => {
 
         assert.equal(result.ok, true);
         assert.equal(result.name, "Baker Street");
-        assert.equal(createdData.background.src, "assets/images/scenes/baker-street.webp");
+        assert.equal(createdData.img, "assets/images/scenes/baker-street.webp");
     });
 
     it("encapsulates scene creation behind SceneDesignService", async () => {
@@ -88,7 +89,7 @@ describe("scene design actions", () => {
 
         assert.equal(result.ok, true);
         assert.equal(result.name, "Railway Yard");
-        assert.equal(createdData.background.src, "assets/images/scenes/railway-yard.webp");
+        assert.equal(createdData.img, "assets/images/scenes/railway-yard.webp");
     });
 
     it("refuses to create scenes from unorganized media paths", async () => {
@@ -138,7 +139,7 @@ describe("scene design actions", () => {
 
         assert.equal(result.ok, true);
         assert.equal(result.name, "New Scene");
-        assert.equal(createdData.background.src, "");
+        assert.equal(Object.hasOwn(createdData, "background"), false);
         assert.equal(createdData.flags["turn-of-the-century"].designDraft, true);
     });
 

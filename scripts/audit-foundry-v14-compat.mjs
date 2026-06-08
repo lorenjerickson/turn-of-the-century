@@ -22,7 +22,8 @@ const BANNED_PATTERNS = [
     { name: "legacy ItemSheet class", pattern: /foundry\.applications\??\.sheets\??\.ItemSheet(?!V2)/ },
     { name: "ui.windows registry", pattern: /\bui\.windows\b/ },
     { name: "deprecated scene darkness getter", pattern: /\bscene\??\.darkness\b/ },
-    { name: "legacy scene image getter", pattern: /\bscene\??\.img\b/ },
+    { name: "deprecated scene.background getter (use scene.img or _source)", pattern: /\bscene\??\.background\b/ },
+    { name: "deprecated scene.texture getter (use scene.img or _source)", pattern: /\bscene\??\.texture\b/ },
     { name: "legacy scene grid offset", pattern: /grid\.offset/ },
     { name: "Application V1 activateListeners", pattern: /\bactivateListeners\s*\(/ },
     { name: "Application V1 getData", pattern: /^\s*(?:async\s+)?getData\s*\(/ },
@@ -50,6 +51,9 @@ for (const file of files) {
     const abs = path.join(ROOT, file);
     const lines = fs.readFileSync(abs, "utf8").split(/\r?\n/);
     lines.forEach((line, index) => {
+        const trimmed = line.trimStart();
+        // Skip pure comment lines — audit targets executable code only
+        if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return;
         for (const rule of BANNED_PATTERNS) {
             if (rule.pattern.test(line)) {
                 violations.push({

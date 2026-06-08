@@ -840,10 +840,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     sceneId: scene?.id,
                     sceneName: scene?.name,
                     changes,
-                    "scene.background.src": scene?.background?.src,
-                    "scene._source.background.src": scene?._source?.background?.src,
-                    "scene.texture.src": scene?.texture?.src,
-                    "scene._source.texture.src": scene?._source?.texture?.src
+                    "scene.img": scene?.img ?? null,
+                    "_source.img": scene?._source?.img ?? null,
+                    "_source.background.src": scene?._source?.background?.src ?? null,
+                    "_source.texture.src": scene?._source?.texture?.src ?? null,
+                    "getSceneBackgroundSource()": getSceneBackgroundSource(scene)
                 });
             } else if (scene && !changes) {
                 // Called from canvasReady or canvasTearDown — scene arg may be the canvas/scene object
@@ -1834,9 +1835,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 totcLogger.info("[open-scene-map] Map panel opened", {
                     sceneId,
                     sceneName: openedScene?.name ?? null,
-                    "scene.background.src": openedScene?.background?.src ?? null,
-                    "scene._source.background.src": openedScene?._source?.background?.src ?? null,
-                    "scene.texture.src": openedScene?.texture?.src ?? null,
+                    "scene.img": openedScene?.img ?? null,
+                    "_source.img": openedScene?._source?.img ?? null,
+                    "_source.background.src": openedScene?._source?.background?.src ?? null,
+                    "_source.texture.src": openedScene?._source?.texture?.src ?? null,
                     "getSceneBackgroundSource()": getSceneBackgroundSource(openedScene)
                 });
 
@@ -2701,18 +2703,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             sceneResolver: (id) => this.#getSceneDocumentById(id)
         });
 
-        const backgroundSrc = getSceneBackgroundSource(scene);
-        totcLogger.debug("[render] #getMapPanelScene", {
-            panelId: panel?.id,
-            resolvedSceneId: sceneId,
-            sceneName: scene?.name ?? null,
-            "scene.background.src": scene?.background?.src ?? null,
-            "scene._source.background.src": scene?._source?.background?.src ?? null,
-            "scene.texture.src": scene?.texture?.src ?? null,
-            "getSceneBackgroundSource()": backgroundSrc,
-            mapSrcWillBe: backgroundSrc || "(empty — __empty div will render)"
-        });
-
         if (scene) return this.#buildSceneViewModel(scene, { id: sceneId });
         if (sceneId) return this.#buildSceneViewModel(null, { id: sceneId, name: panel?.title ?? "Missing Scene" });
         return context.scene ?? this.#buildSceneViewModel(null);
@@ -3002,7 +2992,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         Hooks.on("canvasReady", this._sceneRefreshHandler);
         // canvasTearDown fires in Foundry V12+ when the canvas tears down a scene.
         // Re-render so map panels that relied on _scenePropertiesState fall back to
-        // scene.background.src, which reflects the persisted database value.
+        // scene.img / _source data, which reflects the persisted database value.
         Hooks.on("canvasTearDown", this._sceneRefreshHandler);
         Hooks.on("updateScene", this._sceneRefreshHandler);
         Hooks.on("createScene", this._sceneRefreshHandler);
@@ -4947,8 +4937,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     sceneName,
                     targetValid: target.valid,
                     targetPath: target.path || null,
-                    "scene.background.src (before)": scene?.background?.src ?? null,
-                    "scene._source.background.src (before)": scene?._source?.background?.src ?? null
+                    "scene.img (before)": scene?.img ?? null,
+                    "_source.img (before)": scene?._source?.img ?? null,
+                    "_source.background.src (before)": scene?._source?.background?.src ?? null
                 });
 
                 this._scenePropertiesState = {
@@ -4998,16 +4989,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                             sceneId: scene.id,
                             sceneName: scene.name,
                             updateData,
-                            "scene.background.src (pre-update)": scene?.background?.src ?? null,
-                            "scene._source.background.src (pre-update)": scene?._source?.background?.src ?? null
+                            "scene.img (pre-update)": scene?.img ?? null,
+                            "_source.img (pre-update)": scene?._source?.img ?? null,
+                            "_source.background.src (pre-update)": scene?._source?.background?.src ?? null
                         });
                         await scene.update(updateData);
                         totcLogger.info("[bg-upload] scene.update() resolved — reading back scene state", {
                             sceneId: scene.id,
-                            "scene.background.src (post-update)": scene?.background?.src ?? null,
-                            "scene._source.background.src (post-update)": scene?._source?.background?.src ?? null,
-                            "scene.texture.src (post-update)": scene?.texture?.src ?? null,
-                            "scene._source.texture.src (post-update)": scene?._source?.texture?.src ?? null,
+                            "scene.img (post-update)": scene?.img ?? null,
+                            "_source.img (post-update)": scene?._source?.img ?? null,
+                            "_source.background.src (post-update)": scene?._source?.background?.src ?? null,
+                            "_source.texture.src (post-update)": scene?._source?.texture?.src ?? null,
                             "getSceneBackgroundSource() (post-update)": getSceneBackgroundSource(scene)
                         });
                         this._scenePropertiesState = {
