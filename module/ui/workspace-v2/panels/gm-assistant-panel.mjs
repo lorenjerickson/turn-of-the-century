@@ -42,6 +42,92 @@ export function buildGMAssistantPanelModel(state = {}) {
     };
 }
 
+function humanizeKey(key = "") {
+    return String(key ?? "")
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/^./, (char) => char.toUpperCase());
+}
+
+function stripUnsafeHTML(html = "") {
+    return String(html ?? "")
+        .replace(/<\s*(script|style|iframe|object|embed|link|meta|base)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
+        .replace(/<\s*(script|style|iframe|object|embed|link|meta|base)\b[^>]*\/?\s*>/gi, "")
+        .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+        .replace(/\s+(href|src)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi, "");
+}
+
+function renderStringAsHTML(value, { escapeHTML }) {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    const containsMarkup = /<\/?[a-z][\s\S]*>/i.test(text);
+    if (containsMarkup) return stripUnsafeHTML(text);
+
+    return text
+        .split(/\n{2,}/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean)
+        .map((paragraph) => `<p>${escapeHTML(paragraph).replace(/\n/g, "<br>")}</p>`)
+        .join("");
+}
+
+function renderGeneratedValue(key, value, { escapeHTML }, depth = 0) {
+    if (value == null || value === "") return "";
+    const title = humanizeKey(key);
+    const titleTag = depth > 0 ? "h6" : "h5";
+
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        const body = renderStringAsHTML(value, { escapeHTML });
+        if (!body) return "";
+        return `
+            <section class="totc-v2-gm-assistant__generated-section">
+                <${titleTag}>${escapeHTML(title)}</${titleTag}>
+                <div class="totc-v2-gm-assistant__generated-html">${body}</div>
+            </section>`;
+    }
+
+    if (Array.isArray(value)) {
+        const items = value
+            .map((entry, index) => renderGeneratedValue(`${title} ${index + 1}`, entry, { escapeHTML }, depth + 1))
+            .filter(Boolean)
+            .join("");
+        if (!items) return "";
+        return `
+            <section class="totc-v2-gm-assistant__generated-section">
+                <${titleTag}>${escapeHTML(title)}</${titleTag}>
+                <div class="totc-v2-gm-assistant__generated-list">${items}</div>
+            </section>`;
+    }
+
+    if (typeof value === "object") {
+        const sections = Object.entries(value)
+            .filter(([childKey]) => !String(childKey).startsWith("_"))
+            .map(([childKey, childValue]) => renderGeneratedValue(childKey, childValue, { escapeHTML }, depth + 1))
+            .filter(Boolean)
+            .join("");
+        if (!sections) return "";
+        return `
+            <section class="totc-v2-gm-assistant__generated-section">
+                <${titleTag}>${escapeHTML(title)}</${titleTag}>
+                <div class="totc-v2-gm-assistant__generated-group">${sections}</div>
+            </section>`;
+    }
+
+    return "";
+}
+
+export function renderGeneratedAssistantContent(result = {}, { escapeHTML }) {
+    const system = result?.system ?? {};
+    const content = Object.entries(system)
+        .map(([key, value]) => renderGeneratedValue(key, value, { escapeHTML }))
+        .filter(Boolean)
+        .join("");
+
+    return content || `<p class="totc-v2-gm-assistant__generated-empty">No generated content was returned.</p>`;
+}
+
 export function renderGMAssistantPanel(model, { escapeHTML }) {
     const optionsMarkup = model.options.map(opt => 
         `<option value="${escapeHTML(opt.value)}" ${opt.selected ? "selected" : ""}>${escapeHTML(opt.label)}</option>`
@@ -77,29 +163,23 @@ export function renderGMAssistantPanel(model, { escapeHTML }) {
             <i class="fas fa-exclamation-triangle"></i> ${escapeHTML(model.error)}
         </div>`;
     } else if (model.result) {
-        // Pretty print the top level properties of the generated item
         const resultName = model.result.name || "Unnamed Element";
         const resultType = model.elementType;
-        const profile = model.result.system?.profile || {};
-        
-        let detailsMarkup = "";
-        for (const [key, value] of Object.entries(profile)) {
-            if (typeof value === "string") {
-                detailsMarkup += `<div><strong>${escapeHTML(key)}:</strong> ${escapeHTML(value.substring(0, 100))}${value.length > 100 ? "..." : ""}</div>`;
-            }
-        }
+        const generatedContent = renderGeneratedAssistantContent(model.result, { escapeHTML });
         
         resultMarkup = `
         <article class="totc-v2-gm-assistant__result">
-            <h4>${escapeHTML(resultName)}</h4>
-            <p class="totc-v2-gm-assistant__result-type">${escapeHTML(resultType)}</p>
-            <div class="totc-v2-gm-assistant__result-details">
-                ${detailsMarkup}
+            <header class="totc-v2-gm-assistant__result-header">
+                <h4>${escapeHTML(resultName)}</h4>
+                <p class="totc-v2-gm-assistant__result-type">${escapeHTML(resultType)}</p>
+            </header>
+            <div class="totc-v2-gm-assistant__result-content">
+                ${generatedContent}
             </div>
-            <div class="totc-v2-gm-assistant__result-actions">
+            <footer class="totc-v2-gm-assistant__result-actions">
                 <button type="button" data-action="gm-assistant-accept">Accept</button>
                 <button type="button" data-action="gm-assistant-regenerate">Regenerate</button>
-            </div>
+            </footer>
         </article>`;
     } else {
         resultMarkup = `<div class="totc-v2-gm-assistant__empty">No active generation.</div>`;

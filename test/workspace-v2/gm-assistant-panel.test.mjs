@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import {
     buildGMAssistantPanelModel,
+    renderGeneratedAssistantContent,
     renderGMAssistantPanel
 } from "../../module/ui/workspace-v2/panels/gm-assistant-panel.mjs";
+
+const rootDir = new URL("../..", import.meta.url).pathname;
+const styles = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
 function escapeHTML(value) {
     return String(value ?? "")
@@ -62,5 +68,61 @@ describe("GM assistant panel", () => {
             elementType: "location"
         }), { escapeHTML });
         assert.doesNotMatch(locationHtml, /gm-assistant-set-actor-type/);
+    });
+
+    it("renders generated HTML content without escaping allowed markup", () => {
+        const html = renderGMAssistantPanel(buildGMAssistantPanelModel({
+            elementType: "scenario",
+            result: {
+                name: "The Limehouse Ledger",
+                system: {
+                    profile: {
+                        description: "<p>A fogbound investigation with <strong>industrial stakes</strong>.</p>",
+                        summary: "A plain-text summary."
+                    }
+                }
+            }
+        }), { escapeHTML });
+
+        assert.match(html, /class="totc-v2-gm-assistant__result-content"/);
+        assert.match(html, /<strong>industrial stakes<\/strong>/);
+        assert.match(html, /<p>A plain-text summary\.<\/p>/);
+        assert.doesNotMatch(html, /&lt;strong&gt;industrial stakes&lt;\/strong&gt;/);
+    });
+
+    it("strips unsafe generated HTML before rendering", () => {
+        const html = renderGeneratedAssistantContent({
+            system: {
+                profile: {
+                    description: `<p onclick="alert('x')">Safe text</p><script>alert("x")</script><a href="javascript:alert('x')">bad</a>`
+                }
+            }
+        }, { escapeHTML });
+
+        assert.match(html, /<p>Safe text<\/p>/);
+        assert.doesNotMatch(html, /onclick=/);
+        assert.doesNotMatch(html, /<script/);
+        assert.doesNotMatch(html, /javascript:/);
+    });
+
+    it("renders accept and regenerate actions in a footer after the scrollable result content", () => {
+        const html = renderGMAssistantPanel(buildGMAssistantPanelModel({
+            prompt: "Make a market",
+            result: {
+                name: "Caledonian Market",
+                system: { profile: { description: "<p>Busy stalls.</p>" } }
+            }
+        }), { escapeHTML });
+
+        assert.match(html, /<div class="totc-v2-gm-assistant__result-content">[\s\S]*<\/div>\s*<footer class="totc-v2-gm-assistant__result-actions">/);
+        assert.match(html, /data-action="gm-assistant-accept"/);
+        assert.match(html, /data-action="gm-assistant-regenerate"/);
+    });
+
+    it("styles generated content as a filling scroll area with bottom-fixed actions", () => {
+        assert.match(styles, /\.totc-v2-gm-assistant\s*\{[\s\S]*height: 100%;[\s\S]*overflow: hidden;/);
+        assert.match(styles, /\.totc-v2-gm-assistant__result\s*\{[\s\S]*grid-template-rows: auto minmax\(0, 1fr\) auto;[\s\S]*height: 100%;/);
+        assert.match(styles, /\.totc-v2-gm-assistant__result-content\s*\{[\s\S]*overflow-y: auto;/);
+        assert.match(styles, /\.totc-v2-gm-assistant__result-actions\s*\{[\s\S]*bottom: 0;[\s\S]*position: sticky;/);
     });
 });
