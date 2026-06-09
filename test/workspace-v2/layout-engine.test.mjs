@@ -20,6 +20,7 @@ async function loadLayoutEngine() {
 
 const panelLibrary = Object.freeze([
     { id: "gamemaster", title: "Gamemaster" },
+    { id: "campaign-view", title: "Campaign View", defaultDock: "leftDock" },
     { id: "scenes", title: "Scenes", defaultDock: "leftDock" },
     { id: "chat", title: "Chat and Messages" },
     { id: "tracker", title: "Turn Tracker" },
@@ -33,7 +34,7 @@ describe("LayoutEngine", () => {
         const layout = LayoutEngine.createDefaultLayout({ panels: panelLibrary });
 
         assert.equal(layout.version, 1);
-        assert.deepEqual(layout.root.leftDock.stacks[0].panels.map((panel) => panel.id), ["gamemaster", "scenes"]);
+        assert.deepEqual(layout.root.leftDock.stacks[0].panels.map((panel) => panel.id), ["gamemaster", "campaign-view", "scenes"]);
         assert.equal(layout.root.leftDock.stacks[0].activePanelId, "gamemaster");
         assert.deepEqual(layout.root.centerDock.stacks, []);
         assert.equal(layout.root.topDock.stacks[0].panels[0].id, "chat");

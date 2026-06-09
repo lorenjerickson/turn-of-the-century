@@ -95,6 +95,18 @@ describe("WorkspacePanelRegistry", () => {
         });
     });
 
+    it("registers the GM campaign view for the left dock", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.deepEqual(registry.get("campaign-view"), {
+            id: "campaign-view",
+            title: "Campaign View",
+            defaultDock: "leftDock",
+            roleAccess: { gmOnly: true },
+            contextTags: ["gm", "campaign", "scenario", "encounter", "navigation"]
+        });
+    });
+
     it("registers the GM inspector panel for right-dock restoration", () => {
         const registry = new WorkspacePanelRegistry();
 

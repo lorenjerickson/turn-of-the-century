@@ -105,6 +105,7 @@ export class LayoutEngine {
     static createDefaultLayout({ panels = [] } = {}) {
         const leftPanel = findPanelById(panels, "gamemaster");
         const scenesPanel = findPanelById(panels, "scenes");
+        const campaignViewPanel = findPanelById(panels, "campaign-view");
         const topPanel = findPanelById(panels, "chat");
         const rightPanel = findPanelById(panels, "compendium");
         const bottomPanel = findPanelById(panels, "tracker");
@@ -117,7 +118,7 @@ export class LayoutEngine {
                 leftDock: {
                     orientation: "vertical",
                     collapsed: false,
-                    stacks: [makeStackWithPanels([leftPanel, scenesPanel], { activePanelId: leftPanel.id })]
+                    stacks: [makeStackWithPanels([leftPanel, campaignViewPanel, scenesPanel], { activePanelId: leftPanel.id })]
                 },
                 topDock: {
                     orientation: "horizontal",

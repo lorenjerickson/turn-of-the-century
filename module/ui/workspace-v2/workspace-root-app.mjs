@@ -168,6 +168,10 @@ import {
     renderEncounterDesignerPanel
 } from "./panels/encounter-designer-panel.mjs";
 import {
+    buildCampaignViewPanelModel,
+    renderCampaignViewPanel
+} from "./panels/campaign-view-panel.mjs";
+import {
     buildGMAssistantPanelModel,
     renderGMAssistantPanel
 } from "./panels/gm-assistant-panel.mjs";
@@ -817,9 +821,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             prompt: "",
             promptTextareaHeight: 0,
             parentLocationId: "",
+            campaignId: "",
+            scenarioId: "",
             isGenerating: false,
             result: null,
             error: null
+        };
+        this._campaignViewState = {
+            selectedId: "",
+            expandedIds: new Set()
         };
         this._actorEditorState = {
             mode: "empty",
@@ -1242,6 +1252,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }),
             encounterDesignerPanel: buildEncounterDesignerPanelModel({
                 encounters: Array.from(game.items?.contents || []).filter(i => i.type === "encounter-design")
+            }),
+            campaignViewPanel: buildCampaignViewPanelModel({
+                items: Array.from(game.items?.contents || []),
+                selectedId: this._campaignViewState.selectedId,
+                expandedIds: this._campaignViewState.expandedIds
             }),
             gmAssistantPanel: buildGMAssistantPanelModel({
                 ...this._gmAssistantState,
@@ -1883,12 +1898,68 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.element?.querySelectorAll("[data-action='campaign-view-toggle']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const itemId = String(button.dataset.itemId ?? "").trim();
+                if (!itemId) return;
+                if (this._campaignViewState.expandedIds.has(itemId)) {
+                    this._campaignViewState.expandedIds.delete(itemId);
+                } else {
+                    this._campaignViewState.expandedIds.add(itemId);
+                }
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='campaign-view-select']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this._campaignViewState.selectedId = String(button.dataset.itemId ?? "").trim();
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='campaign-view-create-root']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#createCampaignViewItem({ type: "campaign" });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='campaign-view-create-child']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#createCampaignViewItem({
+                    type: String(button.dataset.childType ?? "").trim(),
+                    parentId: String(button.dataset.parentId ?? "").trim()
+                });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='campaign-view-generate-child']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#prepareCampaignViewGeneration({
+                    type: String(button.dataset.childType ?? "").trim(),
+                    parentId: String(button.dataset.parentId ?? "").trim()
+                });
+            });
+        });
+
         this.element?.querySelectorAll("[data-action='gm-assistant-set-type']")?.forEach((select) => {
             select.addEventListener("change", (event) => {
                 this._gmAssistantState.elementType = event.target.value;
                 if (this._gmAssistantState.elementType !== "location") {
                     this._gmAssistantState.parentLocationId = "";
                 }
+                this._gmAssistantState.campaignId = "";
+                this._gmAssistantState.scenarioId = "";
                 this._gmAssistantState.result = null;
                 this._gmAssistantState.error = null;
                 this.render({ force: false });
@@ -1984,12 +2055,26 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (elementType === "location" && this._gmAssistantState.parentLocationId) {
                     documentData.system.parentLocationId = this._gmAssistantState.parentLocationId;
                 }
+                if (elementType === "scenario" && this._gmAssistantState.campaignId) {
+                    documentData.system.campaignId = this._gmAssistantState.campaignId;
+                }
+                if (elementType === "encounter-design" && this._gmAssistantState.scenarioId) {
+                    documentData.system.scenarioId = this._gmAssistantState.scenarioId;
+                }
 
                 const doc = await (isActor ? ActorDocumentClass : ItemDocumentClass).create(documentData);
                 if (doc?.sheet) doc.sheet.render(true);
 
+                const docId = String(doc?.id ?? doc?._id ?? "").trim();
+                if (docId && (elementType === "scenario" || elementType === "encounter-design")) {
+                    this._campaignViewState.selectedId = docId;
+                }
+                if (this._gmAssistantState.campaignId) this._campaignViewState.expandedIds.add(this._gmAssistantState.campaignId);
+                if (this._gmAssistantState.scenarioId) this._campaignViewState.expandedIds.add(this._gmAssistantState.scenarioId);
                 this._gmAssistantState.result = null;
                 this._gmAssistantState.prompt = "";
+                this._gmAssistantState.campaignId = "";
+                this._gmAssistantState.scenarioId = "";
                 this.render({ force: false });
             });
         });
@@ -2440,6 +2525,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             return renderEncounterDesignerPanel(context.encounterDesignerPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
         }
 
+        if (panel.id === "campaign-view") {
+            return renderCampaignViewPanel(context.campaignViewPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
+        }
+
         if (panel.id === "gm-assistant") {
             return renderGMAssistantPanel(context.gmAssistantPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
         }
@@ -2674,6 +2763,79 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return game.scenes?.get?.(id)
             ?? (game.scenes?.contents ?? []).find((scene) => String(scene?.id ?? scene?._id ?? "") === id)
             ?? null;
+    }
+
+    #getItemDocumentById(itemId) {
+        const id = String(itemId ?? "").trim();
+        if (!id) return null;
+        return game.items?.get?.(id)
+            ?? (game.items?.contents ?? []).find((item) => String(item?.id ?? item?._id ?? "") === id)
+            ?? null;
+    }
+
+    async #createCampaignViewItem({ type = "", parentId = "" } = {}) {
+        const safeType = String(type ?? "").trim();
+        const safeParentId = String(parentId ?? "").trim();
+        const parent = this.#getItemDocumentById(safeParentId);
+        const isScenario = safeType === "scenario";
+        const isEncounter = safeType === "encounter-design";
+        const isCampaign = safeType === "campaign";
+        if (!isCampaign && !isScenario && !isEncounter) return null;
+
+        const documentData = {
+            name: isCampaign ? "New Campaign" : isScenario ? "New Scenario" : "New Encounter",
+            type: safeType,
+            system: {}
+        };
+        if (isScenario && parent?.type === "campaign") {
+            documentData.system.campaignId = safeParentId;
+        }
+        if (isEncounter && parent?.type === "scenario") {
+            documentData.system.scenarioId = safeParentId;
+        }
+
+        const item = await ItemDocumentClass.create(documentData);
+        const itemId = String(item?.id ?? item?._id ?? "").trim();
+        if (itemId) {
+            this._campaignViewState.selectedId = itemId;
+            if (safeParentId) this._campaignViewState.expandedIds.add(safeParentId);
+        }
+        if (item?.sheet) item.sheet.render(true);
+        this.render({ force: false });
+        return item;
+    }
+
+    async #prepareCampaignViewGeneration({ type = "", parentId = "" } = {}) {
+        const safeType = String(type ?? "").trim();
+        const safeParentId = String(parentId ?? "").trim();
+        const parent = this.#getItemDocumentById(safeParentId);
+        const isScenario = safeType === "scenario";
+        const isEncounter = safeType === "encounter-design";
+        if (!isScenario && !isEncounter) return;
+
+        this._gmAssistantState = {
+            ...this._gmAssistantState,
+            elementType: safeType,
+            actorType: "pawn",
+            campaignId: isScenario && parent?.type === "campaign" ? safeParentId : "",
+            scenarioId: isEncounter && parent?.type === "scenario" ? safeParentId : "",
+            parentLocationId: "",
+            result: null,
+            error: null,
+            prompt: isScenario
+                ? `Generate a scenario for the campaign "${parent?.name ?? "Untitled Campaign"}".`
+                : `Generate an encounter for the scenario "${parent?.name ?? "Untitled Scenario"}".`
+        };
+
+        let nextLayout = this.layoutEngine.getLayout();
+        const panelDef = this.panelRegistry.get("gm-assistant");
+        if (panelDef) {
+            nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
+            await this.stateStore?.setUserLayout?.(nextLayout);
+        }
+
+        if (safeParentId) this._campaignViewState.expandedIds.add(safeParentId);
+        this.render({ force: false });
     }
 
     #buildSceneViewModel(scene, fallback = {}) {
