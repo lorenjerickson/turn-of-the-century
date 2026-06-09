@@ -6,6 +6,10 @@ function isHorizontalDock(dockId) {
     return dockId === "topDock" || dockId === "bottomDock";
 }
 
+function usesLocalDropZones(dockId) {
+    return dockId !== "centerDock";
+}
+
 function localZoneLabel(zone) {
     switch (zone) {
         case "local-center":
@@ -171,6 +175,7 @@ export class InteractionController {
             }
 
             const dockId = element.dataset.dockId;
+            if (!usesLocalDropZones(dockId)) continue;
             const stackId = element.dataset.stackId;
             const xRatio = (event.clientX - bounds.left) / Math.max(bounds.width, 1);
             const yRatio = (event.clientY - bounds.top) / Math.max(bounds.height, 1);

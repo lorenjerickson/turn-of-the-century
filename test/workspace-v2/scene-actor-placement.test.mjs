@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
     buildSceneActorPlacementCandidates,
+    buildSceneActorDropPreview,
     buildSceneActorPlacementPanelModel,
     buildSceneActorPlacements,
     buildSceneActorTokenData
@@ -66,6 +67,24 @@ describe("scene actor placement", () => {
         assert.deepEqual(placements.map((placement) => placement.position), [
             { x: 50, y: 350 },
             { x: 850, y: 200 }
+        ]);
+    });
+
+    it("builds a grid-snapped map drop preview around an anchor point", () => {
+        const preview = buildSceneActorDropPreview({
+            scene: { width: 1000, height: 800, grid: { size: 100 }, shiftX: -25, shiftY: -50 },
+            actors: [
+                actor("h1", "hero", "Ada"),
+                actor("p1", "pawn", "Smog Wretch", { prototypeToken: { width: 2, height: 1 } }),
+                actor("v1", "villain", "Moriarty")
+            ],
+            anchorPosition: { x: 267, y: 324 }
+        });
+
+        assert.deepEqual(preview.map((entry) => ({ x: entry.x, y: entry.y, width: entry.width, height: entry.height })), [
+            { x: 225, y: 350, width: 100, height: 100 },
+            { x: 325, y: 350, width: 200, height: 100 },
+            { x: 225, y: 450, width: 100, height: 100 }
         ]);
     });
 
@@ -141,5 +160,21 @@ describe("scene actor placement", () => {
         assert.equal(tokens[0].name, "Ada");
         assert.equal(tokens[0].texture.src, "token.webp");
         assert.equal(tokens[0].x, 100);
+    });
+
+    it("builds token data from the same anchored grid preview used for map drops", async () => {
+        const tokens = await buildSceneActorTokenData({
+            scene: { width: 1000, height: 800, grid: { size: 100 }, shiftX: -25, shiftY: -50 },
+            actors: [
+                actor("h1", "hero", "Ada"),
+                actor("p1", "pawn", "Smog Wretch")
+            ],
+            anchorPosition: { x: 267, y: 324 }
+        });
+
+        assert.deepEqual(tokens.map((token) => ({ name: token.name, x: token.x, y: token.y })), [
+            { name: "Ada", x: 225, y: 350 },
+            { name: "Smog Wretch", x: 325, y: 350 }
+        ]);
     });
 });

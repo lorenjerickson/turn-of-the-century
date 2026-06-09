@@ -2903,6 +2903,33 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     z-index: 2;
 }
 
+.turn-of-the-century .totc-v2-map-panel__actor-drop-preview {
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    transform-origin: 0 0;
+    z-index: 3;
+}
+
+.turn-of-the-century .totc-v2-map-panel__actor-drop-square {
+    background: rgba(251, 191, 36, 0.2);
+    border: 2px solid rgba(253, 230, 138, 0.95);
+    box-shadow: inset 0 0 0 1px rgba(120, 53, 15, 0.55), 0 0 0 1px rgba(251, 191, 36, 0.3);
+    display: block;
+    position: absolute;
+}
+
+.turn-of-the-century .totc-v2-map-panel__actor-drop-square--hero {
+    background: rgba(56, 189, 248, 0.22);
+    border-color: rgba(125, 211, 252, 0.95);
+}
+
+.turn-of-the-century .totc-v2-map-panel__actor-drop-square--villain {
+    background: rgba(248, 113, 113, 0.22);
+    border-color: rgba(252, 165, 165, 0.95);
+}
+
 /* Grid lines */
 .turn-of-the-century .totc-v2-grid-overlay__vline,
 .turn-of-the-century .totc-v2-grid-overlay__hline {

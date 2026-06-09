@@ -84,13 +84,13 @@ describe("InteractionController", () => {
         assert.equal(rightIntent.zone, "local-right");
     });
 
-    it("keeps vertical local zones for side and center dock stacks", async () => {
+    it("keeps vertical local zones for side dock stacks", async () => {
         const { InteractionController } = await loadInteractionController();
         const controller = new InteractionController();
         const rootElement = { getBoundingClientRect: () => rect({ left: 0, top: 0, width: 800, height: 600 }) };
         const stack = element({
-            dockId: "centerDock",
-            stackId: "center-stack",
+            dockId: "leftDock",
+            stackId: "left-stack",
             bounds: rect({ left: 200, top: 100, width: 300, height: 300 })
         });
 
@@ -109,6 +109,27 @@ describe("InteractionController", () => {
         assert.equal(topIntent.label, "Stack Above");
         assert.equal(bottomIntent.zone, "local-bottom");
         assert.equal(bottomIntent.label, "Stack Below");
+    });
+
+    it("does not subdivide center dock stacks into local drop zones", async () => {
+        const { InteractionController } = await loadInteractionController();
+        const controller = new InteractionController();
+        const rootElement = { getBoundingClientRect: () => rect({ left: 0, top: 0, width: 800, height: 600 }) };
+        const stack = element({
+            dockId: "centerDock",
+            stackId: "center-stack",
+            bounds: rect({ left: 200, top: 100, width: 300, height: 300 })
+        });
+
+        const intent = controller.computeIntent({
+            event: { clientX: 350, clientY: 130 },
+            rootElement,
+            stackElements: [stack]
+        });
+
+        assert.equal(intent.kind, "edge");
+        assert.equal(intent.dockId, "centerDock");
+        assert.equal(intent.label, "Dock Center");
     });
 
     it("draws horizontal ghost rectangles for left and right local zones", async () => {

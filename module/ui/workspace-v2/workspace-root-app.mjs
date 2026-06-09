@@ -142,7 +142,10 @@ import {
     resolveScenePropertiesMapPanelScene,
     renderScenePropertiesPanel
 } from "./panels/scene-properties-panel.mjs";
-import { buildSceneActorTokenData } from "./scene-actor-placement.mjs";
+import {
+    buildSceneActorDropPreview,
+    buildSceneActorTokenData
+} from "./scene-actor-placement.mjs";
 import {
     buildScenesPanelModel,
     renderScenesPanel
@@ -162,6 +165,15 @@ import {
     buildCampaignBuilderPanelModel,
     renderCampaignBuilderPanel
 } from "./panels/campaign-builder-panel.mjs";
+
+const WORKSPACE_PANEL_DRAG_MIME = "application/x-totc-workspace-panel";
+
+function dataTransferHasType(dataTransfer, mimeType) {
+    const types = dataTransfer?.types;
+    if (typeof types?.contains === "function") return types.contains(mimeType);
+    return Array.from(types ?? []).includes(mimeType);
+}
+
 import {
     buildScenarioBuilderPanelModel,
     renderScenarioBuilderPanel
@@ -809,7 +821,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._textInputDebounceTimers = new Map();
         this.mapViewportController = new MapViewportController({
             stateStore: this.stateStore,
-            onTransformChange: () => this.#drawGridCalibrationOverlay()
+            onTransformChange: () => {
+                this.#drawGridCalibrationOverlay();
+                this.#syncActorDropPreviewTransforms();
+            }
         });
         this.gridCalibrationController = new GridCalibrationController({
             sceneResolver: (state) => state.sceneId
@@ -2575,6 +2590,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     data-grid-offset-y="${this.#escapeHTML(sceneGridOverlayState?.offsetY ?? -Number(mapScene?.shiftY ?? 0))}">
                     <img class="totc-v2-map-panel__image" src="${this.#escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false" data-action="map-image">
                     ${gridOverlayActive ? `<svg class="totc-v2-map-panel__grid-overlay" data-grid-overlay="true" aria-hidden="true"></svg>` : ""}
+                    <div class="totc-v2-map-panel__actor-drop-preview" data-actor-drop-preview="true" aria-hidden="true"></div>
                 </div>`
                 : `<div class="totc-v2-map-panel__empty">No active scene map available</div>`;
 
@@ -4367,6 +4383,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.element?.querySelectorAll("[data-panel-id], [data-drag-panel-id]")?.forEach((panelButton) => {
             panelButton.addEventListener("dragstart", (event) => {
                 const panelId = panelButton.dataset.panelId || panelButton.dataset.dragPanelId;
+                event.dataTransfer?.setData(WORKSPACE_PANEL_DRAG_MIME, panelId ?? "");
                 event.dataTransfer?.setData("text/plain", panelId ?? "");
                 event.dataTransfer.effectAllowed = "move";
             });
@@ -4377,6 +4394,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
 
         host.addEventListener("dragover", (event) => {
+            if (!dataTransferHasType(event.dataTransfer, WORKSPACE_PANEL_DRAG_MIME)) return;
             event.preventDefault();
             const stackElements = [...host.querySelectorAll("[data-stack-id]")];
             const intent = this.interactionController.computeIntent({
@@ -4400,8 +4418,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
 
         host.addEventListener("drop", async (event) => {
+            if (!dataTransferHasType(event.dataTransfer, WORKSPACE_PANEL_DRAG_MIME)) return;
             event.preventDefault();
-            const panelId = event.dataTransfer?.getData("text/plain");
+            const panelId = event.dataTransfer?.getData(WORKSPACE_PANEL_DRAG_MIME);
             const panelDef = this.#resolvePanelDefinition(panelId);
             if (!panelDef) {
                 this.#hideGhost();
@@ -4732,7 +4751,60 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             if (!(image instanceof HTMLImageElement)) continue;
             if (!image.complete || !Number.isFinite(image.naturalWidth) || image.naturalWidth <= 0) continue;
             this.mapViewportController.syncViewport(viewport, image);
+            this.#syncActorDropPreviewTransform(viewport);
         }
+    }
+
+    #syncActorDropPreviewTransforms() {
+        const viewports = [...(this.element?.querySelectorAll("[data-action='map-viewport']") ?? [])];
+        for (const viewport of viewports) this.#syncActorDropPreviewTransform(viewport);
+    }
+
+    #syncActorDropPreviewTransform(viewport) {
+        const layer = viewport?.querySelector?.("[data-actor-drop-preview='true']");
+        const image = viewport?.querySelector?.("[data-action='map-image']");
+        if (!(layer instanceof HTMLElement) || !(image instanceof HTMLImageElement)) return;
+        const width = Number(image.naturalWidth);
+        const height = Number(image.naturalHeight);
+        if (Number.isFinite(width) && width > 0) layer.style.width = `${width}px`;
+        if (Number.isFinite(height) && height > 0) layer.style.height = `${height}px`;
+        layer.style.transform = image.style.transform;
+    }
+
+    #getImageSpacePointFromMapEvent(viewport, event) {
+        const rect = viewport?.getBoundingClientRect?.();
+        if (!rect || !event) return null;
+        const scale = Number(this.mapViewportController.state?.scale);
+        if (!Number.isFinite(scale) || scale <= 0) return null;
+        return {
+            x: ((event.clientX - rect.left) - Number(this.mapViewportController.state.offsetX ?? 0)) / scale,
+            y: ((event.clientY - rect.top) - Number(this.mapViewportController.state.offsetY ?? 0)) / scale
+        };
+    }
+
+    #clearActorDropPreviews(except = null) {
+        this.element?.querySelectorAll("[data-actor-drop-preview='true']")?.forEach((layer) => {
+            if (layer === except) return;
+            layer.innerHTML = "";
+            layer.classList.remove("has-preview");
+        });
+    }
+
+    #renderActorDropPreview(target, { actors = [], scene = null, event = null } = {}) {
+        const viewport = target?.querySelector?.("[data-map-viewport='true']");
+        const layer = viewport?.querySelector?.("[data-actor-drop-preview='true']");
+        if (!(viewport instanceof HTMLElement) || !(layer instanceof HTMLElement)) return null;
+
+        this.#syncActorDropPreviewTransform(viewport);
+        const anchorPosition = this.#getImageSpacePointFromMapEvent(viewport, event);
+        const previews = buildSceneActorDropPreview({ actors, scene, anchorPosition });
+        layer.innerHTML = previews.map((preview) => `
+            <span class="totc-v2-map-panel__actor-drop-square totc-v2-map-panel__actor-drop-square--${this.#escapeHTML(preview.role)}"
+                style="left:${this.#escapeHTML(preview.x)}px;top:${this.#escapeHTML(preview.y)}px;width:${this.#escapeHTML(preview.width)}px;height:${this.#escapeHTML(preview.height)}px"
+                title="${this.#escapeHTML(preview.actorName)}"></span>`).join("");
+        layer.classList.toggle("has-preview", previews.length > 0);
+        this.#clearActorDropPreviews(layer);
+        return anchorPosition;
     }
 
     #onMapPanPointerMove(event) {
@@ -5549,26 +5621,30 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.element?.querySelectorAll("[data-scene-actor-drop-target].is-actor-drop-target")?.forEach((target) => {
             if (target !== except) target.classList.remove("is-actor-drop-target");
         });
+        this.#clearActorDropPreviews(except?.querySelector?.("[data-actor-drop-preview='true']") ?? null);
     }
 
     #wireSceneActorDropHandlers() {
         this.element?.querySelectorAll("[data-scene-actor-drop-target='true']")?.forEach((target) => {
             target.addEventListener("dragover", (event) => {
-                const transferTypes = event.dataTransfer?.types;
-                const hasActorPayload = typeof transferTypes?.contains === "function"
-                    ? transferTypes.contains(ACTOR_LIST_DRAG_MIME)
-                    : Array.from(transferTypes ?? []).includes(ACTOR_LIST_DRAG_MIME);
-                if (!hasActorPayload) return;
+                if (!dataTransferHasType(event.dataTransfer, ACTOR_LIST_DRAG_MIME)) return;
                 event.preventDefault();
                 event.stopPropagation();
                 event.dataTransfer.dropEffect = "copy";
                 this.#clearSceneActorDropTargets(target);
+                const rawPayload = event.dataTransfer?.getData(ACTOR_LIST_DRAG_MIME);
+                const payload = parseActorListDragPayload(rawPayload);
+                const actors = payload.actorIds.map((id) => game.actors?.get?.(id)).filter(Boolean);
+                const sceneId = String(target.dataset.sceneId ?? "").trim();
+                const scene = sceneId ? this.#getSceneDocumentById(sceneId) : null;
+                this.#renderActorDropPreview(target, { actors, scene, event });
                 target.classList.add("is-actor-drop-target");
             });
             target.addEventListener("dragleave", (event) => {
                 const related = event.relatedTarget;
                 if (related && target.contains(related)) return;
                 target.classList.remove("is-actor-drop-target");
+                this.#clearActorDropPreviews();
             });
             target.addEventListener("drop", async (event) => {
                 const rawPayload = event.dataTransfer?.getData(ACTOR_LIST_DRAG_MIME);
@@ -5577,16 +5653,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.preventDefault();
                 event.stopPropagation();
                 target.classList.remove("is-actor-drop-target");
+                this.#clearActorDropPreviews();
 
                 const actors = payload.actorIds.map((id) => game.actors?.get?.(id)).filter(Boolean);
                 const sceneId = String(target.dataset.sceneId ?? "").trim();
                 const scene = sceneId ? this.#getSceneDocumentById(sceneId) : null;
-                await this.#addActorsToScene(actors, { scene });
+                const viewport = target.querySelector("[data-map-viewport='true']");
+                const anchorPosition = this.#getImageSpacePointFromMapEvent(viewport, event);
+                await this.#addActorsToScene(actors, { scene, anchorPosition });
             });
         });
     }
 
-    async #addActorsToScene(actors = [], { scene = null } = {}) {
+    async #addActorsToScene(actors = [], { scene = null, anchorPosition = null } = {}) {
         scene ??= this.#getScenePropertiesScene();
         if (!scene) {
             this._scenePropertiesState = { ...this._scenePropertiesState, status: "", error: "No scene is available for actor placement." };
@@ -5605,7 +5684,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             if (typeof scene.createEmbeddedDocuments !== "function") {
                 throw new Error("Scene token creation is not available.");
             }
-            const tokenData = await buildSceneActorTokenData({ actors: selectedActors, scene });
+            const tokenData = await buildSceneActorTokenData({ actors: selectedActors, scene, anchorPosition });
             if (!tokenData.length) {
                 this._scenePropertiesState = {
                     ...this._scenePropertiesState,

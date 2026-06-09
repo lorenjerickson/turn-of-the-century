@@ -35,6 +35,27 @@ function positiveNumber(value, fallback) {
     return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
 }
 
+function sceneGridOffset(scene, axis) {
+    const direct = Number(scene?.grid?.[`offset${axis.toUpperCase()}`]);
+    if (Number.isFinite(direct)) return direct;
+    const shift = Number(scene?.[`shift${axis.toUpperCase()}`] ?? 0);
+    return Number.isFinite(shift) ? -shift : 0;
+}
+
+function snapToGrid(value, { cell = 100, offset = 0 } = {}) {
+    const size = positiveNumber(cell, 100);
+    const phase = Number.isFinite(Number(offset)) ? Number(offset) : 0;
+    return Math.round((Number(value ?? 0) - phase) / size) * size + phase;
+}
+
+function snapPositionToSceneGrid(position = {}, scene = null) {
+    const cell = positiveNumber(scene?.grid?.size, 100);
+    return {
+        x: snapToGrid(position.x, { cell, offset: sceneGridOffset(scene, "x") }),
+        y: snapToGrid(position.y, { cell, offset: sceneGridOffset(scene, "y") })
+    };
+}
+
 function makeActorOption(actor) {
     return {
         id: actorId(actor),
@@ -154,6 +175,36 @@ export function buildSceneActorPlacements({ actors = [], scene = null, rng = Mat
     ];
 }
 
+export function buildSceneActorDropPreview({ actors = [], scene = null, anchorPosition = null } = {}) {
+    const selectedActors = buildSceneActorPlacementCandidates({ actors, scene });
+    const width = positiveNumber(scene?.width, positiveNumber(scene?.dimensions?.sceneWidth, 2000));
+    const height = positiveNumber(scene?.height, positiveNumber(scene?.dimensions?.sceneHeight, 1400));
+    const cell = positiveNumber(scene?.grid?.size, 100);
+    const anchor = snapPositionToSceneGrid(anchorPosition ?? { x: cell, y: cell }, scene);
+    const positions = groupPositions({
+        count: selectedActors.length,
+        anchorX: anchor.x,
+        anchorY: anchor.y,
+        cell,
+        sceneWidth: width,
+        sceneHeight: height
+    }).map((position) => snapPositionToSceneGrid(position, scene));
+
+    return selectedActors.map((actor, index) => {
+        const tokenWidth = positiveNumber(actor?.prototypeToken?.width, 1);
+        const tokenHeight = positiveNumber(actor?.prototypeToken?.height, 1);
+        return {
+            actorId: actorId(actor),
+            actorName: actorName(actor),
+            role: actorType(actor),
+            x: positions[index]?.x ?? anchor.x,
+            y: positions[index]?.y ?? anchor.y,
+            width: Math.max(cell, tokenWidth * cell),
+            height: Math.max(cell, tokenHeight * cell)
+        };
+    });
+}
+
 export async function buildTokenDataForActor(actor, position = {}, { name = "" } = {}) {
     const tokenDocument = typeof actor?.getTokenDocument === "function"
         ? await actor.getTokenDocument({ x: position.x, y: position.y })
@@ -178,8 +229,14 @@ export async function buildTokenDataForActor(actor, position = {}, { name = "" }
     };
 }
 
-export async function buildSceneActorTokenData({ actors = [], scene = null, rng = Math.random } = {}) {
-    const placements = buildSceneActorPlacements({ actors, scene, rng });
+export async function buildSceneActorTokenData({ actors = [], scene = null, rng = Math.random, anchorPosition = null } = {}) {
+    const placements = anchorPosition
+        ? buildSceneActorDropPreview({ actors, scene, anchorPosition }).map((preview) => ({
+            actor: toArray(actors).find((actor) => actorId(actor) === preview.actorId),
+            position: { x: preview.x, y: preview.y },
+            role: preview.role
+        })).filter((placement) => placement.actor)
+        : buildSceneActorPlacements({ actors, scene, rng });
     const usedTokenNames = new Set(sceneTokens(scene).map(tokenName).filter(Boolean));
     const plannedPawnCounts = new Map();
     for (const placement of placements) {
