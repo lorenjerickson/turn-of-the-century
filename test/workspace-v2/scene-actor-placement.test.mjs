@@ -70,7 +70,7 @@ describe("scene actor placement", () => {
         ]);
     });
 
-    it("builds a grid-snapped map drop preview around an anchor point", () => {
+    it("builds an adjacent grid-cell map drop preview from the cell under the cursor", () => {
         const preview = buildSceneActorDropPreview({
             scene: { width: 1000, height: 800, grid: { size: 100 }, shiftX: -25, shiftY: -50 },
             actors: [
@@ -82,9 +82,49 @@ describe("scene actor placement", () => {
         });
 
         assert.deepEqual(preview.map((entry) => ({ x: entry.x, y: entry.y, width: entry.width, height: entry.height })), [
-            { x: 225, y: 350, width: 100, height: 100 },
-            { x: 325, y: 350, width: 200, height: 100 },
-            { x: 225, y: 450, width: 100, height: 100 }
+            { x: 225, y: 250, width: 100, height: 100 },
+            { x: 325, y: 250, width: 200, height: 100 },
+            { x: 225, y: 350, width: 100, height: 100 }
+        ]);
+    });
+
+    it("arranges larger actor drop groups as a compact near-rectangle", () => {
+        const preview = buildSceneActorDropPreview({
+            scene: { width: 1000, height: 800, grid: { size: 100 } },
+            actors: [
+                actor("p1", "pawn"),
+                actor("p2", "pawn"),
+                actor("p3", "pawn"),
+                actor("p4", "pawn"),
+                actor("p5", "pawn")
+            ],
+            anchorPosition: { x: 230, y: 120 }
+        });
+
+        assert.deepEqual(preview.map((entry) => ({ x: entry.x, y: entry.y })), [
+            { x: 200, y: 100 },
+            { x: 300, y: 100 },
+            { x: 400, y: 100 },
+            { x: 200, y: 200 },
+            { x: 300, y: 200 }
+        ]);
+    });
+
+    it("slides compact drop groups back by grid cells at scene edges", () => {
+        const preview = buildSceneActorDropPreview({
+            scene: { width: 500, height: 400, grid: { size: 100 }, shiftX: -25, shiftY: -50 },
+            actors: [
+                actor("p1", "pawn"),
+                actor("p2", "pawn"),
+                actor("p3", "pawn")
+            ],
+            anchorPosition: { x: 490, y: 390 }
+        });
+
+        assert.deepEqual(preview.map((entry) => ({ x: entry.x, y: entry.y })), [
+            { x: 225, y: 150 },
+            { x: 325, y: 150 },
+            { x: 225, y: 250 }
         ]);
     });
 
@@ -173,8 +213,8 @@ describe("scene actor placement", () => {
         });
 
         assert.deepEqual(tokens.map((token) => ({ name: token.name, x: token.x, y: token.y })), [
-            { name: "Ada", x: 225, y: 350 },
-            { name: "Smog Wretch", x: 325, y: 350 }
+            { name: "Ada", x: 225, y: 250 },
+            { name: "Smog Wretch", x: 325, y: 250 }
         ]);
     });
 });

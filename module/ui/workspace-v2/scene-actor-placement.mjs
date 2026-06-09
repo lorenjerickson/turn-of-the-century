@@ -56,6 +56,20 @@ function snapPositionToSceneGrid(position = {}, scene = null) {
     };
 }
 
+function gridCellStart(value, { cell = 100, offset = 0 } = {}) {
+    const size = positiveNumber(cell, 100);
+    const phase = Number.isFinite(Number(offset)) ? Number(offset) : 0;
+    return Math.floor((Number(value ?? 0) - phase) / size) * size + phase;
+}
+
+function snapPositionToContainingSceneGridCell(position = {}, scene = null) {
+    const cell = positiveNumber(scene?.grid?.size, 100);
+    return {
+        x: gridCellStart(position.x, { cell, offset: sceneGridOffset(scene, "x") }),
+        y: gridCellStart(position.y, { cell, offset: sceneGridOffset(scene, "y") })
+    };
+}
+
 function makeActorOption(actor) {
     return {
         id: actorId(actor),
@@ -99,6 +113,30 @@ function groupPositions({ count = 0, anchorX = 0, anchorY = 0, cell = 100, scene
         x: Math.round(originX + ((index % columns) * spacing)),
         y: Math.round(originY + (Math.floor(index / columns) * spacing))
     }));
+}
+
+function adjacentGridPositions({ count = 0, anchorX = 0, anchorY = 0, cell = 100, sceneWidth = 1000, sceneHeight = 1000 } = {}) {
+    if (count <= 0) return [];
+    const size = positiveNumber(cell, 100);
+    const columns = Math.max(1, Math.ceil(Math.sqrt(count)));
+    const rows = Math.max(1, Math.ceil(count / columns));
+    const originX = clampGridAlignedOrigin(Number(anchorX ?? 0), { span: columns * size, cell: size, sceneSize: sceneWidth });
+    const originY = clampGridAlignedOrigin(Number(anchorY ?? 0), { span: rows * size, cell: size, sceneSize: sceneHeight });
+
+    return Array.from({ length: count }, (_, index) => ({
+        x: Math.round(originX + ((index % columns) * size)),
+        y: Math.round(originY + (Math.floor(index / columns) * size))
+    }));
+}
+
+function clampGridAlignedOrigin(origin, { span = 100, cell = 100, sceneSize = 1000 } = {}) {
+    const size = positiveNumber(cell, 100);
+    const extent = positiveNumber(sceneSize, 1000);
+    let adjusted = Number.isFinite(origin) ? origin : 0;
+    while (adjusted < 0) adjusted += size;
+    while (adjusted + span > extent && adjusted - size >= 0) adjusted -= size;
+    if (adjusted < 0 || adjusted + span > extent) return Math.max(0, Math.min(adjusted, Math.max(0, extent - span)));
+    return adjusted;
 }
 
 function randomPosition({ rng, cell, sceneWidth, sceneHeight }) {
@@ -180,15 +218,15 @@ export function buildSceneActorDropPreview({ actors = [], scene = null, anchorPo
     const width = positiveNumber(scene?.width, positiveNumber(scene?.dimensions?.sceneWidth, 2000));
     const height = positiveNumber(scene?.height, positiveNumber(scene?.dimensions?.sceneHeight, 1400));
     const cell = positiveNumber(scene?.grid?.size, 100);
-    const anchor = snapPositionToSceneGrid(anchorPosition ?? { x: cell, y: cell }, scene);
-    const positions = groupPositions({
+    const anchor = snapPositionToContainingSceneGridCell(anchorPosition ?? { x: cell, y: cell }, scene);
+    const positions = adjacentGridPositions({
         count: selectedActors.length,
         anchorX: anchor.x,
         anchorY: anchor.y,
         cell,
         sceneWidth: width,
         sceneHeight: height
-    }).map((position) => snapPositionToSceneGrid(position, scene));
+    });
 
     return selectedActors.map((actor, index) => {
         const tokenWidth = positiveNumber(actor?.prototypeToken?.width, 1);

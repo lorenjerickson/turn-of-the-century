@@ -78,9 +78,13 @@ describe("Actor management panel", () => {
 
     it("styles actor list labels and rows with a reserved thumbnail column", () => {
         assert.match(styles, /\.totc-v2-actor-list-panel__filter,[\s\S]*\.totc-v2-actor-list-panel__search,[\s\S]*\{[\s\S]*justify-items:\s*start;[\s\S]*text-align:\s*left;/);
+        assert.match(styles, /\.totc-v2-actor-list-panel__list\s*\{[\s\S]*justify-items:\s*stretch;[\s\S]*text-align:\s*left;/);
         assert.match(styles, /\.totc-v2-actor-list-panel__entry\s*\{[\s\S]*grid-template-columns:\s*auto 2\.2rem minmax\(0, 1fr\);/);
+        assert.match(styles, /\.totc-v2-actor-list-panel__entry\s*\{[\s\S]*justify-items:\s*start;[\s\S]*text-align:\s*left;/);
         assert.match(styles, /\.totc-v2-actor-list-panel__entry-thumb\s*\{[\s\S]*height:\s*2\.2rem;[\s\S]*width:\s*2\.2rem;/);
-        assert.match(styles, /\.totc-v2-actor-list-panel__entry-main\s*\{[\s\S]*justify-items:\s*start;[\s\S]*text-align:\s*left;/);
+        assert.match(styles, /\.totc-v2-actor-list-panel__entry-main\s*\{[\s\S]*justify-content:\s*start;[\s\S]*justify-items:\s*start;[\s\S]*text-align:\s*left;/);
+        assert.match(styles, /\.totc-v2-actor-list-panel__entry-name\s*\{[\s\S]*justify-self:\s*start;[\s\S]*text-align:\s*left;/);
+        assert.match(styles, /\.totc-v2-actor-list-panel__entry-meta\s*\{[\s\S]*justify-self:\s*start;/);
     });
 
     it("builds drag payloads from the current multi-selection", () => {

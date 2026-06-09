@@ -174,6 +174,10 @@ function dataTransferHasType(dataTransfer, mimeType) {
     return Array.from(types ?? []).includes(mimeType);
 }
 
+function tokenIconForActor(actor) {
+    return String(actor?.prototypeToken?.texture?.src ?? actor?.img ?? "").trim();
+}
+
 import {
     buildScenarioBuilderPanelModel,
     renderScenarioBuilderPanel
@@ -826,6 +830,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.#syncActorDropPreviewTransforms();
             }
         });
+        this.actorDragImage = null;
         this.gridCalibrationController = new GridCalibrationController({
             sceneResolver: (state) => state.sceneId
                 ? game.scenes?.get(state.sceneId)
@@ -1535,10 +1540,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.dataTransfer.setData(ACTOR_LIST_DRAG_MIME, JSON.stringify(payload));
                 event.dataTransfer.setData("text/plain", payload.actorIds.join(","));
                 event.dataTransfer.effectAllowed = "copy";
+                this.#setActorDragImage(event.dataTransfer, payload.actorIds);
                 row.classList.add("is-dragging");
             });
             row.addEventListener("dragend", () => {
                 row.classList.remove("is-dragging");
+                this.#clearActorDragImage();
                 this.#clearSceneActorDropTargets();
             });
         });
@@ -4771,14 +4778,81 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         layer.style.transform = image.style.transform;
     }
 
+    #setActorDragImage(dataTransfer, actorIds = []) {
+        const documentRef = globalThis.document;
+        if (!dataTransfer || typeof dataTransfer.setDragImage !== "function" || !documentRef?.body) return;
+        this.#clearActorDragImage();
+
+        const actors = Array.from(actorIds ?? [])
+            .map((id) => game.actors?.get?.(id))
+            .filter(Boolean);
+        if (!actors.length) return;
+
+        const columns = Math.max(1, Math.ceil(Math.sqrt(actors.length)));
+        const dragImage = documentRef.createElement("div");
+        dragImage.className = "totc-v2-actor-drag-image";
+        dragImage.style.gridTemplateColumns = `repeat(${columns}, 2.5rem)`;
+        dragImage.setAttribute("aria-hidden", "true");
+
+        for (const actor of actors) {
+            const icon = tokenIconForActor(actor);
+            if (icon) {
+                const image = documentRef.createElement("img");
+                image.src = icon;
+                image.alt = "";
+                image.draggable = false;
+                dragImage.append(image);
+            } else {
+                const fallback = documentRef.createElement("span");
+                fallback.textContent = String(actor?.name ?? "?").slice(0, 1).toUpperCase() || "?";
+                dragImage.append(fallback);
+            }
+        }
+
+        documentRef.body.append(dragImage);
+        this.actorDragImage = dragImage;
+        dataTransfer.setDragImage(dragImage, 20, 20);
+    }
+
+    #clearActorDragImage() {
+        this.actorDragImage?.remove?.();
+        this.actorDragImage = null;
+    }
+
+    #getMapImageTransform(viewport) {
+        const image = viewport?.querySelector?.("[data-action='map-image']");
+        if (!(image instanceof HTMLImageElement)) {
+            return {
+                scale: Number(this.mapViewportController.state?.scale),
+                offsetX: Number(this.mapViewportController.state?.offsetX ?? 0),
+                offsetY: Number(this.mapViewportController.state?.offsetY ?? 0)
+            };
+        }
+
+        const transform = String(image.style.transform ?? "").trim();
+        const matrixMatch = transform.match(/^matrix\(([^)]+)\)$/);
+        if (matrixMatch) {
+            const values = matrixMatch[1].split(",").map((value) => Number(value.trim()));
+            return { scale: values[0], offsetX: values[4], offsetY: values[5] };
+        }
+
+        const translateMatch = transform.match(/translate\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px\s*\)/);
+        const scaleMatch = transform.match(/scale\(\s*(-?[\d.]+)\s*\)/);
+        return {
+            scale: Number(scaleMatch?.[1] ?? this.mapViewportController.state?.scale),
+            offsetX: Number(translateMatch?.[1] ?? this.mapViewportController.state?.offsetX ?? 0),
+            offsetY: Number(translateMatch?.[2] ?? this.mapViewportController.state?.offsetY ?? 0)
+        };
+    }
+
     #getImageSpacePointFromMapEvent(viewport, event) {
         const rect = viewport?.getBoundingClientRect?.();
         if (!rect || !event) return null;
-        const scale = Number(this.mapViewportController.state?.scale);
+        const { scale, offsetX, offsetY } = this.#getMapImageTransform(viewport);
         if (!Number.isFinite(scale) || scale <= 0) return null;
         return {
-            x: ((event.clientX - rect.left) - Number(this.mapViewportController.state.offsetX ?? 0)) / scale,
-            y: ((event.clientY - rect.top) - Number(this.mapViewportController.state.offsetY ?? 0)) / scale
+            x: ((event.clientX - rect.left) - Number(offsetX ?? 0)) / scale,
+            y: ((event.clientY - rect.top) - Number(offsetY ?? 0)) / scale
         };
     }
 
