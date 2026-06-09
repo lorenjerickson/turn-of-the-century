@@ -82,6 +82,31 @@ describe("Campaign view panel", () => {
         assert.match(html, /class="totc-v2-campaign-view__row is-selected"/);
     });
 
+    it("renders selected encounter content from Foundry-like system data", () => {
+        const items = makeItems();
+        items[2] = {
+            ...items[2],
+            system: {
+                toObject: () => ({
+                    scenarioId: "scenario-a",
+                    description: "<p>Generated encounter text saved on the document.</p>",
+                    hazards: "<p>Steam pressure rises.</p>"
+                })
+            }
+        };
+        const model = buildCampaignViewPanelModel({
+            items,
+            expandedIds: ["campaign-a", "scenario-a"],
+            selectedId: "encounter-a"
+        });
+        const html = renderCampaignViewPanel(model, { escapeHTML });
+
+        assert.match(html, /Generated encounter text saved on the document/);
+        assert.match(html, /Steam pressure rises/);
+        assert.doesNotMatch(html, /No generated content was returned/);
+        assert.doesNotMatch(html, /<h5>Scenario Id<\/h5>/);
+    });
+
     it("renders contextual create and generate controls at hierarchy levels", () => {
         const model = buildCampaignViewPanelModel({
             items: makeItems(),
@@ -108,9 +133,10 @@ describe("Campaign view panel", () => {
         assert.equal(model.orphanScenarios[0].name, "Loose Scenario");
     });
 
-    it("styles the panel as a split hierarchy and content view", () => {
+    it("styles the tree and content panes as a vertical stack", () => {
         assert.match(styles, /\.totc-v2-campaign-view\s*\{[\s\S]*grid-template-rows: auto minmax\(0, 1fr\);[\s\S]*height: 100%;/);
-        assert.match(styles, /\.totc-v2-campaign-view__body\s*\{[\s\S]*grid-template-columns: minmax\(12rem, 0\.95fr\) minmax\(14rem, 1\.25fr\);/);
+        assert.match(styles, /\.totc-v2-campaign-view__body\s*\{[\s\S]*grid-template-rows: minmax\(10rem, 0\.9fr\) minmax\(12rem, 1\.1fr\);/);
+        assert.doesNotMatch(styles, /\.totc-v2-campaign-view__body\s*\{[\s\S]*grid-template-columns: minmax\(12rem, 0\.95fr\) minmax\(14rem, 1\.25fr\);/);
         assert.match(styles, /\.totc-v2-campaign-view__tree,[\s\S]*\.totc-v2-campaign-view__detail\s*\{[\s\S]*overflow: auto;/);
         assert.match(styles, /\.totc-v2-campaign-view__detail-content\s*\{[\s\S]*overflow: auto;/);
     });

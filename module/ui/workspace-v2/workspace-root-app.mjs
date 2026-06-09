@@ -172,6 +172,7 @@ import {
     renderCampaignViewPanel
 } from "./panels/campaign-view-panel.mjs";
 import {
+    buildGMAssistantDocumentSystemData,
     buildGMAssistantPanelModel,
     renderGMAssistantPanel
 } from "./panels/gm-assistant-panel.mjs";
@@ -2050,7 +2051,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const documentData = {
                     name: result.name || "Generated Element",
                     type: isActor ? actorType : elementType,
-                    system: result.system || {}
+                    system: buildGMAssistantDocumentSystemData(result.system || {}, elementType)
                 };
                 if (elementType === "location" && this._gmAssistantState.parentLocationId) {
                     documentData.system.parentLocationId = this._gmAssistantState.parentLocationId;

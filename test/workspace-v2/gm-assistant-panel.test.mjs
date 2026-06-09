@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import {
+    buildGMAssistantDocumentSystemData,
     buildGMAssistantPanelModel,
     renderGeneratedAssistantContent,
     renderGMAssistantPanel
@@ -103,6 +104,58 @@ describe("GM assistant panel", () => {
         assert.doesNotMatch(html, /onclick=/);
         assert.doesNotMatch(html, /<script/);
         assert.doesNotMatch(html, /javascript:/);
+    });
+
+    it("normalizes generated encounter profile content into encounter document fields", () => {
+        const system = buildGMAssistantDocumentSystemData({
+            profile: {
+                summary: "A bad night at the warehouse.",
+                description: "<p>Crates and gaslight.</p>",
+                hazards: "<ul><li>Unstable boiler</li></ul>",
+                npcs: ["Foreman Vale"]
+            }
+        }, "encounter-design");
+
+        assert.deepEqual(system, {
+            scenarioId: "",
+            description: "<p>Crates and gaslight.</p>",
+            hazards: "<ul><li>Unstable boiler</li></ul>",
+            npcs: ["Foreman Vale"]
+        });
+    });
+
+    it("normalizes generated scenario profile content into scenario document fields", () => {
+        const system = buildGMAssistantDocumentSystemData({
+            profile: {
+                description: "<p>A ledger changes hands.</p>",
+                historicalNotes: "<p>Dock strikes shape the pressure.</p>",
+                resolutionCriteria: "<p>The ledger is recovered.</p>"
+            }
+        }, "scenario");
+
+        assert.deepEqual(system, {
+            campaignId: "",
+            description: "<p>A ledger changes hands.</p>",
+            historicalNotes: "<p>Dock strikes shape the pressure.</p>",
+            resolutionCriteria: "<p>The ledger is recovered.</p>",
+            encounters: []
+        });
+    });
+
+    it("renders generated content from Foundry-like system data models", () => {
+        const html = renderGeneratedAssistantContent({
+            system: {
+                toObject: () => ({
+                    scenarioId: "scenario-a",
+                    description: "<p>Saved encounter prose.</p>",
+                    hazards: "<p>A failing gas main.</p>"
+                })
+            }
+        }, { escapeHTML });
+
+        assert.match(html, /Saved encounter prose/);
+        assert.match(html, /A failing gas main/);
+        assert.doesNotMatch(html, /scenario-a/);
     });
 
     it("renders accept and regenerate actions in a footer after the scrollable result content", () => {

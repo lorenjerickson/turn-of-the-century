@@ -1819,7 +1819,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 .turn-of-the-century .totc-v2-campaign-view__body {
     display: grid;
     gap: 0.65rem;
-    grid-template-columns: minmax(12rem, 0.95fr) minmax(14rem, 1.25fr);
+    grid-template-rows: minmax(10rem, 0.9fr) minmax(12rem, 1.1fr);
     min-height: 0;
     overflow: hidden;
 }

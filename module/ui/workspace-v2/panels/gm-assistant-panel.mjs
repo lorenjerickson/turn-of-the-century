@@ -42,6 +42,83 @@ export function buildGMAssistantPanelModel(state = {}) {
     };
 }
 
+function clonePlainObject(value) {
+    if (!value || typeof value !== "object") return {};
+    try {
+        return structuredClone(value);
+    } catch {
+        return { ...value };
+    }
+}
+
+export function getSerializableSystemData(system = {}) {
+    if (!system || typeof system !== "object") return {};
+
+    if (typeof system.toObject === "function") {
+        return clonePlainObject(system.toObject());
+    }
+
+    if (typeof system.toJSON === "function") {
+        return clonePlainObject(system.toJSON());
+    }
+
+    if (system._source && typeof system._source === "object") {
+        return clonePlainObject(system._source);
+    }
+
+    return clonePlainObject(system);
+}
+
+export function buildGMAssistantDocumentSystemData(system = {}, elementType = "") {
+    const source = getSerializableSystemData(system);
+    const profile = source.profile && typeof source.profile === "object" ? source.profile : {};
+    const type = String(elementType ?? "").trim();
+
+    if (type === "campaign") {
+        return {
+            setting: source.setting ?? profile.summary ?? "",
+            era: source.era ?? "",
+            environment: source.environment ?? profile.environment ?? "",
+            culture: source.culture ?? profile.culture ?? "",
+            socialClimate: source.socialClimate ?? profile.socialClimate ?? "",
+            antagonist: source.antagonist ?? profile.antagonist ?? {},
+            motivations: source.motivations ?? profile.motivations ?? profile.antagonist?.motivations ?? "",
+            scenarios: source.scenarios ?? []
+        };
+    }
+
+    if (type === "scenario") {
+        return {
+            campaignId: source.campaignId ?? "",
+            description: source.description ?? profile.description ?? profile.summary ?? "",
+            historicalNotes: source.historicalNotes ?? profile.historicalNotes ?? "",
+            resolutionCriteria: source.resolutionCriteria ?? profile.resolutionCriteria ?? "",
+            encounters: source.encounters ?? []
+        };
+    }
+
+    if (type === "encounter-design") {
+        return {
+            scenarioId: source.scenarioId ?? "",
+            description: source.description ?? profile.description ?? profile.summary ?? "",
+            hazards: source.hazards ?? profile.hazards ?? "",
+            npcs: source.npcs ?? profile.npcs ?? []
+        };
+    }
+
+    if (type === "location") {
+        return {
+            ...source,
+            description: source.description ?? profile.description ?? "",
+            notes: source.notes ?? profile.notes ?? "",
+            locationType: source.locationType ?? "village",
+            parentLocationId: source.parentLocationId ?? ""
+        };
+    }
+
+    return source;
+}
+
 function humanizeKey(key = "") {
     return String(key ?? "")
         .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
@@ -119,8 +196,10 @@ function renderGeneratedValue(key, value, { escapeHTML }, depth = 0) {
 }
 
 export function renderGeneratedAssistantContent(result = {}, { escapeHTML }) {
-    const system = result?.system ?? {};
+    const hiddenKeys = new Set(["campaignId", "scenarioId", "parentLocationId", "scenarios", "encounters"]);
+    const system = getSerializableSystemData(result?.system ?? {});
     const content = Object.entries(system)
+        .filter(([key]) => !hiddenKeys.has(key))
         .map(([key, value]) => renderGeneratedValue(key, value, { escapeHTML }))
         .filter(Boolean)
         .join("");
