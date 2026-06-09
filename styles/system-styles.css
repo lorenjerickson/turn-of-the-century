@@ -1920,22 +1920,29 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 .turn-of-the-century .totc-v2-campaign-view__select {
     display: grid;
     gap: 0.05rem;
+    justify-items: start;
     text-align: left;
+    width: 100%;
 }
 
 .turn-of-the-century .totc-v2-campaign-view__type {
     color: #93c5fd;
+    display: block;
     font-size: 0.6rem;
     font-weight: 800;
     letter-spacing: 0.08em;
+    text-align: left;
     text-transform: uppercase;
 }
 
 .turn-of-the-century .totc-v2-campaign-view__name {
     color: #e2e8f0;
+    display: block;
     font-size: 0.78rem;
     font-weight: 800;
+    max-width: 100%;
     overflow: hidden;
+    text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
 }

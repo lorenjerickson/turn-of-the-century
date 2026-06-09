@@ -254,6 +254,9 @@ describe("Campaign view panel", () => {
         assert.doesNotMatch(styles, /\.totc-v2-campaign-view__body\s*\{[\s\S]*grid-template-columns: minmax\(12rem, 0\.95fr\) minmax\(14rem, 1\.25fr\);/);
         assert.match(styles, /\.totc-v2-campaign-view__tree,[\s\S]*\.totc-v2-campaign-view__detail\s*\{[\s\S]*overflow: auto;/);
         assert.match(styles, /\.totc-v2-campaign-view__detail-content\s*\{[\s\S]*overflow: auto;/);
+        assert.match(styles, /\.totc-v2-campaign-view__select\s*\{[\s\S]*justify-items: start;[\s\S]*text-align: left;[\s\S]*width: 100%;/);
+        assert.match(styles, /\.totc-v2-campaign-view__type\s*\{[\s\S]*display: block;[\s\S]*text-align: left;/);
+        assert.match(styles, /\.totc-v2-campaign-view__name\s*\{[\s\S]*display: block;[\s\S]*text-align: left;/);
         assert.match(styles, /\.totc-v2-campaign-view__row\[data-campaign-view-drop-mode="inside"\]\s*\{[\s\S]*border-color: rgba\(134, 239, 172, 0\.58\);/);
         assert.match(styles, /\.totc-v2-campaign-view__row\[data-campaign-view-drop-mode="before"\][\s\S]*\.totc-v2-campaign-view__drop-indicator--before/);
     });
