@@ -176,6 +176,8 @@ describe("GM assistant panel", () => {
         assert.match(styles, /\.totc-v2-gm-assistant\s*\{[\s\S]*height: 100%;[\s\S]*overflow: hidden;/);
         assert.match(styles, /\.totc-v2-gm-assistant__result\s*\{[\s\S]*grid-template-rows: auto minmax\(0, 1fr\) auto;[\s\S]*height: 100%;/);
         assert.match(styles, /\.totc-v2-gm-assistant__result-content\s*\{[\s\S]*overflow-y: auto;/);
+        assert.match(styles, /\.totc-v2-gm-assistant__generated-html\s*\{[\s\S]*font-size: 0\.95rem;/);
+        assert.match(styles, /\.totc-v2-gm-assistant__generated-empty\s*\{[\s\S]*font-size: 0\.95rem;/);
         assert.match(styles, /\.totc-v2-gm-assistant__result-actions\s*\{[\s\S]*bottom: 0;[\s\S]*position: sticky;/);
     });
 });
