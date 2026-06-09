@@ -2,7 +2,10 @@ import {
     SCENE_BACKGROUND_IMAGE_ASSET_PATH,
     SCENE_BACKGROUND_IMAGE_EXTENSIONS
 } from "../design-actions/scene-actions.mjs";
-import { getSceneBackgroundSource } from "../scene-background-source.mjs";
+import {
+    getSceneBackgroundLevel,
+    getSceneBackgroundSource
+} from "../scene-background-source.mjs";
 import { buildSceneActorPlacementPanelModel } from "../scene-actor-placement.mjs";
 import { isDefaultScene } from "../../../seeded-scenes.mjs";
 
@@ -87,23 +90,83 @@ export function buildScenePropertiesPanelModel({
 }
 
 /**
- * Build the update data to send to scene.update() when saving a background.
+ * Build the legacy update data to send to scene.update() when saving a background.
  *
- * Foundry v14 deprecated Scene#background and Scene#texture as getters/setters.
- * The primary scene image field in v14 is `img` (restored from pre-v12 API).
- * We set `img` as the main field and also set `"texture.src"` for compatibility
- * with Foundry's canvas rendering which reads from `texture.src` in some paths.
- *
- * Do NOT use `"background.src"` — in Foundry v14 that key routes through the
- * deprecated Level#background setter and may be silently dropped.
+ * Foundry v14 stores background media on embedded Level documents. This object
+ * is used only for older scene schemas and compatibility shims.
  */
 export function buildSceneBackgroundUpdateData(backgroundPath = "") {
     const src = String(backgroundPath ?? "").trim();
     if (!src) return {};
     return {
         img: src,
+        "background.src": src,
         "texture.src": src
     };
+}
+
+export function buildSceneLevelBackgroundUpdateData(backgroundPath = "") {
+    const src = String(backgroundPath ?? "").trim();
+    if (!src) return {};
+    return { "background.src": src };
+}
+
+export function buildSceneLevelBackgroundCreationData(backgroundPath = "", { name = "" } = {}) {
+    const src = String(backgroundPath ?? "").trim();
+    if (!src) return {};
+    return {
+        name: String(name ?? "").trim() || "Ground Level",
+        elevation: { bottom: 0, top: 999 },
+        background: { src }
+    };
+}
+
+function sceneHasLevelSupport(scene) {
+    return Boolean(scene?.levels)
+        || typeof scene?.createEmbeddedDocuments === "function"
+        || typeof scene?.updateEmbeddedDocuments === "function";
+}
+
+/**
+ * Persist a scene background across Foundry schema generations.
+ *
+ * Current Foundry v14 scenes render backgrounds from embedded Level documents.
+ * Older versions store background media directly on the Scene. Prefer the Level
+ * path when available, then fall back to the legacy scene update shape.
+ */
+export async function applySceneBackgroundUpdate(scene, backgroundPath = "") {
+    const src = String(backgroundPath ?? "").trim();
+    if (!scene || !src) return { ok: false, mode: "none", document: null };
+
+    const level = getSceneBackgroundLevel(scene);
+    const levelUpdate = buildSceneLevelBackgroundUpdateData(src);
+
+    if (level) {
+        if (typeof level.update === "function") {
+            const document = await level.update(levelUpdate);
+            return { ok: true, mode: "level", document: document ?? level };
+        }
+
+        const levelId = String(level.id ?? level._id ?? level._source?._id ?? "").trim();
+        if (levelId && typeof scene.updateEmbeddedDocuments === "function") {
+            const documents = await scene.updateEmbeddedDocuments("Level", [{ _id: levelId, ...levelUpdate }]);
+            return { ok: true, mode: "level", document: documents?.[0] ?? level };
+        }
+    }
+
+    if (sceneHasLevelSupport(scene) && typeof scene.createEmbeddedDocuments === "function") {
+        const documents = await scene.createEmbeddedDocuments("Level", [
+            buildSceneLevelBackgroundCreationData(src)
+        ]);
+        return { ok: true, mode: "level-created", document: documents?.[0] ?? null };
+    }
+
+    if (typeof scene.update === "function") {
+        const document = await scene.update(buildSceneBackgroundUpdateData(src));
+        return { ok: true, mode: "scene", document: document ?? scene };
+    }
+
+    return { ok: false, mode: "none", document: null };
 }
 
 export function resolveScenePropertiesMapPanelScene({

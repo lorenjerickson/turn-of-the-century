@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+    applySceneBackgroundUpdate,
+    buildSceneLevelBackgroundCreationData,
+    buildSceneLevelBackgroundUpdateData,
     buildSceneBackgroundUpdateData,
     buildSceneBackgroundUploadTarget,
     buildScenePropertiesPanelModel,
@@ -35,7 +38,7 @@ describe("Scene properties panel", () => {
         assert.equal(buildSceneBackgroundUploadTarget({ sceneName: "Whitechapel", filename: "map.txt" }).valid, false);
     });
 
-    it("reads scene name and background via scene.img (Foundry v14 primary field)", () => {
+    it("reads scene name and legacy background via scene.img", () => {
         const model = buildScenePropertiesPanelModel({
             scene: {
                 id: "scene-a",
@@ -48,6 +51,20 @@ describe("Scene properties panel", () => {
         assert.equal(model.backgroundPath, "assets/images/scenes/whitechapel.webp");
         assert.equal(model.uploadEnabled, true);
         assert.equal(model.deleteEnabled, true);
+    });
+
+    it("reads scene background from a Foundry v14 level", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: {
+                id: "scene-a",
+                name: "Whitechapel",
+                levels: [
+                    { id: "level-a", background: { src: "assets/images/scenes/whitechapel.webp" } }
+                ]
+            }
+        });
+
+        assert.equal(model.backgroundPath, "assets/images/scenes/whitechapel.webp");
     });
 
     it("reads background from _source.background.src as fallback", () => {
@@ -96,16 +113,101 @@ describe("Scene properties panel", () => {
         assert.equal(model.error, "");
     });
 
-    it("builds background update data using Foundry v14 img key for scene.update()", () => {
+    it("builds legacy direct-scene background update data", () => {
         assert.deepEqual(buildSceneBackgroundUpdateData("assets/images/scenes/whitechapel.webp"), {
             img: "assets/images/scenes/whitechapel.webp",
+            "background.src": "assets/images/scenes/whitechapel.webp",
             "texture.src": "assets/images/scenes/whitechapel.webp"
+        });
+    });
+
+    it("builds Foundry v14 level background update data", () => {
+        assert.deepEqual(buildSceneLevelBackgroundUpdateData("assets/images/scenes/whitechapel.webp"), {
+            "background.src": "assets/images/scenes/whitechapel.webp"
+        });
+    });
+
+    it("builds Foundry v14 level creation data", () => {
+        assert.deepEqual(buildSceneLevelBackgroundCreationData("assets/images/scenes/whitechapel.webp"), {
+            name: "Ground Level",
+            elevation: { bottom: 0, top: 999 },
+            background: { src: "assets/images/scenes/whitechapel.webp" }
         });
     });
 
     it("returns empty object when background path is empty", () => {
         assert.deepEqual(buildSceneBackgroundUpdateData(""), {});
         assert.deepEqual(buildSceneBackgroundUpdateData(), {});
+    });
+
+    it("updates an existing Foundry v14 level background", async () => {
+        let received = null;
+        const level = {
+            id: "level-a",
+            index: 0,
+            background: { src: "" },
+            update: async (data) => {
+                received = data;
+                level.background.src = data["background.src"];
+                return level;
+            }
+        };
+
+        const result = await applySceneBackgroundUpdate({
+            id: "scene-a",
+            levels: [level]
+        }, "assets/images/scenes/whitechapel.webp");
+
+        assert.equal(result.ok, true);
+        assert.equal(result.mode, "level");
+        assert.deepEqual(received, { "background.src": "assets/images/scenes/whitechapel.webp" });
+        assert.equal(result.document, level);
+    });
+
+    it("creates a Foundry v14 level when a level-capable scene has no levels", async () => {
+        let received = null;
+        const createdLevel = { id: "level-created" };
+        const scene = {
+            id: "scene-a",
+            levels: [],
+            createEmbeddedDocuments: async (type, documents) => {
+                received = { type, documents };
+                return [createdLevel];
+            }
+        };
+
+        const result = await applySceneBackgroundUpdate(scene, "assets/images/scenes/whitechapel.webp");
+
+        assert.equal(result.ok, true);
+        assert.equal(result.mode, "level-created");
+        assert.equal(result.document, createdLevel);
+        assert.equal(received.type, "Level");
+        assert.deepEqual(received.documents, [{
+            name: "Ground Level",
+            elevation: { bottom: 0, top: 999 },
+            background: { src: "assets/images/scenes/whitechapel.webp" }
+        }]);
+    });
+
+    it("falls back to a legacy scene background update when levels are unavailable", async () => {
+        let received = null;
+        const scene = {
+            id: "scene-a",
+            update: async (data) => {
+                received = data;
+                return scene;
+            }
+        };
+
+        const result = await applySceneBackgroundUpdate(scene, "assets/images/scenes/whitechapel.webp");
+
+        assert.equal(result.ok, true);
+        assert.equal(result.mode, "scene");
+        assert.deepEqual(received, {
+            img: "assets/images/scenes/whitechapel.webp",
+            "background.src": "assets/images/scenes/whitechapel.webp",
+            "texture.src": "assets/images/scenes/whitechapel.webp"
+        });
     });
 
     it("resolves scene-bound map panels by explicit sceneId", () => {

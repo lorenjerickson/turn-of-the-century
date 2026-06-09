@@ -135,6 +135,7 @@ import {
     GRID_CAL_PHASE_HINTS
 } from "./panels/grid-calibration.mjs";
 import {
+    applySceneBackgroundUpdate,
     buildSceneBackgroundUploadTarget,
     buildSceneBackgroundUpdateData,
     buildScenePropertiesPanelModel,
@@ -4985,21 +4986,26 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (scene) {
                     try {
                         const updateData = buildSceneBackgroundUpdateData(result.path);
-                        totcLogger.info("[bg-upload] Calling scene.update()", {
+                        totcLogger.info("[bg-upload] Applying scene background update", {
                             sceneId: scene.id,
                             sceneName: scene.name,
-                            updateData,
+                            legacySceneUpdateData: updateData,
+                            levelCount: scene?.levels?.size ?? scene?.levels?.contents?.length ?? scene?._source?.levels?.length ?? null,
                             "scene.img (pre-update)": scene?.img ?? null,
                             "_source.img (pre-update)": scene?._source?.img ?? null,
-                            "_source.background.src (pre-update)": scene?._source?.background?.src ?? null
+                            "_source.background.src (pre-update)": scene?._source?.background?.src ?? null,
+                            "_source.levels[0].background.src (pre-update)": scene?._source?.levels?.[0]?.background?.src ?? null
                         });
-                        await scene.update(updateData);
-                        totcLogger.info("[bg-upload] scene.update() resolved — reading back scene state", {
+                        const saveResult = await applySceneBackgroundUpdate(scene, result.path);
+                        totcLogger.info("[bg-upload] Background update resolved — reading back scene state", {
                             sceneId: scene.id,
+                            saveMode: saveResult.mode,
+                            savedDocumentId: saveResult.document?.id ?? saveResult.document?._id ?? null,
                             "scene.img (post-update)": scene?.img ?? null,
                             "_source.img (post-update)": scene?._source?.img ?? null,
                             "_source.background.src (post-update)": scene?._source?.background?.src ?? null,
                             "_source.texture.src (post-update)": scene?._source?.texture?.src ?? null,
+                            "_source.levels[0].background.src (post-update)": scene?._source?.levels?.[0]?.background?.src ?? null,
                             "getSceneBackgroundSource() (post-update)": getSceneBackgroundSource(scene)
                         });
                         this._scenePropertiesState = {
