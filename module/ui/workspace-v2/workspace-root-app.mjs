@@ -168,7 +168,9 @@ import {
     renderEncounterDesignerPanel
 } from "./panels/encounter-designer-panel.mjs";
 import {
+    buildCampaignViewMovePlan,
     buildCampaignViewPanelModel,
+    getCampaignViewDropMode,
     renderCampaignViewPanel
 } from "./panels/campaign-view-panel.mjs";
 import {
@@ -1953,6 +1955,69 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.element?.querySelectorAll("[data-campaign-view-draggable='true']")?.forEach((row) => {
+            row.addEventListener("dragstart", (event) => {
+                event.stopPropagation();
+                const itemId = String(row.dataset.campaignViewItemId ?? "").trim();
+                const itemType = String(row.dataset.campaignViewItemType ?? "").trim();
+                if (!itemId || !itemType) return;
+                this._campaignViewDragState = { itemId, itemType };
+                if (event.dataTransfer) {
+                    event.dataTransfer.setData("application/x-totc-campaign-view-item", JSON.stringify({ itemId, itemType }));
+                    event.dataTransfer.setData("text/plain", itemId);
+                    event.dataTransfer.effectAllowed = "move";
+                }
+                row.classList.add("is-dragging");
+            });
+            row.addEventListener("dragend", () => {
+                row.classList.remove("is-dragging");
+                this._campaignViewDragState = null;
+                this.#clearCampaignViewDropTargets();
+            });
+            row.addEventListener("dragover", (event) => {
+                const dragged = this._campaignViewDragState;
+                if (!dragged?.itemId || dragged.itemId === row.dataset.campaignViewItemId) return;
+                const rect = row.getBoundingClientRect();
+                const pointerRatio = rect.height > 0 ? (event.clientY - rect.top) / rect.height : 0.5;
+                const dropMode = getCampaignViewDropMode({
+                    draggedType: dragged.itemType,
+                    targetType: String(row.dataset.campaignViewItemType ?? "").trim(),
+                    pointerRatio
+                });
+                if (!dropMode) return;
+                event.preventDefault();
+                event.stopPropagation();
+                this.#clearCampaignViewDropTargets(row);
+                row.dataset.campaignViewDropMode = dropMode;
+                if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+            });
+            row.addEventListener("dragleave", (event) => {
+                const related = event.relatedTarget;
+                if (related && row.contains(related)) return;
+                delete row.dataset.campaignViewDropMode;
+            });
+            row.addEventListener("drop", async (event) => {
+                const dragged = this._campaignViewDragState;
+                if (!dragged?.itemId) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const rect = row.getBoundingClientRect();
+                const pointerRatio = rect.height > 0 ? (event.clientY - rect.top) / rect.height : 0.5;
+                const dropMode = row.dataset.campaignViewDropMode || getCampaignViewDropMode({
+                    draggedType: dragged.itemType,
+                    targetType: String(row.dataset.campaignViewItemType ?? "").trim(),
+                    pointerRatio
+                });
+                await this.#moveCampaignViewItem({
+                    draggedId: dragged.itemId,
+                    targetId: String(row.dataset.campaignViewItemId ?? "").trim(),
+                    dropMode
+                });
+                this._campaignViewDragState = null;
+                this.#clearCampaignViewDropTargets();
+            });
+        });
+
         this.element?.querySelectorAll("[data-action='gm-assistant-set-type']")?.forEach((select) => {
             select.addEventListener("change", (event) => {
                 this._gmAssistantState.elementType = event.target.value;
@@ -2772,6 +2837,46 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return game.items?.get?.(id)
             ?? (game.items?.contents ?? []).find((item) => String(item?.id ?? item?._id ?? "") === id)
             ?? null;
+    }
+
+    #clearCampaignViewDropTargets(except = null) {
+        this.element?.querySelectorAll("[data-campaign-view-drop-mode]")?.forEach((row) => {
+            if (row !== except) delete row.dataset.campaignViewDropMode;
+        });
+    }
+
+    async #moveCampaignViewItem({ draggedId = "", targetId = "", dropMode = "" } = {}) {
+        const safeDraggedId = String(draggedId ?? "").trim();
+        const safeTargetId = String(targetId ?? "").trim();
+        const safeDropMode = String(dropMode ?? "").trim();
+        if (!safeDraggedId || !safeTargetId || !safeDropMode) return null;
+
+        const items = Array.from(game.items?.contents || []);
+        const plan = buildCampaignViewMovePlan({
+            items,
+            draggedId: safeDraggedId,
+            targetId: safeTargetId,
+            dropMode: safeDropMode
+        });
+        if (!plan) return null;
+
+        const movedItem = this.#getItemDocumentById(plan.itemId);
+        const parent = this.#getItemDocumentById(plan.parentId);
+        const previousParent = plan.previousParentId ? this.#getItemDocumentById(plan.previousParentId) : null;
+        if (!movedItem || !parent) return null;
+
+        const previousParentId = String(previousParent?.id ?? previousParent?._id ?? "").trim();
+        const parentId = String(parent?.id ?? parent?._id ?? "").trim();
+        if (previousParent && plan.previousParentUpdate && previousParentId !== parentId) {
+            await previousParent.update(plan.previousParentUpdate);
+        }
+        await parent.update(plan.parentUpdate);
+        await movedItem.update(plan.itemUpdate);
+
+        this._campaignViewState.selectedId = plan.itemId;
+        this._campaignViewState.expandedIds.add(plan.parentId);
+        this.render({ force: false });
+        return plan;
     }
 
     async #createCampaignViewItem({ type = "", parentId = "" } = {}) {

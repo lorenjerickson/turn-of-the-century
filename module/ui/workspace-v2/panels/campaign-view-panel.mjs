@@ -21,6 +21,13 @@ function getLinkedIds(value) {
     return new Set(toArray(value).map((id) => String(id ?? "").trim()).filter(Boolean));
 }
 
+function getSystemValue(item, key) {
+    if (!item?.system || typeof item.system !== "object") return undefined;
+    if (typeof item.system.toObject === "function") return item.system.toObject()?.[key];
+    if (typeof item.system.toJSON === "function") return item.system.toJSON()?.[key];
+    return item.system[key];
+}
+
 function sortByName(a, b) {
     return String(a.name ?? "").localeCompare(String(b.name ?? ""));
 }
@@ -52,16 +59,157 @@ function normalizeItem(item) {
 
 function hasScenarioLink(campaign, scenario) {
     const campaignId = getItemId(campaign);
-    const scenarioCampaignId = String(scenario?.system?.campaignId ?? "").trim();
+    const scenarioCampaignId = String(getSystemValue(scenario, "campaignId") ?? "").trim();
     if (scenarioCampaignId && scenarioCampaignId === campaignId) return true;
-    return getLinkedIds(campaign?.system?.scenarios).has(getItemId(scenario));
+    return getLinkedIds(getSystemValue(campaign, "scenarios")).has(getItemId(scenario));
 }
 
 function hasEncounterLink(scenario, encounter) {
     const scenarioId = getItemId(scenario);
-    const encounterScenarioId = String(encounter?.system?.scenarioId ?? "").trim();
+    const encounterScenarioId = String(getSystemValue(encounter, "scenarioId") ?? "").trim();
     if (encounterScenarioId && encounterScenarioId === scenarioId) return true;
-    return getLinkedIds(scenario?.system?.encounters).has(getItemId(encounter));
+    return getLinkedIds(getSystemValue(scenario, "encounters")).has(getItemId(encounter));
+}
+
+function sortLinkedChildren(parent, children, key) {
+    const orderedIds = toArray(getSystemValue(parent, key)).map((id) => String(id ?? "").trim()).filter(Boolean);
+    const order = new Map(orderedIds.map((id, index) => [id, index]));
+    return [...children].sort((a, b) => {
+        const aOrder = order.has(getItemId(a)) ? order.get(getItemId(a)) : Number.MAX_SAFE_INTEGER;
+        const bOrder = order.has(getItemId(b)) ? order.get(getItemId(b)) : Number.MAX_SAFE_INTEGER;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return sortByName(a, b);
+    });
+}
+
+function uniqueIds(ids) {
+    return [...new Set(toArray(ids).map((id) => String(id ?? "").trim()).filter(Boolean))];
+}
+
+function findScenarioParent(scenario, campaigns) {
+    const campaignId = String(getSystemValue(scenario, "campaignId") ?? "").trim();
+    if (campaignId) return campaigns.find((campaign) => getItemId(campaign) === campaignId) ?? null;
+    return campaigns.find((campaign) => getLinkedIds(getSystemValue(campaign, "scenarios")).has(getItemId(scenario))) ?? null;
+}
+
+function findEncounterParent(encounter, scenarios) {
+    const scenarioId = String(getSystemValue(encounter, "scenarioId") ?? "").trim();
+    if (scenarioId) return scenarios.find((scenario) => getItemId(scenario) === scenarioId) ?? null;
+    return scenarios.find((scenario) => getLinkedIds(getSystemValue(scenario, "encounters")).has(getItemId(encounter))) ?? null;
+}
+
+function insertMovedId(ids, movingId, targetId = "", dropMode = "inside") {
+    const withoutMoving = uniqueIds(ids).filter((id) => id !== movingId);
+    if (dropMode === "inside" || !targetId) return [...withoutMoving, movingId];
+    const targetIndex = withoutMoving.indexOf(targetId);
+    if (targetIndex < 0) return [...withoutMoving, movingId];
+    const insertIndex = dropMode === "before" ? targetIndex : targetIndex + 1;
+    return [
+        ...withoutMoving.slice(0, insertIndex),
+        movingId,
+        ...withoutMoving.slice(insertIndex)
+    ];
+}
+
+function buildOrderedIdsForParent(parent, children, relationKey) {
+    const linked = sortLinkedChildren(parent, children, relationKey).map((child) => getItemId(child));
+    return uniqueIds([
+        ...toArray(getSystemValue(parent, relationKey)),
+        ...linked
+    ]);
+}
+
+export function getCampaignViewDropMode({ draggedType = "", targetType = "", pointerRatio = 0.5 } = {}) {
+    if (draggedType === SCENARIO_TYPE && targetType === CAMPAIGN_TYPE) return "inside";
+    if (draggedType === ENCOUNTER_TYPE && targetType === SCENARIO_TYPE) return "inside";
+    if (draggedType === SCENARIO_TYPE && targetType === SCENARIO_TYPE) return Number(pointerRatio) < 0.5 ? "before" : "after";
+    if (draggedType === ENCOUNTER_TYPE && targetType === ENCOUNTER_TYPE) return Number(pointerRatio) < 0.5 ? "before" : "after";
+    return "";
+}
+
+export function buildCampaignViewMovePlan({
+    items = [],
+    draggedId = "",
+    targetId = "",
+    dropMode = "inside"
+} = {}) {
+    const allItems = toArray(items);
+    const campaigns = allItems.filter((item) => item?.type === CAMPAIGN_TYPE);
+    const scenarios = allItems.filter((item) => item?.type === SCENARIO_TYPE);
+    const encounters = allItems.filter((item) => item?.type === ENCOUNTER_TYPE);
+    const dragged = allItems.find((item) => getItemId(item) === String(draggedId ?? "").trim());
+    const target = allItems.find((item) => getItemId(item) === String(targetId ?? "").trim());
+    if (!dragged || !target || getItemId(dragged) === getItemId(target)) return null;
+
+    const normalizedMode = String(dropMode ?? "").trim();
+    const draggedType = String(dragged.type ?? "").trim();
+    const targetType = String(target.type ?? "").trim();
+    const movingId = getItemId(dragged);
+    const targetItemId = getItemId(target);
+
+    if (draggedType === SCENARIO_TYPE) {
+        const targetParent = normalizedMode === "inside" && targetType === CAMPAIGN_TYPE
+            ? target
+            : targetType === SCENARIO_TYPE
+                ? findScenarioParent(target, campaigns)
+                : null;
+        if (!targetParent) return null;
+
+        const previousParent = findScenarioParent(dragged, campaigns);
+        const targetParentId = getItemId(targetParent);
+        const targetOrder = insertMovedId(
+            buildOrderedIdsForParent(targetParent, scenarios.filter((scenario) => hasScenarioLink(targetParent, scenario)), "scenarios"),
+            movingId,
+            normalizedMode === "inside" ? "" : targetItemId,
+            normalizedMode
+        );
+        const previousOrder = previousParent && getItemId(previousParent) !== targetParentId
+            ? buildOrderedIdsForParent(previousParent, scenarios.filter((scenario) => hasScenarioLink(previousParent, scenario)), "scenarios")
+                .filter((id) => id !== movingId)
+            : null;
+
+        return {
+            itemId: movingId,
+            parentId: targetParentId,
+            previousParentId: previousParent ? getItemId(previousParent) : "",
+            itemUpdate: { "system.campaignId": targetParentId },
+            parentUpdate: { "system.scenarios": targetOrder },
+            previousParentUpdate: previousOrder ? { "system.scenarios": previousOrder } : null
+        };
+    }
+
+    if (draggedType === ENCOUNTER_TYPE) {
+        const targetParent = normalizedMode === "inside" && targetType === SCENARIO_TYPE
+            ? target
+            : targetType === ENCOUNTER_TYPE
+                ? findEncounterParent(target, scenarios)
+                : null;
+        if (!targetParent) return null;
+
+        const previousParent = findEncounterParent(dragged, scenarios);
+        const targetParentId = getItemId(targetParent);
+        const targetOrder = insertMovedId(
+            buildOrderedIdsForParent(targetParent, encounters.filter((encounter) => hasEncounterLink(targetParent, encounter)), "encounters"),
+            movingId,
+            normalizedMode === "inside" ? "" : targetItemId,
+            normalizedMode
+        );
+        const previousOrder = previousParent && getItemId(previousParent) !== targetParentId
+            ? buildOrderedIdsForParent(previousParent, encounters.filter((encounter) => hasEncounterLink(previousParent, encounter)), "encounters")
+                .filter((id) => id !== movingId)
+            : null;
+
+        return {
+            itemId: movingId,
+            parentId: targetParentId,
+            previousParentId: previousParent ? getItemId(previousParent) : "",
+            itemUpdate: { "system.scenarioId": targetParentId },
+            parentUpdate: { "system.encounters": targetOrder },
+            previousParentUpdate: previousOrder ? { "system.encounters": previousOrder } : null
+        };
+    }
+
+    return null;
 }
 
 export function buildCampaignViewPanelModel({
@@ -79,7 +227,7 @@ export function buildCampaignViewPanelModel({
     const scenarioIdsInHierarchy = new Set();
     const encounterIdsInHierarchy = new Set();
     const campaignNodes = campaigns.map((campaign) => {
-        const childScenarios = scenarios.filter((scenario) => hasScenarioLink(campaign, scenario));
+        const childScenarios = sortLinkedChildren(campaign, scenarios.filter((scenario) => hasScenarioLink(campaign, scenario)), "scenarios");
         childScenarios.forEach((scenario) => scenarioIdsInHierarchy.add(getItemId(scenario)));
 
         return {
@@ -88,7 +236,7 @@ export function buildCampaignViewPanelModel({
             expanded: expanded.has(getItemId(campaign)),
             childType: SCENARIO_TYPE,
             children: childScenarios.map((scenario) => {
-                const childEncounters = encounters.filter((encounter) => hasEncounterLink(scenario, encounter));
+                const childEncounters = sortLinkedChildren(scenario, encounters.filter((encounter) => hasEncounterLink(scenario, encounter)), "encounters");
                 childEncounters.forEach((encounter) => encounterIdsInHierarchy.add(getItemId(encounter)));
                 return {
                     ...normalizeItem(scenario),
@@ -127,6 +275,7 @@ export function buildCampaignViewPanelModel({
             childType: ENCOUNTER_TYPE,
             children: encounters
                 .filter((encounter) => hasEncounterLink(scenario, encounter))
+                .sort(sortByName)
                 .map((encounter) => ({ ...normalizeItem(encounter), level: 2, children: [], childType: "" }))
         })),
         orphanEncounters: orphanEncounters.map((encounter) => ({
@@ -150,7 +299,9 @@ function renderNode(node, { escapeHTML }) {
 
     return `
         <div class="totc-v2-campaign-view__node${expandedClass}" data-campaign-view-node-id="${escapeHTML(node.id)}">
-            <div class="totc-v2-campaign-view__row${selectedClass}" style="${rowStyle}">
+            <div class="totc-v2-campaign-view__row${selectedClass}" draggable="true" style="${rowStyle}" data-campaign-view-draggable="true" data-campaign-view-item-id="${escapeHTML(node.id)}" data-campaign-view-item-type="${escapeHTML(node.type)}">
+                <div class="totc-v2-campaign-view__drop-indicator totc-v2-campaign-view__drop-indicator--before" aria-hidden="true"></div>
+                <div class="totc-v2-campaign-view__drop-indicator totc-v2-campaign-view__drop-indicator--after" aria-hidden="true"></div>
                 <button type="button" class="totc-v2-campaign-view__twisty" data-action="campaign-view-toggle" data-item-id="${escapeHTML(node.id)}" aria-label="${node.expanded ? "Collapse" : "Expand"} ${escapeHTML(node.name)}" aria-expanded="${node.expanded ? "true" : "false"}" ${hasChildren ? "" : "disabled"}>
                     <i class="fa-solid ${node.expanded ? "fa-chevron-down" : "fa-chevron-right"}" aria-hidden="true"></i>
                 </button>

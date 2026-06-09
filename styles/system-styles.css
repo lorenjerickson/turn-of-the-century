@@ -1849,12 +1849,48 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     grid-template-columns: 1.45rem minmax(0, 1fr) 1.65rem 1.65rem;
     padding: 0.2rem 0.22rem;
     padding-left: calc(0.22rem + (var(--totc-campaign-level, 0) * 0.9rem));
+    position: relative;
 }
 
 .turn-of-the-century .totc-v2-campaign-view__row:hover,
 .turn-of-the-century .totc-v2-campaign-view__row.is-selected {
     background: rgba(59, 130, 246, 0.16);
     border-color: rgba(147, 197, 253, 0.34);
+}
+
+.turn-of-the-century .totc-v2-campaign-view__row.is-dragging {
+    opacity: 0.52;
+}
+
+.turn-of-the-century .totc-v2-campaign-view__row[data-campaign-view-drop-mode="inside"] {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: rgba(134, 239, 172, 0.58);
+}
+
+.turn-of-the-century .totc-v2-campaign-view__drop-indicator {
+    background: #86efac;
+    border-radius: 999px;
+    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.86);
+    display: none;
+    height: 2px;
+    left: 0.2rem;
+    pointer-events: none;
+    position: absolute;
+    right: 0.2rem;
+    z-index: 2;
+}
+
+.turn-of-the-century .totc-v2-campaign-view__drop-indicator--before {
+    top: -2px;
+}
+
+.turn-of-the-century .totc-v2-campaign-view__drop-indicator--after {
+    bottom: -2px;
+}
+
+.turn-of-the-century .totc-v2-campaign-view__row[data-campaign-view-drop-mode="before"] .totc-v2-campaign-view__drop-indicator--before,
+.turn-of-the-century .totc-v2-campaign-view__row[data-campaign-view-drop-mode="after"] .totc-v2-campaign-view__drop-indicator--after {
+    display: block;
 }
 
 .turn-of-the-century .totc-v2-campaign-view__twisty,
