@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import {
+    buildCampaignViewDeletePlan,
     buildCampaignViewMovePlan,
     buildCampaignViewPanelModel,
     getCampaignViewDropMode,
@@ -177,6 +178,19 @@ describe("Campaign view panel", () => {
         assert.match(html, /data-action="campaign-view-generate-child" data-parent-id="scenario-a" data-child-type="encounter-design"/);
     });
 
+    it("renders a delete control for each hierarchy item", () => {
+        const model = buildCampaignViewPanelModel({
+            items: makeItems(),
+            expandedIds: ["campaign-a", "scenario-a"]
+        });
+        const html = renderCampaignViewPanel(model, { escapeHTML });
+
+        assert.match(html, /data-action="campaign-view-delete" data-item-id="campaign-a"/);
+        assert.match(html, /data-action="campaign-view-delete" data-item-id="scenario-a"/);
+        assert.match(html, /data-action="campaign-view-delete" data-item-id="encounter-a"/);
+        assert.match(html, /totc-v2-campaign-view__icon-action--danger/);
+    });
+
     it("keeps unlinked content visible instead of hiding it", () => {
         const model = buildCampaignViewPanelModel({
             items: [
@@ -248,16 +262,53 @@ describe("Campaign view panel", () => {
         assert.deepEqual(reorderPlan.parentUpdate, { "system.encounters": ["encounter-c", "encounter-b"] });
     });
 
+    it("builds a cascade delete plan for a campaign", () => {
+        const plan = buildCampaignViewDeletePlan({
+            items: makeItems(),
+            itemId: "campaign-a"
+        });
+
+        assert.equal(plan.itemName, "Fog Over Whitechapel");
+        assert.equal(plan.scenarioCount, 1);
+        assert.equal(plan.encounterCount, 1);
+        assert.deepEqual(plan.deleteIds, ["encounter-a", "scenario-a", "campaign-a"]);
+        assert.deepEqual(plan.parentUpdates, []);
+    });
+
+    it("builds parent cleanup when deleting child hierarchy items", () => {
+        const scenarioPlan = buildCampaignViewDeletePlan({
+            items: makeItems(),
+            itemId: "scenario-a"
+        });
+        const encounterPlan = buildCampaignViewDeletePlan({
+            items: makeItems(),
+            itemId: "encounter-a"
+        });
+
+        assert.deepEqual(scenarioPlan.deleteIds, ["encounter-a", "scenario-a"]);
+        assert.deepEqual(scenarioPlan.parentUpdates, [
+            { itemId: "campaign-a", update: { "system.scenarios": [] } }
+        ]);
+        assert.deepEqual(encounterPlan.deleteIds, ["encounter-a"]);
+        assert.deepEqual(encounterPlan.parentUpdates, [
+            { itemId: "scenario-a", update: { "system.encounters": [] } }
+        ]);
+    });
+
     it("styles the tree and content panes as a vertical stack", () => {
         assert.match(styles, /\.totc-v2-campaign-view\s*\{[\s\S]*grid-template-rows: auto minmax\(0, 1fr\);[\s\S]*height: 100%;/);
         assert.match(styles, /\.totc-v2-campaign-view__body\s*\{[\s\S]*grid-template-rows: minmax\(10rem, 0\.9fr\) minmax\(12rem, 1\.1fr\);/);
         assert.doesNotMatch(styles, /\.totc-v2-campaign-view__body\s*\{[\s\S]*grid-template-columns: minmax\(12rem, 0\.95fr\) minmax\(14rem, 1\.25fr\);/);
         assert.match(styles, /\.totc-v2-campaign-view__tree,[\s\S]*\.totc-v2-campaign-view__detail\s*\{[\s\S]*overflow: auto;/);
         assert.match(styles, /\.totc-v2-campaign-view__detail-content\s*\{[\s\S]*overflow: auto;/);
+        assert.match(styles, /\.totc-v2-campaign-view__row\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;/);
+        assert.match(styles, /\.totc-v2-campaign-view__main\s*\{[\s\S]*gap: 0\.18rem;[\s\S]*grid-template-columns: 1\.45rem minmax\(0, 1fr\);/);
+        assert.match(styles, /\.totc-v2-campaign-view__actions\s*\{[\s\S]*grid-auto-columns: 1\.45rem;[\s\S]*grid-auto-flow: column;/);
         assert.match(styles, /\.totc-v2-campaign-view__select\s*\{[\s\S]*justify-items: start;[\s\S]*text-align: left;[\s\S]*width: 100%;/);
         assert.match(styles, /\.totc-v2-campaign-view__type\s*\{[\s\S]*display: block;[\s\S]*text-align: left;/);
         assert.match(styles, /\.totc-v2-campaign-view__name\s*\{[\s\S]*display: block;[\s\S]*text-align: left;/);
         assert.match(styles, /\.totc-v2-campaign-view__row\[data-campaign-view-drop-mode="inside"\]\s*\{[\s\S]*border-color: rgba\(134, 239, 172, 0\.58\);/);
         assert.match(styles, /\.totc-v2-campaign-view__row\[data-campaign-view-drop-mode="before"\][\s\S]*\.totc-v2-campaign-view__drop-indicator--before/);
+        assert.match(styles, /\.totc-v2-campaign-view__icon-action--danger:hover\s*\{[\s\S]*border-color: rgba\(248, 113, 113, 0\.72\);/);
     });
 });

@@ -212,6 +212,84 @@ export function buildCampaignViewMovePlan({
     return null;
 }
 
+export function buildCampaignViewDeletePlan({
+    items = [],
+    itemId = ""
+} = {}) {
+    const allItems = toArray(items);
+    const targetId = String(itemId ?? "").trim();
+    const target = allItems.find((item) => getItemId(item) === targetId);
+    if (!target) return null;
+
+    const campaigns = allItems.filter((item) => item?.type === CAMPAIGN_TYPE);
+    const scenarios = allItems.filter((item) => item?.type === SCENARIO_TYPE);
+    const encounters = allItems.filter((item) => item?.type === ENCOUNTER_TYPE);
+    const targetType = String(target.type ?? "").trim();
+    const scenarioIds = new Set();
+    const encounterIds = new Set();
+    const parentUpdates = [];
+
+    if (targetType === CAMPAIGN_TYPE) {
+        scenarios
+            .filter((scenario) => hasScenarioLink(target, scenario))
+            .forEach((scenario) => {
+                const scenarioId = getItemId(scenario);
+                scenarioIds.add(scenarioId);
+                encounters
+                    .filter((encounter) => hasEncounterLink(scenario, encounter))
+                    .forEach((encounter) => encounterIds.add(getItemId(encounter)));
+            });
+    } else if (targetType === SCENARIO_TYPE) {
+        scenarioIds.add(targetId);
+        encounters
+            .filter((encounter) => hasEncounterLink(target, encounter))
+            .forEach((encounter) => encounterIds.add(getItemId(encounter)));
+        const parentCampaign = findScenarioParent(target, campaigns);
+        if (parentCampaign) {
+            parentUpdates.push({
+                itemId: getItemId(parentCampaign),
+                update: { "system.scenarios": uniqueIds(getSystemValue(parentCampaign, "scenarios")).filter((id) => id !== targetId) }
+            });
+        }
+    } else if (targetType === ENCOUNTER_TYPE) {
+        encounterIds.add(targetId);
+        const parentScenario = findEncounterParent(target, scenarios);
+        if (parentScenario) {
+            parentUpdates.push({
+                itemId: getItemId(parentScenario),
+                update: { "system.encounters": uniqueIds(getSystemValue(parentScenario, "encounters")).filter((id) => id !== targetId) }
+            });
+        }
+    } else {
+        return null;
+    }
+
+    if (targetType === CAMPAIGN_TYPE) scenarioIds.forEach((scenarioId) => {
+        const scenario = scenarios.find((entry) => getItemId(entry) === scenarioId);
+        if (!scenario) return;
+        encounters
+            .filter((encounter) => hasEncounterLink(scenario, encounter))
+            .forEach((encounter) => encounterIds.add(getItemId(encounter)));
+    });
+
+    const deleteIds = [
+        ...encounterIds,
+        ...scenarioIds,
+        targetType === CAMPAIGN_TYPE ? targetId : ""
+    ].filter(Boolean);
+
+    return {
+        itemId: targetId,
+        itemName: String(target.name ?? "Unnamed").trim() || "Unnamed",
+        itemType: targetType,
+        itemTypeLabel: getTypeLabel(targetType),
+        scenarioCount: scenarioIds.size,
+        encounterCount: encounterIds.size,
+        deleteIds: uniqueIds(deleteIds),
+        parentUpdates
+    };
+}
+
 export function buildCampaignViewPanelModel({
     items = [],
     expandedIds = [],
@@ -302,20 +380,27 @@ function renderNode(node, { escapeHTML }) {
             <div class="totc-v2-campaign-view__row${selectedClass}" draggable="true" style="${rowStyle}" data-campaign-view-draggable="true" data-campaign-view-item-id="${escapeHTML(node.id)}" data-campaign-view-item-type="${escapeHTML(node.type)}">
                 <div class="totc-v2-campaign-view__drop-indicator totc-v2-campaign-view__drop-indicator--before" aria-hidden="true"></div>
                 <div class="totc-v2-campaign-view__drop-indicator totc-v2-campaign-view__drop-indicator--after" aria-hidden="true"></div>
-                <button type="button" class="totc-v2-campaign-view__twisty" data-action="campaign-view-toggle" data-item-id="${escapeHTML(node.id)}" aria-label="${node.expanded ? "Collapse" : "Expand"} ${escapeHTML(node.name)}" aria-expanded="${node.expanded ? "true" : "false"}" ${hasChildren ? "" : "disabled"}>
-                    <i class="fa-solid ${node.expanded ? "fa-chevron-down" : "fa-chevron-right"}" aria-hidden="true"></i>
-                </button>
-                <button type="button" class="totc-v2-campaign-view__select" data-action="campaign-view-select" data-item-id="${escapeHTML(node.id)}">
-                    <span class="totc-v2-campaign-view__type">${escapeHTML(getTypeLabel(node.type))}</span>
-                    <span class="totc-v2-campaign-view__name">${escapeHTML(node.name)}</span>
-                </button>
-                ${canAddChild ? `
-                <button type="button" class="totc-v2-campaign-view__icon-action" data-action="campaign-view-create-child" data-parent-id="${escapeHTML(node.id)}" data-child-type="${escapeHTML(node.childType)}" title="Add ${escapeHTML(getTypeLabel(node.childType))}" aria-label="Add ${escapeHTML(getTypeLabel(node.childType))}">
-                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                </button>
-                <button type="button" class="totc-v2-campaign-view__icon-action" data-action="campaign-view-generate-child" data-parent-id="${escapeHTML(node.id)}" data-child-type="${escapeHTML(node.childType)}" title="Generate ${escapeHTML(getTypeLabel(node.childType))}" aria-label="Generate ${escapeHTML(getTypeLabel(node.childType))}">
-                    <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-                </button>` : ""}
+                <div class="totc-v2-campaign-view__main">
+                    <button type="button" class="totc-v2-campaign-view__twisty" data-action="campaign-view-toggle" data-item-id="${escapeHTML(node.id)}" aria-label="${node.expanded ? "Collapse" : "Expand"} ${escapeHTML(node.name)}" aria-expanded="${node.expanded ? "true" : "false"}" ${hasChildren ? "" : "disabled"}>
+                        <i class="fa-solid ${node.expanded ? "fa-chevron-down" : "fa-chevron-right"}" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="totc-v2-campaign-view__select" data-action="campaign-view-select" data-item-id="${escapeHTML(node.id)}">
+                        <span class="totc-v2-campaign-view__type">${escapeHTML(getTypeLabel(node.type))}</span>
+                        <span class="totc-v2-campaign-view__name">${escapeHTML(node.name)}</span>
+                    </button>
+                </div>
+                <div class="totc-v2-campaign-view__actions">
+                    ${canAddChild ? `
+                    <button type="button" class="totc-v2-campaign-view__icon-action" data-action="campaign-view-create-child" data-parent-id="${escapeHTML(node.id)}" data-child-type="${escapeHTML(node.childType)}" title="Add ${escapeHTML(getTypeLabel(node.childType))}" aria-label="Add ${escapeHTML(getTypeLabel(node.childType))}">
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="totc-v2-campaign-view__icon-action" data-action="campaign-view-generate-child" data-parent-id="${escapeHTML(node.id)}" data-child-type="${escapeHTML(node.childType)}" title="Generate ${escapeHTML(getTypeLabel(node.childType))}" aria-label="Generate ${escapeHTML(getTypeLabel(node.childType))}">
+                        <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                    </button>` : ""}
+                    <button type="button" class="totc-v2-campaign-view__icon-action totc-v2-campaign-view__icon-action--danger" data-action="campaign-view-delete" data-item-id="${escapeHTML(node.id)}" title="Delete ${escapeHTML(node.name)}" aria-label="Delete ${escapeHTML(node.name)}">
+                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                    </button>
+                </div>
             </div>
             ${childMarkup}
         </div>`;

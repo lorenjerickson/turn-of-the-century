@@ -168,6 +168,7 @@ import {
     renderEncounterDesignerPanel
 } from "./panels/encounter-designer-panel.mjs";
 import {
+    buildCampaignViewDeletePlan,
     buildCampaignViewMovePlan,
     buildCampaignViewPanelModel,
     getCampaignViewDropMode,
@@ -1955,6 +1956,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.element?.querySelectorAll("[data-action='campaign-view-delete']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#deleteCampaignViewItem(String(button.dataset.itemId ?? "").trim());
+            });
+        });
+
         this.element?.querySelectorAll("[data-campaign-view-draggable='true']")?.forEach((row) => {
             row.addEventListener("dragstart", (event) => {
                 event.stopPropagation();
@@ -2875,6 +2884,45 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this._campaignViewState.selectedId = plan.itemId;
         this._campaignViewState.expandedIds.add(plan.parentId);
+        this.render({ force: false });
+        return plan;
+    }
+
+    async #deleteCampaignViewItem(itemId = "") {
+        const safeItemId = String(itemId ?? "").trim();
+        if (!safeItemId) return null;
+
+        const items = Array.from(game.items?.contents || []);
+        const plan = buildCampaignViewDeletePlan({ items, itemId: safeItemId });
+        if (!plan?.deleteIds?.length) return null;
+
+        const childParts = [];
+        if (plan.scenarioCount) childParts.push(`${plan.scenarioCount} scenario${plan.scenarioCount === 1 ? "" : "s"}`);
+        if (plan.encounterCount) childParts.push(`${plan.encounterCount} encounter${plan.encounterCount === 1 ? "" : "s"}`);
+        const childWarning = childParts.length
+            ? `\n\nThis will also permanently delete ${childParts.join(" and ")} beneath it.`
+            : "";
+        const confirmed = globalThis.confirm?.(
+            `Permanently delete ${plan.itemTypeLabel.toLowerCase()} "${plan.itemName}"?${childWarning}\n\nThis cannot be undone.`
+        ) ?? false;
+        if (!confirmed) return null;
+
+        for (const parentUpdate of plan.parentUpdates) {
+            const parent = this.#getItemDocumentById(parentUpdate.itemId);
+            if (parent && typeof parent.update === "function") await parent.update(parentUpdate.update);
+        }
+
+        for (const deleteId of plan.deleteIds) {
+            const item = this.#getItemDocumentById(deleteId);
+            if (item && typeof item.delete === "function") await item.delete();
+        }
+
+        if (plan.deleteIds.includes(this._campaignViewState.selectedId)) {
+            this._campaignViewState.selectedId = "";
+        }
+        for (const deleteId of plan.deleteIds) {
+            this._campaignViewState.expandedIds.delete(deleteId);
+        }
         this.render({ force: false });
         return plan;
     }
