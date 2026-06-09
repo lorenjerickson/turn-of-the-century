@@ -1,5 +1,6 @@
 const ACTOR_TYPES = Object.freeze(["hero", "pawn", "villain"]);
 const DEFAULT_ACTOR_TYPE = "pawn";
+export const ACTOR_LIST_DRAG_MIME = "application/x-totc-actor-list";
 
 function getCollectionEntries(collection) {
     if (!collection) return [];
@@ -20,6 +21,10 @@ function actorName(actor) {
 
 function actorSystem(actor) {
     return actor?.system ?? {};
+}
+
+function actorImage(actor) {
+    return String(actor?.img ?? actor?.prototypeToken?.texture?.src ?? "").trim();
 }
 
 function normalizeActorType(type) {
@@ -110,10 +115,15 @@ function formatSignedNumber(value) {
 export function buildActorListPanelModel({
     actors = [],
     query = "",
+    typeFilter = "all",
     selectedActorId = "",
+    selectedActorIds = [],
     showCreate = false
 } = {}) {
     const normalizedQuery = String(query ?? "").trim().toLowerCase();
+    const normalizedTypeFilter = ACTOR_TYPES.includes(String(typeFilter ?? "").trim()) ? String(typeFilter).trim() : "all";
+    const selectedIds = new Set(getCollectionEntries(selectedActorIds).map((id) => String(id ?? "").trim()).filter(Boolean));
+    const detailActorId = String(selectedActorId ?? "").trim();
     const allEntries = getCollectionEntries(actors)
         .filter(Boolean)
         .map((actor) => {
@@ -122,25 +132,59 @@ export function buildActorListPanelModel({
             return {
                 id,
                 name: actorName(actor),
+                img: actorImage(actor),
                 type: normalizeActorType(actor?.type),
-                selected: Boolean(id && id === selectedActorId),
+                selected: Boolean(id && selectedIds.has(id)),
+                detailSelected: Boolean(id && id === detailActorId),
                 summary: system.profile?.summary ?? "",
                 role: system.profile?.role ?? system.pawn?.role ?? system.hero?.archetype ?? system.villain?.scheme ?? ""
             };
         })
         .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
 
+    const typeFilteredEntries = normalizedTypeFilter === "all"
+        ? allEntries
+        : allEntries.filter((entry) => entry.type === normalizedTypeFilter);
     const entries = normalizedQuery
-        ? allEntries.filter((entry) => entry.name.toLowerCase().includes(normalizedQuery))
-        : allEntries;
+        ? typeFilteredEntries.filter((entry) => entry.name.toLowerCase().includes(normalizedQuery))
+        : typeFilteredEntries;
 
     return {
         allCount: allEntries.length,
+        typeCount: typeFilteredEntries.length,
         count: entries.length,
         query: String(query ?? ""),
+        typeFilter: normalizedTypeFilter,
+        typeOptions: [
+            { value: "all", label: "All", selected: normalizedTypeFilter === "all" },
+            ...ACTOR_TYPES.map((type) => ({
+                value: type,
+                label: type[0].toUpperCase() + type.slice(1),
+                selected: normalizedTypeFilter === type
+            }))
+        ],
+        selectedActorIds: [...selectedIds],
         showCreate: Boolean(showCreate),
         entries
     };
+}
+
+export function buildActorListDragPayload({ actorId = "", selectedActorIds = [] } = {}) {
+    const safeActorId = String(actorId ?? "").trim();
+    if (!safeActorId) return null;
+    const selectedIds = getCollectionEntries(selectedActorIds).map((id) => String(id ?? "").trim()).filter(Boolean);
+    const actorIds = selectedIds.includes(safeActorId) ? selectedIds : [safeActorId];
+    return { actorIds: [...new Set(actorIds)] };
+}
+
+export function parseActorListDragPayload(value) {
+    try {
+        const parsed = JSON.parse(String(value ?? ""));
+        const actorIds = getCollectionEntries(parsed?.actorIds).map((id) => String(id ?? "").trim()).filter(Boolean);
+        return { actorIds: [...new Set(actorIds)] };
+    } catch {
+        return { actorIds: [] };
+    }
 }
 
 export function buildActorEditorPanelModel({
@@ -279,12 +323,18 @@ function renderFieldSection(title, fields, escapeHTML) {
 }
 
 export function renderActorListPanel(model = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
-    const summary = model.query
+    const summary = model.query || model.typeFilter !== "all"
         ? `${model.count} of ${model.allCount} actor${model.allCount === 1 ? "" : "s"}`
         : `${model.allCount} actor${model.allCount === 1 ? "" : "s"}`;
     return `
     <section class="totc-v2-actor-list-panel">
         <button type="button" class="totc-v2-actor-list-panel__new" data-action="actor-list-new">New Actor</button>
+        <label class="totc-v2-actor-list-panel__filter">
+            <span>Actor type</span>
+            <select data-action="actor-list-type-filter">
+                ${(model.typeOptions ?? []).map((option) => `<option value="${escapeHTML(option.value)}" ${option.selected ? "selected" : ""}>${escapeHTML(option.label)}</option>`).join("")}
+            </select>
+        </label>
         <label class="totc-v2-actor-list-panel__search">
             <span>Search actors</span>
             <input type="search" data-action="actor-list-search" value="${escapeHTML(model.query ?? "")}" placeholder="Filter by actor name">
@@ -292,8 +342,14 @@ export function renderActorListPanel(model = {}, { escapeHTML = (value) => Strin
         <header class="totc-v2-actor-list-panel__summary">${escapeHTML(summary)}</header>
         <div class="totc-v2-actor-list-panel__list" role="list">
             ${model.entries?.length ? model.entries.map((actor) => `
-                <article class="totc-v2-actor-list-panel__entry${actor.selected ? " is-selected" : ""}" role="listitem">
-                    <button type="button" class="totc-v2-actor-list-panel__entry-main" data-action="actor-list-select" data-actor-id="${escapeHTML(actor.id)}">
+                <article class="totc-v2-actor-list-panel__entry${actor.selected ? " is-selected" : ""}${actor.detailSelected ? " is-detail-selected" : ""}" role="listitem" draggable="true" data-actor-list-draggable="true" data-actor-id="${escapeHTML(actor.id)}">
+                    <label class="totc-v2-actor-list-panel__entry-select" title="Select actor for scene placement">
+                        <input type="checkbox" data-action="actor-list-toggle-selected" data-actor-id="${escapeHTML(actor.id)}" ${actor.selected ? "checked" : ""}>
+                    </label>
+                    ${actor.img
+                        ? `<img class="totc-v2-actor-list-panel__entry-thumb" src="${escapeHTML(actor.img)}" alt="">`
+                        : `<span class="totc-v2-actor-list-panel__entry-thumb totc-v2-actor-list-panel__entry-thumb--initial" aria-hidden="true">${escapeHTML(String(actor.name ?? "?").slice(0, 1).toUpperCase() || "?")}</span>`}
+                    <button type="button" class="totc-v2-actor-list-panel__entry-main" data-action="actor-list-open-details" data-actor-id="${escapeHTML(actor.id)}" title="Double-click to open actor details">
                         <span class="totc-v2-actor-list-panel__entry-name">${escapeHTML(actor.name)}</span>
                         <span class="totc-v2-actor-list-panel__entry-meta">${escapeHTML(actor.type)}${actor.role ? ` - ${escapeHTML(actor.role)}` : ""}</span>
                     </button>

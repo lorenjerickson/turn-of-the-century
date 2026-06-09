@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+    buildSceneActorPlacementCandidates,
     buildSceneActorPlacementPanelModel,
     buildSceneActorPlacements,
     buildSceneActorTokenData
@@ -66,6 +67,59 @@ describe("scene actor placement", () => {
             { x: 50, y: 350 },
             { x: 850, y: 200 }
         ]);
+    });
+
+    it("skips proper-name actors already present in the scene", () => {
+        const candidates = buildSceneActorPlacementCandidates({
+            scene: {
+                tokens: {
+                    contents: [
+                        { actorId: "h1", name: "Ada" },
+                        { actorId: "v1", name: "Moriarty" }
+                    ]
+                }
+            },
+            actors: [
+                actor("h1", "hero", "Ada"),
+                actor("h1", "hero", "Ada"),
+                actor("v1", "villain", "Moriarty"),
+                actor("h2", "hero", "Elias")
+            ]
+        });
+
+        assert.deepEqual(candidates.map((entry) => entry.id), ["h2"]);
+    });
+
+    it("allows repeatable pawns and indexes token names when multiples exist", async () => {
+        const tokens = await buildSceneActorTokenData({
+            scene: {
+                width: 1000,
+                height: 800,
+                grid: { size: 100 },
+                tokens: { contents: [{ actorId: "p1", name: "Smog Wretch (1)" }] }
+            },
+            actors: [
+                actor("p1", "pawn", "Smog Wretch"),
+                actor("p1", "pawn", "Smog Wretch")
+            ],
+            rng: () => 0
+        });
+
+        assert.equal(tokens.length, 2);
+        assert.deepEqual(tokens.map((token) => token.name), ["Smog Wretch (2)", "Smog Wretch (3)"]);
+    });
+
+    it("indexes pawns created together from an empty scene", async () => {
+        const tokens = await buildSceneActorTokenData({
+            scene: { width: 1000, height: 800, grid: { size: 100 }, tokens: { contents: [] } },
+            actors: [
+                actor("p1", "pawn", "Smog Wretch"),
+                actor("p1", "pawn", "Smog Wretch")
+            ],
+            rng: () => 0
+        });
+
+        assert.deepEqual(tokens.map((token) => token.name), ["Smog Wretch (1)", "Smog Wretch (2)"]);
     });
 
     it("builds token data from actor token defaults at computed positions", async () => {

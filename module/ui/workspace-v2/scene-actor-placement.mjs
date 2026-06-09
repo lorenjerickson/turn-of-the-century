@@ -16,6 +16,20 @@ function actorType(actor) {
     return String(actor?.type ?? "").trim();
 }
 
+function tokenActorId(token) {
+    return String(token?.actorId
+        ?? token?.actor?.id
+        ?? token?.baseActor?.id
+        ?? token?.document?.actorId
+        ?? token?.document?.actor?.id
+        ?? ""
+    ).trim();
+}
+
+function tokenName(token) {
+    return String(token?.name ?? token?.document?.name ?? "").trim();
+}
+
 function positiveNumber(value, fallback) {
     const numeric = Number(value);
     return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
@@ -76,8 +90,38 @@ function randomPosition({ rng, cell, sceneWidth, sceneHeight }) {
     };
 }
 
+function sceneTokens(scene) {
+    return toArray(scene?.tokens);
+}
+
+function nextIndexedTokenName(baseName, usedNames = new Set()) {
+    const safeBaseName = String(baseName ?? "Actor").trim() || "Actor";
+    let index = 1;
+    let candidate = `${safeBaseName} (${index})`;
+    while (usedNames.has(candidate)) {
+        index += 1;
+        candidate = `${safeBaseName} (${index})`;
+    }
+    usedNames.add(candidate);
+    return candidate;
+}
+
+export function buildSceneActorPlacementCandidates({ actors = [], scene = null } = {}) {
+    const existingProperActorIds = new Set(sceneTokens(scene).map(tokenActorId).filter(Boolean));
+    const stagedProperActorIds = new Set();
+
+    return toArray(actors).filter((actor) => {
+        const id = actorId(actor);
+        if (!id) return false;
+        if (actorType(actor) === "pawn") return true;
+        if (existingProperActorIds.has(id) || stagedProperActorIds.has(id)) return false;
+        stagedProperActorIds.add(id);
+        return true;
+    });
+}
+
 export function buildSceneActorPlacements({ actors = [], scene = null, rng = Math.random } = {}) {
-    const selectedActors = toArray(actors).filter((actor) => actorId(actor));
+    const selectedActors = buildSceneActorPlacementCandidates({ actors, scene });
     const width = positiveNumber(scene?.width, positiveNumber(scene?.dimensions?.sceneWidth, 2000));
     const height = positiveNumber(scene?.height, positiveNumber(scene?.dimensions?.sceneHeight, 1400));
     const cell = positiveNumber(scene?.grid?.size, 100);
@@ -110,7 +154,7 @@ export function buildSceneActorPlacements({ actors = [], scene = null, rng = Mat
     ];
 }
 
-export async function buildTokenDataForActor(actor, position = {}) {
+export async function buildTokenDataForActor(actor, position = {}, { name = "" } = {}) {
     const tokenDocument = typeof actor?.getTokenDocument === "function"
         ? await actor.getTokenDocument({ x: position.x, y: position.y })
         : null;
@@ -122,7 +166,7 @@ export async function buildTokenDataForActor(actor, position = {}) {
     return {
         ...base,
         actorId: actorId(actor),
-        name: base.name ?? actorName(actor),
+        name: String(name ?? "").trim() || (base.name ?? actorName(actor)),
         x: Number(position.x ?? 0),
         y: Number(position.y ?? 0),
         width: positiveNumber(base.width, 1),
@@ -136,5 +180,29 @@ export async function buildTokenDataForActor(actor, position = {}) {
 
 export async function buildSceneActorTokenData({ actors = [], scene = null, rng = Math.random } = {}) {
     const placements = buildSceneActorPlacements({ actors, scene, rng });
-    return Promise.all(placements.map((placement) => buildTokenDataForActor(placement.actor, placement.position)));
+    const usedTokenNames = new Set(sceneTokens(scene).map(tokenName).filter(Boolean));
+    const plannedPawnCounts = new Map();
+    for (const placement of placements) {
+        if (actorType(placement.actor) !== "pawn") continue;
+        const id = actorId(placement.actor);
+        plannedPawnCounts.set(id, (plannedPawnCounts.get(id) ?? 0) + 1);
+    }
+
+    const existingPawnCounts = new Map();
+    for (const token of sceneTokens(scene)) {
+        const id = tokenActorId(token);
+        if (!id) continue;
+        existingPawnCounts.set(id, (existingPawnCounts.get(id) ?? 0) + 1);
+    }
+
+    return Promise.all(placements.map((placement) => {
+        const actor = placement.actor;
+        let name = "";
+        if (actorType(actor) === "pawn") {
+            const id = actorId(actor);
+            const totalCount = (existingPawnCounts.get(id) ?? 0) + (plannedPawnCounts.get(id) ?? 0);
+            if (totalCount > 1) name = nextIndexedTokenName(actorName(actor), usedTokenNames);
+        }
+        return buildTokenDataForActor(actor, placement.position, { name });
+    }));
 }

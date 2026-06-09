@@ -148,10 +148,13 @@ import {
     renderScenesPanel
 } from "./panels/scenes-panel.mjs";
 import {
+    ACTOR_LIST_DRAG_MIME,
+    buildActorListDragPayload,
     buildActorEditorPanelModel,
     buildActorListPanelModel,
     buildActorUpdateDataFromFormData,
     buildGeneratedActorDocumentData,
+    parseActorListDragPayload,
     renderActorEditorPanel,
     renderActorListPanel
 } from "./panels/actor-management-panel.mjs";
@@ -785,6 +788,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.designCommandPaletteQuery = "";
         this.compendiumSearchQuery = "";
         this.actorSearchQuery = "";
+        this.actorTypeFilter = "all";
+        this.selectedActorIds = new Set();
         this._mediaBrowserEntries = null;
         this._mediaBrowserEntriesPromise = null;
         this._mediaBrowserSelectCallback = null;
@@ -1200,7 +1205,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             actorListPanel: buildActorListPanelModel({
                 actors: worldActors,
                 query: this.actorSearchQuery,
+                typeFilter: this.actorTypeFilter,
                 selectedActorId: this._actorEditorState.actorId,
+                selectedActorIds: this.selectedActorIds,
                 showCreate: this._actorEditorState.mode === "create"
             }),
             actorEditorPanel: buildActorEditorPanelModel({
@@ -1317,21 +1324,31 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         root.innerHTML = `
 <section class="totc-workspace-v2-shell">
     <div class="totc-workspace-v2-shell__emergency">
-        ${game.user?.isGM ? `<button type="button" class="totc-v2-emergency-button" data-action="toggle-design-command-palette" title="Open design command palette" aria-label="Open design command palette" aria-expanded="${context.designCommandPalette?.active ? "true" : "false"}">
-            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-        </button>` : ""}
-        <button type="button" class="totc-v2-emergency-button" data-action="totc-v2-command-menu-toggle" title="Open workspace menu" aria-label="Open workspace menu" aria-expanded="false">
-            <i class="fas fa-gear" aria-hidden="true"></i>
-        </button>
-        <div class="totc-v2-command-menu" data-command-menu="true" hidden>
-            <button type="button" class="totc-v2-command-menu__item" data-action="totc-v2-open-foundry-settings">Foundry Settings</button>
-            <button type="button" class="totc-v2-command-menu__item" data-action="totc-v2-exit-world">Return to Setup</button>
-            <div class="totc-v2-command-menu__divider" role="separator" aria-hidden="true"></div>
-            <section class="totc-v2-command-menu__panel-list" aria-label="Panels">
-                ${panelToggleMarkup}
-            </section>
+        <div class="totc-v2-floating-control">
+            <button type="button" class="totc-v2-emergency-button" data-action="totc-v2-panel-menu-toggle" title="Show visible panels" aria-label="Show visible panels" aria-expanded="false">
+                <i class="fa-solid fa-window-maximize" aria-hidden="true"></i>
+            </button>
+            <div class="totc-v2-command-menu totc-v2-panel-menu" data-panel-menu="true" hidden>
+                <section class="totc-v2-command-menu__panel-list" aria-label="Visible panels">
+                    ${panelToggleMarkup}
+                </section>
+            </div>
         </div>
-        ${renderDesignCommandPalette(context.designCommandPalette ?? {}, { escapeHTML: (value) => this.#escapeHTML(value) })}
+        ${game.user?.isGM ? `<div class="totc-v2-floating-control">
+            <button type="button" class="totc-v2-emergency-button" data-action="toggle-design-command-palette" title="Open design command palette" aria-label="Open design command palette" aria-expanded="${context.designCommandPalette?.active ? "true" : "false"}">
+                <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+            </button>
+            ${renderDesignCommandPalette(context.designCommandPalette ?? {}, { escapeHTML: (value) => this.#escapeHTML(value) })}
+        </div>` : ""}
+        <div class="totc-v2-floating-control">
+            <button type="button" class="totc-v2-emergency-button" data-action="totc-v2-command-menu-toggle" title="Open workspace menu" aria-label="Open workspace menu" aria-expanded="false">
+                <i class="fas fa-gear" aria-hidden="true"></i>
+            </button>
+            <div class="totc-v2-command-menu" data-command-menu="true" hidden>
+                <button type="button" class="totc-v2-command-menu__item" data-action="totc-v2-open-foundry-settings">Foundry Settings</button>
+                <button type="button" class="totc-v2-command-menu__item" data-action="totc-v2-exit-world">Return to Setup</button>
+            </div>
+        </div>
     </div>
     <main class="totc-workspace-v2-shell__main">
         <section class="totc-v2-layout" data-layout-root="true" style="grid-template-columns:${columnTemplate};grid-template-rows:${rowTemplate};">
@@ -1382,9 +1399,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.stopPropagation();
                 openFoundrySettingsView({ game, ui, foundry });
                 const menu = this.element?.querySelector("[data-command-menu='true']");
+                const panelMenu = this.element?.querySelector("[data-panel-menu='true']");
                 const toggleButton = this.element?.querySelector("[data-action='totc-v2-command-menu-toggle']");
+                const panelToggleButton = this.element?.querySelector("[data-action='totc-v2-panel-menu-toggle']");
                 if (menu) menu.hidden = true;
+                if (panelMenu) panelMenu.hidden = true;
                 toggleButton?.setAttribute("aria-expanded", "false");
+                panelToggleButton?.setAttribute("aria-expanded", "false");
             });
         });
 
@@ -1446,8 +1467,27 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
-        this.element?.querySelectorAll("[data-action='actor-list-select']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+        this.element?.querySelectorAll("[data-action='actor-list-type-filter']")?.forEach((select) => {
+            select.addEventListener("change", (event) => {
+                event.stopPropagation();
+                this.actorTypeFilter = String(select.value ?? "all").trim() || "all";
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='actor-list-toggle-selected']")?.forEach((checkbox) => {
+            checkbox.addEventListener("change", (event) => {
+                event.stopPropagation();
+                const actorId = String(checkbox.dataset.actorId ?? "").trim();
+                if (!actorId) return;
+                if (checkbox.checked) this.selectedActorIds.add(actorId);
+                else this.selectedActorIds.delete(actorId);
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='actor-list-open-details']")?.forEach((button) => {
+            button.addEventListener("dblclick", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 const actorId = String(button.dataset.actorId ?? "").trim();
@@ -1465,6 +1505,26 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     error: ""
                 };
                 await this.#openActorEditorBelowList();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-actor-list-draggable='true']")?.forEach((row) => {
+            row.addEventListener("dragstart", (event) => {
+                event.stopPropagation();
+                const actorId = String(row.dataset.actorId ?? "").trim();
+                const payload = buildActorListDragPayload({
+                    actorId,
+                    selectedActorIds: this.selectedActorIds
+                });
+                if (!payload?.actorIds?.length || !event.dataTransfer) return;
+                event.dataTransfer.setData(ACTOR_LIST_DRAG_MIME, JSON.stringify(payload));
+                event.dataTransfer.setData("text/plain", payload.actorIds.join(","));
+                event.dataTransfer.effectAllowed = "copy";
+                row.classList.add("is-dragging");
+            });
+            row.addEventListener("dragend", () => {
+                row.classList.remove("is-dragging");
+                this.#clearSceneActorDropTargets();
             });
         });
 
@@ -1719,6 +1779,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             button.addEventListener("click", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                const menu = this.element?.querySelector("[data-command-menu='true']");
+                const panelMenu = this.element?.querySelector("[data-panel-menu='true']");
+                const menuToggleButton = this.element?.querySelector("[data-action='totc-v2-command-menu-toggle']");
+                const panelToggleButton = this.element?.querySelector("[data-action='totc-v2-panel-menu-toggle']");
+                if (menu) menu.hidden = true;
+                if (panelMenu) panelMenu.hidden = true;
+                menuToggleButton?.setAttribute("aria-expanded", "false");
+                panelToggleButton?.setAttribute("aria-expanded", "false");
                 this.designCommandPaletteOpen = !this.designCommandPaletteOpen;
                 if (!this.designCommandPaletteOpen) this.designCommandPaletteQuery = "";
                 this.render({ force: false });
@@ -1764,17 +1832,44 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.preventDefault();
                 event.stopPropagation();
                 const menu = this.element?.querySelector("[data-command-menu='true']");
+                const panelMenu = this.element?.querySelector("[data-panel-menu='true']");
+                const panelToggleButton = this.element?.querySelector("[data-action='totc-v2-panel-menu-toggle']");
                 if (!menu) return;
 
                 const expanded = !menu.hidden;
                 menu.hidden = expanded;
                 button.setAttribute("aria-expanded", expanded ? "false" : "true");
+                if (!expanded && panelMenu) {
+                    panelMenu.hidden = true;
+                    panelToggleButton?.setAttribute("aria-expanded", "false");
+                }
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='totc-v2-panel-menu-toggle']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const panelMenu = this.element?.querySelector("[data-panel-menu='true']");
+                const menu = this.element?.querySelector("[data-command-menu='true']");
+                const commandToggleButton = this.element?.querySelector("[data-action='totc-v2-command-menu-toggle']");
+                if (!panelMenu) return;
+
+                const expanded = !panelMenu.hidden;
+                panelMenu.hidden = expanded;
+                button.setAttribute("aria-expanded", expanded ? "false" : "true");
+                if (!expanded && menu) {
+                    menu.hidden = true;
+                    commandToggleButton?.setAttribute("aria-expanded", "false");
+                }
             });
         });
 
         this.element?.addEventListener("click", (event) => {
             const menu = this.element?.querySelector("[data-command-menu='true']");
+            const panelMenu = this.element?.querySelector("[data-panel-menu='true']");
             const toggleButton = this.element?.querySelector("[data-action='totc-v2-command-menu-toggle']");
+            const panelToggleButton = this.element?.querySelector("[data-action='totc-v2-panel-menu-toggle']");
             const commandPalette = this.element?.querySelector("[data-design-command-palette='true']");
             const commandPaletteToggle = this.element?.querySelector("[data-action='toggle-design-command-palette']");
 
@@ -1784,6 +1879,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             if (menu && !menu.hidden && !menu.contains(target) && !toggleButton?.contains(target)) {
                 menu.hidden = true;
                 toggleButton?.setAttribute("aria-expanded", "false");
+            }
+
+            if (panelMenu && !panelMenu.hidden && !panelMenu.contains(target) && !panelToggleButton?.contains(target)) {
+                panelMenu.hidden = true;
+                panelToggleButton?.setAttribute("aria-expanded", "false");
             }
 
             if (this.designCommandPaletteOpen && commandPalette && !commandPalette.contains(target) && !commandPaletteToggle?.contains(target)) {
@@ -2271,6 +2371,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#wireMapInteractionHandlers();
         this.#wireGridCalibrationHandlers();
         this.#wireScenePropertiesHandlers();
+        this.#wireSceneActorDropHandlers();
         this.#wireLoggingPanelHandlers();
 
         this.#wireInteractionHandlers();
@@ -2451,6 +2552,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             const mapScene = this.#getMapPanelScene(panel, context);
             const sceneName = this.#escapeHTML(mapScene?.name ?? "Current Scene");
             const mapSrc = mapScene?.mapSrc ?? "";
+            const sceneId = String(mapScene?.id ?? this.#getPanelSceneId(panel, context) ?? "").trim();
             const dimensions = [mapScene?.width, mapScene?.height].filter((value) => Number.isFinite(value) && value > 0);
             const dimensionLabel = dimensions.length === 2 ? `${dimensions[0]} × ${dimensions[1]}` : "Scene map";
 
@@ -2477,7 +2579,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 : `<div class="totc-v2-map-panel__empty">No active scene map available</div>`;
 
             return `
-            <figure class="totc-v2-map-panel${calActive ? " is-calibrating" : ""}">
+            <figure class="totc-v2-map-panel${calActive ? " is-calibrating" : ""}" data-scene-actor-drop-target="true" data-scene-id="${this.#escapeHTML(sceneId)}">
                 ${imageMarkup}
                 <figcaption class="totc-v2-map-panel__caption">
                     <span class="totc-v2-map-panel__name">${sceneName}</span>
@@ -5443,8 +5545,49 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
     }
 
-    async #addActorsToScene(actors = []) {
-        const scene = this.#getScenePropertiesScene();
+    #clearSceneActorDropTargets(except = null) {
+        this.element?.querySelectorAll("[data-scene-actor-drop-target].is-actor-drop-target")?.forEach((target) => {
+            if (target !== except) target.classList.remove("is-actor-drop-target");
+        });
+    }
+
+    #wireSceneActorDropHandlers() {
+        this.element?.querySelectorAll("[data-scene-actor-drop-target='true']")?.forEach((target) => {
+            target.addEventListener("dragover", (event) => {
+                const transferTypes = event.dataTransfer?.types;
+                const hasActorPayload = typeof transferTypes?.contains === "function"
+                    ? transferTypes.contains(ACTOR_LIST_DRAG_MIME)
+                    : Array.from(transferTypes ?? []).includes(ACTOR_LIST_DRAG_MIME);
+                if (!hasActorPayload) return;
+                event.preventDefault();
+                event.stopPropagation();
+                event.dataTransfer.dropEffect = "copy";
+                this.#clearSceneActorDropTargets(target);
+                target.classList.add("is-actor-drop-target");
+            });
+            target.addEventListener("dragleave", (event) => {
+                const related = event.relatedTarget;
+                if (related && target.contains(related)) return;
+                target.classList.remove("is-actor-drop-target");
+            });
+            target.addEventListener("drop", async (event) => {
+                const rawPayload = event.dataTransfer?.getData(ACTOR_LIST_DRAG_MIME);
+                const payload = parseActorListDragPayload(rawPayload);
+                if (!payload.actorIds.length) return;
+                event.preventDefault();
+                event.stopPropagation();
+                target.classList.remove("is-actor-drop-target");
+
+                const actors = payload.actorIds.map((id) => game.actors?.get?.(id)).filter(Boolean);
+                const sceneId = String(target.dataset.sceneId ?? "").trim();
+                const scene = sceneId ? this.#getSceneDocumentById(sceneId) : null;
+                await this.#addActorsToScene(actors, { scene });
+            });
+        });
+    }
+
+    async #addActorsToScene(actors = [], { scene = null } = {}) {
+        scene ??= this.#getScenePropertiesScene();
         if (!scene) {
             this._scenePropertiesState = { ...this._scenePropertiesState, status: "", error: "No scene is available for actor placement." };
             this.render({ force: false });
@@ -5463,7 +5606,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 throw new Error("Scene token creation is not available.");
             }
             const tokenData = await buildSceneActorTokenData({ actors: selectedActors, scene });
-            if (!tokenData.length) throw new Error("No token data could be built for the selected actors.");
+            if (!tokenData.length) {
+                this._scenePropertiesState = {
+                    ...this._scenePropertiesState,
+                    status: "No new actors added. Named actors already present in the scene are not duplicated.",
+                    error: ""
+                };
+                this.render({ force: false });
+                return;
+            }
             await scene.createEmbeddedDocuments("Token", tokenData);
             this._scenePropertiesState = {
                 ...this._scenePropertiesState,

@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import {
     openFoundrySettingsView,
     revealFoundrySettingsRegions
 } from "../../module/ui/workspace-v2/workspace-system-menu.mjs";
+
+const rootDir = new URL("../..", import.meta.url).pathname;
+const workspaceRootSource = readFileSync(join(rootDir, "module/ui/workspace-v2/workspace-root-app.mjs"), "utf8");
+const styles = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
 function makeElement() {
     const classes = new Set(["hidden", "collapsed", "minimized"]);
@@ -181,5 +187,21 @@ describe("workspace system menu", () => {
         assert.equal(result.ok, false);
         assert.equal(result.level, "warn");
         assert.match(warning, /settings are not available/);
+    });
+
+    it("renders visible panel toggles in a separate floating panel menu", () => {
+        assert.match(workspaceRootSource, /data-action="totc-v2-panel-menu-toggle"[\s\S]*fa-window-maximize/);
+        assert.match(workspaceRootSource, /data-panel-menu="true"[\s\S]*aria-label="Visible panels"[\s\S]*\$\{panelToggleMarkup\}/);
+        assert.match(workspaceRootSource, /data-action="totc-v2-command-menu-toggle"[\s\S]*data-command-menu="true"[\s\S]*totc-v2-open-foundry-settings[\s\S]*totc-v2-exit-world/);
+
+        const commandMenuBlock = workspaceRootSource.match(/<div class="totc-v2-command-menu" data-command-menu="true" hidden>[\s\S]*?<\/div>/)?.[0] ?? "";
+        assert.doesNotMatch(commandMenuBlock, /toggle-panel-visibility/);
+        assert.doesNotMatch(commandMenuBlock, /totc-v2-command-menu__panel-list/);
+    });
+
+    it("anchors floating workspace menus to their own control buttons", () => {
+        assert.match(styles, /\.totc-v2-floating-control\s*\{[\s\S]*position:\s*relative;/);
+        assert.match(styles, /\.totc-v2-command-menu\s*\{[\s\S]*position:\s*absolute;[\s\S]*right:\s*0;[\s\S]*bottom:\s*100%;/);
+        assert.match(styles, /\.totc-v2-panel-menu\s*\{[\s\S]*min-width:\s*13\.5rem;/);
     });
 });
