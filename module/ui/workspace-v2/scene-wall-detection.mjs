@@ -1,7 +1,7 @@
 import { GRID_TYPES } from "./panels/grid-calibration.mjs";
 
-const WALL_MOVEMENT_NORMAL = 1;
-const WALL_SENSE_NORMAL = 1;
+const FALLBACK_WALL_MOVEMENT_NORMAL = 20;
+const FALLBACK_WALL_SENSE_NORMAL = 20;
 const WALL_DOOR_NONE = 0;
 const WALL_DOOR_CLOSED = 0;
 
@@ -34,6 +34,23 @@ function collectionContents(collection) {
 
 function documentId(document) {
     return String(document?.id ?? document?._id ?? "").trim();
+}
+
+function enumValue(constants, path = [], fallback) {
+    let cursor = constants;
+    for (const key of path) cursor = cursor?.[key];
+    return cursor ?? fallback;
+}
+
+export function buildWallDocumentDefaults({ foundryConstants = globalThis.CONST } = {}) {
+    return {
+        move: enumValue(foundryConstants, ["WALL_MOVEMENT_TYPES", "NORMAL"], FALLBACK_WALL_MOVEMENT_NORMAL),
+        sight: enumValue(foundryConstants, ["WALL_SENSE_TYPES", "NORMAL"], FALLBACK_WALL_SENSE_NORMAL),
+        light: enumValue(foundryConstants, ["WALL_SENSE_TYPES", "NORMAL"], FALLBACK_WALL_SENSE_NORMAL),
+        sound: enumValue(foundryConstants, ["WALL_SENSE_TYPES", "NORMAL"], FALLBACK_WALL_SENSE_NORMAL),
+        door: enumValue(foundryConstants, ["WALL_DOOR_TYPES", "NONE"], WALL_DOOR_NONE),
+        ds: enumValue(foundryConstants, ["WALL_DOOR_STATES", "CLOSED"], WALL_DOOR_CLOSED)
+    };
 }
 
 export function getSceneWallDocuments(scene = null) {
@@ -255,7 +272,8 @@ export function detectRegularGridWallSegments({
     };
 }
 
-export function buildDetectedWallDocumentData(segments = []) {
+export function buildDetectedWallDocumentData(segments = [], { foundryConstants = globalThis.CONST } = {}) {
+    const defaults = buildWallDocumentDefaults({ foundryConstants });
     return Array.from(segments ?? []).map((segment) => ({
         c: [
             Math.round(segment.x1),
@@ -263,12 +281,12 @@ export function buildDetectedWallDocumentData(segments = []) {
             Math.round(segment.x2),
             Math.round(segment.y2)
         ],
-        move: WALL_MOVEMENT_NORMAL,
-        sight: WALL_SENSE_NORMAL,
-        light: WALL_SENSE_NORMAL,
-        sound: WALL_SENSE_NORMAL,
-        door: WALL_DOOR_NONE,
-        ds: WALL_DOOR_CLOSED,
+        move: defaults.move,
+        sight: defaults.sight,
+        light: defaults.light,
+        sound: defaults.sound,
+        door: defaults.door,
+        ds: defaults.ds,
         flags: {
             "turn-of-the-century": {
                 detectedWall: true,

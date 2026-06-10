@@ -414,7 +414,9 @@ export class SceneDesignService {
             };
         }
 
-        const wallData = buildDetectedWallDocumentData(detected.segments);
+        const wallData = buildDetectedWallDocumentData(detected.segments, {
+            foundryConstants: this.context.CONST ?? globalThis.CONST
+        });
         if (!wallData.length) {
             return {
                 ok: false,

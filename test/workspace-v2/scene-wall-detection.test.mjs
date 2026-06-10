@@ -129,10 +129,10 @@ describe("regular grid wall detection", () => {
             score: 0.75
         }]), [{
             c: [100, 0, 100, 200],
-            move: 1,
-            sight: 1,
-            light: 1,
-            sound: 1,
+            move: 20,
+            sight: 20,
+            light: 20,
+            sound: 20,
             door: 0,
             ds: 0,
             flags: {
@@ -143,6 +143,29 @@ describe("regular grid wall detection", () => {
                 }
             }
         }]);
+    });
+
+    it("uses Foundry wall constants when available", () => {
+        const foundryConstants = {
+            WALL_MOVEMENT_TYPES: { NORMAL: 200 },
+            WALL_SENSE_TYPES: { NORMAL: 300 },
+            WALL_DOOR_TYPES: { NONE: "none" },
+            WALL_DOOR_STATES: { CLOSED: "closed" }
+        };
+
+        const [wall] = buildDetectedWallDocumentData([{
+            x1: 0,
+            y1: 0,
+            x2: 100,
+            y2: 0
+        }], { foundryConstants });
+
+        assert.equal(wall.move, 200);
+        assert.equal(wall.sight, 300);
+        assert.equal(wall.light, 300);
+        assert.equal(wall.sound, 300);
+        assert.equal(wall.door, "none");
+        assert.equal(wall.ds, "closed");
     });
 
     it("replaces existing scene walls only after confirmation", async () => {
