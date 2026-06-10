@@ -850,6 +850,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getPanelSceneId: (panel, context) => this.#getPanelSceneId(panel, context),
             gridCalibrationState: () => this.gridCalibrationController.state,
             getSceneGridOverlayState: (scene) => this.#getSceneGridOverlayState(scene),
+            getSceneWallOverlayState: (scene) => this.#getSceneDetectedWallOverlayState(scene),
             renderMarketPanel: (marketPanel) => this.#renderMarketPanel(marketPanel),
             renderPlayerPanel: (playerPanel, dieRollRequestPanel) => this.#renderPlayerPanel(playerPanel, dieRollRequestPanel),
             renderGamemasterPanel: (gmPanel, gmSnapshot, dieRollRequestPanel) => this.#renderGamemasterPanel(gmPanel, gmSnapshot, dieRollRequestPanel)
@@ -887,6 +888,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             logger: console
         });
         this._appliedGridOverlayStates = new Map();
+        this._detectedWallOverlayStates = new Map();
         this._gmAssistantState = {
             elementType: "campaign",
             actorType: "pawn",
@@ -4029,6 +4031,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         const viewport = overlay.closest("[data-map-viewport='true']");
         if (!viewport) return;
+        const overlaySceneId = String(viewport.dataset.sceneId ?? "").trim();
+        const overlayScene = overlaySceneId ? (game.scenes?.get(overlaySceneId) ?? null) : null;
         const state = this.gridCalibrationController.active
             ? this.gridCalibrationController.state
             : buildSceneGridOverlayState({
@@ -4039,7 +4043,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     size: Number(viewport.dataset.gridSize ?? 0)
                 }
             });
-        if (!state?.active) {
+        const detectedWallsOverlay = this.#getSceneDetectedWallOverlayState(overlayScene);
+        const hasDetectedWalls = Array.isArray(detectedWallsOverlay?.segments) && detectedWallsOverlay.segments.length > 0;
+        if (!state?.active && !hasDetectedWalls) {
             overlay.innerHTML = "";
             return;
         }
@@ -4049,11 +4055,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const H = vRect.height;
 
         const { scale, offsetX, offsetY } = this.mapViewportController.state;
-        const overlayModel = buildGridCalibrationOverlayModel({
-            state,
-            viewport: { width: W, height: H },
-            transform: { scale, offsetX, offsetY }
-        });
+        const overlayModel = state?.active
+            ? buildGridCalibrationOverlayModel({
+                state,
+                viewport: { width: W, height: H },
+                transform: { scale, offsetX, offsetY }
+            })
+            : { verticalLines: [], horizontalLines: [], corners: [], cellRef: null };
 
         overlay.setAttribute("width", W);
         overlay.setAttribute("height", H);
@@ -4061,28 +4069,45 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         let inner = "";
 
-        // Grid lines — only shown once both corners have been picked and we
-        // have a valid cell size.
-        for (const x of overlayModel.verticalLines) {
-            const rounded = x.toFixed(1);
-            inner += `<line x1="${rounded}" y1="0" x2="${rounded}" y2="${H}" class="totc-v2-grid-overlay__vline"/>`;
+        if (state?.active) {
+            // Grid lines — only shown once both corners have been picked and we
+            // have a valid cell size.
+            for (const x of overlayModel.verticalLines) {
+                const rounded = x.toFixed(1);
+                inner += `<line x1="${rounded}" y1="0" x2="${rounded}" y2="${H}" class="totc-v2-grid-overlay__vline"/>`;
+            }
+
+            for (const y of overlayModel.horizontalLines) {
+                const rounded = y.toFixed(1);
+                inner += `<line x1="0" y1="${rounded}" x2="${W}" y2="${rounded}" class="totc-v2-grid-overlay__hline"/>`;
+            }
+
+            if (overlayModel.cellRef) {
+                inner += `<rect x="${overlayModel.cellRef.x.toFixed(1)}" y="${overlayModel.cellRef.y.toFixed(1)}" width="${overlayModel.cellRef.width.toFixed(1)}" height="${overlayModel.cellRef.height.toFixed(1)}" class="totc-v2-grid-overlay__cell-ref"/>`;
+            }
+
+            // Corner markers
+            for (const corner of overlayModel.corners) {
+                const cx = corner.x.toFixed(1);
+                const cy = corner.y.toFixed(1);
+                inner += `<circle cx="${cx}" cy="${cy}" r="7" class="totc-v2-grid-overlay__corner-ring"/>`;
+                inner += `<circle cx="${cx}" cy="${cy}" r="2.5" class="totc-v2-grid-overlay__corner-dot"/>`;
+            }
         }
 
-        for (const y of overlayModel.horizontalLines) {
-            const rounded = y.toFixed(1);
-            inner += `<line x1="0" y1="${rounded}" x2="${W}" y2="${rounded}" class="totc-v2-grid-overlay__hline"/>`;
-        }
+        if (hasDetectedWalls) {
+            const toViewportX = (value) => (Number(value) * scale) + offsetX;
+            const toViewportY = (value) => (Number(value) * scale) + offsetY;
 
-        if (overlayModel.cellRef) {
-            inner += `<rect x="${overlayModel.cellRef.x.toFixed(1)}" y="${overlayModel.cellRef.y.toFixed(1)}" width="${overlayModel.cellRef.width.toFixed(1)}" height="${overlayModel.cellRef.height.toFixed(1)}" class="totc-v2-grid-overlay__cell-ref"/>`;
-        }
+            for (const segment of detectedWallsOverlay.segments) {
+                inner += `<line x1="${toViewportX(segment.x1).toFixed(1)}" y1="${toViewportY(segment.y1).toFixed(1)}" x2="${toViewportX(segment.x2).toFixed(1)}" y2="${toViewportY(segment.y2).toFixed(1)}" class="totc-v2-grid-overlay__detected-wall"/>`;
+            }
 
-        // Corner markers
-        for (const corner of overlayModel.corners) {
-            const cx = corner.x.toFixed(1);
-            const cy = corner.y.toFixed(1);
-            inner += `<circle cx="${cx}" cy="${cy}" r="7" class="totc-v2-grid-overlay__corner-ring"/>`;
-            inner += `<circle cx="${cx}" cy="${cy}" r="2.5" class="totc-v2-grid-overlay__corner-dot"/>`;
+            for (const intersection of detectedWallsOverlay.intersections ?? []) {
+                const x = toViewportX(intersection.x);
+                const y = toViewportY(intersection.y);
+                inner += `<rect x="${(x - 2.5).toFixed(1)}" y="${(y - 2.5).toFixed(1)}" width="5" height="5" class="totc-v2-grid-overlay__detected-wall-junction"/>`;
+            }
         }
 
         overlay.innerHTML = inner;
@@ -4159,6 +4184,42 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             offsetX: -Number(updateData.shiftX ?? 0),
             offsetY: -Number(updateData.shiftY ?? 0)
         });
+    }
+
+    #getSceneDetectedWallOverlayState(scene = null) {
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        return sceneId ? (this._detectedWallOverlayStates.get(sceneId) ?? null) : null;
+    }
+
+    #setSceneDetectedWallOverlayState(scene = null, overlayState = null) {
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        if (!sceneId) return;
+
+        const segments = Array.isArray(overlayState?.segments)
+            ? overlayState.segments.filter((segment) => {
+                const values = [segment?.x1, segment?.y1, segment?.x2, segment?.y2].map((value) => Number(value));
+                return values.every(Number.isFinite);
+            }).map((segment) => ({
+                x1: Math.round(Number(segment.x1)),
+                y1: Math.round(Number(segment.y1)),
+                x2: Math.round(Number(segment.x2)),
+                y2: Math.round(Number(segment.y2))
+            }))
+            : [];
+
+        if (!segments.length) {
+            this._detectedWallOverlayStates.delete(sceneId);
+            return;
+        }
+
+        const intersections = Array.isArray(overlayState?.intersections)
+            ? overlayState.intersections.filter((point) => [point?.x, point?.y].every((value) => Number.isFinite(Number(value)))).map((point) => ({
+                x: Math.round(Number(point.x)),
+                y: Math.round(Number(point.y))
+            }))
+            : [];
+
+        this._detectedWallOverlayStates.set(sceneId, { segments, intersections });
     }
 
     #syncGridCalibrationStateFromInputs() {
@@ -4347,6 +4408,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 combat: game.combats?.active ?? game.combat ?? null,
                 controlledTokens: canvas?.tokens?.controlled ?? []
             });
+
+            if (actionId === "scene.detectWalls" && result?.ok && actionScene) {
+                this.#setSceneDetectedWallOverlayState(actionScene, result.detectedWallOverlay ?? null);
+                this.#drawGridCalibrationOverlay();
+            }
 
             if (result?.level === "warn") {
                 ui.notifications?.warn(result.message ?? `${action.label} is not available right now.`);

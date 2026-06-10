@@ -9,6 +9,7 @@ import { getSceneBackgroundSource } from "../scene-background-source.mjs";
 import {
     applyDetectedWallsToScene,
     buildDetectedWallDocumentData,
+    buildDetectedWallIntersections,
     buildRegularSquareGridModel,
     detectRegularGridWallSegments,
     getSceneWallDocuments
@@ -443,6 +444,15 @@ export class SceneDesignService {
         return {
             ok: true,
             createdCount: wallData.length,
+            detectedWallOverlay: {
+                segments: detected.segments.map((segment) => ({
+                    x1: Math.round(segment.x1),
+                    y1: Math.round(segment.y1),
+                    x2: Math.round(segment.x2),
+                    y2: Math.round(segment.y2)
+                })),
+                intersections: buildDetectedWallIntersections(detected.segments)
+            },
             message: `Detected ${wallData.length} wall segment${wallData.length === 1 ? "" : "s"}.`
         };
     }

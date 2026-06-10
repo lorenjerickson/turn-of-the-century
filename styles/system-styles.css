@@ -3011,6 +3011,16 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     vector-effect: non-scaling-stroke;
 }
 
+.turn-of-the-century .totc-v2-grid-overlay__detected-wall {
+    stroke: rgba(255, 247, 153, 0.96);
+    stroke-width: 2.25;
+    vector-effect: non-scaling-stroke;
+}
+
+.turn-of-the-century .totc-v2-grid-overlay__detected-wall-junction {
+    fill: rgba(255, 247, 153, 0.98);
+}
+
 /* Reference cell highlight */
 .turn-of-the-century .totc-v2-grid-overlay__cell-ref {
     fill: rgba(255, 255, 255, 0.16);
@@ -5123,7 +5133,7 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
             "bottom";
         grid-template-columns: 1fr;
         grid-template-rows: auto;
-        min-height: auto;
+        min-height: 0;
     }
 }
 

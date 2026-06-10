@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
     applyDetectedWallsToScene,
     buildDetectedWallDocumentData,
+    buildDetectedWallIntersections,
     buildGridLineCoordinates,
     buildRegularSquareGridModel,
     detectRegularGridWallSegments,
@@ -145,10 +146,22 @@ describe("regular grid wall detection", () => {
         }]);
     });
 
+    it("builds unique intersections for crossings and shared endpoints", () => {
+        assert.deepEqual(buildDetectedWallIntersections([
+            { orientation: "vertical", x1: 100, y1: 0, x2: 100, y2: 200 },
+            { orientation: "horizontal", x1: 0, y1: 100, x2: 200, y2: 100 },
+            { orientation: "horizontal", x1: 100, y1: 200, x2: 200, y2: 200 }
+        ]), [
+            { x: 100, y: 100 },
+            { x: 100, y: 200 }
+        ]);
+    });
+
     it("uses Foundry wall constants when available", () => {
         const foundryConstants = {
             WALL_MOVEMENT_TYPES: { NORMAL: 200 },
-            WALL_SENSE_TYPES: { NORMAL: 300 },
+            EDGE_SENSE_TYPES: { NORMAL: 300 },
+            WALL_SENSE_TYPES: { NORMAL: 250 },
             WALL_DOOR_TYPES: { NONE: "none" },
             WALL_DOOR_STATES: { CLOSED: "closed" }
         };
@@ -166,6 +179,26 @@ describe("regular grid wall detection", () => {
         assert.equal(wall.sound, 300);
         assert.equal(wall.door, "none");
         assert.equal(wall.ds, "closed");
+    });
+
+    it("falls back to legacy wall sense constants when edge constants are unavailable", () => {
+        const foundryConstants = {
+            WALL_MOVEMENT_TYPES: { NORMAL: 200 },
+            WALL_SENSE_TYPES: { NORMAL: 250 },
+            WALL_DOOR_TYPES: { NONE: "none" },
+            WALL_DOOR_STATES: { CLOSED: "closed" }
+        };
+
+        const [wall] = buildDetectedWallDocumentData([{
+            x1: 0,
+            y1: 0,
+            x2: 100,
+            y2: 0
+        }], { foundryConstants });
+
+        assert.equal(wall.sight, 250);
+        assert.equal(wall.light, 250);
+        assert.equal(wall.sound, 250);
     });
 
     it("replaces existing scene walls only after confirmation", async () => {

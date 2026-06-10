@@ -43,11 +43,14 @@ function enumValue(constants, path = [], fallback) {
 }
 
 export function buildWallDocumentDefaults({ foundryConstants = globalThis.CONST } = {}) {
+    const normalSense = enumValue(foundryConstants, ["EDGE_SENSE_TYPES", "NORMAL"],
+        enumValue(foundryConstants, ["WALL_SENSE_TYPES", "NORMAL"], FALLBACK_WALL_SENSE_NORMAL));
+
     return {
         move: enumValue(foundryConstants, ["WALL_MOVEMENT_TYPES", "NORMAL"], FALLBACK_WALL_MOVEMENT_NORMAL),
-        sight: enumValue(foundryConstants, ["WALL_SENSE_TYPES", "NORMAL"], FALLBACK_WALL_SENSE_NORMAL),
-        light: enumValue(foundryConstants, ["WALL_SENSE_TYPES", "NORMAL"], FALLBACK_WALL_SENSE_NORMAL),
-        sound: enumValue(foundryConstants, ["WALL_SENSE_TYPES", "NORMAL"], FALLBACK_WALL_SENSE_NORMAL),
+        sight: normalSense,
+        light: normalSense,
+        sound: normalSense,
         door: enumValue(foundryConstants, ["WALL_DOOR_TYPES", "NONE"], WALL_DOOR_NONE),
         ds: enumValue(foundryConstants, ["WALL_DOOR_STATES", "CLOSED"], WALL_DOOR_CLOSED)
     };
@@ -182,6 +185,67 @@ function mergeSegments(segments = []) {
     }
 
     return merged;
+}
+
+function pointKey(x, y) {
+    return `${Math.round(x)}:${Math.round(y)}`;
+}
+
+function between(value, min, max) {
+    const low = Math.min(min, max);
+    const high = Math.max(min, max);
+    return value >= low && value <= high;
+}
+
+export function buildDetectedWallIntersections(segments = []) {
+    const points = new Map();
+    const endpointCounts = new Map();
+    const walls = Array.from(segments ?? []).filter(Boolean);
+
+    const addPoint = (x, y) => {
+        const key = pointKey(x, y);
+        if (!points.has(key)) points.set(key, { x: Math.round(x), y: Math.round(y) });
+    };
+
+    const countEndpoint = (x, y) => {
+        const key = pointKey(x, y);
+        endpointCounts.set(key, (endpointCounts.get(key) ?? 0) + 1);
+    };
+
+    for (const segment of walls) {
+        countEndpoint(segment.x1, segment.y1);
+        countEndpoint(segment.x2, segment.y2);
+    }
+
+    for (const [key, count] of endpointCounts.entries()) {
+        if (count > 1) {
+            const [x, y] = key.split(":").map((value) => Number.parseInt(value, 10));
+            addPoint(x, y);
+        }
+    }
+
+    for (let index = 0; index < walls.length; index += 1) {
+        const left = walls[index];
+        for (let inner = index + 1; inner < walls.length; inner += 1) {
+            const right = walls[inner];
+
+            if (left.orientation === right.orientation) continue;
+
+            const vertical = left.orientation === "vertical" ? left : right;
+            const horizontal = left.orientation === "horizontal" ? left : right;
+            const x = Math.round(vertical.x1);
+            const y = Math.round(horizontal.y1);
+
+            if (
+                between(x, horizontal.x1, horizontal.x2)
+                && between(y, vertical.y1, vertical.y2)
+            ) {
+                addPoint(x, y);
+            }
+        }
+    }
+
+    return [...points.values()].sort((left, right) => (left.y - right.y) || (left.x - right.x));
 }
 
 export function detectRegularGridWallSegments({

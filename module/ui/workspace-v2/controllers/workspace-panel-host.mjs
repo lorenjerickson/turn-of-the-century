@@ -69,6 +69,7 @@ export class WorkspacePanelHost {
         getPanelSceneId = () => "",
         gridCalibrationState = () => ({}),
         getSceneGridOverlayState = () => null,
+        getSceneWallOverlayState = () => null,
         renderMarketPanel = () => "",
         renderPlayerPanel = () => "",
         renderGamemasterPanel = () => ""
@@ -82,6 +83,7 @@ export class WorkspacePanelHost {
         this.getPanelSceneId = getPanelSceneId;
         this.gridCalibrationState = gridCalibrationState;
         this.getSceneGridOverlayState = getSceneGridOverlayState;
+        this.getSceneWallOverlayState = getSceneWallOverlayState;
         this.renderMarketPanel = renderMarketPanel;
         this.renderPlayerPanel = renderPlayerPanel;
         this.renderGamemasterPanel = renderGamemasterPanel;
@@ -243,8 +245,10 @@ export class WorkspacePanelHost {
         });
         const calActive = calModel.active;
         const sceneGridOverlayState = this.getSceneGridOverlayState(mapScene);
+        const sceneWallOverlayState = this.getSceneWallOverlayState(mapScene);
         const sceneGridOverlayActive = Boolean(!calActive && sceneGridOverlayState);
-        const gridOverlayActive = calActive || sceneGridOverlayActive;
+        const wallOverlayActive = Boolean(sceneWallOverlayState?.segments?.length);
+        const gridOverlayActive = calActive || sceneGridOverlayActive || wallOverlayActive;
         const calDialog = renderGridCalibrationDialog(calModel, { escapeHTML: (v) => this.escapeHTML(v) });
         const tokenMarkup = this.#renderMapTokenLayer(mapScene);
 

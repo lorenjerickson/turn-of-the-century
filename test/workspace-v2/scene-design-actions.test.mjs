@@ -331,6 +331,10 @@ describe("scene design actions", () => {
 
         assert.equal(result.ok, true);
         assert.equal(result.createdCount, 1);
+        assert.deepEqual(result.detectedWallOverlay, {
+            segments: [{ x1: 100, y1: 0, x2: 100, y2: 200 }],
+            intersections: []
+        });
         assert.equal(created.type, "Wall");
         assert.deepEqual(created.documents[0].c, [100, 0, 100, 200]);
     });
