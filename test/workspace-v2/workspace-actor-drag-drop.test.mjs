@@ -31,7 +31,11 @@ describe("workspace actor drag and drop", () => {
         assert.match(sceneActorDropControllerSource, /dataTransfer\.setDragImage\(dragImage, 20, 20\)/);
         assert.match(sceneActorDropControllerSource, /actor\?\.prototypeToken\?\.texture\?\.src \?\? actor\?\.img/);
         assert.match(sceneActorDropControllerSource, /#payloadFromDataTransfer\(dataTransfer\)\s*\{[\s\S]*parseActorListDragPayload\(dataTransfer\?\.getData\?\.\(ACTOR_LIST_DRAG_MIME\)\)/);
+        assert.match(sceneActorDropControllerSource, /parseTextPlainActorPayload\(dataTransfer\?\.getData\?\.\(TEXT_PLAIN_MIME\)\)/);
         assert.match(sceneActorDropControllerSource, /#hasActorDragPayload\(dataTransfer\)\s*\{[\s\S]*this\.activeDragPayload\?\.actorIds\?\.length/);
+        assert.match(sceneActorDropControllerSource, /dataTransferHasType\(dataTransfer, TEXT_PLAIN_MIME\)/);
+        assert.match(workspaceRootSource, /getActorById: \(id\) => this\.\#getActorDocumentByReference\(id\)/);
+        assert.match(workspaceRootSource, /#getActorDocumentByReference\(reference\)[\s\S]*id === actorUuid/);
         assert.match(sceneActorDropControllerSource, /this\.renderActorDropPreview\(target, \{ actors, scene, event \}\)/);
         assert.match(sceneActorDropControllerSource, /await this\.addActorsToScene\(actors, \{ scene, anchorPosition \}\)/);
         assert.match(sceneActorDropControllerSource, /buildSceneActorTokenData\(\{ actors: selectedActors, scene, anchorPosition \}\)/);

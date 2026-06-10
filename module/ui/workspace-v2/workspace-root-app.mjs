@@ -830,7 +830,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.sceneActorDropController = new SceneActorDropController({
             getRoot: () => this.element,
             getSelectedActorIds: () => this.actorWorkspaceController.getSelectedActorIds(),
-            getActorById: (id) => game.actors?.get?.(id) ?? null,
+            getActorById: (id) => this.#getActorDocumentByReference(id),
             getSceneById: (id) => this.#getSceneDocumentById(id),
             getFallbackScene: () => this.#getScenePropertiesScene(),
             getImageSpacePoint: (viewport, event) => this.#getImageSpacePointFromMapEvent(viewport, event),
@@ -2599,6 +2599,18 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #getSceneDocumentById(sceneId) {
         return this.sceneWorkspaceController.getSceneDocumentById(sceneId);
+    }
+
+    #getActorDocumentByReference(reference) {
+        const id = String(reference ?? "").trim();
+        if (!id) return null;
+        return game.actors?.get?.(id)
+            ?? (game.actors?.contents ?? []).find((actor) => {
+                const actorId = String(actor?.id ?? actor?._id ?? "").trim();
+                const actorUuid = String(actor?.uuid ?? (actorId ? `Actor.${actorId}` : "")).trim();
+                return id === actorId || id === actorUuid || id === `Actor.${actorId}`;
+            })
+            ?? null;
     }
 
     #getItemDocumentById(itemId) {

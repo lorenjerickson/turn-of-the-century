@@ -296,6 +296,88 @@ describe("SceneActorDropController", () => {
         }
     });
 
+    it("creates scene tokens from the actor list text/plain fallback payload", async () => {
+        const originalHTMLElement = globalThis.HTMLElement;
+        const originalHTMLImageElement = globalThis.HTMLImageElement;
+        globalThis.HTMLElement = FakeElement;
+        globalThis.HTMLImageElement = FakeImageElement;
+
+        try {
+            const target = new FakeElement();
+            target.dataset.mapViewport = "true";
+            target.dataset.sceneId = "scene-1";
+            const layer = new FakeElement();
+            const image = new FakeImageElement();
+            const root = new FakeElement();
+            const actorsById = new Map([
+                ["a", actor("a", "hero", "Ada")],
+                ["b", actor("b", "pawn", "Porter")]
+            ]);
+            let createdTokens = [];
+            const scene = {
+                id: "scene-1",
+                name: "Rookery Yard",
+                width: 1000,
+                height: 800,
+                grid: { size: 100 },
+                tokens: { contents: [] },
+                async createEmbeddedDocuments(type, documents) {
+                    assert.equal(type, "Token");
+                    createdTokens = documents;
+                    return documents;
+                }
+            };
+
+            root.querySelectorAll = (selector) => {
+                if (selector === "[data-scene-actor-drop-target='true']") return [target];
+                if (selector === "[data-actor-drop-preview='true']") return [layer];
+                if (selector === "[data-scene-actor-drop-target].is-actor-drop-target") {
+                    return target.classList.contains("is-actor-drop-target") ? [target] : [];
+                }
+                return [];
+            };
+            target.querySelector = (selector) => {
+                if (selector === "[data-actor-drop-preview='true']") return layer;
+                if (selector === "[data-action='map-image']") return image;
+                return null;
+            };
+
+            const controller = new SceneActorDropController({
+                getRoot: () => root,
+                getActorById: (id) => actorsById.get(id),
+                getSceneById: () => scene,
+                getImageSpacePoint: () => ({ x: 120, y: 240 }),
+                render: () => {},
+                logger: { error: () => {} }
+            });
+            controller.wireSceneActorDropHandlers(root);
+
+            const dataTransfer = {
+                types: ["text/plain"],
+                getData: (type) => type === "text/plain" ? "a,b" : "",
+                dropEffect: ""
+            };
+            const dragOverEvent = fakeDragEvent(dataTransfer);
+            target.listeners.dragover[0](dragOverEvent);
+
+            assert.equal(dragOverEvent.prevented, true);
+            assert.equal(layer.classList.contains("has-preview"), true);
+            assert.equal((layer.innerHTML.match(/<span class="totc-v2-map-panel__actor-drop-square/g) ?? []).length, 2);
+
+            const dropEvent = fakeDragEvent(dataTransfer);
+            await target.listeners.drop[0](dropEvent);
+
+            assert.equal(dropEvent.prevented, true);
+            assert.deepEqual(createdTokens.map((token) => ({ actorId: token.actorId, x: token.x, y: token.y })), [
+                { actorId: "a", x: 100, y: 200 },
+                { actorId: "b", x: 200, y: 200 }
+            ]);
+        } finally {
+            globalThis.HTMLElement = originalHTMLElement;
+            globalThis.HTMLImageElement = originalHTMLImageElement;
+        }
+    });
+
     it("renders drop previews for DOM-like elements from another realm", () => {
         const originalHTMLElement = globalThis.HTMLElement;
         const originalHTMLImageElement = globalThis.HTMLImageElement;

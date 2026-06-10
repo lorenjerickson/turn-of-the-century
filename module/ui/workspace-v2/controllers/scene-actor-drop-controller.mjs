@@ -8,6 +8,8 @@ import {
     buildSceneActorTokenData
 } from "../scene-actor-placement.mjs";
 
+const TEXT_PLAIN_MIME = "text/plain";
+
 function dataTransferHasType(dataTransfer, mimeType) {
     const types = dataTransfer?.types;
     if (typeof types?.contains === "function") return types.contains(mimeType);
@@ -20,6 +22,30 @@ function tokenIconForActor(actor) {
 
 function isElementLike(element) {
     return Boolean(element?.style && element?.classList && typeof element?.querySelector === "function");
+}
+
+function uniqueActorIds(actorIds = []) {
+    return [...new Set(Array.from(actorIds ?? []).map((id) => String(id ?? "").trim()).filter(Boolean))];
+}
+
+function parseTextPlainActorPayload(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return { actorIds: [] };
+
+    try {
+        const parsed = JSON.parse(text);
+        const actorIds = uniqueActorIds([
+            ...(Array.isArray(parsed?.actorIds) ? parsed.actorIds : []),
+            parsed?.actorId,
+            parsed?.id,
+            parsed?.uuid
+        ]);
+        if (actorIds.length && (!parsed?.type || String(parsed.type) === "Actor")) return { actorIds };
+    } catch {
+        // Fall back to the comma-separated payload written by the workspace actor list.
+    }
+
+    return { actorIds: uniqueActorIds(text.split(",")) };
 }
 
 export class SceneActorDropController {
@@ -217,11 +243,16 @@ export class SceneActorDropController {
 
     #payloadFromDataTransfer(dataTransfer) {
         const payload = parseActorListDragPayload(dataTransfer?.getData?.(ACTOR_LIST_DRAG_MIME));
-        return payload.actorIds.length ? payload : (this.activeDragPayload ?? payload);
+        if (payload.actorIds.length) return payload;
+        if (this.activeDragPayload?.actorIds?.length) return this.activeDragPayload;
+        const plainPayload = parseTextPlainActorPayload(dataTransfer?.getData?.(TEXT_PLAIN_MIME));
+        return plainPayload.actorIds.length ? plainPayload : payload;
     }
 
     #hasActorDragPayload(dataTransfer) {
-        return dataTransferHasType(dataTransfer, ACTOR_LIST_DRAG_MIME) || Boolean(this.activeDragPayload?.actorIds?.length);
+        return dataTransferHasType(dataTransfer, ACTOR_LIST_DRAG_MIME)
+            || dataTransferHasType(dataTransfer, TEXT_PLAIN_MIME)
+            || Boolean(this.activeDragPayload?.actorIds?.length);
     }
 
     #viewportFromDropTarget(target) {
