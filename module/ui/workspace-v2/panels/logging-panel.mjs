@@ -8,6 +8,27 @@ export function buildLoggingPanelModel({ entries = [] } = {}) {
     return { entries: Array.isArray(entries) ? entries : [] };
 }
 
+export function formatLoggingPanelEntriesForClipboard(entries = []) {
+    if (!Array.isArray(entries) || !entries.length) return "";
+
+    return entries.map((entry) => {
+        const label = LEVEL_LABELS[entry.level] ?? String(entry.level ?? "").toUpperCase().slice(0, 4).padEnd(4, " ");
+        const parts = [
+            `[${entry.ts ?? ""}] ${label} ${entry.message ?? ""}`.trim()
+        ];
+
+        if (entry.data !== null && entry.data !== undefined) {
+            try {
+                parts.push(JSON.stringify(entry.data, null, 2));
+            } catch {
+                parts.push(String(entry.data));
+            }
+        }
+
+        return parts.join("\n");
+    }).join("\n\n");
+}
+
 export function renderLoggingPanel(model = {}, { escapeHTML = (v) => String(v ?? "") } = {}) {
     const entries = Array.isArray(model.entries) ? model.entries : [];
 
@@ -36,6 +57,7 @@ export function renderLoggingPanel(model = {}, { escapeHTML = (v) => String(v ??
     <section class="totc-v2-logging-panel">
         <header class="totc-v2-logging-panel__toolbar">
             <span class="totc-v2-logging-panel__count">${escapeHTML(String(entries.length))} entries</span>
+            <button type="button" class="totc-v2-logging-panel__copy-btn" data-action="logging-copy" ${entries.length ? "" : "disabled"}>Copy</button>
             <button type="button" class="totc-v2-logging-panel__clear-btn" data-action="logging-clear">Clear</button>
         </header>
         <div class="totc-v2-logging-panel__list">

@@ -55,4 +55,45 @@ describe("sample content exportSource migration", () => {
         assert.deepEqual(migrated._stats.exportSource, existing);
         assert.equal(migrated.flags.exportSource, undefined);
     });
+
+    it("reads document-like raw source without touching migrated flags accessors", () => {
+        const exportSource = { system: "turn-of-the-century", coreVersion: "13.0" };
+        const documentLike = {
+            _source: {
+                name: "Imported Legacy Item",
+                type: "equipment",
+                flags: { exportSource }
+            },
+            get flags() {
+                throw new Error("flags accessor should not be read");
+            }
+        };
+
+        const migrated = migrateLegacyExportSourceData(documentLike);
+
+        assert.equal(migrated.name, "Imported Legacy Item");
+        assert.deepEqual(migrated._stats.exportSource, exportSource);
+        assert.equal(migrated.flags.exportSource, undefined);
+    });
+
+    it("returns cloned raw source for document-like data without legacy exportSource", () => {
+        const source = {
+            name: "Modern Item",
+            type: "equipment",
+            _stats: { exportSource: { system: "turn-of-the-century", coreVersion: "14.0" } },
+            flags: { "turn-of-the-century": { marker: true } }
+        };
+        const documentLike = {
+            _source: source,
+            get flags() {
+                throw new Error("flags accessor should not be read");
+            }
+        };
+
+        const migrated = migrateLegacyExportSourceData(documentLike);
+
+        assert.notEqual(migrated, documentLike);
+        assert.notEqual(migrated, source);
+        assert.deepEqual(migrated, source);
+    });
 });

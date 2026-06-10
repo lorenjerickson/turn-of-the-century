@@ -3335,13 +3335,19 @@ function maybeDeepClone(data) {
     return clone(data);
 }
 
+function getRawDocumentSource(data) {
+    if (isObject(data?._source)) return data._source;
+    return data;
+}
+
 export function migrateLegacyExportSourceData(data) {
-    if (!isObject(data)) return data;
+    const source = getRawDocumentSource(data);
+    if (!isObject(source)) return data;
 
-    const legacyExportSource = data["flags.exportSource"] ?? data.flags?.exportSource;
-    if (legacyExportSource === undefined) return data;
+    const legacyExportSource = source["flags.exportSource"] ?? (isObject(source.flags) ? source.flags.exportSource : undefined);
+    if (legacyExportSource === undefined) return source === data ? data : maybeDeepClone(source);
 
-    const migrated = maybeDeepClone(data);
+    const migrated = maybeDeepClone(source);
     migrated._stats = {
         ...(isObject(migrated._stats) ? migrated._stats : {}),
         exportSource: migrated._stats?.exportSource ?? legacyExportSource

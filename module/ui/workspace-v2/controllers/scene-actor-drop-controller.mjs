@@ -75,6 +75,7 @@ export class SceneActorDropController {
         this.logger = logger;
         this.dragImage = null;
         this.activeDragPayload = null;
+        this.diagnosticRoots = new WeakSet();
     }
 
     wireActorListDragHandlers(root = this.getRoot()) {
@@ -92,9 +93,17 @@ export class SceneActorDropController {
                 event.dataTransfer.setData("text/plain", payload.actorIds.join(","));
                 event.dataTransfer.effectAllowed = "copy";
                 this.#setDragImage(event.dataTransfer, payload.actorIds);
+                this.#log("debug", "Actor map drag started", {
+                    actorId,
+                    actorIds: payload.actorIds,
+                    dataTransferTypes: this.#dataTransferTypes(event.dataTransfer)
+                });
                 row.classList.add("is-dragging");
             });
             row.addEventListener("dragend", () => {
+                this.#log("debug", "Actor map drag ended", {
+                    activeActorIds: this.activeDragPayload?.actorIds ?? []
+                });
                 row.classList.remove("is-dragging");
                 this.clearDragImage();
                 this.clearSceneActorDropTargets();
@@ -104,9 +113,17 @@ export class SceneActorDropController {
     }
 
     wireSceneActorDropHandlers(root = this.getRoot()) {
+        this.#wireSceneActorDropDiagnostics(root);
         root?.querySelectorAll("[data-scene-actor-drop-target='true']")?.forEach((target) => {
             target.addEventListener("dragover", (event) => {
-                if (!this.#hasActorDragPayload(event.dataTransfer)) return;
+                if (!this.#hasActorDragPayload(event.dataTransfer)) {
+                    this.#log("debug", "Scene actor dragover ignored without actor payload", {
+                        dataTransferTypes: this.#dataTransferTypes(event.dataTransfer),
+                        activeActorIds: this.activeDragPayload?.actorIds ?? [],
+                        target: this.#describeDropTarget(target)
+                    });
+                    return;
+                }
                 event.preventDefault();
                 event.stopPropagation();
                 if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
@@ -114,6 +131,14 @@ export class SceneActorDropController {
                 const payload = this.#payloadFromDataTransfer(event.dataTransfer);
                 const actors = this.#actorsFromPayload(payload);
                 const scene = this.#sceneFromDropTarget(target);
+                this.#log("debug", "Scene actor dragover accepted", {
+                    actorIds: payload.actorIds,
+                    resolvedActorIds: actors.map((actor) => actor?.id ?? actor?._id ?? actor?.uuid ?? actor?.name),
+                    resolvedActorCount: actors.length,
+                    sceneId: scene?.id ?? scene?._id ?? target?.dataset?.sceneId ?? "",
+                    hasViewport: Boolean(this.#viewportFromDropTarget(target)),
+                    target: this.#describeDropTarget(target)
+                });
                 this.renderActorDropPreview(target, { actors, scene, event });
                 target.classList.add("is-actor-drop-target");
             });
@@ -124,9 +149,26 @@ export class SceneActorDropController {
                 this.clearActorDropPreviews();
             });
             target.addEventListener("drop", async (event) => {
-                if (!this.#hasActorDragPayload(event.dataTransfer)) return;
+                this.#log("debug", "Scene actor drop handler reached", {
+                    dataTransferTypes: this.#dataTransferTypes(event.dataTransfer),
+                    activeActorIds: this.activeDragPayload?.actorIds ?? [],
+                    target: this.#describeDropTarget(target)
+                });
+                if (!this.#hasActorDragPayload(event.dataTransfer)) {
+                    this.#log("warn", "Scene actor drop ignored without actor payload", {
+                        dataTransferTypes: this.#dataTransferTypes(event.dataTransfer),
+                        target: this.#describeDropTarget(target)
+                    });
+                    return;
+                }
                 const payload = this.#payloadFromDataTransfer(event.dataTransfer);
-                if (!payload.actorIds.length) return;
+                if (!payload.actorIds.length) {
+                    this.#log("warn", "Scene actor drop ignored with empty actor payload", {
+                        dataTransferTypes: this.#dataTransferTypes(event.dataTransfer),
+                        target: this.#describeDropTarget(target)
+                    });
+                    return;
+                }
                 event.preventDefault();
                 event.stopPropagation();
                 target.classList.remove("is-actor-drop-target");
@@ -136,6 +178,15 @@ export class SceneActorDropController {
                 const scene = this.#sceneFromDropTarget(target);
                 const viewport = this.#viewportFromDropTarget(target);
                 const anchorPosition = this.getImageSpacePoint(viewport, event);
+                this.#log("info", "Scene actor drop placing actors", {
+                    actorIds: payload.actorIds,
+                    resolvedActorIds: actors.map((actor) => actor?.id ?? actor?._id ?? actor?.uuid ?? actor?.name),
+                    unresolvedActorIds: payload.actorIds.filter((id) => !this.getActorById(id)),
+                    sceneId: scene?.id ?? scene?._id ?? target?.dataset?.sceneId ?? "",
+                    sceneName: scene?.name ?? "",
+                    anchorPosition,
+                    hasViewport: Boolean(viewport)
+                });
                 await this.addActorsToScene(actors, { scene, anchorPosition });
                 this.activeDragPayload = null;
             });
@@ -186,6 +237,19 @@ export class SceneActorDropController {
         this.syncActorDropPreviewTransform(viewport);
         const anchorPosition = this.getImageSpacePoint(viewport, event);
         const previews = buildSceneActorDropPreview({ actors, scene, anchorPosition });
+        this.#log("debug", "Scene actor drop preview rendered", {
+            actorCount: actors.length,
+            previewCount: previews.length,
+            sceneId: scene?.id ?? scene?._id ?? "",
+            anchorPosition,
+            cells: previews.map((preview) => ({
+                actorName: preview.actorName,
+                x: preview.x,
+                y: preview.y,
+                width: preview.width,
+                height: preview.height
+            }))
+        });
         layer.innerHTML = previews.map((preview) => `
             <span class="totc-v2-map-panel__actor-drop-square totc-v2-map-panel__actor-drop-square--${this.escapeHTML(preview.role)}"
                 style="left:${this.escapeHTML(preview.x)}px;top:${this.escapeHTML(preview.y)}px;width:${this.escapeHTML(preview.width)}px;height:${this.escapeHTML(preview.height)}px"
@@ -198,6 +262,10 @@ export class SceneActorDropController {
     async addActorsToScene(actors = [], { scene = null, anchorPosition = null } = {}) {
         scene ??= this.getFallbackScene();
         if (!scene) {
+            this.#log("warn", "Scene actor placement aborted without scene", {
+                actorCount: Array.from(actors ?? []).filter(Boolean).length,
+                anchorPosition
+            });
             this.#setStatus({ status: "", error: "No scene is available for actor placement." });
             this.render();
             return;
@@ -205,6 +273,9 @@ export class SceneActorDropController {
 
         const selectedActors = Array.from(actors ?? []).filter(Boolean);
         if (!selectedActors.length) {
+            this.#log("warn", "Scene actor placement aborted without resolved actors", {
+                anchorPosition
+            });
             this.#setStatus({ status: "", error: "Choose at least one actor to add to the scene." });
             this.render();
             return;
@@ -215,6 +286,18 @@ export class SceneActorDropController {
                 throw new Error("Scene token creation is not available.");
             }
             const tokenData = await buildSceneActorTokenData({ actors: selectedActors, scene, anchorPosition });
+            this.#log("debug", "Scene actor token data built", {
+                actorIds: selectedActors.map((actor) => actor?.id ?? actor?._id ?? actor?.uuid ?? actor?.name),
+                sceneId: scene?.id ?? scene?._id ?? "",
+                sceneName: scene?.name ?? "",
+                tokenCount: tokenData.length,
+                tokens: tokenData.map((token) => ({
+                    actorId: token.actorId,
+                    name: token.name,
+                    x: token.x,
+                    y: token.y
+                }))
+            });
             if (!tokenData.length) {
                 this.#setStatus({
                     status: "No new actors added. Named actors already present in the scene are not duplicated.",
@@ -224,11 +307,20 @@ export class SceneActorDropController {
                 return;
             }
             await scene.createEmbeddedDocuments("Token", tokenData);
+            this.#log("info", "Scene actor tokens created", {
+                sceneId: scene?.id ?? scene?._id ?? "",
+                sceneName: scene?.name ?? "",
+                tokenCount: tokenData.length
+            });
             this.#setStatus({
                 status: `Added ${tokenData.length} actor${tokenData.length === 1 ? "" : "s"} to ${scene.name ?? "scene"}.`,
                 error: ""
             });
         } catch (error) {
+            this.#log("error", "Scene actor placement failed", {
+                message: error?.message ?? String(error),
+                stack: error?.stack ?? ""
+            });
             this.logger?.error?.("[turn-of-the-century] Scene actor placement failed", error);
             this.#setStatus({ status: "", error: "Actor placement failed - see console." });
         }
@@ -307,5 +399,73 @@ export class SceneActorDropController {
 
     #setStatus(patch = {}) {
         this.setScenePropertiesState(patch);
+    }
+
+    #wireSceneActorDropDiagnostics(root) {
+        if (!root?.addEventListener || this.diagnosticRoots.has(root)) return;
+        this.diagnosticRoots.add(root);
+        root.addEventListener("drop", (event) => {
+            if (!this.#hasActorDragPayload(event.dataTransfer)) return;
+            const dropTarget = this.#closestSceneActorDropTarget(event.target, root);
+            this.#log(dropTarget ? "debug" : "warn", "Workspace actor drop captured", {
+                hasSceneDropTarget: Boolean(dropTarget),
+                dataTransferTypes: this.#dataTransferTypes(event.dataTransfer),
+                eventTarget: this.#describeEventTarget(event.target),
+                dropTarget: this.#describeDropTarget(dropTarget),
+                defaultPrevented: Boolean(event.defaultPrevented)
+            });
+        }, { capture: true });
+    }
+
+    #closestSceneActorDropTarget(target, root) {
+        const selector = "[data-scene-actor-drop-target='true']";
+        const closest = target?.closest?.(selector);
+        if (closest) return closest;
+        const path = target?.composedPath?.() ?? [];
+        const fromPath = path.find((element) => String(element?.dataset?.sceneActorDropTarget ?? "") === "true");
+        if (fromPath) return fromPath;
+
+        let node = target;
+        while (node && node !== root) {
+            if (String(node?.dataset?.sceneActorDropTarget ?? "") === "true") return node;
+            node = node.parentElement ?? node.parentNode ?? null;
+        }
+        return String(root?.dataset?.sceneActorDropTarget ?? "") === "true" ? root : null;
+    }
+
+    #dataTransferTypes(dataTransfer) {
+        return Array.from(dataTransfer?.types ?? []);
+    }
+
+    #describeDropTarget(target) {
+        if (!target) return null;
+        return {
+            tagName: target.tagName ?? "",
+            className: String(target.className ?? ""),
+            sceneId: String(target.dataset?.sceneId ?? ""),
+            mapViewport: String(target.dataset?.mapViewport ?? ""),
+            sceneActorDropTarget: String(target.dataset?.sceneActorDropTarget ?? "")
+        };
+    }
+
+    #describeEventTarget(target) {
+        if (!target) return null;
+        return {
+            tagName: target.tagName ?? "",
+            className: String(target.className ?? ""),
+            dataset: {
+                action: String(target.dataset?.action ?? ""),
+                sceneId: String(target.dataset?.sceneId ?? ""),
+                mapViewport: String(target.dataset?.mapViewport ?? ""),
+                sceneActorDropTarget: String(target.dataset?.sceneActorDropTarget ?? "")
+            }
+        };
+    }
+
+    #log(level, message, data = {}) {
+        const logger = this.logger;
+        const text = `[turn-of-the-century] ${message}`;
+        const method = logger?.[level] ?? logger?.debug ?? logger?.log;
+        method?.call?.(logger, text, data);
     }
 }

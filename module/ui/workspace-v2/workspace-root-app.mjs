@@ -106,7 +106,8 @@ import {
 import { getSceneBackgroundSource } from "./scene-background-source.mjs";
 import { totcLogger } from "./logger.mjs";
 import {
-    buildLoggingPanelModel
+    buildLoggingPanelModel,
+    formatLoggingPanelEntriesForClipboard
 } from "./panels/logging-panel.mjs";
 import { WorkspaceDesignActionRegistry } from "./design-action-registry.mjs";
 import {
@@ -838,7 +839,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.sceneWorkspaceController.patchState(patch);
             },
             render: () => this.render({ force: false }),
-            escapeHTML: (value) => this.#escapeHTML(value)
+            escapeHTML: (value) => this.#escapeHTML(value),
+            logger: totcLogger
         });
         this.panelHost = new WorkspacePanelHost({
             designActionRegistry: this.designActionRegistry,
@@ -4375,6 +4377,25 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #wireLoggingPanelHandlers() {
+        this.element?.querySelectorAll("[data-action='logging-copy']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const text = formatLoggingPanelEntriesForClipboard(totcLogger.getEntries());
+                if (!text) {
+                    ui.notifications?.warn?.("No debug log entries to copy.");
+                    return;
+                }
+
+                try {
+                    await this.#copyTextToClipboard(text);
+                    ui.notifications?.info?.("Debug log copied to clipboard.");
+                } catch (error) {
+                    console.error("[turn-of-the-century] Debug log copy failed", error);
+                    ui.notifications?.error?.("Unable to copy debug log - see console.");
+                }
+            });
+        });
         this.element?.querySelectorAll("[data-action='logging-clear']")?.forEach((button) => {
             button.addEventListener("click", (event) => {
                 event.preventDefault();
@@ -4383,6 +4404,34 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.render({ force: false });
             });
         });
+    }
+
+    async #copyTextToClipboard(text) {
+        if (globalThis.navigator?.clipboard?.writeText) {
+            await globalThis.navigator.clipboard.writeText(text);
+            return;
+        }
+
+        const documentRef = globalThis.document;
+        if (!documentRef?.body?.append || typeof documentRef.createElement !== "function") {
+            throw new Error("Clipboard API is not available.");
+        }
+
+        const textarea = documentRef.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "0";
+        documentRef.body.append(textarea);
+        textarea.select();
+
+        try {
+            const copied = documentRef.execCommand?.("copy");
+            if (!copied) throw new Error("Clipboard copy command failed.");
+        } finally {
+            textarea.remove();
+        }
     }
 
     #wireScenePropertiesHandlers() {

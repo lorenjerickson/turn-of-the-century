@@ -378,6 +378,68 @@ describe("SceneActorDropController", () => {
         }
     });
 
+    it("logs actor drops captured outside a scene drop target", () => {
+        const logs = [];
+        const root = new FakeElement();
+        const strayTarget = new FakeElement();
+        const controller = new SceneActorDropController({
+            getRoot: () => root,
+            render: () => {},
+            logger: {
+                warn: (message, data) => logs.push({ level: "warn", message, data }),
+                debug: (message, data) => logs.push({ level: "debug", message, data })
+            }
+        });
+
+        controller.wireSceneActorDropHandlers(root);
+        root.listeners.drop[0](fakeDragEvent({
+            types: ["text/plain"],
+            getData: (type) => type === "text/plain" ? "a" : ""
+        }, { target: strayTarget }));
+
+        assert.equal(logs.length, 1);
+        assert.equal(logs[0].level, "warn");
+        assert.match(logs[0].message, /Workspace actor drop captured/);
+        assert.equal(logs[0].data.hasSceneDropTarget, false);
+        assert.deepEqual(logs[0].data.dataTransferTypes, ["text/plain"]);
+    });
+
+    it("logs token creation diagnostics during actor placement", async () => {
+        const logs = [];
+        const scene = {
+            id: "scene-1",
+            name: "Rookery Yard",
+            width: 1000,
+            height: 800,
+            grid: { size: 100 },
+            tokens: { contents: [] },
+            async createEmbeddedDocuments() {
+                return [];
+            }
+        };
+        const controller = new SceneActorDropController({
+            setScenePropertiesState: () => {},
+            render: () => {},
+            logger: {
+                debug: (message, data) => logs.push({ level: "debug", message, data }),
+                info: (message, data) => logs.push({ level: "info", message, data }),
+                error: () => {}
+            }
+        });
+
+        await controller.addActorsToScene([actor("a", "hero", "Ada")], {
+            scene,
+            anchorPosition: { x: 120, y: 240 }
+        });
+
+        const tokenDataLog = logs.find((entry) => entry.message.includes("Scene actor token data built"));
+        const createdLog = logs.find((entry) => entry.message.includes("Scene actor tokens created"));
+
+        assert.equal(tokenDataLog?.data.tokenCount, 1);
+        assert.equal(createdLog?.data.tokenCount, 1);
+        assert.equal(createdLog?.data.sceneId, "scene-1");
+    });
+
     it("renders drop previews for DOM-like elements from another realm", () => {
         const originalHTMLElement = globalThis.HTMLElement;
         const originalHTMLImageElement = globalThis.HTMLImageElement;

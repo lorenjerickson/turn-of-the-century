@@ -5249,6 +5249,7 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
     font-size: 0.68rem;
 }
 
+.turn-of-the-century .totc-v2-logging-panel__copy-btn,
 .turn-of-the-century .totc-v2-logging-panel__clear-btn {
     padding: 2px 8px;
     font-size: 0.68rem;
@@ -5259,6 +5260,12 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
     border-radius: 3px;
 }
 
+.turn-of-the-century .totc-v2-logging-panel__copy-btn:disabled {
+    cursor: default;
+    opacity: 0.45;
+}
+
+.turn-of-the-century .totc-v2-logging-panel__copy-btn:not(:disabled):hover,
 .turn-of-the-century .totc-v2-logging-panel__clear-btn:hover {
     background: rgba(255,255,255,0.15);
 }
