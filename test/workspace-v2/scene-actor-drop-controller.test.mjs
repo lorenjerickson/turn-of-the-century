@@ -296,4 +296,43 @@ describe("SceneActorDropController", () => {
             globalThis.HTMLImageElement = originalHTMLImageElement;
         }
     });
+
+    it("renders drop previews for DOM-like elements from another realm", () => {
+        const originalHTMLElement = globalThis.HTMLElement;
+        const originalHTMLImageElement = globalThis.HTMLImageElement;
+        globalThis.HTMLElement = class OtherRealmElement {};
+        globalThis.HTMLImageElement = class OtherRealmImage {};
+
+        try {
+            const target = new FakeElement();
+            const viewport = new FakeElement();
+            const layer = new FakeElement();
+            const image = new FakeImageElement();
+            target.querySelector = (selector) => selector === "[data-map-viewport='true']" ? viewport : null;
+            viewport.querySelector = (selector) => {
+                if (selector === "[data-actor-drop-preview='true']") return layer;
+                if (selector === "[data-action='map-image']") return image;
+                return null;
+            };
+
+            const controller = new SceneActorDropController({
+                getImageSpacePoint: () => ({ x: 120, y: 240 }),
+                getRoot: () => ({ querySelectorAll: () => [layer] }),
+                render: () => {}
+            });
+            const anchor = controller.renderActorDropPreview(target, {
+                actors: [actor("a", "hero", "Ada"), actor("b", "pawn", "Porter")],
+                scene: { width: 1000, height: 800, grid: { size: 100 } }
+            });
+
+            assert.deepEqual(anchor, { x: 120, y: 240 });
+            assert.equal(layer.style.width, "1000px");
+            assert.equal(layer.style.height, "800px");
+            assert.equal(layer.classList.contains("has-preview"), true);
+            assert.equal((layer.innerHTML.match(/<span class="totc-v2-map-panel__actor-drop-square/g) ?? []).length, 2);
+        } finally {
+            globalThis.HTMLElement = originalHTMLElement;
+            globalThis.HTMLImageElement = originalHTMLImageElement;
+        }
+    });
 });

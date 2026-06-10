@@ -22,7 +22,28 @@ describe("WorkspacePanelHost", () => {
                 height: 800,
                 shiftX: 0,
                 shiftY: 0,
-                grid: { type: 1, size: 100 }
+                grid: { type: 1, size: 100 },
+                tokens: {
+                    contents: [
+                        {
+                            name: "Ada",
+                            x: 200,
+                            y: 300,
+                            width: 1,
+                            height: 1,
+                            texture: { src: "tokens/ada.webp" }
+                        },
+                        {
+                            name: "Porter",
+                            document: {
+                                x: 400,
+                                y: 500,
+                                width: 2,
+                                height: 1
+                            }
+                        }
+                    ]
+                }
             }),
             getSceneGridOverlayState: () => ({ gridType: 1, cellW: 100, offsetX: 0, offsetY: 0 }),
             gridCalibrationState: () => ({ active: false })
@@ -32,6 +53,9 @@ describe("WorkspacePanelHost", () => {
 
         assert.match(html, /data-scene-actor-drop-target="true"/);
         assert.match(html, /data-scene-id="scene-1"/);
+        assert.match(html, /data-map-token-layer="true"/);
+        assert.match(html, /class="totc-v2-map-panel__token"[^>]*src="tokens\/ada\.webp"[^>]*style="left:200px;top:300px;width:100px;height:100px"/);
+        assert.match(html, /class="totc-v2-map-panel__token totc-v2-map-panel__token--fallback"[^>]*style="left:400px;top:500px;width:200px;height:100px"[^>]*>P<\/span>/);
         assert.match(html, /data-actor-drop-preview="true"/);
         assert.match(html, /data-grid-overlay="true"/);
         assert.match(html, /Rookery Yard/);

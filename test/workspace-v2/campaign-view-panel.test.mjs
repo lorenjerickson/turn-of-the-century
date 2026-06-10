@@ -301,12 +301,12 @@ describe("Campaign view panel", () => {
         assert.doesNotMatch(styles, /\.totc-v2-campaign-view__body\s*\{[\s\S]*grid-template-columns: minmax\(12rem, 0\.95fr\) minmax\(14rem, 1\.25fr\);/);
         assert.match(styles, /\.totc-v2-campaign-view__tree,[\s\S]*\.totc-v2-campaign-view__detail\s*\{[\s\S]*overflow: auto;/);
         assert.match(styles, /\.totc-v2-campaign-view__detail-content\s*\{[\s\S]*overflow: auto;/);
-        assert.match(styles, /\.totc-v2-campaign-view__row\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;/);
-        assert.match(styles, /\.totc-v2-campaign-view__main\s*\{[\s\S]*gap: 0\.18rem;[\s\S]*grid-template-columns: 1\.45rem minmax\(0, 1fr\);/);
+        assert.match(styles, /\.totc-v2-campaign-view__row\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;[\s\S]*text-align: left;/);
+        assert.match(styles, /\.totc-v2-campaign-view__main\s*\{[\s\S]*gap: 0\.18rem;[\s\S]*grid-template-columns: 1\.45rem minmax\(0, 1fr\);[\s\S]*justify-items: stretch;[\s\S]*text-align: left;/);
         assert.match(styles, /\.totc-v2-campaign-view__actions\s*\{[\s\S]*grid-auto-columns: 1\.45rem;[\s\S]*grid-auto-flow: column;/);
-        assert.match(styles, /\.totc-v2-campaign-view__select\s*\{[\s\S]*justify-items: start;[\s\S]*text-align: left;[\s\S]*width: 100%;/);
-        assert.match(styles, /\.totc-v2-campaign-view__type\s*\{[\s\S]*display: block;[\s\S]*text-align: left;/);
-        assert.match(styles, /\.totc-v2-campaign-view__name\s*\{[\s\S]*display: block;[\s\S]*text-align: left;/);
+        assert.match(styles, /\.totc-v2-campaign-view__select\s*\{[\s\S]*align-items: start;[\s\S]*justify-content: start;[\s\S]*justify-items: start;[\s\S]*text-align: left !important;[\s\S]*width: 100%;/);
+        assert.match(styles, /\.totc-v2-campaign-view__type\s*\{[\s\S]*display: block;[\s\S]*justify-self: start;[\s\S]*text-align: left;[\s\S]*width: 100%;/);
+        assert.match(styles, /\.totc-v2-campaign-view__name\s*\{[\s\S]*display: block;[\s\S]*justify-self: start;[\s\S]*text-align: left;[\s\S]*width: 100%;/);
         assert.match(styles, /\.totc-v2-campaign-view__row\[data-campaign-view-drop-mode="inside"\]\s*\{[\s\S]*border-color: rgba\(134, 239, 172, 0\.58\);/);
         assert.match(styles, /\.totc-v2-campaign-view__row\[data-campaign-view-drop-mode="before"\][\s\S]*\.totc-v2-campaign-view__drop-indicator--before/);
         assert.match(styles, /\.totc-v2-campaign-view__icon-action--danger:hover\s*\{[\s\S]*border-color: rgba\(248, 113, 113, 0\.72\);/);

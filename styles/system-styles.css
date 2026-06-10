@@ -1858,6 +1858,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     padding: 0.2rem 0.22rem;
     padding-left: calc(0.22rem + (var(--totc-campaign-level, 0) * 0.9rem));
     position: relative;
+    text-align: left;
 }
 
 .turn-of-the-century .totc-v2-campaign-view__row:hover,
@@ -1911,6 +1912,8 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 .turn-of-the-century .totc-v2-campaign-view__main {
     gap: 0.18rem;
     grid-template-columns: 1.45rem minmax(0, 1fr);
+    justify-items: stretch;
+    text-align: left;
 }
 
 .turn-of-the-century .totc-v2-campaign-view__actions {
@@ -1944,10 +1947,12 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 }
 
 .turn-of-the-century .totc-v2-campaign-view__select {
+    align-items: start;
     display: grid;
     gap: 0.05rem;
+    justify-content: start;
     justify-items: start;
-    text-align: left;
+    text-align: left !important;
     width: 100%;
 }
 
@@ -1956,9 +1961,11 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     display: block;
     font-size: 0.6rem;
     font-weight: 800;
+    justify-self: start;
     letter-spacing: 0.08em;
     text-align: left;
     text-transform: uppercase;
+    width: 100%;
 }
 
 .turn-of-the-century .totc-v2-campaign-view__name {
@@ -1966,11 +1973,13 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     display: block;
     font-size: 0.78rem;
     font-weight: 800;
+    justify-self: start;
     max-width: 100%;
     overflow: hidden;
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
+    width: 100%;
 }
 
 .turn-of-the-century .totc-v2-campaign-view__icon-action {
@@ -2853,6 +2862,35 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     user-select: none;
 }
 
+.turn-of-the-century .totc-v2-map-panel__token-layer {
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    transform-origin: 0 0;
+    z-index: 2;
+}
+
+.turn-of-the-century .totc-v2-map-panel__token {
+    border: 1px solid rgba(226, 232, 240, 0.76);
+    border-radius: 50%;
+    box-shadow: 0 0.18rem 0.45rem rgba(15, 23, 42, 0.34);
+    box-sizing: border-box;
+    display: block;
+    object-fit: cover;
+    position: absolute;
+}
+
+.turn-of-the-century .totc-v2-map-panel__token--fallback {
+    align-items: center;
+    background: rgba(15, 23, 42, 0.86);
+    color: #f8fafc;
+    display: flex;
+    font-size: 0.78rem;
+    font-weight: 800;
+    justify-content: center;
+}
+
 .turn-of-the-century .totc-v2-map-panel__empty {
     align-items: center;
     border: 1px dashed rgba(148, 163, 184, 0.45);
@@ -2900,7 +2938,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     overflow: visible;
     pointer-events: none;
     position: absolute;
-    z-index: 2;
+    z-index: 3;
 }
 
 .turn-of-the-century .totc-v2-map-panel__actor-drop-preview {
@@ -2909,7 +2947,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     position: absolute;
     top: 0;
     transform-origin: 0 0;
-    z-index: 3;
+    z-index: 4;
 }
 
 .turn-of-the-century .totc-v2-map-panel__actor-drop-preview.has-preview {

@@ -23,6 +23,41 @@ import { renderEncounterDesignerPanel } from "../panels/encounter-designer-panel
 import { renderCampaignViewPanel } from "../panels/campaign-view-panel.mjs";
 import { renderGMAssistantPanel } from "../panels/gm-assistant-panel.mjs";
 
+function collectionContents(collection) {
+    if (!collection) return [];
+    if (Array.isArray(collection)) return collection;
+    if (Array.isArray(collection.contents)) return collection.contents;
+    if (typeof collection.values === "function") return Array.from(collection.values());
+    if (typeof collection[Symbol.iterator] === "function") return Array.from(collection);
+    return [];
+}
+
+function positiveNumber(value, fallback) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
+}
+
+function tokenTexture(token) {
+    return String(token?.texture?.src
+        ?? token?.document?.texture?.src
+        ?? token?.actor?.prototypeToken?.texture?.src
+        ?? token?.actor?.img
+        ?? ""
+    ).trim();
+}
+
+function tokenName(token) {
+    return String(token?.name ?? token?.document?.name ?? token?.actor?.name ?? "Token").trim();
+}
+
+function tokenPosition(token, axis) {
+    return Number(token?.[axis] ?? token?.document?.[axis] ?? 0);
+}
+
+function tokenGridSize(token, axis, fallback = 1) {
+    return positiveNumber(token?.[axis] ?? token?.document?.[axis], fallback);
+}
+
 export class WorkspacePanelHost {
     constructor({
         designActionRegistry,
@@ -211,6 +246,7 @@ export class WorkspacePanelHost {
         const sceneGridOverlayActive = Boolean(!calActive && sceneGridOverlayState);
         const gridOverlayActive = calActive || sceneGridOverlayActive;
         const calDialog = renderGridCalibrationDialog(calModel, { escapeHTML: (v) => this.escapeHTML(v) });
+        const tokenMarkup = this.#renderMapTokenLayer(mapScene);
 
         const imageMarkup = mapSrc
             ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true"
@@ -220,6 +256,7 @@ export class WorkspacePanelHost {
                 data-grid-offset-x="${this.escapeHTML(sceneGridOverlayState?.offsetX ?? -Number(mapScene?.shiftX ?? 0))}"
                 data-grid-offset-y="${this.escapeHTML(sceneGridOverlayState?.offsetY ?? -Number(mapScene?.shiftY ?? 0))}">
                 <img class="totc-v2-map-panel__image" src="${this.escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false" data-action="map-image">
+                ${tokenMarkup}
                 ${gridOverlayActive ? `<svg class="totc-v2-map-panel__grid-overlay" data-grid-overlay="true" aria-hidden="true"></svg>` : ""}
                 <div class="totc-v2-map-panel__actor-drop-preview" data-actor-drop-preview="true" aria-hidden="true"></div>
             </div>`
@@ -234,6 +271,24 @@ export class WorkspacePanelHost {
             </figcaption>
             ${calDialog}
         </figure>`;
+    }
+
+    #renderMapTokenLayer(scene = null) {
+        const cell = positiveNumber(scene?.grid?.size, 100);
+        const tokens = collectionContents(scene?.tokens).filter(Boolean);
+        const tokenMarkup = tokens.map((token) => {
+            const x = tokenPosition(token, "x");
+            const y = tokenPosition(token, "y");
+            const width = tokenGridSize(token, "width") * cell;
+            const height = tokenGridSize(token, "height") * cell;
+            const src = tokenTexture(token);
+            const name = tokenName(token);
+            const style = `left:${this.escapeHTML(x)}px;top:${this.escapeHTML(y)}px;width:${this.escapeHTML(width)}px;height:${this.escapeHTML(height)}px`;
+            return src
+                ? `<img class="totc-v2-map-panel__token" src="${this.escapeHTML(src)}" alt="${this.escapeHTML(name)}" title="${this.escapeHTML(name)}" style="${style}">`
+                : `<span class="totc-v2-map-panel__token totc-v2-map-panel__token--fallback" title="${this.escapeHTML(name)}" style="${style}">${this.escapeHTML(name.slice(0, 1).toUpperCase() || "?")}</span>`;
+        }).join("");
+        return `<div class="totc-v2-map-panel__token-layer" data-map-token-layer="true" aria-label="Scene tokens">${tokenMarkup}</div>`;
     }
 
     #renderCompendiumPanel(context = {}) {

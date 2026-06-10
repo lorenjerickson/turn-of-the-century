@@ -18,6 +18,10 @@ function tokenIconForActor(actor) {
     return String(actor?.prototypeToken?.texture?.src ?? actor?.img ?? "").trim();
 }
 
+function isElementLike(element) {
+    return Boolean(element?.style && element?.classList && typeof element?.querySelector === "function");
+}
+
 export class SceneActorDropController {
     constructor({
         getRoot = () => null,
@@ -118,14 +122,19 @@ export class SceneActorDropController {
     }
 
     syncActorDropPreviewTransform(viewport) {
-        const layer = viewport?.querySelector?.("[data-actor-drop-preview='true']");
+        const layers = [
+            viewport?.querySelector?.("[data-map-token-layer='true']"),
+            viewport?.querySelector?.("[data-actor-drop-preview='true']")
+        ].filter(isElementLike);
         const image = viewport?.querySelector?.("[data-action='map-image']");
-        if (!(layer instanceof HTMLElement) || !(image instanceof HTMLImageElement)) return;
+        if (!layers.length || !image?.style) return;
         const width = Number(image.naturalWidth);
         const height = Number(image.naturalHeight);
-        if (Number.isFinite(width) && width > 0) layer.style.width = `${width}px`;
-        if (Number.isFinite(height) && height > 0) layer.style.height = `${height}px`;
-        layer.style.transform = image.style.transform;
+        for (const layer of layers) {
+            if (Number.isFinite(width) && width > 0) layer.style.width = `${width}px`;
+            if (Number.isFinite(height) && height > 0) layer.style.height = `${height}px`;
+            layer.style.transform = image.style.transform;
+        }
     }
 
     clearSceneActorDropTargets(except = null) {
@@ -146,7 +155,7 @@ export class SceneActorDropController {
     renderActorDropPreview(target, { actors = [], scene = null, event = null } = {}) {
         const viewport = target?.querySelector?.("[data-map-viewport='true']");
         const layer = viewport?.querySelector?.("[data-actor-drop-preview='true']");
-        if (!(viewport instanceof HTMLElement) || !(layer instanceof HTMLElement)) return null;
+        if (!isElementLike(viewport) || !isElementLike(layer)) return null;
 
         this.syncActorDropPreviewTransform(viewport);
         const anchorPosition = this.getImageSpacePoint(viewport, event);
