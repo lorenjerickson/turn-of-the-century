@@ -7,6 +7,7 @@ import {
     buildSceneCreationData,
     createSceneDesignScene,
     createSceneFromBackgroundPath,
+    detectSceneWalls,
     isSceneBackgroundImagePath,
     SCENE_BACKGROUND_IMAGE_ASSET_PATH,
     SceneDesignService,
@@ -14,6 +15,32 @@ import {
 } from "../../module/ui/workspace-v2/design-actions/scene-actions.mjs";
 
 const originalFilePickerDescriptor = Object.getOwnPropertyDescriptor(globalThis, "FilePicker");
+
+function makeImageData(width, height, fill = 255) {
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let index = 0; index < data.length; index += 4) {
+        data[index] = fill;
+        data[index + 1] = fill;
+        data[index + 2] = fill;
+        data[index + 3] = 255;
+    }
+    return { width, height, data };
+}
+
+function setPixel(imageData, x, y, value) {
+    if (x < 0 || y < 0 || x >= imageData.width || y >= imageData.height) return;
+    const index = ((y * imageData.width) + x) * 4;
+    imageData.data[index] = value;
+    imageData.data[index + 1] = value;
+    imageData.data[index + 2] = value;
+}
+
+function drawVerticalLine(imageData, x, y1, y2, value = 0, thickness = 3) {
+    const radius = Math.floor(thickness / 2);
+    for (let y = y1; y <= y2; y += 1) {
+        for (let dx = -radius; dx <= radius; dx += 1) setPixel(imageData, x + dx, y, value);
+    }
+}
 
 afterEach(() => {
     if (originalFilePickerDescriptor) {
@@ -276,6 +303,76 @@ describe("scene design actions", () => {
             ok: true,
             message: "Wall layer activated."
         });
+    });
+
+    it("detects regular-grid walls and creates Wall documents", async () => {
+        const imageData = makeImageData(201, 201);
+        drawVerticalLine(imageData, 100, 0, 200, 0, 3);
+        let created = null;
+        const scene = {
+            id: "scene-1",
+            name: "Rookery Yard",
+            img: "assets/images/scenes/rookery.webp",
+            width: 200,
+            height: 200,
+            grid: { type: 1, size: 100 },
+            walls: [],
+            createEmbeddedDocuments: async (type, documents) => {
+                created = { type, documents };
+                return documents;
+            }
+        };
+
+        const result = await detectSceneWalls({
+            scene,
+            canvas: { ready: true },
+            imageData
+        });
+
+        assert.equal(result.ok, true);
+        assert.equal(result.createdCount, 1);
+        assert.equal(created.type, "Wall");
+        assert.deepEqual(created.documents[0].c, [100, 0, 100, 200]);
+    });
+
+    it("confirms before replacing existing walls during detection", async () => {
+        const imageData = makeImageData(201, 201);
+        drawVerticalLine(imageData, 100, 0, 200, 0, 3);
+        const deleted = [];
+        const scene = {
+            id: "scene-1",
+            name: "Rookery Yard",
+            img: "assets/images/scenes/rookery.webp",
+            width: 200,
+            height: 200,
+            grid: { type: 1, size: 100 },
+            walls: [{ id: "old-wall" }],
+            deleteEmbeddedDocuments: async (type, ids) => {
+                deleted.push({ type, ids });
+            },
+            createEmbeddedDocuments: async (type, documents) => documents
+        };
+
+        const cancelled = await detectSceneWalls({
+            scene,
+            canvas: { ready: true },
+            imageData,
+            confirm: () => false
+        });
+
+        assert.equal(cancelled.ok, false);
+        assert.equal(cancelled.reason, "replacement-cancelled");
+        assert.deepEqual(deleted, []);
+
+        const applied = await detectSceneWalls({
+            scene,
+            canvas: { ready: true },
+            imageData,
+            confirm: () => true
+        });
+
+        assert.equal(applied.ok, true);
+        assert.deepEqual(deleted, [{ type: "Wall", ids: ["old-wall"] }]);
     });
 
     it("warns when no scene is active", async () => {

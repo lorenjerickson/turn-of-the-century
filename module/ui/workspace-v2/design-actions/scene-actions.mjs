@@ -5,6 +5,14 @@ import {
     requireFilePicker,
     requireSceneDocumentClass
 } from "../../../foundry-v14-runtime.mjs";
+import { getSceneBackgroundSource } from "../scene-background-source.mjs";
+import {
+    applyDetectedWallsToScene,
+    buildDetectedWallDocumentData,
+    buildRegularSquareGridModel,
+    detectRegularGridWallSegments,
+    getSceneWallDocuments
+} from "../scene-wall-detection.mjs";
 
 const WALL_CONTROL = "walls";
 const WALL_TOOL = "walls";
@@ -45,6 +53,10 @@ function getFileConstructor(context = {}) {
 
 function getNotifications(context = {}) {
     return context.notifications ?? context.ui?.notifications ?? globalThis.ui?.notifications ?? null;
+}
+
+function getConfirm(context = {}) {
+    return context.confirm ?? globalThis.confirm ?? null;
 }
 
 function getWorldId(context = {}) {
@@ -92,6 +104,40 @@ function titleCaseFromSlug(value = "") {
         .filter(Boolean);
 
     return words.map((word) => word.slice(0, 1).toUpperCase() + word.slice(1)).join(" ") || "New Scene";
+}
+
+async function loadImageDataFromSource(source = "", context = {}) {
+    if (context.imageData) return context.imageData;
+    if (typeof context.imageDataLoader === "function") return context.imageDataLoader(source, context);
+
+    const ImageClass = context.ImageClass ?? globalThis.Image;
+    const documentRef = context.document ?? globalThis.document;
+    if (typeof ImageClass !== "function" || typeof documentRef?.createElement !== "function") {
+        throw new Error("Map image pixel access is not available in this session.");
+    }
+
+    const image = await new Promise((resolve, reject) => {
+        const candidate = new ImageClass();
+        candidate.onload = () => resolve(candidate);
+        candidate.onerror = () => reject(new Error("Map image could not be loaded for wall detection."));
+        candidate.src = source;
+    });
+
+    const width = Number(image.naturalWidth ?? image.width ?? 0);
+    const height = Number(image.naturalHeight ?? image.height ?? 0);
+    if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) {
+        throw new Error("Map image dimensions are unavailable for wall detection.");
+    }
+
+    const canvas = documentRef.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context2d = canvas.getContext?.("2d", { willReadFrequently: true });
+    if (!context2d || typeof context2d.drawImage !== "function" || typeof context2d.getImageData !== "function") {
+        throw new Error("Canvas pixel sampling is not available for wall detection.");
+    }
+    context2d.drawImage(image, 0, 0);
+    return context2d.getImageData(0, 0, width, height);
 }
 
 export function isSceneBackgroundImagePath(path = "", { worldId = "" } = {}) {
@@ -301,6 +347,103 @@ export class SceneDesignService {
             message: "Wall design tools are not available in this Foundry session."
         };
     }
+
+    async detectRegularGridWalls({ options = {} } = {}) {
+        const scene = getScene(this.context);
+        const canvas = getCanvas(this.context);
+        const confirm = getConfirm(this.context);
+
+        if (!scene) {
+            return {
+                ok: false,
+                level: "warn",
+                message: "Open a scene before detecting walls."
+            };
+        }
+
+        if (canvas?.ready === false) {
+            return {
+                ok: false,
+                level: "warn",
+                message: "Wait for the canvas to finish loading before detecting walls."
+            };
+        }
+
+        const backgroundSource = getSceneBackgroundSource(scene);
+        if (!backgroundSource) {
+            return {
+                ok: false,
+                level: "warn",
+                message: "Set a scene background image before detecting walls."
+            };
+        }
+
+        const preliminaryGrid = buildRegularSquareGridModel(scene);
+        if (!preliminaryGrid) {
+            return {
+                ok: false,
+                level: "warn",
+                message: "Wall detection requires a calibrated square grid."
+            };
+        }
+
+        const existingWalls = getSceneWallDocuments(scene);
+        const confirmedReplacement = existingWalls.length === 0
+            || (typeof confirm === "function" && confirm(`Detecting walls will discard ${existingWalls.length} existing wall${existingWalls.length === 1 ? "" : "s"} on "${scene.name ?? "this scene"}". Proceed?`));
+        if (!confirmedReplacement) {
+            return {
+                ok: false,
+                silent: true,
+                reason: "replacement-cancelled"
+            };
+        }
+
+        const imageData = await loadImageDataFromSource(backgroundSource, this.context);
+        const detected = detectRegularGridWallSegments({
+            imageData,
+            width: imageData.width,
+            height: imageData.height,
+            scene,
+            options
+        });
+        if (!detected.ok) {
+            return {
+                ok: false,
+                level: "warn",
+                message: "Wall detection requires a calibrated square grid."
+            };
+        }
+
+        const wallData = buildDetectedWallDocumentData(detected.segments);
+        if (!wallData.length) {
+            return {
+                ok: false,
+                level: "warn",
+                message: "No confident grid-aligned walls were detected."
+            };
+        }
+
+        const applied = await applyDetectedWallsToScene({
+            scene,
+            wallData,
+            confirmReplacement: () => true
+        });
+        if (!applied.ok) {
+            return {
+                ok: false,
+                level: "warn",
+                message: applied.reason === "wall-deletion-unavailable"
+                    ? "This scene cannot replace existing walls automatically."
+                    : "Wall detection could not create walls in this Foundry session."
+            };
+        }
+
+        return {
+            ok: true,
+            createdCount: wallData.length,
+            message: `Detected ${wallData.length} wall segment${wallData.length === 1 ? "" : "s"}.`
+        };
+    }
 }
 
 export async function createSceneFromBackgroundPath({ backgroundPath = "", name = "", navigation = true, ...context } = {}) {
@@ -321,4 +464,8 @@ export async function uploadSceneBackgroundFile({ file, target, overwrite = fals
 
 export async function activateSceneWallDesignMode(context = {}) {
     return new SceneDesignService(context).activateWallDesignMode();
+}
+
+export async function detectSceneWalls(context = {}) {
+    return new SceneDesignService(context).detectRegularGridWalls();
 }

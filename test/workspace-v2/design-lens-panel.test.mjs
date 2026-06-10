@@ -13,6 +13,7 @@ describe("Design lens panel", () => {
 
         assert.deepEqual(actions.map((action) => action.id), [
             "scene.create",
+            "scene.detectWalls",
             "scene.walls",
             "scene.grid",
             "scene.lights",

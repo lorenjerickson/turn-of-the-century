@@ -1,5 +1,9 @@
 import { createNpcDesignActor } from "./design-actions/actor-actions.mjs";
-import { activateSceneWallDesignMode, createSceneDesignScene } from "./design-actions/scene-actions.mjs";
+import {
+    activateSceneWallDesignMode,
+    createSceneDesignScene,
+    detectSceneWalls
+} from "./design-actions/scene-actions.mjs";
 
 const DEFAULT_RELEVANCE = 50;
 
@@ -72,6 +76,15 @@ export const DEFAULT_DESIGN_ACTIONS = Object.freeze([
             }
             return { ok: false, level: "warn", message: "Grid calibration is not available." };
         }
+    },
+    {
+        id: "scene.detectWalls",
+        label: "Detect Walls",
+        description: "Detect grid-aligned wall segments from this scene map.",
+        domain: "scene",
+        contexts: ["map"],
+        relevance: 96,
+        execute: async (context = {}) => detectSceneWalls(context)
     },
     {
         id: "scene.walls",
