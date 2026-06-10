@@ -79,7 +79,6 @@ import { GridCalibrationController } from "./grid-calibration-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
 import { MapViewportController } from "./map-viewport-controller.mjs";
 import { WorkspacePanelRegistry } from "./panel-registry.mjs";
-import { getDefaultScene, setDefaultScene, clearDefaultScene } from "../../seeded-scenes.mjs";
 import { getDieRollRequestHostPanelId } from "./die-roll-request-routing.mjs";
 import { openFoundrySettingsView } from "./workspace-system-menu.mjs";
 import {
@@ -87,35 +86,27 @@ import {
     isWorkspaceDebouncedTextInputTarget
 } from "./workspace-text-inputs.mjs";
 import {
-    buildDiceRollFeedPanelModel,
-    renderDiceRollFeedPanel
+    buildDiceRollFeedPanelModel
 } from "./panels/dice-roll-feed-panel.mjs";
 import {
     buildDieRollRequestPanelModel,
     renderDieRollRequestPanel
 } from "./panels/die-roll-request-panel.mjs";
 import {
-    buildDesignLensModel,
-    renderDesignLensSurface
-} from "./panels/design-lens-panel.mjs";
-import {
     buildDesignCommandPaletteModel,
     renderDesignCommandPalette
 } from "./panels/design-command-palette.mjs";
 import {
-    buildInspectorPanelModel,
-    renderInspectorPanel
+    buildInspectorPanelModel
 } from "./panels/inspector-panel.mjs";
 import {
     browseAssetMedia,
-    buildMediaBrowserPanelModel,
-    renderMediaBrowserPanel
+    buildMediaBrowserPanelModel
 } from "./panels/media-browser-panel.mjs";
 import { getSceneBackgroundSource } from "./scene-background-source.mjs";
 import { totcLogger } from "./logger.mjs";
 import {
-    buildLoggingPanelModel,
-    renderLoggingPanel
+    buildLoggingPanelModel
 } from "./panels/logging-panel.mjs";
 import { WorkspaceDesignActionRegistry } from "./design-action-registry.mjs";
 import {
@@ -123,47 +114,50 @@ import {
     loadUnifiedCompendiumItems
 } from "./compendium-items.mjs";
 import {
-    buildDesignIssuesPanelModel,
-    renderDesignIssuesPanel
+    buildDesignIssuesPanelModel
 } from "./panels/design-issues-panel.mjs";
 import {
-    buildGridCalibrationModel,
-    renderGridCalibrationDialog,
     buildGridCalibrationSceneUpdate,
     buildGridCalibrationOverlayModel,
     buildSceneGridOverlayState,
     GRID_CAL_PHASE_HINTS
 } from "./panels/grid-calibration.mjs";
 import {
-    applySceneBackgroundUpdate,
-    buildSceneBackgroundUploadTarget,
-    buildSceneBackgroundUpdateData,
     buildScenePropertiesPanelModel,
-    resolveScenePropertiesMapPanelScene,
-    renderScenePropertiesPanel
 } from "./panels/scene-properties-panel.mjs";
 import {
-    buildSceneActorDropPreview,
-    buildSceneActorTokenData
-} from "./scene-actor-placement.mjs";
-import {
-    buildScenesPanelModel,
-    renderScenesPanel
+    buildScenesPanelModel
 } from "./panels/scenes-panel.mjs";
 import {
-    ACTOR_LIST_DRAG_MIME,
-    buildActorListDragPayload,
     buildActorEditorPanelModel,
     buildActorListPanelModel,
     buildActorUpdateDataFromFormData,
-    buildGeneratedActorDocumentData,
-    parseActorListDragPayload,
-    renderActorEditorPanel,
-    renderActorListPanel
+    buildGeneratedActorDocumentData
 } from "./panels/actor-management-panel.mjs";
 import {
-    buildCampaignBuilderPanelModel,
-    renderCampaignBuilderPanel
+    CompendiumCacheController
+} from "./controllers/compendium-cache-controller.mjs";
+import {
+    SceneActorDropController
+} from "./controllers/scene-actor-drop-controller.mjs";
+import {
+    ActorWorkspaceController
+} from "./controllers/actor-workspace-controller.mjs";
+import {
+    SceneWorkspaceController
+} from "./controllers/scene-workspace-controller.mjs";
+import {
+    WorkspacePanelHost
+} from "./controllers/workspace-panel-host.mjs";
+import {
+    WorkspaceHooksController
+} from "./controllers/workspace-hooks-controller.mjs";
+import {
+    MarketController,
+    normalizeMarketPanelState
+} from "./controllers/market-controller.mjs";
+import {
+    buildCampaignBuilderPanelModel
 } from "./panels/campaign-builder-panel.mjs";
 
 const WORKSPACE_PANEL_DRAG_MIME = "application/x-totc-workspace-panel";
@@ -174,35 +168,23 @@ function dataTransferHasType(dataTransfer, mimeType) {
     return Array.from(types ?? []).includes(mimeType);
 }
 
-function tokenIconForActor(actor) {
-    return String(actor?.prototypeToken?.texture?.src ?? actor?.img ?? "").trim();
-}
-
 import {
-    buildScenarioBuilderPanelModel,
-    renderScenarioBuilderPanel
+    buildScenarioBuilderPanelModel
 } from "./panels/scenario-builder-panel.mjs";
 import {
-    buildEncounterDesignerPanelModel,
-    renderEncounterDesignerPanel
+    buildEncounterDesignerPanelModel
 } from "./panels/encounter-designer-panel.mjs";
 import {
     buildCampaignViewDeletePlan,
     buildCampaignViewMovePlan,
     buildCampaignViewPanelModel,
-    getCampaignViewDropMode,
-    renderCampaignViewPanel
+    getCampaignViewDropMode
 } from "./panels/campaign-view-panel.mjs";
 import {
     buildGMAssistantDocumentSystemData,
-    buildGMAssistantPanelModel,
-    renderGMAssistantPanel
+    buildGMAssistantPanelModel
 } from "./panels/gm-assistant-panel.mjs";
 import { LLMService } from "../../services/llm-service.mjs";
-import {
-    createSceneDesignScene,
-    uploadSceneBackgroundFile
-} from "./design-actions/scene-actions.mjs";
 import { buildEncounterPlanner } from "../../encounters/planner-context.mjs";
 import {
     requireActorDocumentClass,
@@ -232,8 +214,6 @@ const MIN_LEFT_RIGHT_DOCK_WIDTH = 240;
 const COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT = 38;
 const COLLAPSED_LEFT_RIGHT_DOCK_WIDTH = 42;
 const TEXT_INPUT_DEBOUNCE_MS = 300;
-const COMPENDIUM_STARTUP_RETRY_LIMIT = 10;
-const COMPENDIUM_STARTUP_RETRY_BASE_MS = 250;
 const GM_PANEL_STATE_KEY = "gmPanelState";
 const MARKET_PANEL_STATE_KEY = "marketPanelState";
 const PLAYER_PANEL_STATE_KEY = "playerPanelState";
@@ -246,22 +226,10 @@ const GM_PANEL_DEFAULT_STATE = Object.freeze({
     contextDebug: false
 });
 
-const MARKET_PANEL_DEFAULT_STATE = Object.freeze({
-    selectedBuyerActorId: ""
-});
-
 const PLAYER_PANEL_DEFAULT_STATE = Object.freeze({
     selectedActorId: "",
     collapsedSectionIds: []
 });
-
-const MARKET_TRADABLE_ITEM_TYPES = Object.freeze(new Set([
-    "armor",
-    "weapon",
-    "equipment",
-    "consumable",
-    "item"
-]));
 
 const GM_ACTION_MODELS = Object.freeze([
     {
@@ -462,12 +430,6 @@ function normalizeGamemasterPanelState(value = {}) {
         actionSearchQuery: String(value?.actionSearchQuery ?? GM_PANEL_DEFAULT_STATE.actionSearchQuery),
         allActionsExpanded: Boolean(value?.allActionsExpanded ?? GM_PANEL_DEFAULT_STATE.allActionsExpanded),
         contextDebug: Boolean(value?.contextDebug ?? GM_PANEL_DEFAULT_STATE.contextDebug)
-    };
-}
-
-function normalizeMarketPanelState(value = {}) {
-    return {
-        selectedBuyerActorId: String(value?.selectedBuyerActorId ?? MARKET_PANEL_DEFAULT_STATE.selectedBuyerActorId)
     };
 }
 
@@ -803,9 +765,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.designCommandPaletteOpen = false;
         this.designCommandPaletteQuery = "";
         this.compendiumSearchQuery = "";
-        this.actorSearchQuery = "";
-        this.actorTypeFilter = "all";
-        this.selectedActorIds = new Set();
         this._mediaBrowserEntries = null;
         this._mediaBrowserEntriesPromise = null;
         this._mediaBrowserSelectCallback = null;
@@ -819,10 +778,100 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             selectedPaths: [],
             error: ""
         };
-        this._compendiumItemEntries = null;
-        this._compendiumItemsPromise = null;
         this._resizeSession = null;
         this._textInputDebounceTimers = new Map();
+        this.compendiumCacheController = new CompendiumCacheController({
+            load: () => loadUnifiedCompendiumItems({
+                packs: getCompendiumPacks(game?.packs),
+                gameReady: Boolean(game?.ready),
+                logger: console
+            }),
+            onRetry: () => {
+                if (this.rendered) {
+                    this.render({ force: false });
+                } else {
+                    void this.compendiumCacheController.getItems();
+                }
+            }
+        });
+        this.actorWorkspaceController = new ActorWorkspaceController({
+            getActorById: (id) => game.actors?.get?.(id) ?? null,
+            createActor: (data) => ActorDocumentClass.create(data),
+            generate: (prompt, options) => LLMService.generate(prompt, options),
+            buildGeneratedActorDocumentData,
+            buildActorUpdateDataFromFormData,
+            openActorEditor: () => this.#openActorEditorBelowList(),
+            render: () => this.render({ force: false }),
+            logger: console
+        });
+        this.sceneWorkspaceController = new SceneWorkspaceController({
+            layoutEngine: this.layoutEngine,
+            panelRegistry: this.panelRegistry,
+            stateStore: this.stateStore,
+            sceneResolver: (id) => game.scenes?.get?.(id)
+                ?? (game.scenes?.contents ?? []).find((scene) => String(scene?.id ?? scene?._id ?? "") === String(id ?? "").trim())
+                ?? null,
+            scenesCollection: () => game.scenes,
+            getCurrentScene: () => canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null,
+            getViewedScene: () => game.scenes?.viewed ?? canvas?.scene ?? game.scenes?.active ?? null,
+            getActivePanel: () => this.#getPrimaryActivePanel(),
+            getActors: () => Array.from(game.actors?.contents ?? []),
+            addActorsToScene: (actors) => this.#addActorsToScene(actors),
+            executeDesignAction: (actionId, options) => this.#executeDesignAction(actionId, options),
+            render: () => {
+                if (this.rendered) this.render({ force: false });
+            },
+            foundryRef: () => foundry,
+            uiRef: () => ui,
+            confirmRef: () => globalThis.confirm,
+            logger: console,
+            activityLogger: totcLogger
+        });
+        this.sceneActorDropController = new SceneActorDropController({
+            getRoot: () => this.element,
+            getSelectedActorIds: () => this.actorWorkspaceController.getSelectedActorIds(),
+            getActorById: (id) => game.actors?.get?.(id) ?? null,
+            getSceneById: (id) => this.#getSceneDocumentById(id),
+            getFallbackScene: () => this.#getScenePropertiesScene(),
+            getImageSpacePoint: (viewport, event) => this.#getImageSpacePointFromMapEvent(viewport, event),
+            setScenePropertiesState: (patch) => {
+                this.sceneWorkspaceController.patchState(patch);
+            },
+            render: () => this.render({ force: false }),
+            escapeHTML: (value) => this.#escapeHTML(value)
+        });
+        this.panelHost = new WorkspacePanelHost({
+            designActionRegistry: this.designActionRegistry,
+            escapeHTML: (value) => this.#escapeHTML(value),
+            isGM: () => Boolean(game.user?.isGM),
+            isDesignLensActive: (panelId) => this.#isDesignLensActive(panelId),
+            isMapPanel: (panel) => this.#isMapPanel(panel),
+            getMapPanelScene: (panel, context) => this.#getMapPanelScene(panel, context),
+            getPanelSceneId: (panel, context) => this.#getPanelSceneId(panel, context),
+            gridCalibrationState: () => this.gridCalibrationController.state,
+            getSceneGridOverlayState: (scene) => this.#getSceneGridOverlayState(scene),
+            renderMarketPanel: (marketPanel) => this.#renderMarketPanel(marketPanel),
+            renderPlayerPanel: (playerPanel, dieRollRequestPanel) => this.#renderPlayerPanel(playerPanel, dieRollRequestPanel),
+            renderGamemasterPanel: (gmPanel, gmSnapshot, dieRollRequestPanel) => this.#renderGamemasterPanel(gmPanel, gmSnapshot, dieRollRequestPanel)
+        });
+        this.marketController = new MarketController({
+            getScene: () => canvas?.scene ?? game.scenes?.viewed ?? null,
+            getActors: () => game.actors?.contents ?? [],
+            getControlledTokens: () => canvas?.tokens?.controlled ?? [],
+            getUser: () => game.user,
+            getSystemId: () => game.system?.id ?? "turn-of-the-century",
+            getPanelState: () => this.#getMarketPanelState(),
+            setPanelStatePatch: (patch) => this.#setMarketPanelStatePatch(patch),
+            getCompendiumItems: () => this.compendiumCacheController.getItems(),
+            getSeedsApi: () => game.turnOfTheCentury?.seeds,
+            fromUuid: (uuid) => fromUuid(uuid),
+            foundryRef: () => foundry,
+            uiRef: () => ui,
+            render: () => this.render({ force: false }),
+            announce: (message) => this.#announceGamemasterGeneratedContent(message),
+            random: () => Math.random(),
+            logger: console
+        });
         this.mapViewportController = new MapViewportController({
             stateStore: this.stateStore,
             onTransformChange: () => {
@@ -830,7 +879,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.#syncActorDropPreviewTransforms();
             }
         });
-        this.actorDragImage = null;
         this.gridCalibrationController = new GridCalibrationController({
             sceneResolver: (state) => state.sceneId
                 ? game.scenes?.get(state.sceneId)
@@ -838,11 +886,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             notifications: globalThis.ui?.notifications,
             logger: console
         });
-        this._scenePropertiesState = {
-            sceneId: "",
-            status: "",
-            error: ""
-        };
         this._appliedGridOverlayStates = new Map();
         this._gmAssistantState = {
             elementType: "campaign",
@@ -859,17 +902,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._campaignViewState = {
             selectedId: "",
             expandedIds: new Set()
-        };
-        this._actorEditorState = {
-            mode: "empty",
-            actorId: "",
-            actorType: "pawn",
-            additionalPrompt: "",
-            isGenerating: false,
-            formData: {},
-            dirty: false,
-            status: "",
-            error: ""
         };
         this._playerPanelSectionSnapshotInitialized = false;
         this._playerPanelVisibleSectionIds = new Set();
@@ -900,11 +932,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             void this.#removeDeletedSceneMapPanel(scene);
         };
         this._compendiumRefreshHandler = () => {
-            // Clear cache and refresh the compendium panel when game becomes ready
-            this._compendiumItemEntries = null;
-            this._compendiumItemsPromise = null;
-            this._compendiumHydrationRetries = 0;
-            this.#clearCompendiumHydrationRetry();
+            this.compendiumCacheController.invalidate();
             if (this.rendered) {
                 this.render({ force: false });
             }
@@ -938,13 +966,62 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._loggerUnsubscribe = totcLogger.subscribe(() => {
             if (this.rendered) this.render({ force: false });
         });
-        this._sceneHooksBound = false;
-        this._compendiumHooksBound = false;
-        this._gamemasterHooksBound = false;
-        this._playerHooksBound = false;
-        this._designIssuesHooksBound = false;
-        this._compendiumHydrationRetries = 0;
-        this._compendiumHydrationRetryTimer = null;
+        this.hooksController = new WorkspaceHooksController({
+            hooks: Hooks,
+            gameReady: () => Boolean(game.ready),
+            onCompendiumReady: this._compendiumRefreshHandler
+        });
+        this.hooksController.registerFamily("scene", [
+            { event: "canvasReady", handler: this._sceneRefreshHandler },
+            { event: "canvasTearDown", handler: this._sceneRefreshHandler },
+            { event: "updateScene", handler: this._sceneRefreshHandler },
+            { event: "createScene", handler: this._sceneRefreshHandler },
+            { event: "deleteScene", handler: this._deletedSceneHandler }
+        ]);
+        this.hooksController.registerFamily("compendium", [
+            { event: "createCompendium", handler: this._compendiumRefreshHandler },
+            { event: "updateCompendium", handler: this._compendiumRefreshHandler },
+            { event: "deleteCompendium", handler: this._compendiumRefreshHandler },
+            { event: "createItem", handler: this._compendiumDocumentMutationHandler },
+            { event: "updateItem", handler: this._compendiumDocumentMutationHandler },
+            { event: "deleteItem", handler: this._compendiumDocumentMutationHandler },
+            { event: "totcStarterCompendiumsReady", handler: this._compendiumRefreshHandler }
+        ]);
+        this.hooksController.registerFamily("gamemaster", [
+            { event: "createCombat", handler: this._gamemasterRefreshHandler },
+            { event: "deleteCombat", handler: this._gamemasterRefreshHandler },
+            { event: "updateCombat", handler: this._gamemasterRefreshHandler },
+            { event: "controlToken", handler: this._gamemasterRefreshHandler },
+            { event: "pauseGame", handler: this._gamemasterRefreshHandler }
+        ]);
+        this.hooksController.registerFamily("player", [
+            { event: "updateActor", handler: this._playerRefreshHandler },
+            { event: "createActor", handler: this._playerRefreshHandler },
+            { event: "deleteActor", handler: this._playerRefreshHandler },
+            { event: "createActiveEffect", handler: this._playerRefreshHandler },
+            { event: "updateActiveEffect", handler: this._playerRefreshHandler },
+            { event: "deleteActiveEffect", handler: this._playerRefreshHandler },
+            { event: "controlToken", handler: this._playerRefreshHandler }
+        ]);
+        this.hooksController.registerFamily("designIssues", [
+            { event: "updateScene", handler: this._designIssuesRefreshHandler },
+            { event: "canvasReady", handler: this._designIssuesRefreshHandler },
+            { event: "createWall", handler: this._designIssuesRefreshHandler },
+            { event: "deleteWall", handler: this._designIssuesRefreshHandler },
+            { event: "createAmbientLight", handler: this._designIssuesRefreshHandler },
+            { event: "deleteAmbientLight", handler: this._designIssuesRefreshHandler },
+            { event: "createToken", handler: this._designIssuesRefreshHandler },
+            { event: "updateToken", handler: this._designIssuesRefreshHandler },
+            { event: "deleteToken", handler: this._designIssuesRefreshHandler },
+            { event: "createActor", handler: this._designIssuesRefreshHandler },
+            { event: "updateActor", handler: this._designIssuesRefreshHandler },
+            { event: "deleteActor", handler: this._designIssuesRefreshHandler },
+            { event: "createItem", handler: this._designIssuesRefreshHandler },
+            { event: "deleteItem", handler: this._designIssuesRefreshHandler },
+            { event: "createCombatant", handler: this._designIssuesRefreshHandler },
+            { event: "updateCombatant", handler: this._designIssuesRefreshHandler },
+            { event: "deleteCombatant", handler: this._designIssuesRefreshHandler }
+        ]);
     }
 
     /**
@@ -1112,6 +1189,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const viewedScene = this.#getViewedScene();
         const scene = canvas?.scene ?? game.scenes?.active ?? viewedScene;
         const scenePropertiesScene = this.#getScenePropertiesScene(activeWorkspacePanel, { viewedScene, defaultScene: scene });
+        const scenePropertiesState = this.sceneWorkspaceController.propertiesState;
         const combat = game.combats?.active ?? game.combat ?? null;
         const controlledTokens = canvas?.tokens?.controlled ?? [];
         const gmPanelState = this.#getGamemasterPanelState();
@@ -1127,7 +1205,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             isGM: Boolean(game.user?.isGM),
             users: workspaceUsers
         });
-        const compendiumItems = await this.#getUnifiedCompendiumItems();
+        const compendiumItems = await this.compendiumCacheController.getItems();
         const mediaBrowserEntries = visiblePanels.has("media-browser")
             ? await this.#getMediaBrowserEntries()
             : (this._mediaBrowserEntries ?? []);
@@ -1196,9 +1274,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
 
         const worldActors = Array.from(game.actors?.contents ?? []);
-        const selectedActor = this._actorEditorState.actorId
-            ? game.actors?.get?.(this._actorEditorState.actorId)
-            : null;
+        const actorWorkspaceState = this.actorWorkspaceController.state;
+        const selectedActor = this.actorWorkspaceController.getSelectedActor();
         const designIssuesPanel = buildDesignIssuesPanelModel({
             scene,
             actors: worldActors,
@@ -1224,19 +1301,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             compendiumItems,
             actorListPanel: buildActorListPanelModel({
                 actors: worldActors,
-                query: this.actorSearchQuery,
-                typeFilter: this.actorTypeFilter,
-                selectedActorId: this._actorEditorState.actorId,
-                selectedActorIds: this.selectedActorIds,
-                showCreate: this._actorEditorState.mode === "create"
+                query: actorWorkspaceState.searchQuery,
+                typeFilter: actorWorkspaceState.typeFilter,
+                selectedActorId: actorWorkspaceState.editorState.actorId,
+                selectedActorIds: actorWorkspaceState.selectedActorIds,
+                showCreate: actorWorkspaceState.editorState.mode === "create"
             }),
             actorEditorPanel: buildActorEditorPanelModel({
                 actor: selectedActor,
-                state: this._actorEditorState
+                state: actorWorkspaceState.editorState
             }),
-            compendiumLoadingState: !compendiumItems.length && this._compendiumHydrationRetries >= COMPENDIUM_STARTUP_RETRY_LIMIT
-                ? `No entries found after ${COMPENDIUM_STARTUP_RETRY_LIMIT} load attempts. Check the browser console for [turn-of-the-century] log messages.`
-                : null,
+            compendiumLoadingState: this.compendiumCacheController.loadingFailureMessage,
             mediaBrowserPanel: buildMediaBrowserPanelModel({
                 entries: mediaBrowserEntries,
                 state: this._mediaBrowserState
@@ -1271,8 +1346,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             designIssuesPanel,
             scenePropertiesPanel: buildScenePropertiesPanelModel({
                 scene: scenePropertiesScene,
-                status: this._scenePropertiesState.status,
-                error: this._scenePropertiesState.error
+                status: scenePropertiesState.status,
+                error: scenePropertiesState.error
             }),
             loggingPanel: buildLoggingPanelModel({ entries: totcLogger.getEntries() }),
             campaignBuilderPanel: buildCampaignBuilderPanelModel({
@@ -1390,11 +1465,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     async _onRender(context, options) {
         await super._onRender(context, options);
-        this.#bindSceneHooks();
-        this.#bindCompendiumHooks();
-        this.#bindGamemasterHooks();
-        this.#bindPlayerHooks();
-        this.#bindDesignIssuesHooks();
+        this.hooksController.bindAll();
 
         this.#wireRollLockGuard();
         this.#wireDieRollRequestHandlers();
@@ -1431,180 +1502,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.#wireDebouncedTextInputHandlers();
 
-        this.element?.querySelectorAll("[data-action='market-select-buyer']")?.forEach((input) => {
-            input.addEventListener("change", async () => {
-                await this.#setMarketPanelStatePatch({ selectedBuyerActorId: String(input.value ?? "") });
-                this.render({ force: false });
-            });
-        });
+        this.marketController.wireHandlers(this.element);
 
-        this.element?.querySelectorAll("[data-action='market-buy-item']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const offerId = String(button.dataset.offerId ?? "").trim();
-                if (!offerId) return;
-                const quantityInput = button.closest(".totc-v2-market-panel__entry-actions")?.querySelector("[data-action='market-buy-quantity']");
-                const quantity = this.#parseMarketQuantityInput(quantityInput, {
-                    fallback: 1,
-                    max: Number(button.dataset.maxQuantity ?? 1)
-                });
-                await this.#handleMarketBuy(offerId, quantity);
-            });
-        });
+        this.actorWorkspaceController.wireHandlers(this.element);
 
-        this.element?.querySelectorAll("[data-action='market-sell-item']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const itemId = String(button.dataset.itemId ?? "").trim();
-                if (!itemId) return;
-                const quantityInput = button.closest(".totc-v2-market-panel__entry-actions")?.querySelector("[data-action='market-sell-quantity']");
-                const quantity = this.#parseMarketQuantityInput(quantityInput, {
-                    fallback: 1,
-                    max: Number(button.dataset.maxQuantity ?? 1)
-                });
-                await this.#handleMarketSell(itemId, quantity);
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='actor-list-new']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this._actorEditorState = {
-                    mode: "create",
-                    actorId: "",
-                    actorType: "pawn",
-                    additionalPrompt: "",
-                    isGenerating: false,
-                    formData: {},
-                    dirty: false,
-                    status: "",
-                    error: ""
-                };
-                await this.#openActorEditorBelowList();
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='actor-list-type-filter']")?.forEach((select) => {
-            select.addEventListener("change", (event) => {
-                event.stopPropagation();
-                this.actorTypeFilter = String(select.value ?? "all").trim() || "all";
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='actor-list-toggle-selected']")?.forEach((checkbox) => {
-            checkbox.addEventListener("change", (event) => {
-                event.stopPropagation();
-                const actorId = String(checkbox.dataset.actorId ?? "").trim();
-                if (!actorId) return;
-                if (checkbox.checked) this.selectedActorIds.add(actorId);
-                else this.selectedActorIds.delete(actorId);
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='actor-list-open-details']")?.forEach((button) => {
-            button.addEventListener("dblclick", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const actorId = String(button.dataset.actorId ?? "").trim();
-                if (!actorId) return;
-                this._actorEditorState = {
-                    ...this._actorEditorState,
-                    mode: "edit",
-                    actorId,
-                    actorType: game.actors?.get?.(actorId)?.type ?? "pawn",
-                    additionalPrompt: "",
-                    isGenerating: false,
-                    formData: {},
-                    dirty: false,
-                    status: "",
-                    error: ""
-                };
-                await this.#openActorEditorBelowList();
-            });
-        });
-
-        this.element?.querySelectorAll("[data-actor-list-draggable='true']")?.forEach((row) => {
-            row.addEventListener("dragstart", (event) => {
-                event.stopPropagation();
-                const actorId = String(row.dataset.actorId ?? "").trim();
-                const payload = buildActorListDragPayload({
-                    actorId,
-                    selectedActorIds: this.selectedActorIds
-                });
-                if (!payload?.actorIds?.length || !event.dataTransfer) return;
-                event.dataTransfer.setData(ACTOR_LIST_DRAG_MIME, JSON.stringify(payload));
-                event.dataTransfer.setData("text/plain", payload.actorIds.join(","));
-                event.dataTransfer.effectAllowed = "copy";
-                this.#setActorDragImage(event.dataTransfer, payload.actorIds);
-                row.classList.add("is-dragging");
-            });
-            row.addEventListener("dragend", () => {
-                row.classList.remove("is-dragging");
-                this.#clearActorDragImage();
-                this.#clearSceneActorDropTargets();
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='actor-editor-create-type']")?.forEach((select) => {
-            select.addEventListener("change", (event) => {
-                this._actorEditorState = {
-                    ...this._actorEditorState,
-                    actorType: event.target.value,
-                    error: "",
-                    status: ""
-                };
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='actor-editor-create-prompt']")?.forEach((textarea) => {
-            textarea.addEventListener("input", () => {
-                this._actorEditorState.additionalPrompt = String(textarea.value ?? "");
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='actor-editor-field']")?.forEach((input) => {
-            input.addEventListener("input", () => {
-                const path = String(input.dataset.actorField ?? input.name ?? "").trim();
-                if (!path) return;
-                this._actorEditorState.formData = {
-                    ...(this._actorEditorState.formData ?? {}),
-                    [path]: String(input.value ?? "")
-                };
-                this._actorEditorState.dirty = true;
-                this._actorEditorState.status = "";
-                this._actorEditorState.error = "";
-                const abilityModifier = input.closest(".totc-v2-actor-editor__ability")?.querySelector(".totc-v2-actor-editor__ability-modifier");
-                if (abilityModifier) {
-                    const score = Number(input.value);
-                    const modifier = Number.isFinite(score) ? Math.floor((score - 10) / 2) : 0;
-                    abilityModifier.textContent = modifier >= 0 ? `+${modifier}` : String(modifier);
-                }
-                const saveButton = input.closest("form")?.querySelector("[data-action='actor-editor-save']");
-                saveButton?.removeAttribute("disabled");
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='actor-editor-generate']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.#generateActorFromEditorState();
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='actor-editor-save-form']")?.forEach((form) => {
-            form.addEventListener("submit", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.#saveActorEditorForm(form);
-            });
-        });
+        this.sceneActorDropController.wireActorListDragHandlers(this.element);
 
         this.element?.querySelectorAll("[data-action='player-select-actor']")?.forEach((select) => {
             select.addEventListener("change", async () => {
@@ -1957,45 +1859,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
-        this.element?.querySelectorAll("[data-action='open-scene-map']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const sceneId = String(button.dataset.sceneId ?? "").trim();
-                if (!sceneId) return;
-
-                if (event.detail > 1) {
-                    await this.#activateScene(this.#getSceneDocumentById(sceneId));
-                    return;
-                }
-
-                const nextLayout = this.#openSceneMapPanel(sceneId);
-                // Bind the scene-properties panel to this map's scene.
-                this._scenePropertiesState = { ...this._scenePropertiesState, sceneId, status: "", error: "" };
-
-                const openedScene = this.#getSceneDocumentById(sceneId);
-                totcLogger.info("[open-scene-map] Map panel opened", {
-                    sceneId,
-                    sceneName: openedScene?.name ?? null,
-                    "scene.img": openedScene?.img ?? null,
-                    "_source.img": openedScene?._source?.img ?? null,
-                    "_source.background.src": openedScene?._source?.background?.src ?? null,
-                    "_source.texture.src": openedScene?._source?.texture?.src ?? null,
-                    "getSceneBackgroundSource()": getSceneBackgroundSource(openedScene)
-                });
-
-                await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='scenes-create-scene']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.#executeDesignAction("scene.create", { panelId: "scenes" });
-            });
-        });
+        this.sceneWorkspaceController.wireSceneListHandlers(this.element);
 
         this.element?.querySelectorAll("[data-action='create-campaign']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
@@ -2401,12 +2265,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     async close(options = {}) {
-        this.#unbindSceneHooks();
-        this.#unbindCompendiumHooks();
-        this.#unbindGamemasterHooks();
-        this.#unbindPlayerHooks();
-        this.#unbindDesignIssuesHooks();
+        this.hooksController.unbindAll();
+        this.compendiumCacheController.dispose();
         this.#endMapPanSession();
+        this.sceneActorDropController.clearDragImage();
         this.gridCalibrationController.close();
         this._loggerUnsubscribe?.();
         return await super.close?.(options);
@@ -2549,219 +2411,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #renderPanelContent(panel, context = {}) {
-        const content = this.#renderPanelBodyContent(panel, context);
-        const designLensModel = buildDesignLensModel({
-            panel,
-            active: this.#isDesignLensActive(panel?.id),
-            isGM: Boolean(game.user?.isGM),
-            registry: this.designActionRegistry
-        });
-        const designLens = renderDesignLensSurface(designLensModel, {
-            escapeHTML: (value) => this.#escapeHTML(value)
-        });
-
-        return designLens
-            ? `<div class="totc-v2-panel-with-design-lens">${designLens}<div class="totc-v2-panel-with-design-lens__body">${content}</div></div>`
-            : content;
+        return this.panelHost.renderPanelContent(panel, context);
     }
 
     #renderPanelBodyContent(panel, context = {}) {
-        if (!panel) {
-            return `<div class="totc-v2-panel-placeholder">Empty</div>`;
-        }
-
-        if (this.#isMapPanel(panel)) {
-            const mapScene = this.#getMapPanelScene(panel, context);
-            const sceneName = this.#escapeHTML(mapScene?.name ?? "Current Scene");
-            const mapSrc = mapScene?.mapSrc ?? "";
-            const sceneId = String(mapScene?.id ?? this.#getPanelSceneId(panel, context) ?? "").trim();
-            const dimensions = [mapScene?.width, mapScene?.height].filter((value) => Number.isFinite(value) && value > 0);
-            const dimensionLabel = dimensions.length === 2 ? `${dimensions[0]} × ${dimensions[1]}` : "Scene map";
-
-            const calModel = buildGridCalibrationModel({
-                state: this.gridCalibrationController.state,
-                scene: mapScene
-            });
-            const calActive = calModel.active;
-            const sceneGridOverlayState = this.#getSceneGridOverlayState(mapScene);
-            const sceneGridOverlayActive = Boolean(!calActive && sceneGridOverlayState);
-            const gridOverlayActive = calActive || sceneGridOverlayActive;
-            const calDialog = renderGridCalibrationDialog(calModel, { escapeHTML: (v) => this.#escapeHTML(v) });
-
-            const imageMarkup = mapSrc
-                ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true"
-                    data-map-key="${this.#escapeHTML(mapScene?.id ?? mapSrc)}"
-                    data-grid-type="${this.#escapeHTML(sceneGridOverlayState?.gridType ?? mapScene?.grid?.type ?? "")}"
-                    data-grid-size="${this.#escapeHTML(sceneGridOverlayState?.cellW ?? mapScene?.grid?.size ?? "")}"
-                    data-grid-offset-x="${this.#escapeHTML(sceneGridOverlayState?.offsetX ?? -Number(mapScene?.shiftX ?? 0))}"
-                    data-grid-offset-y="${this.#escapeHTML(sceneGridOverlayState?.offsetY ?? -Number(mapScene?.shiftY ?? 0))}">
-                    <img class="totc-v2-map-panel__image" src="${this.#escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false" data-action="map-image">
-                    ${gridOverlayActive ? `<svg class="totc-v2-map-panel__grid-overlay" data-grid-overlay="true" aria-hidden="true"></svg>` : ""}
-                    <div class="totc-v2-map-panel__actor-drop-preview" data-actor-drop-preview="true" aria-hidden="true"></div>
-                </div>`
-                : `<div class="totc-v2-map-panel__empty">No active scene map available</div>`;
-
-            return `
-            <figure class="totc-v2-map-panel${calActive ? " is-calibrating" : ""}" data-scene-actor-drop-target="true" data-scene-id="${this.#escapeHTML(sceneId)}">
-                ${imageMarkup}
-                <figcaption class="totc-v2-map-panel__caption">
-                    <span class="totc-v2-map-panel__name">${sceneName}</span>
-                    <span class="totc-v2-map-panel__meta">${this.#escapeHTML(dimensionLabel)}</span>
-                </figcaption>
-                ${calDialog}
-            </figure>`;
-        }
-
-        if (panel.id === "compendium") {
-            const query = String(context.compendiumSearchQuery ?? "").trim().toLowerCase();
-            const allEntries = Array.isArray(context.compendiumItems) ? context.compendiumItems : [];
-            const entries = query
-                ? allEntries.filter((entry) => String(entry.name ?? "").toLowerCase().includes(query))
-                : allEntries;
-
-            const loadingState = context.compendiumLoadingState ?? null;
-            const isLoading = !loadingState && !allEntries.length;
-            let emptyMessage;
-            if (query && !entries.length && allEntries.length) {
-                emptyMessage = `No items match "${this.#escapeHTML(query)}".`;
-            } else if (!allEntries.length && loadingState) {
-                emptyMessage = `Compendium data unavailable: ${this.#escapeHTML(loadingState)}`;
-            } else if (!allEntries.length) {
-                emptyMessage = "Loading compendium data…";
-            } else {
-                emptyMessage = "No items found.";
-            }
-
-            return `
-            <section class="totc-v2-compendium-panel">
-                <label class="totc-v2-compendium-panel__search">
-                    <span>Search items</span>
-                    <input type="search" data-action="compendium-search" value="${this.#escapeHTML(context.compendiumSearchQuery ?? "")}" placeholder="Filter by item name">
-                </label>
-                <div class="totc-v2-compendium-panel__summary">
-                    ${allEntries.length} item${allEntries.length === 1 ? "" : "s"} available
-                    ${query && allEntries.length ? `&mdash; ${entries.length} match${entries.length === 1 ? "" : "es"}` : ""}
-                </div>
-                <div class="totc-v2-compendium-panel__list" role="list">
-                    ${entries.length ? entries.map((entry) => `
-                        <article class="totc-v2-compendium-panel__entry" role="listitem" data-entry-uuid="${this.#escapeHTML(entry.uuid ?? "")}">
-                            <div class="totc-v2-compendium-panel__entry-name">${this.#escapeHTML(entry.name)}</div>
-                            <div class="totc-v2-compendium-panel__entry-pack">${this.#escapeHTML(entry.packLabel)}</div>
-                        </article>`).join("") : `<div class="totc-v2-compendium-panel__empty${isLoading ? " is-loading" : ""}">${emptyMessage}</div>`}
-                </div>
-            </section>`;
-        }
-
-        if (panel.id === "scenes") {
-            return renderScenesPanel(context.scenesPanel ?? {}, {
-                escapeHTML: (value) => this.#escapeHTML(value)
-            });
-        }
-
-        if (panel.id === "actors") {
-            if (!context.gm?.isGM) {
-                return `<section class="totc-v2-actor-list-panel"><p class="totc-v2-actor-list-panel__empty">This panel is only available to the active Gamemaster.</p></section>`;
-            }
-            return renderActorListPanel(context.actorListPanel ?? {}, {
-                escapeHTML: (value) => this.#escapeHTML(value)
-            });
-        }
-
-        if (panel.id === "actor-editor") {
-            if (!context.gm?.isGM) {
-                return `<section class="totc-v2-actor-editor"><p class="totc-v2-actor-editor__empty">This panel is only available to the active Gamemaster.</p></section>`;
-            }
-            return renderActorEditorPanel(context.actorEditorPanel ?? {}, {
-                escapeHTML: (value) => this.#escapeHTML(value)
-            });
-        }
-
-        if (panel.id === "market") {
-            return this.#renderMarketPanel(context.marketPanel ?? {});
-        }
-
-        if (panel.id === "inspector") {
-            return renderInspectorPanel(context.inspectorPanel ?? {}, {
-                escapeHTML: (value) => this.#escapeHTML(value)
-            });
-        }
-
-        if (panel.id === "design-issues") {
-            if (!context.gm?.isGM) {
-                return `<section class="totc-v2-issues-panel"><p class="totc-v2-issues-panel__access-denied">This panel is only available to the active Gamemaster.</p></section>`;
-            }
-            return renderDesignIssuesPanel(context.designIssuesPanel ?? {}, {
-                escapeHTML: (value) => this.#escapeHTML(value)
-            });
-        }
-
-        if (panel.id === "scene-properties") {
-            if (!context.gm?.isGM) {
-                return `<section class="totc-v2-scene-properties-panel"><p class="totc-v2-scene-properties-panel__error">This panel is only available to the active Gamemaster.</p></section>`;
-            }
-            return renderScenePropertiesPanel(context.scenePropertiesPanel ?? {}, {
-                escapeHTML: (value) => this.#escapeHTML(value)
-            });
-        }
-
-        if (panel.id === "media-browser") {
-            if (!context.gm?.isGM) {
-                return `<section class="totc-v2-media-browser"><p class="totc-v2-media-browser__error">This panel is only available to the active Gamemaster.</p></section>`;
-            }
-            return renderMediaBrowserPanel(context.mediaBrowserPanel ?? {}, {
-                escapeHTML: (value) => this.#escapeHTML(value)
-            });
-        }
-
-        if (panel.id === "campaign-builder") {
-            return renderCampaignBuilderPanel(context.campaignBuilderPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
-        }
-
-        if (panel.id === "scenario-builder") {
-            return renderScenarioBuilderPanel(context.scenarioBuilderPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
-        }
-
-        if (panel.id === "encounter-designer") {
-            return renderEncounterDesignerPanel(context.encounterDesignerPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
-        }
-
-        if (panel.id === "campaign-view") {
-            return renderCampaignViewPanel(context.campaignViewPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
-        }
-
-        if (panel.id === "gm-assistant") {
-            return renderGMAssistantPanel(context.gmAssistantPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
-        }
-
-        if (panel.id === "roll-feed") {
-            return renderDiceRollFeedPanel(context.diceRollFeedPanel ?? {}, {
-                escapeHTML: (value) => this.#escapeHTML(value)
-            });
-        }
-
-        if (panel.id === "player") {
-            return this.#renderPlayerPanel(context.playerPanel ?? {}, context.dieRollRequestPanel);
-        }
-
-        if (panel.id === "gamemaster") {
-            if (!context.gm?.isGM) {
-                return `
-                <section class="totc-v2-gm-panel">
-                    <div class="totc-v2-gm-panel__state">
-                        <h3>Gamemaster Panel</h3>
-                        <p>This panel is only available to the active GM.</p>
-                    </div>
-                </section>`;
-            }
-
-            return this.#renderGamemasterPanel(context.gmPanel, context.gm, context.dieRollRequestPanel);
-        }
-
-        if (panel.id === "logging") {
-            return renderLoggingPanel(context.loggingPanel ?? {}, { escapeHTML: (v) => this.#escapeHTML(v) });
-        }
-
-        return `<div class="totc-v2-panel-placeholder">${this.#escapeHTML(panel.title)}</div>`;
+        return this.panelHost.renderPanelBodyContent(panel, context);
     }
 
     #renderPlayerPanel(playerPanel = {}, dieRollRequestPanel = {}) {
@@ -2926,43 +2580,23 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #getSceneMapSource(scene) {
-        return getSceneBackgroundSource(scene);
+        return this.sceneWorkspaceController.getSceneMapSource(scene);
     }
 
     #getViewedScene() {
-        return game.scenes?.viewed ?? canvas?.scene ?? game.scenes?.active ?? null;
+        return this.sceneWorkspaceController.getViewedSceneDocument();
     }
 
     #getScenePropertiesScene() {
-        // Primary: use the sceneId stored in state (set when a map panel is opened).
-        // This is stable across panel focus changes — prevents the properties panel
-        // from drifting to canvas.scene when the user interacts with the properties panel itself.
-        const storedId = String(this._scenePropertiesState?.sceneId ?? "").trim();
-        if (storedId) {
-            const stored = this.#getSceneDocumentById(storedId);
-            if (stored) return stored;
-        }
-        // Fallback: derive from the currently active map panel (e.g., on first render before any map is opened)
-        const activePanel = this.#getPrimaryActivePanel();
-        const currentScene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
-        const { scene } = resolveScenePropertiesMapPanelScene({
-            panel: activePanel,
-            currentScene,
-            sceneResolver: (id) => this.#getSceneDocumentById(id)
-        });
-        return scene ?? null;
+        return this.sceneWorkspaceController.getScenePropertiesScene();
     }
 
     #isMapPanel(panel) {
-        return panel?.baseId === "map" || String(panel?.id ?? "").startsWith("map:");
+        return this.sceneWorkspaceController.isMapPanel(panel);
     }
 
     #getSceneDocumentById(sceneId) {
-        const id = String(sceneId ?? "").trim();
-        if (!id) return null;
-        return game.scenes?.get?.(id)
-            ?? (game.scenes?.contents ?? []).find((scene) => String(scene?.id ?? scene?._id ?? "") === id)
-            ?? null;
+        return this.sceneWorkspaceController.getSceneDocumentById(sceneId);
     }
 
     #getItemDocumentById(itemId) {
@@ -3118,48 +2752,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #buildSceneViewModel(scene, fallback = {}) {
-        const fallbackMapSrc = String(fallback.mapSrc ?? "").trim();
-
-        return {
-            id: scene?.id ?? scene?._id ?? fallback.id ?? null,
-            name: scene?.name ?? fallback.name ?? "Current Scene",
-            mapSrc: fallbackMapSrc || this.#getSceneMapSource(scene) || "",
-            width: Number(scene?.width ?? fallback.width ?? 0),
-            height: Number(scene?.height ?? fallback.height ?? 0),
-            shiftX: Number(scene?.shiftX ?? fallback.shiftX ?? 0),
-            shiftY: Number(scene?.shiftY ?? fallback.shiftY ?? 0),
-            grid: {
-                type: Number(scene?.grid?.type ?? fallback.grid?.type ?? 1),
-                size: Number(scene?.grid?.size ?? fallback.grid?.size ?? 100),
-                distance: Number(scene?.grid?.distance ?? fallback.grid?.distance ?? 5),
-                units: String(scene?.grid?.units ?? fallback.grid?.units ?? "ft")
-            }
-        };
+        return this.sceneWorkspaceController.buildSceneViewModel(scene, fallback);
     }
 
     #getMapPanelScene(panel, context = {}) {
-        const currentScene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
-        const { sceneId, scene } = resolveScenePropertiesMapPanelScene({
-            panel,
-            currentScene,
-            sceneResolver: (id) => this.#getSceneDocumentById(id)
-        });
-
-        if (scene) return this.#buildSceneViewModel(scene, { id: sceneId });
-        if (sceneId) return this.#buildSceneViewModel(null, { id: sceneId, name: panel?.title ?? "Missing Scene" });
-        return context.scene ?? this.#buildSceneViewModel(null);
+        return this.sceneWorkspaceController.getMapPanelScene(panel, context);
     }
 
     #getDesignActionScene(sourcePanel = null, currentScene = null) {
-        if (!this.#isMapPanel(sourcePanel)) return currentScene;
-
-        const { scene } = resolveScenePropertiesMapPanelScene({
-            panel: sourcePanel,
-            currentScene,
-            sceneResolver: (id) => this.#getSceneDocumentById(id)
-        });
-
-        return scene ?? currentScene;
+        return this.sceneWorkspaceController.getDesignActionScene(sourcePanel, currentScene);
     }
 
     #getPanelTitle(panel, context = {}) {
@@ -3171,9 +2772,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #getPanelSceneId(panel, context = {}) {
-        if (!this.#isMapPanel(panel)) return "";
-        const panelId = String(panel?.id ?? "");
-        return String(panel?.sceneId ?? (panelId.startsWith("map:") ? panelId.slice(4) : "")).trim();
+        return this.sceneWorkspaceController.getPanelSceneId(panel, context);
     }
 
     #getActiveSceneId() {
@@ -3190,15 +2789,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #makeSceneMapPanelDef(scene) {
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        if (!sceneId) return null;
-
-        return {
-            id: `map:${sceneId}`,
-            title: scene?.name ?? "Scene Map",
-            baseId: "map",
-            sceneId
-        };
+        return this.sceneWorkspaceController.makeSceneMapPanelDef(scene);
     }
 
     #resolvePanelDefinition(panelId) {
@@ -3235,79 +2826,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     async #removeDeletedSceneMapPanel(scene) {
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        if (!sceneId) {
-            if (this.rendered) this.render({ force: false });
-            return this.layoutEngine.getLayout();
-        }
-
-        const panelId = `map:${sceneId}`;
-        const location = this.#findPanelLocation(panelId);
-        if (!location) {
-            if (this.rendered) this.render({ force: false });
-            return this.layoutEngine.getLayout();
-        }
-
-        const nextLayout = typeof this.layoutEngine.removePanel === "function"
-            ? this.layoutEngine.removePanel(panelId)
-            : this.layoutEngine.closePanel(panelId);
-        await this.stateStore?.setUserLayout?.(nextLayout);
-        if (this.rendered) this.render({ force: false });
-        return nextLayout;
+        return await this.sceneWorkspaceController.removeDeletedSceneMapPanel(scene);
     }
 
     #openSceneMapPanel(sceneId) {
-        const scene = this.#getSceneDocumentById(sceneId);
-        const panelDef = this.#makeSceneMapPanelDef(scene);
-        if (!panelDef) return this.layoutEngine.getLayout();
-
-        const existing = this.#findPanelLocation(panelDef.id);
-        if (existing?.kind === "dock") {
-            return this.layoutEngine.setActivePanel(existing.dockId, existing.stackId, panelDef.id);
-        }
-        if (existing?.kind === "floating") {
-            return this.layoutEngine.getLayout();
-        }
-
-        const layout = this.layoutEngine.getLayout();
-        const centerStack = layout.root?.centerDock?.stacks?.[0];
-        return centerStack?.id
-            ? this.layoutEngine.applyDropIntent(panelDef, {
-                kind: "local",
-                dockId: "centerDock",
-                stackId: centerStack.id,
-                zone: "local-center"
-            })
-            : this.layoutEngine.applyDropIntent(panelDef, { kind: "edge", dockId: "centerDock" });
+        return this.sceneWorkspaceController.openSceneMapPanel(sceneId);
     }
 
     #getDefaultCenterScene() {
-        return canvas?.scene ?? game.scenes?.viewed ?? game.scenes?.active ?? getDefaultScene(game.scenes) ?? null;
+        return this.sceneWorkspaceController.getDefaultCenterScene();
     }
 
     async #activateScene(scene) {
-        if (!scene) {
-            ui.notifications?.warn("No scene is available to activate.");
-            return false;
-        }
-
-        try {
-            if (typeof scene.activate === "function") {
-                await scene.activate();
-            } else if (typeof scene.update === "function") {
-                await scene.update({ active: true });
-            } else {
-                throw new Error("Scene activation is not available.");
-            }
-        } catch (error) {
-            console.error("[turn-of-the-century] Scene activation failed", error);
-            ui.notifications?.error("Scene activation failed - see console for details.");
-            return false;
-        }
-
-        ui.notifications?.info?.(`Activated ${scene.name ?? "scene"}.`);
-        this.render({ force: false });
-        return true;
+        return await this.sceneWorkspaceController.activateScene(scene);
     }
 
     #escapeHTML(value) {
@@ -3430,151 +2961,44 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #bindSceneHooks() {
-        if (this._sceneHooksBound) return;
-        Hooks.on("canvasReady", this._sceneRefreshHandler);
-        // canvasTearDown fires in Foundry V12+ when the canvas tears down a scene.
-        // Re-render so map panels that relied on _scenePropertiesState fall back to
-        // scene.img / _source data, which reflects the persisted database value.
-        Hooks.on("canvasTearDown", this._sceneRefreshHandler);
-        Hooks.on("updateScene", this._sceneRefreshHandler);
-        Hooks.on("createScene", this._sceneRefreshHandler);
-        Hooks.on("deleteScene", this._deletedSceneHandler);
-        this._sceneHooksBound = true;
+        this.hooksController.bindFamily("scene");
     }
 
     #bindCompendiumHooks() {
-        if (this._compendiumHooksBound) return;
-
-        // If app starts after ready has already fired, refresh immediately.
-        if (game.ready) {
-            this._compendiumRefreshHandler();
-        } else {
-            Hooks.once("ready", this._compendiumRefreshHandler);
-        }
-
-        // Refresh compendium cache when pack metadata changes.
-        Hooks.on("createCompendium", this._compendiumRefreshHandler);
-        Hooks.on("updateCompendium", this._compendiumRefreshHandler);
-        Hooks.on("deleteCompendium", this._compendiumRefreshHandler);
-        Hooks.on("createItem", this._compendiumDocumentMutationHandler);
-        Hooks.on("updateItem", this._compendiumDocumentMutationHandler);
-        Hooks.on("deleteItem", this._compendiumDocumentMutationHandler);
-        Hooks.on("totcStarterCompendiumsReady", this._compendiumRefreshHandler);
-        this._compendiumHooksBound = true;
+        this.hooksController.bindFamily("compendium");
     }
 
     #bindPlayerHooks() {
-        if (this._playerHooksBound) return;
-        Hooks.on("updateActor", this._playerRefreshHandler);
-        Hooks.on("createActor", this._playerRefreshHandler);
-        Hooks.on("deleteActor", this._playerRefreshHandler);
-        Hooks.on("createActiveEffect", this._playerRefreshHandler);
-        Hooks.on("updateActiveEffect", this._playerRefreshHandler);
-        Hooks.on("deleteActiveEffect", this._playerRefreshHandler);
-        Hooks.on("controlToken", this._playerRefreshHandler);
-        this._playerHooksBound = true;
+        this.hooksController.bindFamily("player");
     }
 
     #unbindSceneHooks() {
-        if (!this._sceneHooksBound) return;
-        Hooks.off("canvasReady", this._sceneRefreshHandler);
-        Hooks.off("canvasTearDown", this._sceneRefreshHandler);
-        Hooks.off("updateScene", this._sceneRefreshHandler);
-        Hooks.off("createScene", this._sceneRefreshHandler);
-        Hooks.off("deleteScene", this._deletedSceneHandler);
-        this._sceneHooksBound = false;
+        this.hooksController.unbindFamily("scene");
     }
 
     #unbindCompendiumHooks() {
-        if (!this._compendiumHooksBound) return;
-        this.#clearCompendiumHydrationRetry();
-        Hooks.off("createCompendium", this._compendiumRefreshHandler);
-        Hooks.off("updateCompendium", this._compendiumRefreshHandler);
-        Hooks.off("deleteCompendium", this._compendiumRefreshHandler);
-        Hooks.off("createItem", this._compendiumDocumentMutationHandler);
-        Hooks.off("updateItem", this._compendiumDocumentMutationHandler);
-        Hooks.off("deleteItem", this._compendiumDocumentMutationHandler);
-        Hooks.off("totcStarterCompendiumsReady", this._compendiumRefreshHandler);
-        this._compendiumHooksBound = false;
+        this.compendiumCacheController.dispose();
+        this.hooksController.unbindFamily("compendium");
     }
 
     #bindGamemasterHooks() {
-        if (this._gamemasterHooksBound) return;
-        Hooks.on("createCombat", this._gamemasterRefreshHandler);
-        Hooks.on("deleteCombat", this._gamemasterRefreshHandler);
-        Hooks.on("updateCombat", this._gamemasterRefreshHandler);
-        Hooks.on("controlToken", this._gamemasterRefreshHandler);
-        Hooks.on("pauseGame", this._gamemasterRefreshHandler);
-        this._gamemasterHooksBound = true;
+        this.hooksController.bindFamily("gamemaster");
     }
 
     #unbindGamemasterHooks() {
-        if (!this._gamemasterHooksBound) return;
-        Hooks.off("createCombat", this._gamemasterRefreshHandler);
-        Hooks.off("deleteCombat", this._gamemasterRefreshHandler);
-        Hooks.off("updateCombat", this._gamemasterRefreshHandler);
-        Hooks.off("controlToken", this._gamemasterRefreshHandler);
-        Hooks.off("pauseGame", this._gamemasterRefreshHandler);
-        this._gamemasterHooksBound = false;
+        this.hooksController.unbindFamily("gamemaster");
     }
 
     #bindDesignIssuesHooks() {
-        if (this._designIssuesHooksBound) return;
-        // Scene-level changes: background, walls, lights, tokens
-        Hooks.on("updateScene", this._designIssuesRefreshHandler);
-        Hooks.on("canvasReady", this._designIssuesRefreshHandler);
-        Hooks.on("createWall", this._designIssuesRefreshHandler);
-        Hooks.on("deleteWall", this._designIssuesRefreshHandler);
-        Hooks.on("createAmbientLight", this._designIssuesRefreshHandler);
-        Hooks.on("deleteAmbientLight", this._designIssuesRefreshHandler);
-        Hooks.on("createToken", this._designIssuesRefreshHandler);
-        Hooks.on("updateToken", this._designIssuesRefreshHandler);
-        Hooks.on("deleteToken", this._designIssuesRefreshHandler);
-        // Actor-level changes: portrait, profession items
-        Hooks.on("createActor", this._designIssuesRefreshHandler);
-        Hooks.on("updateActor", this._designIssuesRefreshHandler);
-        Hooks.on("deleteActor", this._designIssuesRefreshHandler);
-        Hooks.on("createItem", this._designIssuesRefreshHandler);
-        Hooks.on("deleteItem", this._designIssuesRefreshHandler);
-        // Encounter-level changes: initiative rolls
-        Hooks.on("createCombatant", this._designIssuesRefreshHandler);
-        Hooks.on("updateCombatant", this._designIssuesRefreshHandler);
-        Hooks.on("deleteCombatant", this._designIssuesRefreshHandler);
-        this._designIssuesHooksBound = true;
+        this.hooksController.bindFamily("designIssues");
     }
 
     #unbindDesignIssuesHooks() {
-        if (!this._designIssuesHooksBound) return;
-        Hooks.off("updateScene", this._designIssuesRefreshHandler);
-        Hooks.off("canvasReady", this._designIssuesRefreshHandler);
-        Hooks.off("createWall", this._designIssuesRefreshHandler);
-        Hooks.off("deleteWall", this._designIssuesRefreshHandler);
-        Hooks.off("createAmbientLight", this._designIssuesRefreshHandler);
-        Hooks.off("deleteAmbientLight", this._designIssuesRefreshHandler);
-        Hooks.off("createToken", this._designIssuesRefreshHandler);
-        Hooks.off("updateToken", this._designIssuesRefreshHandler);
-        Hooks.off("deleteToken", this._designIssuesRefreshHandler);
-        Hooks.off("createActor", this._designIssuesRefreshHandler);
-        Hooks.off("updateActor", this._designIssuesRefreshHandler);
-        Hooks.off("deleteActor", this._designIssuesRefreshHandler);
-        Hooks.off("createItem", this._designIssuesRefreshHandler);
-        Hooks.off("deleteItem", this._designIssuesRefreshHandler);
-        Hooks.off("createCombatant", this._designIssuesRefreshHandler);
-        Hooks.off("updateCombatant", this._designIssuesRefreshHandler);
-        Hooks.off("deleteCombatant", this._designIssuesRefreshHandler);
-        this._designIssuesHooksBound = false;
+        this.hooksController.unbindFamily("designIssues");
     }
 
     #unbindPlayerHooks() {
-        if (!this._playerHooksBound) return;
-        Hooks.off("updateActor", this._playerRefreshHandler);
-        Hooks.off("createActor", this._playerRefreshHandler);
-        Hooks.off("deleteActor", this._playerRefreshHandler);
-        Hooks.off("createActiveEffect", this._playerRefreshHandler);
-        Hooks.off("updateActiveEffect", this._playerRefreshHandler);
-        Hooks.off("deleteActiveEffect", this._playerRefreshHandler);
-        Hooks.off("controlToken", this._playerRefreshHandler);
-        this._playerHooksBound = false;
+        this.hooksController.unbindFamily("player");
     }
 
     #getGamemasterPanelState() {
@@ -3856,48 +3280,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     async #generateMarketOfferBoard() {
-        if (!game.user?.isGM) {
-            ui.notifications?.warn("Only the GM can generate market boards.");
-            return;
-        }
-
-        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
-        if (!scene) {
-            ui.notifications?.warn("No active scene is available for market generation.");
-            return;
-        }
-
-        const offers = await this.#buildGeneratedMarketOffers();
-        if (!offers.length) {
-            ui.notifications?.warn("Unable to generate market offers from compendium items.");
-            return;
-        }
-
-        const seedsApi = game.turnOfTheCentury?.seeds;
-        const factionMap = seedsApi?.factionMetadata ?? {};
-        const factionKeys = Object.keys(factionMap);
-        const fallbackFaction = "frontier-raiders";
-        const factionKey = this.#randomFrom(factionKeys) ?? fallbackFaction;
-        const narrative = seedsApi?.getNarrative?.(factionKey) ?? {};
-
-        const marketState = {
-            id: foundry?.utils?.randomID?.() ?? Math.random().toString(36).slice(2, 10),
-            title: `${scene.name ?? "Current Scene"} Market`,
-            summary: narrative.victory ?? "A broker offers scarce goods at a risky premium.",
-            generatedAt: Date.now(),
-            generatedBy: game.user?.id ?? null,
-            buyMarkup: 1.2,
-            sellRate: 0.55,
-            offers
-        };
-
-        await scene.setFlag?.(game.system?.id ?? "turn-of-the-century", MARKET_SCENE_FLAG_KEY, marketState);
-
-        const lines = [
-            `Scene: ${scene.name ?? "Unknown scene"}`,
-            `${offers.length} offers are now available in the Market panel.`
-        ];
-        await this.#announceGamemasterGeneratedContent({ title: "Market Generated", lines });
+        await this.marketController.generateOfferBoard();
     }
 
     async #setGamemasterAtmospherePreset(preset) {
@@ -3956,384 +3339,47 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     async #buildMarketPanelModel({ scene = null, controlledTokens = [], panelState = {}, compendiumItems = [] } = {}) {
-        const actors = this.#getMarketEligibleActors(controlledTokens);
-        const requestedActorId = String(panelState?.selectedBuyerActorId ?? "");
-        const selectedActor = actors.find((actor) => actor.id === requestedActorId)
-            ?? actors[0]
-            ?? null;
-        if (selectedActor?.id && selectedActor.id !== requestedActorId) {
-            await this.#setMarketPanelStatePatch({ selectedBuyerActorId: selectedActor.id });
-        }
-
-        const marketState = this.#normalizeSceneMarketState(scene?.getFlag?.(game.system?.id, MARKET_SCENE_FLAG_KEY) ?? null);
-        const walletValue = Number(selectedActor?.system?.economy?.wallet?.gbp ?? 0);
-        const wallet = Number.isFinite(walletValue) ? walletValue : 0;
-
-        const offers = (marketState?.offers ?? []).map((offer) => {
-            const price = Number(offer.price ?? 0);
-            const stock = Math.max(0, Number(offer.stock ?? 0));
-            const hasActor = Boolean(selectedActor);
-            const maxAffordableQty = price > 0
-                ? Math.max(0, Math.floor(wallet / price))
-                : stock;
-            const maxBuyQty = hasActor ? Math.max(0, Math.min(stock, maxAffordableQty || (price <= 0 ? stock : 0))) : 0;
-            const canBuy = hasActor && maxBuyQty > 0;
-            return {
-                id: String(offer.id),
-                name: String(offer.name ?? "Unnamed Item"),
-                packLabel: String(offer.packLabel ?? "Market Stock"),
-                stockLabel: `Stock ${stock}`,
-                priceLabel: this.#formatCurrency(price, offer.currency),
-                maxBuyQty,
-                canBuy,
-                buyHint: !hasActor
-                    ? "Select an eligible actor first."
-                    : (stock <= 0
-                        ? "Out of stock."
-                        : (maxBuyQty <= 0
-                            ? "Not enough funds."
-                            : `Purchase up to ${maxBuyQty} unit${maxBuyQty === 1 ? "" : "s"}.`))
-            };
-        });
-
-        const sellableItems = this.#getMarketSellableItems(selectedActor, marketState);
-        const fallbackSummary = compendiumItems.length
-            ? `${compendiumItems.length} compendium items are available for market generation.`
-            : "Generate a market from the GM panel to begin trading.";
-
-        return {
-            hasMarket: Boolean(marketState),
-            canGenerate: Boolean(game.user?.isGM),
-            title: marketState?.title ?? "Market",
-            summary: marketState?.summary ?? fallbackSummary,
-            updatedLabel: marketState?.generatedAt ? new Date(marketState.generatedAt).toLocaleString() : "Not generated",
-            walletLabel: this.#formatCurrency(wallet, "pounds"),
-            actors: actors.map((actor) => ({
-                id: actor.id,
-                name: actor.name ?? "Unnamed Actor",
-                selected: actor.id === selectedActor?.id
-            })),
-            offers,
-            sellableItems
-        };
+        return await this.marketController.buildPanelModel({ scene, controlledTokens, panelState, compendiumItems });
     }
 
     #getMarketEligibleActors(controlledTokens = []) {
-        const controlledActorIds = new Set((controlledTokens ?? []).map((token) => token?.actor?.id).filter(Boolean));
-        const allActors = game.actors?.contents ?? [];
-        const visibleActors = allActors.filter((actor) => {
-            if (!actor) return false;
-            if (game.user?.isGM) return true;
-            return actor.isOwner;
-        });
-
-        const sorted = [...visibleActors].sort((left, right) => String(left?.name ?? "").localeCompare(String(right?.name ?? ""), undefined, { sensitivity: "base" }));
-        sorted.sort((left, right) => {
-            const leftControlled = controlledActorIds.has(left.id) ? 0 : 1;
-            const rightControlled = controlledActorIds.has(right.id) ? 0 : 1;
-            return leftControlled - rightControlled;
-        });
-
-        return sorted;
+        return this.marketController.getEligibleActors(controlledTokens);
     }
 
     #normalizeSceneMarketState(value) {
-        if (!value || typeof value !== "object") return null;
-        const offers = Array.isArray(value.offers)
-            ? value.offers
-                .map((offer) => ({
-                    id: String(offer?.id ?? ""),
-                    uuid: String(offer?.uuid ?? ""),
-                    name: String(offer?.name ?? "Unnamed Item"),
-                    type: String(offer?.type ?? "item"),
-                    packLabel: String(offer?.packLabel ?? "Market Stock"),
-                    price: Math.max(0, Number(offer?.price ?? 0)),
-                    basePrice: Math.max(0, Number(offer?.basePrice ?? offer?.price ?? 0)),
-                    currency: String(offer?.currency ?? "pounds"),
-                    stock: Math.max(0, Math.floor(Number(offer?.stock ?? 0)))
-                }))
-                .filter((offer) => offer.id && offer.stock > 0 && this.#isMarketTradableItemType(offer.type))
-            : [];
-        if (!offers.length) return null;
-
-        return {
-            id: String(value.id ?? foundry?.utils?.randomID?.() ?? "market"),
-            title: String(value.title ?? "Market"),
-            summary: String(value.summary ?? ""),
-            generatedAt: Number(value.generatedAt ?? Date.now()),
-            generatedBy: value.generatedBy ?? null,
-            buyMarkup: Math.max(1, Number(value.buyMarkup ?? 1.2)),
-            sellRate: Math.max(0, Number(value.sellRate ?? 0.55)),
-            offers
-        };
+        return this.marketController.normalizeSceneMarketState(value);
     }
 
     #formatCurrency(value, currency = "pounds") {
-        const amount = Number.isFinite(Number(value)) ? Number(value) : 0;
-        const rounded = Math.round(amount * 100) / 100;
-        const suffix = String(currency ?? "pounds");
-        return `${rounded.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${suffix}`;
+        return this.marketController.formatCurrency(value, currency);
     }
 
     #getMarketSellableItems(actor, marketState) {
-        if (!actor) return [];
-        const sellRate = Math.max(0, Number(marketState?.sellRate ?? 0.55));
-        const items = (actor.items?.contents ?? []).filter((item) => this.#isMarketTradableItemType(item?.type));
-
-        return items
-            .map((item) => {
-                const basePrice = Math.max(0, Number(item?.system?.value?.price ?? 0));
-                const currency = String(item?.system?.value?.currency ?? "pounds");
-                const quantity = Math.max(0, Math.floor(Number(item?.system?.physical?.quantity ?? 1)));
-                const sellPrice = Math.max(0, Math.round(basePrice * sellRate * 100) / 100);
-                return {
-                    id: String(item?.id ?? ""),
-                    name: String(item?.name ?? "Unnamed Item"),
-                    quantity,
-                    basePrice,
-                    currency,
-                    basePriceLabel: this.#formatCurrency(basePrice, currency),
-                    sellPrice,
-                    sellPriceLabel: this.#formatCurrency(sellPrice, currency),
-                    maxSellQty: quantity,
-                    canSell: quantity > 0 && sellPrice > 0,
-                    sellHint: quantity <= 0
-                        ? "No quantity available."
-                        : (sellPrice > 0
-                            ? `Sell up to ${quantity} unit${quantity === 1 ? "" : "s"} to the market.`
-                            : "Item has no sell value.")
-                };
-            })
-            .filter((entry) => entry.id)
-            .sort((left, right) => String(left.name).localeCompare(String(right.name), undefined, { sensitivity: "base" }));
+        return this.marketController.getSellableItems(actor, marketState);
     }
 
     #parseMarketQuantityInput(input, { fallback = 1, max = 1 } = {}) {
-        const parsed = Math.floor(Number(input?.value ?? fallback));
-        const minValue = 1;
-        const maxValue = Math.max(minValue, Math.floor(Number(max) || minValue));
-        const clamped = Math.min(maxValue, Math.max(minValue, Number.isFinite(parsed) ? parsed : fallback));
-        if (input) {
-            input.value = String(clamped);
-        }
-        return clamped;
+        return this.marketController.parseQuantityInput(input, { fallback, max });
     }
 
     async #buildGeneratedMarketOffers() {
-        const items = await this.#getUnifiedCompendiumItems();
-        const pool = items.filter((entry) => this.#isMarketTradableItemType(entry?.type));
-        for (let i = pool.length - 1; i > 0; i -= 1) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [pool[i], pool[j]] = [pool[j], pool[i]];
-        }
-
-        const selected = pool.slice(0, Math.min(10, pool.length));
-        const offers = [];
-        for (const entry of selected) {
-            let basePrice = 1;
-            let currency = "pounds";
-            let type = String(entry?.type ?? "item");
-            try {
-                const document = await fromUuid(entry.uuid);
-                basePrice = Math.max(0, Number(document?.system?.value?.price ?? basePrice));
-                currency = String(document?.system?.value?.currency ?? currency);
-                type = String(document?.type ?? type);
-            } catch (error) {
-                console.warn("[turn-of-the-century] Failed to resolve market item uuid", entry?.uuid, error);
-            }
-
-            if (!this.#isMarketTradableItemType(type)) {
-                continue;
-            }
-
-            const buyPrice = Math.max(1, Math.round(basePrice * (1.1 + Math.random() * 0.45) * 100) / 100);
-            const stock = 1 + Math.floor(Math.random() * 4);
-            offers.push({
-                id: foundry?.utils?.randomID?.() ?? Math.random().toString(36).slice(2, 10),
-                uuid: String(entry?.uuid ?? ""),
-                name: String(entry?.name ?? "Unnamed Item"),
-                type,
-                packLabel: String(entry?.packLabel ?? "Market Stock"),
-                basePrice,
-                price: buyPrice,
-                currency,
-                stock
-            });
-        }
-
-        return offers;
+        return await this.marketController.buildGeneratedOffers();
     }
 
     #resolveSelectedMarketActor() {
-        const panelState = this.#getMarketPanelState();
-        const actorId = String(panelState?.selectedBuyerActorId ?? "");
-        if (!actorId) return null;
-        return game.actors?.get?.(actorId) ?? null;
+        return this.marketController.resolveSelectedActor();
     }
 
     #canUserManageMarketActor(actor) {
-        if (!actor) return false;
-        if (game.user?.isGM) return true;
-        return Boolean(actor.isOwner);
+        return this.marketController.canManageActor(actor);
     }
 
     async #handleMarketBuy(offerId, requestedQuantity = 1) {
-        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
-        if (!scene) return;
-
-        const marketState = this.#normalizeSceneMarketState(scene.getFlag?.(game.system?.id, MARKET_SCENE_FLAG_KEY) ?? null);
-        if (!marketState) {
-            ui.notifications?.warn("No generated market is active in this scene.");
-            return;
-        }
-
-        const buyer = this.#resolveSelectedMarketActor();
-        if (!this.#canUserManageMarketActor(buyer)) {
-            ui.notifications?.warn("Select an actor you can manage before buying.");
-            return;
-        }
-
-        const offer = marketState.offers.find((entry) => entry.id === offerId);
-        if (!offer) {
-            ui.notifications?.warn("This market offer is no longer available.");
-            return;
-        }
-        if (!this.#isMarketTradableItemType(offer.type)) {
-            ui.notifications?.warn("This market offer is not a tradable item type.");
-            return;
-        }
-
-        const wallet = Math.max(0, Number(buyer.system?.economy?.wallet?.gbp ?? 0));
-        const unitPrice = Math.max(0, Number(offer.price ?? 0));
-        const stock = Math.max(0, Math.floor(Number(offer.stock ?? 0)));
-        const maxAffordableQty = unitPrice > 0
-            ? Math.max(0, Math.floor(wallet / unitPrice))
-            : stock;
-        const maxBuyQty = Math.max(0, Math.min(stock, maxAffordableQty || (unitPrice <= 0 ? stock : 0)));
-        if (maxBuyQty <= 0) {
-            ui.notifications?.warn(`${buyer.name} does not have enough funds.`);
-            return;
-        }
-        const quantityToBuy = Math.max(1, Math.min(Math.floor(Number(requestedQuantity) || 1), maxBuyQty));
-        const totalPrice = unitPrice * quantityToBuy;
-
-        let itemData = null;
-        if (offer.uuid) {
-            try {
-                const document = await fromUuid(offer.uuid);
-                if (document?.toObject) {
-                    itemData = document.toObject();
-                }
-            } catch (error) {
-                console.warn("[turn-of-the-century] Failed to import market item", offer.uuid, error);
-            }
-        }
-
-        if (!itemData) {
-            itemData = {
-                name: offer.name,
-                type: offer.type || "item",
-                system: {
-                    physical: { quantity: 1 },
-                    value: { price: offer.basePrice, currency: offer.currency }
-                }
-            };
-        }
-
-        delete itemData._id;
-        itemData.system ??= {};
-        itemData.system.physical ??= {};
-        itemData.system.value ??= {};
-        itemData.system.physical.quantity = quantityToBuy;
-        itemData.system.value.price = Math.max(0, Number(itemData.system.value.price ?? offer.basePrice ?? unitPrice));
-        itemData.system.value.currency = String(itemData.system.value.currency ?? offer.currency ?? "pounds");
-
-        const existing = buyer.items?.find?.((item) => item.name === itemData.name && item.type === itemData.type);
-        if (existing) {
-            const quantity = Math.max(0, Math.floor(Number(existing.system?.physical?.quantity ?? 1)));
-            await existing.update({ "system.physical.quantity": quantity + quantityToBuy });
-        } else {
-            await buyer.createEmbeddedDocuments("Item", [itemData]);
-        }
-
-        await buyer.update({ "system.economy.wallet.gbp": Math.max(0, wallet - totalPrice) });
-
-        offer.stock = Math.max(0, offer.stock - quantityToBuy);
-        marketState.offers = marketState.offers.filter((entry) => entry.stock > 0);
-        await scene.setFlag?.(game.system?.id ?? "turn-of-the-century", MARKET_SCENE_FLAG_KEY, marketState.offers.length ? marketState : null);
-
-        ui.notifications?.info(`${buyer.name} purchased ${quantityToBuy} ${offer.name} for ${this.#formatCurrency(totalPrice, offer.currency)}.`);
-        this.render({ force: false });
+        await this.marketController.handleBuy(offerId, requestedQuantity);
     }
 
     async #handleMarketSell(itemId, requestedQuantity = 1) {
-        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
-        if (!scene) return;
-
-        const marketState = this.#normalizeSceneMarketState(scene.getFlag?.(game.system?.id, MARKET_SCENE_FLAG_KEY) ?? null);
-        if (!marketState) {
-            ui.notifications?.warn("No generated market is active in this scene.");
-            return;
-        }
-
-        const actor = this.#resolveSelectedMarketActor();
-        if (!this.#canUserManageMarketActor(actor)) {
-            ui.notifications?.warn("Select an actor you can manage before selling.");
-            return;
-        }
-
-        const item = actor.items?.get?.(itemId) ?? null;
-        if (!item) {
-            ui.notifications?.warn("This item is no longer available on the selected actor.");
-            return;
-        }
-        if (!this.#isMarketTradableItemType(item.type)) {
-            ui.notifications?.warn("Only physical goods can be sold at the market.");
-            return;
-        }
-
-        const quantity = Math.max(0, Math.floor(Number(item.system?.physical?.quantity ?? 1)));
-        const basePrice = Math.max(0, Number(item.system?.value?.price ?? 0));
-        const currency = String(item.system?.value?.currency ?? "pounds");
-        const sellRate = Math.max(0, Number(marketState.sellRate ?? 0.55));
-        const unitSellPrice = Math.max(0, Math.round(basePrice * sellRate * 100) / 100);
-        if (quantity <= 0 || unitSellPrice <= 0) {
-            ui.notifications?.warn("This item cannot be sold.");
-            return;
-        }
-        const quantityToSell = Math.max(1, Math.min(Math.floor(Number(requestedQuantity) || 1), quantity));
-        const totalSellPrice = Math.round(unitSellPrice * quantityToSell * 100) / 100;
-
-        if (quantity <= quantityToSell) {
-            await item.delete();
-        } else {
-            await item.update({ "system.physical.quantity": quantity - quantityToSell });
-        }
-
-        const wallet = Math.max(0, Number(actor.system?.economy?.wallet?.gbp ?? 0));
-        await actor.update({ "system.economy.wallet.gbp": wallet + totalSellPrice });
-
-        const existingOffer = marketState.offers.find((offer) => offer.name === item.name && offer.type === item.type && offer.currency === currency && Math.abs(Number(offer.basePrice ?? 0) - basePrice) < 0.001);
-        if (existingOffer) {
-            existingOffer.stock = Math.max(0, Number(existingOffer.stock ?? 0) + quantityToSell);
-        } else {
-            const buyPrice = Math.max(1, Math.round(basePrice * Math.max(1, Number(marketState.buyMarkup ?? 1.2)) * 100) / 100);
-            marketState.offers.push({
-                id: foundry?.utils?.randomID?.() ?? Math.random().toString(36).slice(2, 10),
-                uuid: "",
-                name: String(item.name ?? "Sold Item"),
-                type: String(item.type ?? "item"),
-                packLabel: "Party Stock",
-                price: buyPrice,
-                basePrice,
-                currency,
-                stock: quantityToSell
-            });
-        }
-
-        await scene.setFlag?.(game.system?.id ?? "turn-of-the-century", MARKET_SCENE_FLAG_KEY, marketState);
-        ui.notifications?.info(`${actor.name} sold ${quantityToSell} ${item.name} for ${this.#formatCurrency(totalSellPrice, currency)}.`);
-        this.render({ force: false });
+        await this.marketController.handleSell(itemId, requestedQuantity);
     }
 
     #wireMapInteractionHandlers() {
@@ -4763,60 +3809,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #syncActorDropPreviewTransforms() {
-        const viewports = [...(this.element?.querySelectorAll("[data-action='map-viewport']") ?? [])];
-        for (const viewport of viewports) this.#syncActorDropPreviewTransform(viewport);
+        this.sceneActorDropController.syncActorDropPreviewTransforms(this.element);
     }
 
     #syncActorDropPreviewTransform(viewport) {
-        const layer = viewport?.querySelector?.("[data-actor-drop-preview='true']");
-        const image = viewport?.querySelector?.("[data-action='map-image']");
-        if (!(layer instanceof HTMLElement) || !(image instanceof HTMLImageElement)) return;
-        const width = Number(image.naturalWidth);
-        const height = Number(image.naturalHeight);
-        if (Number.isFinite(width) && width > 0) layer.style.width = `${width}px`;
-        if (Number.isFinite(height) && height > 0) layer.style.height = `${height}px`;
-        layer.style.transform = image.style.transform;
-    }
-
-    #setActorDragImage(dataTransfer, actorIds = []) {
-        const documentRef = globalThis.document;
-        if (!dataTransfer || typeof dataTransfer.setDragImage !== "function" || !documentRef?.body) return;
-        this.#clearActorDragImage();
-
-        const actors = Array.from(actorIds ?? [])
-            .map((id) => game.actors?.get?.(id))
-            .filter(Boolean);
-        if (!actors.length) return;
-
-        const columns = Math.max(1, Math.ceil(Math.sqrt(actors.length)));
-        const dragImage = documentRef.createElement("div");
-        dragImage.className = "totc-v2-actor-drag-image";
-        dragImage.style.gridTemplateColumns = `repeat(${columns}, 2.5rem)`;
-        dragImage.setAttribute("aria-hidden", "true");
-
-        for (const actor of actors) {
-            const icon = tokenIconForActor(actor);
-            if (icon) {
-                const image = documentRef.createElement("img");
-                image.src = icon;
-                image.alt = "";
-                image.draggable = false;
-                dragImage.append(image);
-            } else {
-                const fallback = documentRef.createElement("span");
-                fallback.textContent = String(actor?.name ?? "?").slice(0, 1).toUpperCase() || "?";
-                dragImage.append(fallback);
-            }
-        }
-
-        documentRef.body.append(dragImage);
-        this.actorDragImage = dragImage;
-        dataTransfer.setDragImage(dragImage, 20, 20);
-    }
-
-    #clearActorDragImage() {
-        this.actorDragImage?.remove?.();
-        this.actorDragImage = null;
+        this.sceneActorDropController.syncActorDropPreviewTransform(viewport);
     }
 
     #getMapImageTransform(viewport) {
@@ -4854,31 +3851,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             x: ((event.clientX - rect.left) - Number(offsetX ?? 0)) / scale,
             y: ((event.clientY - rect.top) - Number(offsetY ?? 0)) / scale
         };
-    }
-
-    #clearActorDropPreviews(except = null) {
-        this.element?.querySelectorAll("[data-actor-drop-preview='true']")?.forEach((layer) => {
-            if (layer === except) return;
-            layer.innerHTML = "";
-            layer.classList.remove("has-preview");
-        });
-    }
-
-    #renderActorDropPreview(target, { actors = [], scene = null, event = null } = {}) {
-        const viewport = target?.querySelector?.("[data-map-viewport='true']");
-        const layer = viewport?.querySelector?.("[data-actor-drop-preview='true']");
-        if (!(viewport instanceof HTMLElement) || !(layer instanceof HTMLElement)) return null;
-
-        this.#syncActorDropPreviewTransform(viewport);
-        const anchorPosition = this.#getImageSpacePointFromMapEvent(viewport, event);
-        const previews = buildSceneActorDropPreview({ actors, scene, anchorPosition });
-        layer.innerHTML = previews.map((preview) => `
-            <span class="totc-v2-map-panel__actor-drop-square totc-v2-map-panel__actor-drop-square--${this.#escapeHTML(preview.role)}"
-                style="left:${this.#escapeHTML(preview.x)}px;top:${this.#escapeHTML(preview.y)}px;width:${this.#escapeHTML(preview.width)}px;height:${this.#escapeHTML(preview.height)}px"
-                title="${this.#escapeHTML(preview.actorName)}"></span>`).join("");
-        layer.classList.toggle("has-preview", previews.length > 0);
-        this.#clearActorDropPreviews(layer);
-        return anchorPosition;
     }
 
     #onMapPanPointerMove(event) {
@@ -5245,7 +4217,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 break;
             }
             case "actor-list-search": {
-                this.actorSearchQuery = value;
+                this.actorWorkspaceController.setSearchQuery(value);
                 await this.render({ force: false });
                 focusWorkspaceTextInputAtEnd(this.element, "actor-list-search");
                 break;
@@ -5278,20 +4250,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 break;
             }
             case "scene-properties-name": {
-                const scene = this.#getScenePropertiesScene();
-                const trimmedName = String(value ?? "").trim();
-                if (scene && trimmedName) {
-                    try {
-                        totcLogger.info("[scene-name] Auto-saving scene name", { sceneId: scene.id, oldName: scene.name, newName: trimmedName });
-                        await scene.update({ name: trimmedName });
-                        totcLogger.info("[scene-name] Name saved OK", { sceneId: scene.id, name: scene.name });
-                    } catch (err) {
-                        console.error("[turn-of-the-century] Scene name auto-save failed", err);
-                        totcLogger.error("[scene-name] scene.update() FAILED", { sceneId: scene?.id, error: err?.message ?? String(err) });
-                        this._scenePropertiesState = { ...this._scenePropertiesState, error: "Scene name save failed." };
-                    }
-                }
-                await this.render({ force: false });
+                await this.sceneWorkspaceController.saveSceneName(value);
                 focusWorkspaceTextInputAtEnd(this.element, "scene-properties-name");
                 break;
             }
@@ -5334,143 +4293,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return null;
     }
 
-    async #generateActorFromEditorState() {
-        if (this._actorEditorState.isGenerating) return;
-        this._actorEditorState = {
-            ...this._actorEditorState,
-            isGenerating: true,
-            status: "",
-            error: ""
-        };
-        this.render({ force: false });
-
-        try {
-            const actorType = this._actorEditorState.actorType || "pawn";
-            const additionalPrompt = String(this._actorEditorState.additionalPrompt ?? "").trim();
-            const prompt = additionalPrompt || `Create a ${actorType} actor for immediate use in play.`;
-            const result = await LLMService.generate(prompt, {
-                elementType: "actor",
-                generationContext: { actorType }
-            });
-            const actor = await ActorDocumentClass.create(buildGeneratedActorDocumentData(result, actorType));
-            this._actorEditorState = {
-                mode: "edit",
-                actorId: actor?.id ?? actor?._id ?? "",
-                actorType: actor?.type ?? actorType,
-                additionalPrompt: "",
-                isGenerating: false,
-                formData: {},
-                dirty: false,
-                status: `Created ${actor?.name ?? "actor"}.`,
-                error: ""
-            };
-        } catch (error) {
-            console.error("[turn-of-the-century] Actor generation failed", error);
-            this._actorEditorState = {
-                ...this._actorEditorState,
-                isGenerating: false,
-                status: "",
-                error: error?.message ?? "Actor generation failed."
-            };
-        }
-
-        this.render({ force: false });
-    }
-
-    async #saveActorEditorForm(form) {
-        const formData = new FormData(form);
-        const actorId = String(formData.get("actorId") ?? this._actorEditorState.actorId ?? "").trim();
-        const actor = actorId ? game.actors?.get?.(actorId) : null;
-        if (!actor?.update) {
-            this._actorEditorState = {
-                ...this._actorEditorState,
-                status: "",
-                error: "Actor save is not available."
-            };
-            this.render({ force: false });
-            return;
-        }
-
-        try {
-            const updateData = buildActorUpdateDataFromFormData(formData);
-            await actor.update(updateData);
-            this._actorEditorState = {
-                ...this._actorEditorState,
-                mode: "edit",
-                actorId,
-                actorType: actor.type ?? this._actorEditorState.actorType,
-                formData: {},
-                dirty: false,
-                status: "Actor saved.",
-                error: ""
-            };
-        } catch (error) {
-            console.error("[turn-of-the-century] Actor save failed", error);
-            this._actorEditorState = {
-                ...this._actorEditorState,
-                status: "",
-                error: error?.message ?? "Actor save failed."
-            };
-        }
-
-        this.render({ force: false });
-    }
-
     async _openScenePropertiesPanel() {
-        const panelDef = this.panelRegistry.get("scene-properties");
-        if (!panelDef) return;
-
-        this._scenePropertiesState = {
-            sceneId: "",
-            status: "",
-            error: ""
-        };
-
-        const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
-        await this.stateStore?.setUserLayout?.(nextLayout);
-        this.render({ force: false });
+        await this.sceneWorkspaceController.openScenePropertiesPanel();
     }
 
     async _createSceneDesignScene() {
-        const result = await createSceneDesignScene({
-            SceneClass: foundry?.documents?.Scene,
-            foundry,
-            ui
-        });
-        if (!result?.ok || !result.scene) return result;
-
-        const scene = result.scene;
-        const sceneId = String(scene.id ?? scene._id ?? "").trim();
-        if (!sceneId) {
-            return {
-                ok: false,
-                level: "warn",
-                message: "The new scene was created but could not be bound to the workspace."
-            };
-        }
-
-        this.#openSceneMapPanel(sceneId);
-        const panelDef = this.panelRegistry.get("scene-properties");
-        let nextLayout = this.layoutEngine.getLayout();
-        if (panelDef) {
-            nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
-        }
-
-        this._scenePropertiesState = {
-            sceneId,
-            status: "New scene created. Enter a name, then upload a background image.",
-            error: ""
-        };
-        await this.stateStore?.setUserLayout?.(nextLayout);
-        this.render({ force: false });
-
-        return {
-            ok: true,
-            silent: true,
-            scene,
-            name: result.name,
-            message: "Scene draft created."
-        };
+        return await this.sceneWorkspaceController.createSceneDesignScene();
     }
 
     #wireLoggingPanelHandlers() {
@@ -5485,301 +4313,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #wireScenePropertiesHandlers() {
-        // Background image upload — auto-saves to the scene immediately on success
-        this.element?.querySelectorAll("[data-action='scene-properties-background-upload']")?.forEach((input) => {
-            input.addEventListener("change", async () => {
-                const file = input.files?.[0] ?? null;
-                if (!file) return;
-
-                const scene = this.#getScenePropertiesScene();
-                const sceneName = String(scene?.name ?? "").trim();
-                const target = buildSceneBackgroundUploadTarget({ sceneName, filename: file.name });
-
-                totcLogger.info("[bg-upload] File selected", {
-                    filename: file.name,
-                    size: file.size,
-                    sceneId: scene?.id ?? null,
-                    sceneName,
-                    targetValid: target.valid,
-                    targetPath: target.path || null,
-                    "scene.img (before)": scene?.img ?? null,
-                    "_source.img (before)": scene?._source?.img ?? null,
-                    "_source.background.src (before)": scene?._source?.background?.src ?? null
-                });
-
-                this._scenePropertiesState = {
-                    ...this._scenePropertiesState,
-                    status: target.valid ? `Uploading ${target.filename}...` : "",
-                    error: target.valid ? "" : "Choose a supported image after entering a scene name."
-                };
-                this.render({ force: false });
-
-                if (!target.valid) {
-                    totcLogger.warn("[bg-upload] Upload target invalid — aborting", { target });
-                    return;
-                }
-
-                totcLogger.info("[bg-upload] Uploading file to server", { targetPath: target.path });
-                const result = await uploadSceneBackgroundFile({
-                    file,
-                    target,
-                    overwrite: true,
-                    foundry,
-                    ui
-                });
-
-                totcLogger.info("[bg-upload] Upload result", {
-                    ok: result?.ok,
-                    path: result?.path ?? null,
-                    filename: result?.filename ?? null,
-                    message: result?.message ?? null
-                });
-
-                if (!result?.ok) {
-                    totcLogger.error("[bg-upload] Upload FAILED", { result });
-                    this._scenePropertiesState = {
-                        ...this._scenePropertiesState,
-                        status: "",
-                        error: result?.message ?? "Scene background upload failed."
-                    };
-                    this.render({ force: false });
-                    return;
-                }
-
-                // Auto-save to scene document immediately
-                if (scene) {
-                    try {
-                        const updateData = buildSceneBackgroundUpdateData(result.path);
-                        totcLogger.info("[bg-upload] Applying scene background update", {
-                            sceneId: scene.id,
-                            sceneName: scene.name,
-                            legacySceneUpdateData: updateData,
-                            levelCount: scene?.levels?.size ?? scene?.levels?.contents?.length ?? scene?._source?.levels?.length ?? null,
-                            "scene.img (pre-update)": scene?.img ?? null,
-                            "_source.img (pre-update)": scene?._source?.img ?? null,
-                            "_source.background.src (pre-update)": scene?._source?.background?.src ?? null,
-                            "_source.levels[0].background.src (pre-update)": scene?._source?.levels?.[0]?.background?.src ?? null
-                        });
-                        const saveResult = await applySceneBackgroundUpdate(scene, result.path);
-                        totcLogger.info("[bg-upload] Background update resolved — reading back scene state", {
-                            sceneId: scene.id,
-                            saveMode: saveResult.mode,
-                            savedDocumentId: saveResult.document?.id ?? saveResult.document?._id ?? null,
-                            "scene.img (post-update)": scene?.img ?? null,
-                            "_source.img (post-update)": scene?._source?.img ?? null,
-                            "_source.background.src (post-update)": scene?._source?.background?.src ?? null,
-                            "_source.texture.src (post-update)": scene?._source?.texture?.src ?? null,
-                            "_source.levels[0].background.src (post-update)": scene?._source?.levels?.[0]?.background?.src ?? null,
-                            "getSceneBackgroundSource() (post-update)": getSceneBackgroundSource(scene)
-                        });
-                        this._scenePropertiesState = {
-                            ...this._scenePropertiesState,
-                            status: `Background saved: ${result.filename}.`,
-                            error: ""
-                        };
-                    } catch (err) {
-                        console.error("[turn-of-the-century] Scene background auto-save failed", err);
-                        totcLogger.error("[bg-upload] scene.update() THREW AN ERROR", {
-                            sceneId: scene?.id,
-                            error: err?.message ?? String(err)
-                        });
-                        this._scenePropertiesState = {
-                            ...this._scenePropertiesState,
-                            status: "",
-                            error: "Background uploaded but scene save failed — see console."
-                        };
-                    }
-                } else {
-                    totcLogger.warn("[bg-upload] No scene available — upload saved to server but not applied to any scene");
-                    this._scenePropertiesState = {
-                        ...this._scenePropertiesState,
-                        status: `Uploaded ${result.filename}. Open a scene map to apply.`,
-                        error: ""
-                    };
-                }
-                this.render({ force: false });
-            });
-        });
-
-        // Delete scene
-        this.element?.querySelectorAll("[data-action='scene-properties-delete']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-
-                const scene = this.#getScenePropertiesScene();
-                if (!scene) {
-                    this._scenePropertiesState = { ...this._scenePropertiesState, status: "", error: "No scene is available to delete." };
-                    this.render({ force: false });
-                    return;
-                }
-
-                const sceneName = String(scene.name ?? "this scene");
-                const confirmed = globalThis.confirm?.(`Delete scene "${sceneName}"? This cannot be undone.`) ?? false;
-                if (!confirmed) return;
-
-                try {
-                    if (typeof scene.delete !== "function") throw new Error("Scene deletion is not available.");
-                    await scene.delete();
-                    await this.#removeDeletedSceneMapPanel(scene);
-                } catch (error) {
-                    console.error("[turn-of-the-century] Scene delete failed", error);
-                    this._scenePropertiesState = { ...this._scenePropertiesState, status: "", error: "Scene delete failed — see console." };
-                    this.render({ force: false });
-                    return;
-                }
-
-                this._scenePropertiesState = { sceneId: "", status: `Deleted ${sceneName}.`, error: "" };
-                this.render({ force: false });
-            });
-        });
-
-        // Set / clear default scene
-        this.element?.querySelectorAll("[data-action='scene-properties-set-default']")?.forEach((checkbox) => {
-            checkbox.addEventListener("change", async (event) => {
-                event.preventDefault();
-                const scene = this.#getScenePropertiesScene();
-                if (!scene) return;
-                try {
-                    totcLogger.info("[default-scene] Setting default scene", { sceneId: scene.id, sceneName: scene.name, checked: checkbox.checked });
-                    if (checkbox.checked) {
-                        await setDefaultScene(scene, game.scenes);
-                    } else {
-                        await clearDefaultScene(scene);
-                    }
-                    totcLogger.info("[default-scene] Default scene updated OK", { sceneId: scene.id, isDefault: checkbox.checked });
-                } catch (err) {
-                    console.error("[turn-of-the-century] Default scene update failed", err);
-                    totcLogger.error("[default-scene] FAILED", { sceneId: scene?.id, error: err?.message ?? String(err) });
-                }
-                this.render({ force: false });
-            });
-        });
-
-        // Activate scene from scene-properties panel (legacy; kept for compatibility)
-        this.element?.querySelectorAll("[data-action='scene-properties-activate']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const scene = this.#getScenePropertiesScene();
-                await this.#activateScene(scene);
-            });
-        });
-
-        // Scene actors
-        this.element?.querySelectorAll("[data-action='scene-actors-add-heroes']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const heroes = Array.from(game.actors?.contents ?? []).filter((actor) => actor?.type === "hero");
-                await this.#addActorsToScene(heroes);
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='scene-actors-add-selected']")?.forEach((form) => {
-            form.addEventListener("submit", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-
-                const formData = new FormData(form);
-                const actorIds = new Set(formData.getAll("actorId").map((id) => String(id ?? "").trim()).filter(Boolean));
-                const actors = Array.from(actorIds)
-                    .map((id) => game.actors?.get?.(id))
-                    .filter(Boolean);
-                await this.#addActorsToScene(actors);
-            });
-        });
+        this.sceneWorkspaceController.wireScenePropertiesHandlers(this.element);
     }
 
     #clearSceneActorDropTargets(except = null) {
-        this.element?.querySelectorAll("[data-scene-actor-drop-target].is-actor-drop-target")?.forEach((target) => {
-            if (target !== except) target.classList.remove("is-actor-drop-target");
-        });
-        this.#clearActorDropPreviews(except?.querySelector?.("[data-actor-drop-preview='true']") ?? null);
+        this.sceneActorDropController.clearSceneActorDropTargets(except);
     }
 
     #wireSceneActorDropHandlers() {
-        this.element?.querySelectorAll("[data-scene-actor-drop-target='true']")?.forEach((target) => {
-            target.addEventListener("dragover", (event) => {
-                if (!dataTransferHasType(event.dataTransfer, ACTOR_LIST_DRAG_MIME)) return;
-                event.preventDefault();
-                event.stopPropagation();
-                event.dataTransfer.dropEffect = "copy";
-                this.#clearSceneActorDropTargets(target);
-                const rawPayload = event.dataTransfer?.getData(ACTOR_LIST_DRAG_MIME);
-                const payload = parseActorListDragPayload(rawPayload);
-                const actors = payload.actorIds.map((id) => game.actors?.get?.(id)).filter(Boolean);
-                const sceneId = String(target.dataset.sceneId ?? "").trim();
-                const scene = sceneId ? this.#getSceneDocumentById(sceneId) : null;
-                this.#renderActorDropPreview(target, { actors, scene, event });
-                target.classList.add("is-actor-drop-target");
-            });
-            target.addEventListener("dragleave", (event) => {
-                const related = event.relatedTarget;
-                if (related && target.contains(related)) return;
-                target.classList.remove("is-actor-drop-target");
-                this.#clearActorDropPreviews();
-            });
-            target.addEventListener("drop", async (event) => {
-                const rawPayload = event.dataTransfer?.getData(ACTOR_LIST_DRAG_MIME);
-                const payload = parseActorListDragPayload(rawPayload);
-                if (!payload.actorIds.length) return;
-                event.preventDefault();
-                event.stopPropagation();
-                target.classList.remove("is-actor-drop-target");
-                this.#clearActorDropPreviews();
-
-                const actors = payload.actorIds.map((id) => game.actors?.get?.(id)).filter(Boolean);
-                const sceneId = String(target.dataset.sceneId ?? "").trim();
-                const scene = sceneId ? this.#getSceneDocumentById(sceneId) : null;
-                const viewport = target.querySelector("[data-map-viewport='true']");
-                const anchorPosition = this.#getImageSpacePointFromMapEvent(viewport, event);
-                await this.#addActorsToScene(actors, { scene, anchorPosition });
-            });
-        });
+        this.sceneActorDropController.wireSceneActorDropHandlers(this.element);
     }
 
     async #addActorsToScene(actors = [], { scene = null, anchorPosition = null } = {}) {
-        scene ??= this.#getScenePropertiesScene();
-        if (!scene) {
-            this._scenePropertiesState = { ...this._scenePropertiesState, status: "", error: "No scene is available for actor placement." };
-            this.render({ force: false });
-            return;
-        }
-
-        const selectedActors = Array.from(actors ?? []).filter(Boolean);
-        if (!selectedActors.length) {
-            this._scenePropertiesState = { ...this._scenePropertiesState, status: "", error: "Choose at least one actor to add to the scene." };
-            this.render({ force: false });
-            return;
-        }
-
-        try {
-            if (typeof scene.createEmbeddedDocuments !== "function") {
-                throw new Error("Scene token creation is not available.");
-            }
-            const tokenData = await buildSceneActorTokenData({ actors: selectedActors, scene, anchorPosition });
-            if (!tokenData.length) {
-                this._scenePropertiesState = {
-                    ...this._scenePropertiesState,
-                    status: "No new actors added. Named actors already present in the scene are not duplicated.",
-                    error: ""
-                };
-                this.render({ force: false });
-                return;
-            }
-            await scene.createEmbeddedDocuments("Token", tokenData);
-            this._scenePropertiesState = {
-                ...this._scenePropertiesState,
-                status: `Added ${tokenData.length} actor${tokenData.length === 1 ? "" : "s"} to ${scene.name ?? "scene"}.`,
-                error: ""
-            };
-        } catch (error) {
-            console.error("[turn-of-the-century] Scene actor placement failed", error);
-            this._scenePropertiesState = { ...this._scenePropertiesState, status: "", error: "Actor placement failed — see console." };
-        }
-
-        this.render({ force: false });
+        await this.sceneActorDropController.addActorsToScene(actors, { scene, anchorPosition });
     }
 
     async #executeDesignAction(actionId, { panelId = "" } = {}) {
@@ -5965,62 +4511,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return visible;
     }
 
-    async #getUnifiedCompendiumItems() {
-        if (Array.isArray(this._compendiumItemEntries)) return this._compendiumItemEntries;
-        if (this._compendiumItemsPromise) return await this._compendiumItemsPromise;
-
-        this._compendiumItemsPromise = this.#loadUnifiedCompendiumItems();
-        try {
-            const result = await this._compendiumItemsPromise;
-            const entries = Array.isArray(result?.entries) ? result.entries : [];
-            if (entries.length || result?.ready) {
-                this._compendiumItemEntries = entries;
-                this._compendiumHydrationRetries = 0;
-                this.#clearCompendiumHydrationRetry();
-            } else {
-                this.#scheduleCompendiumHydrationRetry();
-            }
-            return entries;
-        } finally {
-            this._compendiumItemsPromise = null;
-        }
-    }
-
-    #scheduleCompendiumHydrationRetry() {
-        if (this._compendiumHydrationRetryTimer || this._compendiumHydrationRetries >= COMPENDIUM_STARTUP_RETRY_LIMIT) return;
-
-        const retryNumber = this._compendiumHydrationRetries + 1;
-        const delay = Math.min(COMPENDIUM_STARTUP_RETRY_BASE_MS * retryNumber, 2000);
-        this._compendiumHydrationRetries = retryNumber;
-        this._compendiumHydrationRetryTimer = setTimeout(() => {
-            this._compendiumHydrationRetryTimer = null;
-            this._compendiumItemsPromise = null;
-            if (this.rendered) {
-                this.render({ force: false });
-            } else {
-                void this.#getUnifiedCompendiumItems();
-            }
-        }, delay);
-    }
-
-    #clearCompendiumHydrationRetry() {
-        if (!this._compendiumHydrationRetryTimer) return;
-        clearTimeout(this._compendiumHydrationRetryTimer);
-        this._compendiumHydrationRetryTimer = null;
-    }
-
-    async #loadUnifiedCompendiumItems() {
-        return loadUnifiedCompendiumItems({
-            packs: this.#getCompendiumPacks(),
-            gameReady: Boolean(game?.ready),
-            logger: console
-        });
-    }
-
-    #getCompendiumPacks() {
-        return getCompendiumPacks(game?.packs);
-    }
-
     async #getMediaBrowserEntries() {
         if (Array.isArray(this._mediaBrowserEntries)) return this._mediaBrowserEntries;
         if (this._mediaBrowserEntriesPromise) return await this._mediaBrowserEntriesPromise;
@@ -6095,8 +4585,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #isMarketTradableItemType(itemType) {
-        const normalizedType = String(itemType ?? "").trim().toLowerCase();
-        return MARKET_TRADABLE_ITEM_TYPES.has(normalizedType);
+        return this.marketController.isTradableItemType(itemType);
     }
 
     #showGhost(rect, label) {

@@ -1,0 +1,98 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import { ActorWorkspaceController } from "../../module/ui/workspace-v2/controllers/actor-workspace-controller.mjs";
+
+describe("ActorWorkspaceController", () => {
+    it("owns actor list filter, selection, and editor state transitions", async () => {
+        let opened = 0;
+        const actors = new Map([["a", { id: "a", type: "hero" }]]);
+        const controller = new ActorWorkspaceController({
+            getActorById: (id) => actors.get(id),
+            openActorEditor: async () => {
+                opened += 1;
+            }
+        });
+
+        controller.setSearchQuery("ada");
+        controller.setTypeFilter("hero");
+        controller.toggleSelectedActor("a", true);
+        controller.beginCreate();
+        await controller.openActorEditor();
+        assert.equal(controller.openDetails("a"), true);
+
+        assert.equal(controller.state.searchQuery, "ada");
+        assert.equal(controller.state.typeFilter, "hero");
+        assert.deepEqual([...controller.getSelectedActorIds()], ["a"]);
+        assert.equal(controller.state.editorState.mode, "edit");
+        assert.equal(controller.state.editorState.actorId, "a");
+        assert.equal(controller.state.editorState.actorType, "hero");
+        assert.equal(opened, 1);
+    });
+
+    it("generates actors through injected services and updates editor status", async () => {
+        const renderCalls = [];
+        let generatedPrompt = "";
+        let createdData = null;
+        const controller = new ActorWorkspaceController({
+            generate: async (prompt) => {
+                generatedPrompt = prompt;
+                return { name: "Generated Ada" };
+            },
+            createActor: async (data) => {
+                createdData = data;
+                return { id: "actor-1", type: "pawn", name: data.name };
+            },
+            buildGeneratedActorDocumentData: (result, actorType) => ({ name: result.name, type: actorType }),
+            render: () => renderCalls.push("render")
+        });
+
+        controller.beginCreate();
+        controller.setCreateActorType("pawn");
+        controller.setCreatePrompt("Make a useful contact.");
+        await controller.generateActor();
+
+        assert.equal(generatedPrompt, "Make a useful contact.");
+        assert.deepEqual(createdData, { name: "Generated Ada", type: "pawn" });
+        assert.equal(controller.state.editorState.mode, "edit");
+        assert.equal(controller.state.editorState.actorId, "actor-1");
+        assert.equal(controller.state.editorState.status, "Created Generated Ada.");
+        assert.equal(renderCalls.length, 2);
+    });
+
+    it("saves actor forms through injected form normalization", async () => {
+        const originalFormData = globalThis.FormData;
+        let updatedData = null;
+        const actor = {
+            id: "a",
+            type: "hero",
+            async update(data) {
+                updatedData = data;
+            }
+        };
+        globalThis.FormData = class FakeFormData {
+            constructor(form) {
+                this.form = form;
+            }
+
+            get(key) {
+                return this.form[key];
+            }
+        };
+
+        try {
+            const controller = new ActorWorkspaceController({
+                getActorById: () => actor,
+                buildActorUpdateDataFromFormData: () => ({ name: "Saved Ada" })
+            });
+            controller.openDetails("a");
+            await controller.saveActorForm({ actorId: "a" });
+
+            assert.deepEqual(updatedData, { name: "Saved Ada" });
+            assert.equal(controller.state.editorState.status, "Actor saved.");
+            assert.equal(controller.state.editorState.dirty, false);
+        } finally {
+            globalThis.FormData = originalFormData;
+        }
+    });
+});
