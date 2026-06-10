@@ -194,8 +194,8 @@ describe("SceneActorDropController", () => {
             const row = new FakeElement();
             row.dataset.actorId = "a";
             const target = new FakeElement();
+            target.dataset.mapViewport = "true";
             target.dataset.sceneId = "scene-1";
-            const viewport = new FakeElement();
             const layer = new FakeElement();
             const image = new FakeImageElement();
             const root = new FakeElement();
@@ -228,8 +228,7 @@ describe("SceneActorDropController", () => {
                 }
                 return [];
             };
-            target.querySelector = (selector) => selector === "[data-map-viewport='true']" ? viewport : null;
-            viewport.querySelector = (selector) => {
+            target.querySelector = (selector) => {
                 if (selector === "[data-actor-drop-preview='true']") return layer;
                 if (selector === "[data-action='map-image']") return image;
                 return null;
@@ -305,11 +304,10 @@ describe("SceneActorDropController", () => {
 
         try {
             const target = new FakeElement();
-            const viewport = new FakeElement();
+            target.dataset.mapViewport = "true";
             const layer = new FakeElement();
             const image = new FakeImageElement();
-            target.querySelector = (selector) => selector === "[data-map-viewport='true']" ? viewport : null;
-            viewport.querySelector = (selector) => {
+            target.querySelector = (selector) => {
                 if (selector === "[data-actor-drop-preview='true']") return layer;
                 if (selector === "[data-action='map-image']") return image;
                 return null;

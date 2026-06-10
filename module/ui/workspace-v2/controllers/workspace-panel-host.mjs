@@ -250,6 +250,7 @@ export class WorkspacePanelHost {
 
         const imageMarkup = mapSrc
             ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true"
+                data-scene-actor-drop-target="true" data-scene-id="${this.escapeHTML(sceneId)}"
                 data-map-key="${this.escapeHTML(mapScene?.id ?? mapSrc)}"
                 data-grid-type="${this.escapeHTML(sceneGridOverlayState?.gridType ?? mapScene?.grid?.type ?? "")}"
                 data-grid-size="${this.escapeHTML(sceneGridOverlayState?.cellW ?? mapScene?.grid?.size ?? "")}"
@@ -263,7 +264,7 @@ export class WorkspacePanelHost {
             : `<div class="totc-v2-map-panel__empty">No active scene map available</div>`;
 
         return `
-        <figure class="totc-v2-map-panel${calActive ? " is-calibrating" : ""}" data-scene-actor-drop-target="true" data-scene-id="${this.escapeHTML(sceneId)}">
+        <figure class="totc-v2-map-panel${calActive ? " is-calibrating" : ""}">
             ${imageMarkup}
             <figcaption class="totc-v2-map-panel__caption">
                 <span class="totc-v2-map-panel__name">${sceneName}</span>

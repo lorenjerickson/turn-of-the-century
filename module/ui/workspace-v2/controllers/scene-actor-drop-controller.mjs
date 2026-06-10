@@ -108,7 +108,7 @@ export class SceneActorDropController {
 
                 const actors = this.#actorsFromPayload(payload);
                 const scene = this.#sceneFromDropTarget(target);
-                const viewport = target.querySelector("[data-map-viewport='true']");
+                const viewport = this.#viewportFromDropTarget(target);
                 const anchorPosition = this.getImageSpacePoint(viewport, event);
                 await this.addActorsToScene(actors, { scene, anchorPosition });
                 this.activeDragPayload = null;
@@ -153,7 +153,7 @@ export class SceneActorDropController {
     }
 
     renderActorDropPreview(target, { actors = [], scene = null, event = null } = {}) {
-        const viewport = target?.querySelector?.("[data-map-viewport='true']");
+        const viewport = this.#viewportFromDropTarget(target);
         const layer = viewport?.querySelector?.("[data-actor-drop-preview='true']");
         if (!isElementLike(viewport) || !isElementLike(layer)) return null;
 
@@ -222,6 +222,11 @@ export class SceneActorDropController {
 
     #hasActorDragPayload(dataTransfer) {
         return dataTransferHasType(dataTransfer, ACTOR_LIST_DRAG_MIME) || Boolean(this.activeDragPayload?.actorIds?.length);
+    }
+
+    #viewportFromDropTarget(target) {
+        if (String(target?.dataset?.mapViewport ?? "") === "true") return target;
+        return target?.querySelector?.("[data-map-viewport='true']") ?? null;
     }
 
     #setDragImage(dataTransfer, actorIds = []) {

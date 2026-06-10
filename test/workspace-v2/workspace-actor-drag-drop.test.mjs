@@ -17,8 +17,8 @@ const styles = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
 describe("workspace actor drag and drop", () => {
     it("marks map panels as actor drop targets with scene ids", () => {
-        assert.match(workspacePanelHostSource, /data-scene-actor-drop-target="true"/);
-        assert.match(workspacePanelHostSource, /data-scene-id="\$\{this\.escapeHTML\(sceneId\)\}"/);
+        assert.match(workspacePanelHostSource, /data-map-viewport="true"[\s\S]*data-scene-actor-drop-target="true" data-scene-id="\$\{this\.escapeHTML\(sceneId\)\}"/);
+        assert.doesNotMatch(workspacePanelHostSource, /<figure class="totc-v2-map-panel[\s\S]*data-scene-actor-drop-target="true"/);
         assert.match(workspacePanelHostSource, /data-actor-drop-preview="true"/);
     });
 
@@ -46,7 +46,8 @@ describe("workspace actor drag and drop", () => {
 
     it("styles actor drag rows and map drop targets", () => {
         assert.match(styles, /\.totc-v2-actor-list-panel__entry\.is-dragging\s*\{[\s\S]*opacity:\s*0\.56;/);
-        assert.match(styles, /\.totc-v2-map-panel\.is-actor-drop-target\s*\{[\s\S]*border-color:\s*rgba\(251, 191, 36, 0\.42\);/);
+        assert.match(styles, /\.totc-v2-map-panel__viewport\.is-actor-drop-target\s*\{[\s\S]*border-color:\s*rgba\(251, 191, 36, 0\.42\);/);
+        assert.doesNotMatch(styles, /\.totc-v2-map-panel\.is-actor-drop-target\s*\{/);
         assert.match(styles, /\.totc-v2-map-panel__actor-drop-preview\s*\{[\s\S]*transform-origin:\s*0 0;/);
         assert.match(styles, /\.totc-v2-map-panel__actor-drop-preview\.has-preview\s*\{[\s\S]*opacity:\s*0\.62;/);
         assert.match(styles, /\.totc-v2-map-panel__actor-drop-square\s*\{[\s\S]*position:\s*absolute;/);
