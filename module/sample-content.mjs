@@ -3335,6 +3335,27 @@ function maybeDeepClone(data) {
     return clone(data);
 }
 
+export function migrateLegacyExportSourceData(data) {
+    if (!isObject(data)) return data;
+
+    const legacyExportSource = data["flags.exportSource"] ?? data.flags?.exportSource;
+    if (legacyExportSource === undefined) return data;
+
+    const migrated = maybeDeepClone(data);
+    migrated._stats = {
+        ...(isObject(migrated._stats) ? migrated._stats : {}),
+        exportSource: migrated._stats?.exportSource ?? legacyExportSource
+    };
+
+    delete migrated["flags.exportSource"];
+    if (isObject(migrated.flags)) {
+        delete migrated.flags.exportSource;
+        if (!Object.keys(migrated.flags).length) migrated.flags = {};
+    }
+
+    return migrated;
+}
+
 async function withPackUnlocked(pack, fn) {
     const collection = pack.collection;
     let activePack = pack;
@@ -3375,7 +3396,7 @@ async function importIntoCompendium(pack, entries) {
 
     await withPackUnlocked(pack, async (activePack) => {
         for (const entry of entries) {
-            const temporaryDocument = new activePack.documentClass(maybeDeepClone(entry));
+            const temporaryDocument = new activePack.documentClass(migrateLegacyExportSourceData(entry));
             await activePack.importDocument(temporaryDocument);
             imported += 1;
         }
@@ -3581,7 +3602,7 @@ export async function createTotcSampleContent({
             }
             if (existing && overwrite) await existing.delete();
 
-            await ActorDocumentClass.create(maybeDeepClone(actorData));
+            await ActorDocumentClass.create(migrateLegacyExportSourceData(actorData));
             createdActors += 1;
             createdByType[actorData.type] = (createdByType[actorData.type] ?? 0) + 1;
         }
@@ -3601,7 +3622,7 @@ export async function createTotcSampleContent({
             }
             if (existing && overwrite) await existing.delete();
 
-            await ItemDocumentClass.create(maybeDeepClone(itemData));
+            await ItemDocumentClass.create(migrateLegacyExportSourceData(itemData));
             createdItems += 1;
             createdByType[itemData.type] = (createdByType[itemData.type] ?? 0) + 1;
         }

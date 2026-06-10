@@ -2,12 +2,16 @@
  * Migration script to move deprecated flags.exportSource to _stats.exportSource for all items in world and compendiums.
  * Run this in the Foundry VTT console or as a macro.
  */
+export function getLegacyExportSourceFromItemSource(item) {
+  return item?._source?.["flags.exportSource"] ?? item?._source?.flags?.exportSource;
+}
+
 export async function migrateExportSourceFlag({ dryRun = false, notify = true, includeCompendiums = true } = {}) {
   let updated = 0, scanned = 0;
   // Helper to migrate a single item
   async function migrateItem(item) {
     scanned++;
-    const exportSource = item.flags?.exportSource;
+    const exportSource = getLegacyExportSourceFromItemSource(item);
     if (exportSource !== undefined) {
       if (!dryRun) {
         const stats = foundry.utils.deepClone(item._stats ?? {});
