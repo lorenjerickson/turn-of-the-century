@@ -7,6 +7,95 @@ function actor(id, type = "pawn", name = id) {
     return { id, type, name, img: `${id}.webp` };
 }
 
+class FakeClassList {
+    constructor() {
+        this.values = new Set();
+    }
+
+    add(value) {
+        this.values.add(value);
+    }
+
+    remove(value) {
+        this.values.delete(value);
+    }
+
+    contains(value) {
+        return this.values.has(value);
+    }
+
+    toggle(value, force = undefined) {
+        const shouldAdd = force ?? !this.contains(value);
+        if (shouldAdd) this.add(value);
+        else this.remove(value);
+        return shouldAdd;
+    }
+}
+
+class FakeElement {
+    constructor() {
+        this.attributes = {};
+        this.children = [];
+        this.classList = new FakeClassList();
+        this.dataset = {};
+        this.listeners = {};
+        this.style = {};
+        this.innerHTML = "";
+    }
+
+    addEventListener(type, listener) {
+        this.listeners[type] ??= [];
+        this.listeners[type].push(listener);
+    }
+
+    append(child) {
+        this.children.push(child);
+    }
+
+    contains(node) {
+        return node === this || this.children.includes(node);
+    }
+
+    querySelector() {
+        return null;
+    }
+
+    querySelectorAll() {
+        return [];
+    }
+
+    remove() {
+        this.removed = true;
+    }
+
+    setAttribute(name, value) {
+        this.attributes[name] = value;
+    }
+}
+
+class FakeImageElement extends FakeElement {
+    constructor() {
+        super();
+        this.naturalWidth = 1000;
+        this.naturalHeight = 800;
+    }
+}
+
+function fakeDragEvent(dataTransfer, extra = {}) {
+    return {
+        dataTransfer,
+        prevented: false,
+        stopped: false,
+        preventDefault() {
+            this.prevented = true;
+        },
+        stopPropagation() {
+            this.stopped = true;
+        },
+        ...extra
+    };
+}
+
 describe("SceneActorDropController", () => {
     it("creates scene tokens through the extracted placement workflow", async () => {
         const statuses = [];
@@ -93,5 +182,118 @@ describe("SceneActorDropController", () => {
         await controller.addActorsToScene([actor("a", "hero", "Ada")]);
 
         assert.equal(created, true);
+    });
+
+    it("uses the active actor drag payload when dragover and drop cannot read custom data", async () => {
+        const originalHTMLElement = globalThis.HTMLElement;
+        const originalHTMLImageElement = globalThis.HTMLImageElement;
+        globalThis.HTMLElement = FakeElement;
+        globalThis.HTMLImageElement = FakeImageElement;
+
+        try {
+            const row = new FakeElement();
+            row.dataset.actorId = "a";
+            const target = new FakeElement();
+            target.dataset.sceneId = "scene-1";
+            const viewport = new FakeElement();
+            const layer = new FakeElement();
+            const image = new FakeImageElement();
+            const root = new FakeElement();
+            const actorsById = new Map([
+                ["a", actor("a", "hero", "Ada")],
+                ["b", actor("b", "pawn", "Porter")],
+                ["c", actor("c", "villain", "Moriarty")]
+            ]);
+            let createdTokens = [];
+            const scene = {
+                id: "scene-1",
+                name: "Rookery Yard",
+                width: 1000,
+                height: 800,
+                grid: { size: 100 },
+                tokens: { contents: [] },
+                async createEmbeddedDocuments(type, documents) {
+                    assert.equal(type, "Token");
+                    createdTokens = documents;
+                    return documents;
+                }
+            };
+
+            root.querySelectorAll = (selector) => {
+                if (selector === "[data-actor-list-draggable='true']") return [row];
+                if (selector === "[data-scene-actor-drop-target='true']") return [target];
+                if (selector === "[data-actor-drop-preview='true']") return [layer];
+                if (selector === "[data-scene-actor-drop-target].is-actor-drop-target") {
+                    return target.classList.contains("is-actor-drop-target") ? [target] : [];
+                }
+                return [];
+            };
+            target.querySelector = (selector) => selector === "[data-map-viewport='true']" ? viewport : null;
+            viewport.querySelector = (selector) => {
+                if (selector === "[data-actor-drop-preview='true']") return layer;
+                if (selector === "[data-action='map-image']") return image;
+                return null;
+            };
+
+            const controller = new SceneActorDropController({
+                getRoot: () => root,
+                getSelectedActorIds: () => new Set(["a", "b", "c"]),
+                getActorById: (id) => actorsById.get(id),
+                getSceneById: () => scene,
+                getImageSpacePoint: () => ({ x: 120, y: 240 }),
+                documentRef: () => ({
+                    body: new FakeElement(),
+                    createElement: (tag) => tag === "img" ? new FakeImageElement() : new FakeElement()
+                }),
+                render: () => {},
+                logger: { error: () => {} }
+            });
+            controller.wireActorListDragHandlers(root);
+            controller.wireSceneActorDropHandlers(root);
+
+            const storedData = new Map();
+            const dragStartDataTransfer = {
+                types: [],
+                setData: (type, value) => storedData.set(type, value),
+                getData: () => "",
+                setDragImage: () => {},
+                effectAllowed: "",
+                dropEffect: ""
+            };
+            row.listeners.dragstart[0](fakeDragEvent(dragStartDataTransfer));
+
+            const dragOverDataTransfer = {
+                types: [],
+                getData: () => "",
+                dropEffect: ""
+            };
+            const dragOverEvent = fakeDragEvent(dragOverDataTransfer);
+            target.listeners.dragover[0](dragOverEvent);
+
+            assert.equal(dragOverEvent.prevented, true);
+            assert.equal(target.classList.contains("is-actor-drop-target"), true);
+            assert.equal(layer.classList.contains("has-preview"), true);
+            assert.equal((layer.innerHTML.match(/<span class="totc-v2-map-panel__actor-drop-square/g) ?? []).length, 3);
+            assert.match(layer.innerHTML, /left:100px;top:200px;width:100px;height:100px/);
+            assert.match(layer.innerHTML, /left:200px;top:200px;width:100px;height:100px/);
+            assert.match(layer.innerHTML, /left:100px;top:300px;width:100px;height:100px/);
+
+            const dropEvent = fakeDragEvent({
+                types: [],
+                getData: () => ""
+            });
+            await target.listeners.drop[0](dropEvent);
+
+            assert.equal(dropEvent.prevented, true);
+            assert.deepEqual(createdTokens.map((token) => ({ actorId: token.actorId, x: token.x, y: token.y })), [
+                { actorId: "a", x: 100, y: 200 },
+                { actorId: "b", x: 200, y: 200 },
+                { actorId: "c", x: 100, y: 300 }
+            ]);
+            assert.equal(layer.innerHTML, "");
+        } finally {
+            globalThis.HTMLElement = originalHTMLElement;
+            globalThis.HTMLImageElement = originalHTMLImageElement;
+        }
     });
 });

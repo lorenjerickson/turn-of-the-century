@@ -2823,8 +2823,8 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 }
 
 .turn-of-the-century .totc-v2-map-panel.is-actor-drop-target {
-    border-color: rgba(251, 191, 36, 0.72);
-    box-shadow: inset 0 0 0 2px rgba(251, 191, 36, 0.35), 0 0 0 1px rgba(251, 191, 36, 0.25);
+    border-color: rgba(251, 191, 36, 0.42);
+    box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.18), 0 0 0 1px rgba(251, 191, 36, 0.12);
 }
 
 .turn-of-the-century .totc-v2-map-panel__viewport {
@@ -2912,22 +2912,27 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     z-index: 3;
 }
 
+.turn-of-the-century .totc-v2-map-panel__actor-drop-preview.has-preview {
+    opacity: 0.62;
+}
+
 .turn-of-the-century .totc-v2-map-panel__actor-drop-square {
-    background: rgba(251, 191, 36, 0.2);
-    border: 2px solid rgba(253, 230, 138, 0.95);
-    box-shadow: inset 0 0 0 1px rgba(120, 53, 15, 0.55), 0 0 0 1px rgba(251, 191, 36, 0.3);
+    background: rgba(251, 191, 36, 0.12);
+    border: 2px solid rgba(253, 230, 138, 0.58);
+    box-shadow: inset 0 0 0 1px rgba(120, 53, 15, 0.22), 0 0 0 1px rgba(251, 191, 36, 0.16);
+    box-sizing: border-box;
     display: block;
     position: absolute;
 }
 
 .turn-of-the-century .totc-v2-map-panel__actor-drop-square--hero {
-    background: rgba(56, 189, 248, 0.22);
-    border-color: rgba(125, 211, 252, 0.95);
+    background: rgba(56, 189, 248, 0.14);
+    border-color: rgba(125, 211, 252, 0.6);
 }
 
 .turn-of-the-century .totc-v2-map-panel__actor-drop-square--villain {
-    background: rgba(248, 113, 113, 0.22);
-    border-color: rgba(252, 165, 165, 0.95);
+    background: rgba(248, 113, 113, 0.14);
+    border-color: rgba(252, 165, 165, 0.6);
 }
 
 .totc-v2-actor-drag-image {

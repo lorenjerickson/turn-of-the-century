@@ -44,6 +44,7 @@ export class SceneActorDropController {
         this.documentRef = documentRef;
         this.logger = logger;
         this.dragImage = null;
+        this.activeDragPayload = null;
     }
 
     wireActorListDragHandlers(root = this.getRoot()) {
@@ -56,6 +57,7 @@ export class SceneActorDropController {
                     selectedActorIds: this.getSelectedActorIds()
                 });
                 if (!payload?.actorIds?.length || !event.dataTransfer) return;
+                this.activeDragPayload = payload;
                 event.dataTransfer.setData(ACTOR_LIST_DRAG_MIME, JSON.stringify(payload));
                 event.dataTransfer.setData("text/plain", payload.actorIds.join(","));
                 event.dataTransfer.effectAllowed = "copy";
@@ -66,6 +68,7 @@ export class SceneActorDropController {
                 row.classList.remove("is-dragging");
                 this.clearDragImage();
                 this.clearSceneActorDropTargets();
+                this.activeDragPayload = null;
             });
         });
     }
@@ -73,12 +76,12 @@ export class SceneActorDropController {
     wireSceneActorDropHandlers(root = this.getRoot()) {
         root?.querySelectorAll("[data-scene-actor-drop-target='true']")?.forEach((target) => {
             target.addEventListener("dragover", (event) => {
-                if (!dataTransferHasType(event.dataTransfer, ACTOR_LIST_DRAG_MIME)) return;
+                if (!this.#hasActorDragPayload(event.dataTransfer)) return;
                 event.preventDefault();
                 event.stopPropagation();
-                event.dataTransfer.dropEffect = "copy";
+                if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
                 this.clearSceneActorDropTargets(target);
-                const payload = parseActorListDragPayload(event.dataTransfer?.getData(ACTOR_LIST_DRAG_MIME));
+                const payload = this.#payloadFromDataTransfer(event.dataTransfer);
                 const actors = this.#actorsFromPayload(payload);
                 const scene = this.#sceneFromDropTarget(target);
                 this.renderActorDropPreview(target, { actors, scene, event });
@@ -91,7 +94,8 @@ export class SceneActorDropController {
                 this.clearActorDropPreviews();
             });
             target.addEventListener("drop", async (event) => {
-                const payload = parseActorListDragPayload(event.dataTransfer?.getData(ACTOR_LIST_DRAG_MIME));
+                if (!this.#hasActorDragPayload(event.dataTransfer)) return;
+                const payload = this.#payloadFromDataTransfer(event.dataTransfer);
                 if (!payload.actorIds.length) return;
                 event.preventDefault();
                 event.stopPropagation();
@@ -103,6 +107,7 @@ export class SceneActorDropController {
                 const viewport = target.querySelector("[data-map-viewport='true']");
                 const anchorPosition = this.getImageSpacePoint(viewport, event);
                 await this.addActorsToScene(actors, { scene, anchorPosition });
+                this.activeDragPayload = null;
             });
         });
     }
@@ -199,6 +204,15 @@ export class SceneActorDropController {
     clearDragImage() {
         this.dragImage?.remove?.();
         this.dragImage = null;
+    }
+
+    #payloadFromDataTransfer(dataTransfer) {
+        const payload = parseActorListDragPayload(dataTransfer?.getData?.(ACTOR_LIST_DRAG_MIME));
+        return payload.actorIds.length ? payload : (this.activeDragPayload ?? payload);
+    }
+
+    #hasActorDragPayload(dataTransfer) {
+        return dataTransferHasType(dataTransfer, ACTOR_LIST_DRAG_MIME) || Boolean(this.activeDragPayload?.actorIds?.length);
     }
 
     #setDragImage(dataTransfer, actorIds = []) {
