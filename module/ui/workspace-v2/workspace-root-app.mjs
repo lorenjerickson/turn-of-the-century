@@ -3477,8 +3477,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     const scene = game.scenes?.get(sceneId);
                     if (!scene) return;
 
+                    const tokenDoc = scene.tokens?.get(tokenId);
+                    const actor = tokenDoc?.actor || game.actors?.get(tokenDoc?.actorId);
+                    if (!actor?.isOwner) return;
+
                     const draggedTokens = [];
                     for (const id of this.selectedTokenIds) {
+                        const tDoc = scene.tokens?.get(id);
+                        const tActor = tDoc?.actor || game.actors?.get(tDoc?.actorId);
+                        if (!tActor?.isOwner) continue;
+
                         const el = viewport.querySelector(`[data-token-id="${id}"]`);
                         if (el) {
                             const startLeft = parseFloat(el.style.left) || 0;
@@ -3486,6 +3494,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                             draggedTokens.push({ id, el, startLeft, startTop });
                         }
                     }
+
+                    if (draggedTokens.length === 0) return;
 
                     const startClientX = event.clientX;
                     const startClientY = event.clientY;

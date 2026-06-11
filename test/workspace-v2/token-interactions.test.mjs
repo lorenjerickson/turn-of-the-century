@@ -41,6 +41,11 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /Math\.round\(\(rawX - offsetX\) \/ cellSize\) \* cellSize \+ offsetX/);
         assert.match(workspaceRootSource, /scene\.updateEmbeddedDocuments\("Token", updates\)/);
 
+        // Assert token dragging checks for owner permission on actors
+        assert.match(workspaceRootSource, /const tokenDoc = scene\.tokens\?\.get\(tokenId\);/);
+        assert.match(workspaceRootSource, /if \(!actor\?\.isOwner\) return;/);
+        assert.match(workspaceRootSource, /if \(!tActor\?\.isOwner\) continue;/);
+
         // Assert rubberband selection box creation, class toggling, and cleanup
         assert.match(workspaceRootSource, /totc-v2-map-viewport__selection-box/);
         assert.match(workspaceRootSource, /overlaps = ![\s\S]*tokenRect\.right < boxRect\.left/);
