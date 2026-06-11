@@ -2928,6 +2928,84 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     min-height: 0;
 }
 
+.turn-of-the-century .totc-v2-map-panel.has-toolbar {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+/* -------------------------------------------------------------------------
+   Map panel — segmented toolbar
+   ------------------------------------------------------------------------- */
+
+.turn-of-the-century .totc-v2-map-toolbar {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    justify-content: space-between;
+    min-height: 2rem;
+}
+
+.turn-of-the-century .totc-v2-map-toolbar__primary {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.turn-of-the-century .totc-v2-map-toolbar__secondary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-inline-start: auto;
+}
+
+.turn-of-the-century .totc-v2-map-toolbar__segment {
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 5px;
+    display: flex;
+    gap: 0;
+    overflow: hidden;
+}
+
+.turn-of-the-century .totc-v2-map-toolbar__btn {
+    align-items: center;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    font-size: 0.75rem;
+    font-weight: 500;
+    gap: 0.28rem;
+    line-height: 1;
+    padding: 0.28rem 0.6rem;
+    transition: background 0.12s ease, color 0.12s ease;
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-v2-map-toolbar__btn + .totc-v2-map-toolbar__btn {
+    border-inline-start: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.turn-of-the-century .totc-v2-map-toolbar__btn:hover {
+    background: rgba(148, 163, 184, 0.1);
+    color: #e2e8f0;
+}
+
+.turn-of-the-century .totc-v2-map-toolbar__btn.is-active {
+    background: rgba(253, 230, 138, 0.14);
+    color: #fde68a;
+}
+
+.turn-of-the-century .totc-v2-map-toolbar__btn.is-active:hover {
+    background: rgba(253, 230, 138, 0.2);
+    color: #fef3c7;
+}
+
+.turn-of-the-century .totc-v2-map-toolbar__btn i {
+    font-size: 0.7rem;
+}
+
 .turn-of-the-century .totc-v2-map-panel__viewport {
     background: #0f172a;
     border: 1px solid rgba(148, 163, 184, 0.25);

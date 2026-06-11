@@ -70,6 +70,7 @@ export class WorkspacePanelHost {
         gridCalibrationState = () => ({}),
         getSceneGridOverlayState = () => null,
         getSceneWallOverlayState = () => null,
+        getMapPanelToolbarState = () => ({}),
         renderMarketPanel = () => "",
         renderPlayerPanel = () => "",
         renderGamemasterPanel = () => "",
@@ -85,6 +86,7 @@ export class WorkspacePanelHost {
         this.gridCalibrationState = gridCalibrationState;
         this.getSceneGridOverlayState = getSceneGridOverlayState;
         this.getSceneWallOverlayState = getSceneWallOverlayState;
+        this.getMapPanelToolbarState = getMapPanelToolbarState;
         this.renderMarketPanel = renderMarketPanel;
         this.renderPlayerPanel = renderPlayerPanel;
         this.renderGamemasterPanel = renderGamemasterPanel;
@@ -240,6 +242,7 @@ export class WorkspacePanelHost {
         const sceneId = String(mapScene?.id ?? this.getPanelSceneId(panel, context) ?? "").trim();
         const dimensions = [mapScene?.width, mapScene?.height].filter((value) => Number.isFinite(value) && value > 0);
         const dimensionLabel = dimensions.length === 2 ? `${dimensions[0]} x ${dimensions[1]}` : "Scene map";
+        const panelId = this.escapeHTML(String(panel?.id ?? "").trim());
 
         const calModel = buildGridCalibrationModel({
             state: this.gridCalibrationState(),
@@ -253,6 +256,8 @@ export class WorkspacePanelHost {
         const gridOverlayActive = calActive || sceneGridOverlayActive || wallOverlayActive;
         const calDialog = renderGridCalibrationDialog(calModel, { escapeHTML: (v) => this.escapeHTML(v) });
         const tokenMarkup = this.#renderMapTokenLayer(mapScene);
+        const toolbarState = this.getMapPanelToolbarState(panel);
+        const toolbarMarkup = this.isGM() ? this.#renderMapToolbar(panelId, toolbarState) : "";
 
         const imageMarkup = mapSrc
             ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true"
@@ -270,7 +275,8 @@ export class WorkspacePanelHost {
             : `<div class="totc-v2-map-panel__empty">No active scene map available</div>`;
 
         return `
-        <figure class="totc-v2-map-panel${calActive ? " is-calibrating" : ""}">
+        <figure class="totc-v2-map-panel${calActive ? " is-calibrating" : ""}${toolbarMarkup ? " has-toolbar" : ""}">
+            ${toolbarMarkup}
             ${imageMarkup}
             <figcaption class="totc-v2-map-panel__caption">
                 <span class="totc-v2-map-panel__name">${sceneName}</span>
@@ -278,6 +284,100 @@ export class WorkspacePanelHost {
             </figcaption>
             ${calDialog}
         </figure>`;
+    }
+
+    #renderMapToolbar(panelId = "", state = {}) {
+        const mode = String(state.mode ?? "");
+        const wallsActive = mode === "walls";
+        const wallCommand = String(state.wallCommand ?? "detect");
+        const wallType = String(state.wallType ?? "wall");
+
+        const primarySegment = `
+        <div class="totc-v2-map-toolbar__segment" role="group" aria-label="View mode">
+            <button type="button"
+                class="totc-v2-map-toolbar__btn${wallsActive ? " is-active" : ""}"
+                data-action="map-mode-select"
+                data-map-panel-id="${panelId}"
+                data-mode="walls"
+                aria-pressed="${wallsActive}"
+                title="Walls view — draw and edit scene walls">
+                <i class="fa-solid fa-draw-polygon" aria-hidden="true"></i>
+                <span>Walls</span>
+            </button>
+        </div>`;
+
+        const secondarySegment = wallsActive ? `
+        <div class="totc-v2-map-toolbar__secondary">
+            <div class="totc-v2-map-toolbar__segment" role="group" aria-label="Wall command">
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallCommand === "detect" ? " is-active" : ""}"
+                    data-action="map-wall-command"
+                    data-map-panel-id="${panelId}"
+                    data-command="detect"
+                    aria-pressed="${wallCommand === "detect"}"
+                    title="Auto-detect grid-aligned walls from the map image">
+                    <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                    <span>Detect</span>
+                </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallCommand === "add" ? " is-active" : ""}"
+                    data-action="map-wall-command"
+                    data-map-panel-id="${panelId}"
+                    data-command="add"
+                    aria-pressed="${wallCommand === "add"}"
+                    title="Click a grid edge to add a wall segment">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                    <span>Add</span>
+                </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallCommand === "remove" ? " is-active" : ""}"
+                    data-action="map-wall-command"
+                    data-map-panel-id="${panelId}"
+                    data-command="remove"
+                    aria-pressed="${wallCommand === "remove"}"
+                    title="Click an existing wall segment to remove it">
+                    <i class="fa-solid fa-minus" aria-hidden="true"></i>
+                    <span>Remove</span>
+                </button>
+            </div>
+            <div class="totc-v2-map-toolbar__segment" role="group" aria-label="Wall type">
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallType === "wall" ? " is-active" : ""}"
+                    data-action="map-wall-type"
+                    data-map-panel-id="${panelId}"
+                    data-wall-type="wall"
+                    aria-pressed="${wallType === "wall"}"
+                    title="Wall — solid impassable barrier">
+                    <span>Wall</span>
+                </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallType === "door" ? " is-active" : ""}"
+                    data-action="map-wall-type"
+                    data-map-panel-id="${panelId}"
+                    data-wall-type="door"
+                    aria-pressed="${wallType === "door"}"
+                    title="Door — openable passage">
+                    <span>Door</span>
+                </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallType === "window" ? " is-active" : ""}"
+                    data-action="map-wall-type"
+                    data-map-panel-id="${panelId}"
+                    data-wall-type="window"
+                    aria-pressed="${wallType === "window"}"
+                    title="Window — see-through barrier">
+                    <span>Window</span>
+                </button>
+            </div>
+        </div>` : "";
+
+        return `
+        <nav class="totc-v2-map-toolbar" aria-label="Map tools" data-map-panel-id="${panelId}">
+            <div class="totc-v2-map-toolbar__primary">
+                ${primarySegment}
+            </div>
+            ${secondarySegment}
+        </nav>`;
     }
 
     #renderMapTokenLayer(scene = null) {

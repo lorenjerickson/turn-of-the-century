@@ -855,6 +855,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             gridCalibrationState: () => this.gridCalibrationController.state,
             getSceneGridOverlayState: (scene) => this.#getSceneGridOverlayState(scene),
             getSceneWallOverlayState: (scene) => this.#getSceneDetectedWallOverlayState(scene),
+            getMapPanelToolbarState: (panel) => this.#getMapPanelToolbarState(panel),
             renderMarketPanel: (marketPanel) => this.#renderMarketPanel(marketPanel),
             renderPlayerPanel: (playerPanel, dieRollRequestPanel) => this.#renderPlayerPanel(playerPanel, dieRollRequestPanel),
             renderGamemasterPanel: (gmPanel, gmSnapshot, dieRollRequestPanel) => this.#renderGamemasterPanel(gmPanel, gmSnapshot, dieRollRequestPanel),
@@ -894,6 +895,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
         this._appliedGridOverlayStates = new Map();
         this._detectedWallOverlayStates = new Map();
+        this._mapPanelToolbarStates = new Map();
         this._gmAssistantState = {
             elementType: "campaign",
             actorType: "pawn",
@@ -1719,6 +1721,50 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const actionId = String(button.dataset.designActionId ?? "").trim();
                 const panelId = String(button.dataset.panelId ?? "").trim();
                 await this.#executeDesignAction(actionId, { panelId });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='map-mode-select']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!game.user?.isGM) return;
+                const panelId = String(button.dataset.mapPanelId ?? "").trim();
+                const mode = String(button.dataset.mode ?? "").trim();
+                const current = this.#getMapPanelToolbarState(this.panelRegistry?.get?.(panelId) ?? { id: panelId });
+                const nextMode = current.mode === mode ? null : mode;
+                this.#patchMapPanelToolbarState(panelId, { mode: nextMode });
+                if (nextMode === "walls") {
+                    await this.#executeDesignAction("scene.walls", { panelId });
+                }
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='map-wall-command']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!game.user?.isGM) return;
+                const panelId = String(button.dataset.mapPanelId ?? "").trim();
+                const command = String(button.dataset.command ?? "").trim();
+                this.#patchMapPanelToolbarState(panelId, { wallCommand: command });
+                if (command === "detect") {
+                    await this.#executeDesignAction("scene.detectWalls", { panelId });
+                }
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='map-wall-type']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!game.user?.isGM) return;
+                const panelId = String(button.dataset.mapPanelId ?? "").trim();
+                const wallType = String(button.dataset.wallType ?? "").trim();
+                this.#patchMapPanelToolbarState(panelId, { wallType });
+                this.render({ force: false });
             });
         });
 
@@ -4462,6 +4508,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     #getSceneDetectedWallOverlayState(scene = null) {
         const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
         return sceneId ? (this._detectedWallOverlayStates.get(sceneId) ?? null) : null;
+    }
+
+    #getMapPanelToolbarState(panel = null) {
+        const panelId = String(panel?.id ?? "").trim();
+        if (!panelId) return { mode: null, wallCommand: "detect", wallType: "wall" };
+        return this._mapPanelToolbarStates.get(panelId) ?? { mode: null, wallCommand: "detect", wallType: "wall" };
+    }
+
+    #patchMapPanelToolbarState(panelId = "", patch = {}) {
+        const current = this._mapPanelToolbarStates.get(panelId) ?? { mode: null, wallCommand: "detect", wallType: "wall" };
+        this._mapPanelToolbarStates.set(panelId, { ...current, ...patch });
     }
 
     #setSceneDetectedWallOverlayState(scene = null, overlayState = null) {
