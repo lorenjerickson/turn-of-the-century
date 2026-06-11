@@ -343,6 +343,52 @@ describe("regular grid wall detection", () => {
         ]);
     });
 
+    it("discards isolated single-cell wall segments (proximity rule)", () => {
+        const imageData = makeImageData(201, 201);
+        drawHorizontalLine(imageData, 100, 0, 100, 0, 3);
+
+        const result = detectRegularGridWallSegments({
+            imageData,
+            scene: {
+                width: 200,
+                height: 200,
+                grid: { type: 1, size: 100 }
+            }
+        });
+
+        assert.equal(result.ok, true);
+        assert.equal(result.segments.length, 0);
+    });
+
+    it("discards diagonal wall segments that conflict with right-angle segments at the same vertex", () => {
+        const imageData = makeImageData(201, 201);
+        drawVerticalLine(imageData, 100, 0, 200, 0, 3);
+        drawHorizontalLine(imageData, 100, 0, 100, 0, 3);
+        drawDiagonalLine(imageData, 100, 100, 200, 200, 0, 3);
+
+        const result = detectRegularGridWallSegments({
+            imageData,
+            scene: {
+                width: 200,
+                height: 200,
+                grid: { type: 1, size: 100 }
+            }
+        });
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(result.segments.map((segment) => ({
+            orientation: segment.orientation,
+            x1: segment.x1,
+            y1: segment.y1,
+            x2: segment.x2,
+            y2: segment.y2,
+            type: segment.type
+        })), [
+            { orientation: "horizontal", x1: 0, y1: 100, x2: 100, y2: 100, type: "wall" },
+            { orientation: "vertical", x1: 100, y1: 0, x2: 100, y2: 200, type: "wall" }
+        ]);
+    });
+
     it("builds Foundry wall data with blocking wall defaults", () => {
         assert.deepEqual(buildDetectedWallDocumentData([{
             x1: 100,

@@ -326,6 +326,100 @@ function mergeSegments(segments = []) {
     return merged;
 }
 
+export function filterQualitativeWalls(segments = []) {
+    // 1. Build graph to identify right-angle vs diagonal conflicts
+    const adjacency = new Map();
+    const addAdjacency = (key, segment) => {
+        if (!adjacency.has(key)) {
+            adjacency.set(key, { rightAngle: 0, diagonal: 0, segments: [] });
+        }
+        const entry = adjacency.get(key);
+        entry.segments.push(segment);
+        const isDiag = segment.orientation.startsWith("diagonal-");
+        if (isDiag) {
+            entry.diagonal += 1;
+        } else {
+            entry.rightAngle += 1;
+        }
+    };
+
+    for (const segment of segments) {
+        const key1 = `${Math.round(segment.x1)}:${Math.round(segment.y1)}`;
+        const key2 = `${Math.round(segment.x2)}:${Math.round(segment.y2)}`;
+        addAdjacency(key1, segment);
+        addAdjacency(key2, segment);
+    }
+
+    // 2. Identify diagonal segments that share a vertex with a right-angle segment
+    const discardedDiagonals = new Set();
+    for (const [key, entry] of adjacency.entries()) {
+        if (entry.rightAngle > 0 && entry.diagonal > 0) {
+            for (const segment of entry.segments) {
+                if (segment.orientation.startsWith("diagonal-")) {
+                    discardedDiagonals.add(segment);
+                }
+            }
+        }
+    }
+
+    // Filter out the discarded diagonal segments
+    const remainingAfterConflict = segments.filter((s) => !discardedDiagonals.has(s));
+
+    // 3. Build graph for remaining segments to find connected components
+    const graph = new Map();
+    const addGraphEdge = (u, v, segment) => {
+        if (!graph.has(u)) graph.set(u, []);
+        graph.get(u).push({ neighbor: v, segment });
+    };
+
+    for (const segment of remainingAfterConflict) {
+        const u = `${Math.round(segment.x1)}:${Math.round(segment.y1)}`;
+        const v = `${Math.round(segment.x2)}:${Math.round(segment.y2)}`;
+        addGraphEdge(u, v, segment);
+        addGraphEdge(v, u, segment);
+    }
+
+    // Find connected components of segments
+    const visitedVertices = new Set();
+    const finalSegments = [];
+
+    for (const segment of remainingAfterConflict) {
+        const startU = `${Math.round(segment.x1)}:${Math.round(segment.y1)}`;
+        if (visitedVertices.has(startU)) continue;
+
+        // BFS to find all vertices and segments in this component
+        const componentVertices = new Set();
+        const componentSegments = new Set();
+        const queue = [startU];
+        componentVertices.add(startU);
+
+        while (queue.length > 0) {
+            const curr = queue.shift();
+            const edges = graph.get(curr) ?? [];
+            for (const edge of edges) {
+                componentSegments.add(edge.segment);
+                if (!componentVertices.has(edge.neighbor)) {
+                    componentVertices.add(edge.neighbor);
+                    queue.push(edge.neighbor);
+                }
+            }
+        }
+
+        // Add all vertices in the component to visited
+        for (const vertex of componentVertices) {
+            visitedVertices.add(vertex);
+        }
+
+        // Apply proximity / enclosure rule:
+        // A wall by itself (single segment component) is discarded.
+        if (componentSegments.size > 1) {
+            finalSegments.push(...componentSegments);
+        }
+    }
+
+    return finalSegments;
+}
+
 function pointKey(x, y) {
     return `${Math.round(x)}:${Math.round(y)}`;
 }
@@ -586,7 +680,7 @@ export function detectRegularGridWallSegments({
 
     const unique = new Map();
     for (const segment of detected) unique.set(segmentKey(segment), segment);
-    const segments = mergeSegments([...unique.values()]);
+    const segments = mergeSegments(filterQualitativeWalls([...unique.values()]));
     return {
         ok: true,
         reason: "",
