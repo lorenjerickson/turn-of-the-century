@@ -11,8 +11,8 @@ export const REGULAR_GRID_WALL_DETECTION_DEFAULTS = Object.freeze({
     minDarkRatio: 0.52,
     darkLuminance: 120,
     minSegmentPixels: 8,
-    minContrast: 30,
-    bgOffset: 4
+    minContrast: 20,
+    bgOffset: 6
 });
 
 function positiveNumber(value, fallback = 0) {
@@ -187,23 +187,18 @@ export function scoreGridLineSegment({
                 const bgLum1 = luminanceAt(data, imageWidth, imageHeight, bgX1, bgY1);
                 const bgLum2 = luminanceAt(data, imageWidth, imageHeight, bgX2, bgY2);
 
-                let bgLumSum = 0;
-                let bgCount = 0;
-                if (bgLum1 !== null) {
-                    bgLumSum += bgLum1;
-                    bgCount += 1;
+                let hasContrast = false;
+                if (bgLum1 !== null && bgLum1 - luminance >= contrastMin) {
+                    hasContrast = true;
                 }
-                if (bgLum2 !== null) {
-                    bgLumSum += bgLum2;
-                    bgCount += 1;
+                if (bgLum2 !== null && bgLum2 - luminance >= contrastMin) {
+                    hasContrast = true;
+                }
+                if (bgLum1 === null && bgLum2 === null) {
+                    hasContrast = true;
                 }
 
-                if (bgCount > 0) {
-                    const avgBgLum = bgLumSum / bgCount;
-                    if (avgBgLum - luminance >= contrastMin) {
-                        darkSamples += 1;
-                    }
-                } else {
+                if (hasContrast) {
                     darkSamples += 1;
                 }
             }

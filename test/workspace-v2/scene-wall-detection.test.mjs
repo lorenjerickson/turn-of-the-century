@@ -137,6 +137,37 @@ describe("regular grid wall detection", () => {
         assert.equal(score.darkRatio, 0);
     });
 
+    it("scores a segment as a wall if only one side has high contrast (e.g. object adjacent to the wall)", () => {
+        const imageData = makeImageData(120, 120, 0); // start with black
+        // Fill left half (x < 44) with white background (255)
+        for (let y = 0; y < 120; y += 1) {
+            for (let x = 0; x < 45; x += 1) {
+                setPixel(imageData, x, y, 255);
+            }
+        }
+        // Right half (x >= 45) is left black (0), representing a dark object adjacent to the wall.
+        // Draw the vertical wall line at x = 50 with thickness 3 and luminance 0
+        drawVerticalLine(imageData, 50, 0, 119, 0, 3);
+
+        const score = scoreGridLineSegment({
+            imageData,
+            width: 120,
+            height: 120,
+            orientation: "vertical",
+            fixed: 50,
+            from: 10,
+            to: 100,
+            sampleRadius: 1,
+            darkLuminance: 120,
+            minContrast: 30,
+            bgOffset: 6
+        });
+
+        // The wall should be detected because the left side has contrast (255 vs 0),
+        // even though the right side has no contrast (0 vs 0).
+        assert.equal(score.darkRatio, 1);
+    });
+
     it("detects and merges confident grid-aligned wall segments", () => {
         const imageData = makeImageData(201, 201);
         drawVerticalLine(imageData, 100, 0, 200, 0, 3);
