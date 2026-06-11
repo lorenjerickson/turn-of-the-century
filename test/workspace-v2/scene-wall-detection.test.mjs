@@ -225,6 +225,32 @@ describe("regular grid wall detection", () => {
         assert.equal(scoreWall.darkRatio, 1); // Wall next to object should be detected!
     });
 
+    it("detects light-colored walls on a dark background", () => {
+        // Create a dark background image (luminance 40)
+        const imageData = makeImageData(120, 120, 40);
+        // Draw a light-colored wall (luminance 220) at x=50
+        drawVerticalLine(imageData, 50, 0, 119, 220, 3);
+
+        const score = scoreGridLineSegment({
+            imageData,
+            width: 120,
+            height: 120,
+            orientation: "vertical",
+            fixed: 50,
+            from: 10,
+            to: 100,
+            sampleRadius: 1,
+            minContrast: 30,
+            bgOffset: 6,
+            cellAvg1: 40,
+            cellAvg2: 40
+        });
+
+        // The wall should be detected because it has high contrast (220 vs 40)
+        // and a strong Sobel edge.
+        assert.equal(score.darkRatio, 1);
+    });
+
     it("detects and merges confident grid-aligned wall segments", () => {
         const imageData = makeImageData(201, 201);
         drawVerticalLine(imageData, 100, 0, 200, 0, 3);

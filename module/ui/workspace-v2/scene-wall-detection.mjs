@@ -1,3 +1,4 @@
+import { Sobel } from "../../vendor/sobel.mjs";
 import { GRID_TYPES } from "./panels/grid-calibration.mjs";
 
 const FALLBACK_WALL_MOVEMENT_NORMAL = 20;
@@ -12,7 +13,8 @@ export const REGULAR_GRID_WALL_DETECTION_DEFAULTS = Object.freeze({
     darkLuminance: 120,
     minSegmentPixels: 8,
     minContrast: 20,
-    bgOffset: 6
+    bgOffset: 6,
+    minEdgeMagnitude: 40
 });
 
 function positiveNumber(value, fallback = 0) {
@@ -163,7 +165,9 @@ export function scoreGridLineSegment({
     minContrast = REGULAR_GRID_WALL_DETECTION_DEFAULTS.minContrast,
     bgOffset = REGULAR_GRID_WALL_DETECTION_DEFAULTS.bgOffset,
     cellAvg1 = null,
-    cellAvg2 = null
+    cellAvg2 = null,
+    edgeMap = null,
+    minEdgeMagnitude = REGULAR_GRID_WALL_DETECTION_DEFAULTS.minEdgeMagnitude
 } = {}) {
     const data = imageData?.data ?? imageData;
     const imageWidth = Math.round(positiveNumber(width, 0));
@@ -201,9 +205,19 @@ export function scoreGridLineSegment({
     const orthoY = steps > 0 ? dx / length : 0;
 
     const radius = Math.max(0, Math.round(finiteNumber(sampleRadius, 1)));
-    const threshold = finiteNumber(darkLuminance, REGULAR_GRID_WALL_DETECTION_DEFAULTS.darkLuminance);
     const contrastMin = finiteNumber(minContrast, REGULAR_GRID_WALL_DETECTION_DEFAULTS.minContrast);
     const offsetBg = Math.max(1, Math.round(finiteNumber(bgOffset, REGULAR_GRID_WALL_DETECTION_DEFAULTS.bgOffset)));
+
+    // Fallback/compute edgeMap if missing
+    let finalEdgeMap = edgeMap;
+    if (!finalEdgeMap && data) {
+        try {
+            finalEdgeMap = Sobel({ width: imageWidth, height: imageHeight, data });
+        } catch (e) {
+            // Ignore if image data format is invalid (e.g. mock objects)
+        }
+    }
+
     let samples = 0;
     let darkSamples = 0;
 
@@ -217,9 +231,30 @@ export function scoreGridLineSegment({
 
             const luminance = luminanceAt(data, imageWidth, imageHeight, x, y);
             if (luminance === null) continue;
-            samples += 1;
 
-            if (luminance <= threshold) {
+            const sampleWeight = radius > 0 ? 1.0 - (Math.abs(delta) / (radius + 1.0)) : 1.0;
+            samples += sampleWeight;
+
+            // Get maximum Sobel magnitude in perpendicular neighborhood to handle line centers and adjacent objects
+            let edgeVal = 0;
+            if (finalEdgeMap) {
+                const px = Math.round(x);
+                const py = Math.round(y);
+                const searchRange = Math.max(1, offsetBg);
+                for (let k = -searchRange; k <= searchRange; k++) {
+                    const nx = Math.round(px + orthoX * k);
+                    const ny = Math.round(py + orthoY * k);
+                    if (nx >= 0 && ny >= 0 && nx < imageWidth && ny < imageHeight) {
+                        const edgeIdx = ((ny * imageWidth) + nx) * 4;
+                        edgeVal = Math.max(edgeVal, finalEdgeMap[edgeIdx]);
+                    }
+                }
+            } else {
+                // If edgeMap is still unavailable, bypass edge check
+                edgeVal = 255;
+            }
+
+            if (edgeVal >= minEdgeMagnitude) {
                 const bgX1 = cx - orthoX * offsetBg;
                 const bgY1 = cy - orthoY * offsetBg;
                 const bgX2 = cx + orthoX * offsetBg;
@@ -234,21 +269,22 @@ export function scoreGridLineSegment({
                     bgLum2 = temp;
                 }
 
+                // Check contrast using absolute difference to allow light-colored walls on dark backgrounds
                 let hasContrast1 = false;
                 if (bgLum1 === null) {
                     hasContrast1 = true;
-                } else if (bgLum1 - luminance >= contrastMin) {
+                } else if (Math.abs(bgLum1 - luminance) >= contrastMin) {
                     hasContrast1 = true;
-                } else if (cellAvg1 !== null && cellAvg1 - luminance >= contrastMin && cellAvg1 - bgLum1 >= contrastMin) {
+                } else if (cellAvg1 !== null && Math.abs(cellAvg1 - luminance) >= contrastMin && Math.abs(cellAvg1 - bgLum1) >= contrastMin) {
                     hasContrast1 = true;
                 }
 
                 let hasContrast2 = false;
                 if (bgLum2 === null) {
                     hasContrast2 = true;
-                } else if (bgLum2 - luminance >= contrastMin) {
+                } else if (Math.abs(bgLum2 - luminance) >= contrastMin) {
                     hasContrast2 = true;
-                } else if (cellAvg2 !== null && cellAvg2 - luminance >= contrastMin && cellAvg2 - bgLum2 >= contrastMin) {
+                } else if (cellAvg2 !== null && Math.abs(cellAvg2 - luminance) >= contrastMin && Math.abs(cellAvg2 - bgLum2) >= contrastMin) {
                     hasContrast2 = true;
                 }
 
@@ -265,7 +301,7 @@ export function scoreGridLineSegment({
                 }
 
                 if (wallDetected) {
-                    darkSamples += 1;
+                    darkSamples += sampleWeight;
                 }
             }
         }
@@ -514,6 +550,16 @@ export function detectRegularGridWallSegments({
     const inset = Math.max(0, Math.round(gridModel.cellSize * finiteNumber(settings.insetRatio, 0)));
     const detected = [];
 
+    // Precompute Sobel edge map for the image
+    let edgeMap = null;
+    if (imageData) {
+        try {
+            edgeMap = Sobel(imageData);
+        } catch (e) {
+            // Ignore if image data format is invalid
+        }
+    }
+
     const cols = verticalLines.length - 1;
     const rows = horizontalLines.length - 1;
     const cellAverages = Array.from({ length: cols }, () => new Float64Array(rows));
@@ -555,7 +601,9 @@ export function detectRegularGridWallSegments({
                 minContrast: settings.minContrast,
                 bgOffset: settings.bgOffset,
                 cellAvg1,
-                cellAvg2
+                cellAvg2,
+                edgeMap,
+                minEdgeMagnitude: settings.minEdgeMagnitude
             });
             if (score.darkRatio >= settings.minDarkRatio) {
                 detected.push({ orientation: "vertical", type: "wall", x1: x, y1, x2: x, y2, score: score.darkRatio });
@@ -586,7 +634,9 @@ export function detectRegularGridWallSegments({
                 minContrast: settings.minContrast,
                 bgOffset: settings.bgOffset,
                 cellAvg1,
-                cellAvg2
+                cellAvg2,
+                edgeMap,
+                minEdgeMagnitude: settings.minEdgeMagnitude
             });
             if (score.darkRatio >= settings.minDarkRatio) {
                 detected.push({ orientation: "horizontal", type: "wall", x1, y1: y, x2, y2: y, score: score.darkRatio });
@@ -620,7 +670,9 @@ export function detectRegularGridWallSegments({
                 minContrast: settings.minContrast,
                 bgOffset: settings.bgOffset,
                 cellAvg1: cellAvg,
-                cellAvg2: cellAvg
+                cellAvg2: cellAvg,
+                edgeMap,
+                minEdgeMagnitude: settings.minEdgeMagnitude
             });
             if (score.darkRatio >= settings.minDarkRatio) {
                 detected.push({
@@ -662,7 +714,9 @@ export function detectRegularGridWallSegments({
                 minContrast: settings.minContrast,
                 bgOffset: settings.bgOffset,
                 cellAvg1: cellAvg,
-                cellAvg2: cellAvg
+                cellAvg2: cellAvg,
+                edgeMap,
+                minEdgeMagnitude: settings.minEdgeMagnitude
             });
             if (score.darkRatio >= settings.minDarkRatio) {
                 detected.push({
