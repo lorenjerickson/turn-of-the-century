@@ -10,7 +10,9 @@ export const REGULAR_GRID_WALL_DETECTION_DEFAULTS = Object.freeze({
     insetRatio: 0.18,
     minDarkRatio: 0.52,
     darkLuminance: 120,
-    minSegmentPixels: 8
+    minSegmentPixels: 8,
+    minContrast: 30,
+    bgOffset: 4
 });
 
 function positiveNumber(value, fallback = 0) {
@@ -114,7 +116,9 @@ export function scoreGridLineSegment({
     from = 0,
     to = 0,
     sampleRadius = REGULAR_GRID_WALL_DETECTION_DEFAULTS.sampleRadius,
-    darkLuminance = REGULAR_GRID_WALL_DETECTION_DEFAULTS.darkLuminance
+    darkLuminance = REGULAR_GRID_WALL_DETECTION_DEFAULTS.darkLuminance,
+    minContrast = REGULAR_GRID_WALL_DETECTION_DEFAULTS.minContrast,
+    bgOffset = REGULAR_GRID_WALL_DETECTION_DEFAULTS.bgOffset
 } = {}) {
     const data = imageData?.data ?? imageData;
     const imageWidth = Math.round(positiveNumber(width, 0));
@@ -125,6 +129,8 @@ export function scoreGridLineSegment({
     const end = Math.round(Math.max(from, to));
     const radius = Math.max(0, Math.round(finiteNumber(sampleRadius, 1)));
     const threshold = finiteNumber(darkLuminance, REGULAR_GRID_WALL_DETECTION_DEFAULTS.darkLuminance);
+    const contrastMin = finiteNumber(minContrast, REGULAR_GRID_WALL_DETECTION_DEFAULTS.minContrast);
+    const offsetBg = Math.max(1, Math.round(finiteNumber(bgOffset, REGULAR_GRID_WALL_DETECTION_DEFAULTS.bgOffset)));
     let samples = 0;
     let darkSamples = 0;
 
@@ -135,7 +141,36 @@ export function scoreGridLineSegment({
             const luminance = luminanceAt(data, imageWidth, imageHeight, x, y);
             if (luminance === null) continue;
             samples += 1;
-            if (luminance <= threshold) darkSamples += 1;
+
+            if (luminance <= threshold) {
+                const bgX1 = orientation === "vertical" ? fixed - offsetBg : cursor;
+                const bgY1 = orientation === "vertical" ? cursor : fixed - offsetBg;
+                const bgX2 = orientation === "vertical" ? fixed + offsetBg : cursor;
+                const bgY2 = orientation === "vertical" ? cursor : fixed + offsetBg;
+
+                const bgLum1 = luminanceAt(data, imageWidth, imageHeight, bgX1, bgY1);
+                const bgLum2 = luminanceAt(data, imageWidth, imageHeight, bgX2, bgY2);
+
+                let bgLumSum = 0;
+                let bgCount = 0;
+                if (bgLum1 !== null) {
+                    bgLumSum += bgLum1;
+                    bgCount += 1;
+                }
+                if (bgLum2 !== null) {
+                    bgLumSum += bgLum2;
+                    bgCount += 1;
+                }
+
+                if (bgCount > 0) {
+                    const avgBgLum = bgLumSum / bgCount;
+                    if (avgBgLum - luminance >= contrastMin) {
+                        darkSamples += 1;
+                    }
+                } else {
+                    darkSamples += 1;
+                }
+            }
         }
     }
 
@@ -295,7 +330,9 @@ export function detectRegularGridWallSegments({
                 from: y1 + inset,
                 to: y2 - inset,
                 sampleRadius: settings.sampleRadius,
-                darkLuminance: settings.darkLuminance
+                darkLuminance: settings.darkLuminance,
+                minContrast: settings.minContrast,
+                bgOffset: settings.bgOffset
             });
             if (score.darkRatio >= settings.minDarkRatio) {
                 detected.push({ orientation: "vertical", type: "wall", x1: x, y1, x2: x, y2, score: score.darkRatio });
@@ -317,7 +354,9 @@ export function detectRegularGridWallSegments({
                 from: x1 + inset,
                 to: x2 - inset,
                 sampleRadius: settings.sampleRadius,
-                darkLuminance: settings.darkLuminance
+                darkLuminance: settings.darkLuminance,
+                minContrast: settings.minContrast,
+                bgOffset: settings.bgOffset
             });
             if (score.darkRatio >= settings.minDarkRatio) {
                 detected.push({ orientation: "horizontal", type: "wall", x1, y1: y, x2, y2: y, score: score.darkRatio });

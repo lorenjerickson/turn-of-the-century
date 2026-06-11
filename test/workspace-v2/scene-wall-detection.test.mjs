@@ -92,6 +92,29 @@ describe("regular grid wall detection", () => {
         assert.equal(score.darkRatio, 1);
     });
 
+    it("ignores low-contrast lines (e.g. pre-rendered grids)", () => {
+        const imageData = makeImageData(120, 120);
+        // Draw a light gray line (luminance 235) on a white background (255)
+        // Contrast is 20, which is below the minimum threshold of 30
+        drawVerticalLine(imageData, 50, 0, 119, 235, 3);
+
+        const score = scoreGridLineSegment({
+            imageData,
+            width: 120,
+            height: 120,
+            orientation: "vertical",
+            fixed: 50,
+            from: 10,
+            to: 100,
+            sampleRadius: 1,
+            darkLuminance: 240, // threshold is higher than line value
+            minContrast: 30,
+            bgOffset: 4
+        });
+
+        assert.equal(score.darkRatio, 0);
+    });
+
     it("detects and merges confident grid-aligned wall segments", () => {
         const imageData = makeImageData(201, 201);
         drawVerticalLine(imageData, 100, 0, 200, 0, 3);
