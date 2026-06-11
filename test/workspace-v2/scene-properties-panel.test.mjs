@@ -273,22 +273,15 @@ describe("Scene properties panel", () => {
         assert.doesNotMatch(html, /data-action="scene-properties-reset"/);
     });
 
-    it("renders actor placement controls when actorPlacement model is provided", () => {
-        const actorPlacement = {
-            heroes: [{ id: "h1", name: "Ada", img: "ada.webp" }],
-            pawns: [{ id: "p1", name: "Constable", img: "" }],
-            villains: [{ id: "v1", name: "Moriarty", img: "" }]
-        };
+    it("does not render actor placement controls", () => {
+        const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
+            scene: { id: "scene-a", name: "Whitechapel" }
+        }));
 
-        const html = renderScenePropertiesPanel(
-            buildScenePropertiesPanelModel({ scene: { id: "scene-a", name: "Whitechapel" } }),
-            { actorPlacement }
-        );
-
-        assert.match(html, /data-action="scene-actors-add-heroes"/);
-        assert.match(html, /Heroes/);
-        assert.match(html, /Pawns/);
-        assert.match(html, /Villains/);
+        assert.doesNotMatch(html, /data-action="scene-actors-add-heroes"/);
+        assert.doesNotMatch(html, /Heroes/);
+        assert.doesNotMatch(html, /Pawns/);
+        assert.doesNotMatch(html, /Villains/);
     });
 
     it("builds scene token entries with token centers", () => {
