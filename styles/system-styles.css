@@ -2945,7 +2945,20 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     display: block;
     object-fit: cover;
     position: absolute;
+    transition: outline 0.1s ease, box-shadow 0.1s ease;
 }
+
+.turn-of-the-century .totc-v2-map-panel__token.is-selected {
+    outline: 2px solid #fbbf24;
+    outline-offset: 1px;
+    box-shadow: 0 0 10px #fbbf24, 0 0.18rem 0.45rem rgba(15, 23, 42, 0.5);
+}
+
+.turn-of-the-century .totc-v2-map-viewport__selection-box {
+    border: 1.5px dashed #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+}
+
 
 .turn-of-the-century .totc-v2-map-panel__token--fallback {
     align-items: center;

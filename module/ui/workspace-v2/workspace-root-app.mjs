@@ -763,6 +763,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.interactionController = new InteractionController();
         this.ghostIntent = null;
         this.activeDesignLensPanelIds = new Set();
+        this.selectedTokenIds = new Set();
         this.designCommandPaletteOpen = false;
         this.designCommandPaletteQuery = "";
         this.compendiumSearchQuery = "";
@@ -856,7 +857,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getSceneWallOverlayState: (scene) => this.#getSceneDetectedWallOverlayState(scene),
             renderMarketPanel: (marketPanel) => this.#renderMarketPanel(marketPanel),
             renderPlayerPanel: (playerPanel, dieRollRequestPanel) => this.#renderPlayerPanel(playerPanel, dieRollRequestPanel),
-            renderGamemasterPanel: (gmPanel, gmSnapshot, dieRollRequestPanel) => this.#renderGamemasterPanel(gmPanel, gmSnapshot, dieRollRequestPanel)
+            renderGamemasterPanel: (gmPanel, gmSnapshot, dieRollRequestPanel) => this.#renderGamemasterPanel(gmPanel, gmSnapshot, dieRollRequestPanel),
+            getSelectedTokenIds: () => this.selectedTokenIds
         });
         this.marketController = new MarketController({
             getScene: () => canvas?.scene ?? game.scenes?.viewed ?? null,
@@ -3412,23 +3414,226 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.preventDefault();
             });
 
-            viewport.addEventListener("pointerdown", (event) => {
-                if (event.button !== 2) return;
-
+            viewport.addEventListener("dblclick", async (event) => {
+                const tokenEl = event.target.closest("[data-action='map-token']");
+                if (!tokenEl) return;
                 event.preventDefault();
                 event.stopPropagation();
-                this.mapViewportController.beginPan({
-                    pointerId: event.pointerId,
-                    viewport,
-                    image,
-                    clientX: event.clientX,
-                    clientY: event.clientY
-                });
+                const actorId = tokenEl.dataset.actorId;
+                if (actorId && this.actorWorkspaceController.openDetails(actorId)) {
+                    await this.actorWorkspaceController.openActorEditor();
+                }
+            });
 
-                this._onMapPanPointerMove ??= this.#onMapPanPointerMove.bind(this);
-                this._onMapPanPointerUp ??= this.#onMapPanPointerUp.bind(this);
-                document.addEventListener("pointermove", this._onMapPanPointerMove);
-                document.addEventListener("pointerup", this._onMapPanPointerUp);
+            viewport.addEventListener("pointerdown", (event) => {
+                // Handle right-click panning
+                if (event.button === 2) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.mapViewportController.beginPan({
+                        pointerId: event.pointerId,
+                        viewport,
+                        image,
+                        clientX: event.clientX,
+                        clientY: event.clientY
+                    });
+
+                    this._onMapPanPointerMove ??= this.#onMapPanPointerMove.bind(this);
+                    this._onMapPanPointerUp ??= this.#onMapPanPointerUp.bind(this);
+                    document.addEventListener("pointermove", this._onMapPanPointerMove);
+                    document.addEventListener("pointerup", this._onMapPanPointerUp);
+                    return;
+                }
+
+                // Handle left-click actions (dragging or rubberband selection)
+                if (event.button !== 0) return;
+
+                if (viewport.classList.contains("is-calibrating")) return;
+
+                const tokenEl = event.target.closest("[data-action='map-token']");
+                const hasModifier = event.shiftKey || event.ctrlKey || event.metaKey;
+                const initialSelectedIds = new Set(this.selectedTokenIds);
+
+                if (tokenEl) {
+                    // Token click/drag
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const tokenId = tokenEl.dataset.tokenId;
+                    const isClickedSelected = this.selectedTokenIds.has(tokenId);
+
+                    if (!isClickedSelected) {
+                        if (hasModifier) {
+                            this.selectedTokenIds.add(tokenId);
+                        } else {
+                            this.selectedTokenIds = new Set([tokenId]);
+                        }
+                        for (const t of viewport.querySelectorAll("[data-action='map-token']")) {
+                            t.classList.toggle("is-selected", this.selectedTokenIds.has(t.dataset.tokenId));
+                        }
+                    }
+
+                    const sceneId = viewport.dataset.sceneId;
+                    const scene = game.scenes?.get(sceneId);
+                    if (!scene) return;
+
+                    const draggedTokens = [];
+                    for (const id of this.selectedTokenIds) {
+                        const el = viewport.querySelector(`[data-token-id="${id}"]`);
+                        if (el) {
+                            const startLeft = parseFloat(el.style.left) || 0;
+                            const startTop = parseFloat(el.style.top) || 0;
+                            draggedTokens.push({ id, el, startLeft, startTop });
+                        }
+                    }
+
+                    const startClientX = event.clientX;
+                    const startClientY = event.clientY;
+                    const { scale } = this.#getMapImageTransform(viewport);
+                    let moved = false;
+
+                    const onPointerMove = (moveEvent) => {
+                        const dx = (moveEvent.clientX - startClientX) / scale;
+                        const dy = (moveEvent.clientY - startClientY) / scale;
+                        if (Math.hypot(dx * scale, dy * scale) > 3) {
+                            moved = true;
+                        }
+                        for (const t of draggedTokens) {
+                            t.el.style.left = `${t.startLeft + dx}px`;
+                            t.el.style.top = `${t.startTop + dy}px`;
+                        }
+                    };
+
+                    const onPointerUp = async (upEvent) => {
+                        document.removeEventListener("pointermove", onPointerMove);
+                        document.removeEventListener("pointerup", onPointerUp);
+
+                        if (moved) {
+                            const dx = (upEvent.clientX - startClientX) / scale;
+                            const dy = (upEvent.clientY - startClientY) / scale;
+                            const cellSize = Number(viewport.dataset.gridSize) || 100;
+                            const offsetX = Number(viewport.dataset.gridOffsetX) || 0;
+                            const offsetY = Number(viewport.dataset.gridOffsetY) || 0;
+
+                            const updates = draggedTokens.map((t) => {
+                                const rawX = t.startLeft + dx;
+                                const rawY = t.startTop + dy;
+                                const snappedX = Math.round((rawX - offsetX) / cellSize) * cellSize + offsetX;
+                                const snappedY = Math.round((rawY - offsetY) / cellSize) * cellSize + offsetY;
+                                return { _id: t.id, x: snappedX, y: snappedY };
+                            });
+
+                            try {
+                                await scene.updateEmbeddedDocuments("Token", updates);
+                            } catch (err) {
+                                console.error("Failed to update token positions", err);
+                            }
+                        } else {
+                            if (isClickedSelected) {
+                                if (hasModifier) {
+                                    this.selectedTokenIds.delete(tokenId);
+                                } else {
+                                    this.selectedTokenIds = new Set([tokenId]);
+                                }
+                                for (const t of viewport.querySelectorAll("[data-action='map-token']")) {
+                                    t.classList.toggle("is-selected", this.selectedTokenIds.has(t.dataset.tokenId));
+                                }
+                            }
+                        }
+                        this.render({ force: false });
+                    };
+
+                    document.addEventListener("pointermove", onPointerMove);
+                    document.addEventListener("pointerup", onPointerUp);
+                } else {
+                    // Rubberband selection
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const rect = viewport.getBoundingClientRect();
+                    const startClientX = event.clientX;
+                    const startClientY = event.clientY;
+                    const startViewportX = event.clientX - rect.left;
+                    const startViewportY = event.clientY - rect.top;
+
+                    const boxEl = document.createElement("div");
+                    boxEl.className = "totc-v2-map-viewport__selection-box";
+                    boxEl.style.position = "absolute";
+                    boxEl.style.left = `${startViewportX}px`;
+                    boxEl.style.top = `${startViewportY}px`;
+                    boxEl.style.width = "0px";
+                    boxEl.style.height = "0px";
+                    boxEl.style.pointerEvents = "none";
+                    boxEl.style.zIndex = "1000";
+                    viewport.appendChild(boxEl);
+
+                    let moved = false;
+
+                    const onPointerMove = (moveEvent) => {
+                        const currentRect = viewport.getBoundingClientRect();
+                        const currentViewportX = moveEvent.clientX - currentRect.left;
+                        const currentViewportY = moveEvent.clientY - currentRect.top;
+
+                        const left = Math.min(startViewportX, currentViewportX);
+                        const top = Math.min(startViewportY, currentViewportY);
+                        const width = Math.abs(currentViewportX - startViewportX);
+                        const height = Math.abs(currentViewportY - startViewportY);
+
+                        if (width > 3 || height > 3) {
+                            moved = true;
+                        }
+
+                        boxEl.style.left = `${left}px`;
+                        boxEl.style.top = `${top}px`;
+                        boxEl.style.width = `${width}px`;
+                        boxEl.style.height = `${height}px`;
+
+                        const boxRect = boxEl.getBoundingClientRect();
+                        const tokenEls = viewport.querySelectorAll("[data-action='map-token']");
+                        const currentBoxSelected = new Set();
+
+                        for (const el of tokenEls) {
+                            const tokenRect = el.getBoundingClientRect();
+                            const overlaps = !(
+                                tokenRect.right < boxRect.left ||
+                                tokenRect.left > boxRect.right ||
+                                tokenRect.bottom < boxRect.top ||
+                                tokenRect.top > boxRect.bottom
+                            );
+                            if (overlaps) {
+                                currentBoxSelected.add(el.dataset.tokenId);
+                            }
+                        }
+
+                        if (hasModifier) {
+                            this.selectedTokenIds = new Set([...initialSelectedIds, ...currentBoxSelected]);
+                        } else {
+                            this.selectedTokenIds = currentBoxSelected;
+                        }
+
+                        for (const el of tokenEls) {
+                            el.classList.toggle("is-selected", this.selectedTokenIds.has(el.dataset.tokenId));
+                        }
+                    };
+
+                    const onPointerUp = () => {
+                        document.removeEventListener("pointermove", onPointerMove);
+                        document.removeEventListener("pointerup", onPointerUp);
+                        boxEl.remove();
+
+                        if (!moved && !hasModifier) {
+                            this.selectedTokenIds.clear();
+                            for (const el of viewport.querySelectorAll("[data-action='map-token']")) {
+                                el.classList.remove("is-selected");
+                            }
+                        }
+
+                        this.render({ force: false });
+                    };
+
+                    document.addEventListener("pointermove", onPointerMove);
+                    document.addEventListener("pointerup", onPointerUp);
+                }
             });
 
             viewport.addEventListener("wheel", (event) => {

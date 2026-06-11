@@ -89,7 +89,7 @@ describe("WorkspacePanelRegistry", () => {
         assert.deepEqual(registry.get("actor-editor"), {
             id: "actor-editor",
             title: "Actor Details",
-            defaultDock: "leftDock",
+            defaultDock: "rightDock",
             roleAccess: { gmOnly: true },
             contextTags: ["gm", "actor", "design"]
         });

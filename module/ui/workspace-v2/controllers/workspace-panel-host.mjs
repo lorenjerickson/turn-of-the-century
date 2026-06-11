@@ -72,7 +72,8 @@ export class WorkspacePanelHost {
         getSceneWallOverlayState = () => null,
         renderMarketPanel = () => "",
         renderPlayerPanel = () => "",
-        renderGamemasterPanel = () => ""
+        renderGamemasterPanel = () => "",
+        getSelectedTokenIds = () => new Set()
     } = {}) {
         this.designActionRegistry = designActionRegistry;
         this.escapeHTML = escapeHTML;
@@ -87,6 +88,7 @@ export class WorkspacePanelHost {
         this.renderMarketPanel = renderMarketPanel;
         this.renderPlayerPanel = renderPlayerPanel;
         this.renderGamemasterPanel = renderGamemasterPanel;
+        this.getSelectedTokenIds = getSelectedTokenIds;
     }
 
     renderPanelContent(panel, context = {}) {
@@ -281,6 +283,7 @@ export class WorkspacePanelHost {
     #renderMapTokenLayer(scene = null) {
         const cell = positiveNumber(scene?.grid?.size, 100);
         const tokens = collectionContents(scene?.tokens).filter(Boolean);
+        const selectedTokenIds = this.getSelectedTokenIds();
         const tokenMarkup = tokens.map((token) => {
             const x = tokenPosition(token, "x");
             const y = tokenPosition(token, "y");
@@ -288,10 +291,13 @@ export class WorkspacePanelHost {
             const height = tokenGridSize(token, "height") * cell;
             const src = tokenTexture(token);
             const name = tokenName(token);
+            const tokenId = String(token?.id ?? token?._id ?? token?.document?.id ?? token?._id ?? "").trim();
+            const actorId = String(token?.actor?.id ?? token?.actor?._id ?? token?.actorId ?? "").trim();
+            const isSelected = selectedTokenIds.has(tokenId) ? " is-selected" : "";
             const style = `left:${this.escapeHTML(x)}px;top:${this.escapeHTML(y)}px;width:${this.escapeHTML(width)}px;height:${this.escapeHTML(height)}px`;
             return src
-                ? `<img class="totc-v2-map-panel__token" src="${this.escapeHTML(src)}" alt="${this.escapeHTML(name)}" title="${this.escapeHTML(name)}" style="${style}">`
-                : `<span class="totc-v2-map-panel__token totc-v2-map-panel__token--fallback" title="${this.escapeHTML(name)}" style="${style}">${this.escapeHTML(name.slice(0, 1).toUpperCase() || "?")}</span>`;
+                ? `<img class="totc-v2-map-panel__token${isSelected}" src="${this.escapeHTML(src)}" alt="${this.escapeHTML(name)}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token" draggable="false">`
+                : `<span class="totc-v2-map-panel__token totc-v2-map-panel__token--fallback${isSelected}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token">${this.escapeHTML(name.slice(0, 1).toUpperCase() || "?")}</span>`;
         }).join("");
         return `<div class="totc-v2-map-panel__token-layer" data-map-token-layer="true" aria-label="Scene tokens">${tokenMarkup}</div>`;
     }
