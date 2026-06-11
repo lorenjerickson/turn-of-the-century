@@ -1,6 +1,15 @@
 const BaseItemDocument = foundry.documents?.Item ?? Item;
 
 export class TurnOfTheCenturyItem extends BaseItemDocument {
+    /** @override */
+    static _addDataFieldMigration(data, oldKey, newKey, apply) {
+        if (oldKey === "flags.exportSource") return false;
+        if (typeof super._addDataFieldMigration === "function") {
+            return super._addDataFieldMigration(data, oldKey, newKey, apply);
+        }
+        return false;
+    }
+
     get dataModel() {
         return this.system;
     }
