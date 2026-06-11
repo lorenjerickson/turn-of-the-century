@@ -339,6 +339,26 @@ export class WorkspacePanelHost {
                     <i class="fa-solid fa-minus" aria-hidden="true"></i>
                     <span>Remove</span>
                 </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallCommand === "split" ? " is-active" : ""}"
+                    data-action="map-wall-command"
+                    data-map-panel-id="${panelId}"
+                    data-command="split"
+                    aria-pressed="${wallCommand === "split"}"
+                    title="Click a wall segment to split it at the nearest grid point">
+                    <i class="fa-solid fa-scissors" aria-hidden="true"></i>
+                    <span>Split</span>
+                </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallCommand === "join" ? " is-active" : ""}"
+                    data-action="map-wall-command"
+                    data-map-panel-id="${panelId}"
+                    data-command="join"
+                    aria-pressed="${wallCommand === "join"}"
+                    title="Click a shared endpoint to join two aligned wall segments">
+                    <i class="fa-solid fa-link" aria-hidden="true"></i>
+                    <span>Join</span>
+                </button>
             </div>
             <div class="totc-v2-map-toolbar__segment" role="group" aria-label="Wall type">
                 <button type="button"

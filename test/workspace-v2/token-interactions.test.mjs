@@ -53,6 +53,17 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /boxEl\.remove\(\)/);
     });
 
+    it("wires wall edit tools before token selection in root app", () => {
+        assert.match(workspaceRootSource, /addWallSegmentToScene/);
+        assert.match(workspaceRootSource, /removeWallSegmentAtPoint/);
+        assert.match(workspaceRootSource, /splitWallSegmentAtPoint/);
+        assert.match(workspaceRootSource, /joinWallSegmentsAtPoint/);
+        assert.match(workspaceRootSource, /this\._wallAddSequence = null/);
+        assert.match(workspaceRootSource, /this\.\#isWallEditingPointerEvent\(viewport\)[\s\S]*this\.\#handleWallEditingPointerDown\(viewport, event\)/);
+        assert.match(workspaceRootSource, /event\.key !== "Escape"[\s\S]*this\.\#cancelWallAddSequence\(\)/);
+        assert.match(workspaceRootSource, /if \(this\._wallAddSequence\) \{[\s\S]*this\.\#cancelWallAddSequence\(\);[\s\S]*return;[\s\S]*\}/);
+    });
+
     it("defines CSS rules for selected tokens and rubberband selection box", () => {
         assert.match(styles, /\.totc-v2-map-panel__token\.is-selected\s*\{/);
         assert.match(styles, /outline:\s*2px\s*solid\s*#fbbf24;/);

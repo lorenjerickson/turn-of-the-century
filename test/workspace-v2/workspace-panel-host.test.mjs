@@ -86,6 +86,34 @@ describe("WorkspacePanelHost", () => {
         assert.match(html, /data-grid-overlay="true"/);
     });
 
+    it("renders split and join wall commands in the walls secondary toolbar", () => {
+        const host = new WorkspacePanelHost({
+            escapeHTML,
+            isGM: () => true,
+            isMapPanel: () => true,
+            getMapPanelScene: () => ({
+                id: "scene-1",
+                name: "Rookery Yard",
+                mapSrc: "yard.webp",
+                width: 1200,
+                height: 800,
+                shiftX: 0,
+                shiftY: 0,
+                grid: { type: 1, size: 100 },
+                tokens: []
+            }),
+            getMapPanelToolbarState: () => ({ mode: "walls", wallCommand: "split", wallType: "wall" }),
+            gridCalibrationState: () => ({ active: false })
+        });
+
+        const html = host.renderPanelBodyContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
+
+        assert.match(html, /data-command="add"/);
+        assert.match(html, /data-command="remove"/);
+        assert.match(html, /data-command="split"[\s\S]*aria-pressed="true"/);
+        assert.match(html, /data-command="join"/);
+    });
+
     it("wraps active design lens markup around panel content", () => {
         const host = new WorkspacePanelHost({
             escapeHTML,

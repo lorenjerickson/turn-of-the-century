@@ -118,6 +118,14 @@ import {
     buildDesignIssuesPanelModel
 } from "./panels/design-issues-panel.mjs";
 import {
+    addWallSegmentToScene,
+    buildWallEditingGrid,
+    joinWallSegmentsAtPoint,
+    removeWallSegmentAtPoint,
+    snapPointToGridIntersection,
+    splitWallSegmentAtPoint
+} from "./scene-wall-editing.mjs";
+import {
     buildGridCalibrationSceneUpdate,
     buildGridCalibrationOverlayModel,
     buildSceneGridOverlayState,
@@ -896,6 +904,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._appliedGridOverlayStates = new Map();
         this._detectedWallOverlayStates = new Map();
         this._mapPanelToolbarStates = new Map();
+        this._wallAddSequence = null;
         this._gmAssistantState = {
             elementType: "campaign",
             actorType: "pawn",
@@ -1748,6 +1757,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (!game.user?.isGM) return;
                 const panelId = String(button.dataset.mapPanelId ?? "").trim();
                 const command = String(button.dataset.command ?? "").trim();
+                if (command !== "add") this.#cancelWallAddSequence();
                 this.#patchMapPanelToolbarState(panelId, { wallCommand: command });
                 if (command === "detect") {
                     await this.#executeDesignAction("scene.detectWalls", { panelId });
@@ -3484,12 +3494,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     #wireMapInteractionHandlers() {
         const viewports = [...(this.element?.querySelectorAll("[data-action='map-viewport']") ?? [])];
         if (!viewports.length) return;
+        this._onWallEditKeyDown ??= this.#onWallEditKeyDown.bind(this);
+        document.addEventListener("keydown", this._onWallEditKeyDown);
 
         for (const viewport of viewports) {
             const image = viewport.querySelector("[data-action='map-image']");
             if (!(image instanceof HTMLImageElement)) continue;
 
             viewport.addEventListener("contextmenu", (event) => {
+                if (this._wallAddSequence) this.#cancelWallAddSequence();
                 event.preventDefault();
             });
 
@@ -3509,6 +3522,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (event.button === 2) {
                     event.preventDefault();
                     event.stopPropagation();
+                    if (this._wallAddSequence) {
+                        this.#cancelWallAddSequence();
+                        return;
+                    }
                     this.mapViewportController.beginPan({
                         pointerId: event.pointerId,
                         viewport,
@@ -3528,6 +3545,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (event.button !== 0) return;
 
                 if (viewport.classList.contains("is-calibrating")) return;
+
+                if (this.#isWallEditingPointerEvent(viewport)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void this.#handleWallEditingPointerDown(viewport, event);
+                    return;
+                }
 
                 const tokenEl = event.target.closest("[data-action='map-token']");
                 const hasModifier = event.shiftKey || event.ctrlKey || event.metaKey;
@@ -4187,6 +4211,113 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.mapViewportController.endPan();
         document.removeEventListener("pointermove", this._onMapPanPointerMove);
         document.removeEventListener("pointerup", this._onMapPanPointerUp);
+    }
+
+    #onWallEditKeyDown(event) {
+        if (event.key !== "Escape" || !this._wallAddSequence) return;
+        event.preventDefault();
+        this.#cancelWallAddSequence();
+    }
+
+    #isWallEditingPointerEvent(viewport) {
+        const state = this.#getMapWallEditingState(viewport);
+        return state.mode === "walls" && ["add", "remove", "split", "join"].includes(state.wallCommand);
+    }
+
+    #getMapWallEditingState(viewport) {
+        const panelId = String(viewport?.closest?.(".totc-v2-map-panel")?.querySelector?.("[data-map-panel-id]")?.dataset?.mapPanelId ?? "").trim();
+        return this.#getMapPanelToolbarState({ id: panelId });
+    }
+
+    #getSceneForMapViewport(viewport) {
+        const sceneId = String(viewport?.dataset?.sceneId ?? "").trim();
+        return sceneId ? this.#getSceneDocumentById(sceneId) : null;
+    }
+
+    async #handleWallEditingPointerDown(viewport, event) {
+        if (!game.user?.isGM) return;
+        const state = this.#getMapWallEditingState(viewport);
+        const scene = this.#getSceneForMapViewport(viewport);
+        const point = this.#getImageSpacePointFromMapEvent(viewport, event);
+        const grid = buildWallEditingGrid(scene);
+
+        if (!scene) {
+            ui.notifications?.warn("Open a scene before editing walls.");
+            return;
+        }
+        if (!grid || !point) {
+            ui.notifications?.warn("Wall editing requires a calibrated square grid.");
+            return;
+        }
+
+        if (state.wallCommand === "add") {
+            await this.#handleAddWallClick({ scene, grid, point, wallType: state.wallType });
+            return;
+        }
+
+        this.#cancelWallAddSequence({ notify: false });
+        let result = null;
+        if (state.wallCommand === "remove") {
+            result = await removeWallSegmentAtPoint({ scene, point, grid });
+        } else if (state.wallCommand === "split") {
+            result = await splitWallSegmentAtPoint({ scene, point, grid });
+        } else if (state.wallCommand === "join") {
+            result = await joinWallSegmentsAtPoint({ scene, point, grid });
+        }
+
+        this.#reportWallEditResult(state.wallCommand, result);
+    }
+
+    async #handleAddWallClick({ scene, grid, point, wallType = "wall" } = {}) {
+        const snapped = snapPointToGridIntersection(point, grid);
+        if (!snapped) return;
+
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        if (!this._wallAddSequence || this._wallAddSequence.sceneId !== sceneId) {
+            this._wallAddSequence = { sceneId, start: snapped };
+            ui.notifications?.info?.("Wall start set. Click another grid intersection to finish, or press Esc/right-click to cancel.");
+            return;
+        }
+
+        const result = await addWallSegmentToScene({
+            scene,
+            start: this._wallAddSequence.start,
+            end: snapped,
+            wallType
+        });
+        this._wallAddSequence = null;
+        this.#reportWallEditResult("add", result);
+    }
+
+    #cancelWallAddSequence({ notify = true } = {}) {
+        if (!this._wallAddSequence) return;
+        this._wallAddSequence = null;
+        if (notify) ui.notifications?.info?.("Wall add cancelled.");
+    }
+
+    #reportWallEditResult(command, result = null) {
+        if (result?.ok) {
+            const messages = {
+                add: "Wall segment added.",
+                remove: "Wall segment removed.",
+                split: "Wall segment split.",
+                join: "Wall segments joined."
+            };
+            ui.notifications?.info?.(messages[command] ?? "Wall edit applied.");
+            this.render({ force: false });
+            return;
+        }
+
+        const reasonMessages = {
+            "wall-not-found": "No wall segment was found near that point.",
+            "join-not-found": "No aligned wall segments were found near that join point.",
+            "invalid-split-point": "That wall cannot be split at the selected grid point.",
+            "invalid-wall-segment": "Choose two different grid intersections for a wall segment.",
+            "wall-creation-unavailable": "This scene cannot create walls in the current Foundry session.",
+            "wall-deletion-unavailable": "This scene cannot delete walls in the current Foundry session.",
+            "wall-update-unavailable": "This scene cannot update walls in the current Foundry session."
+        };
+        ui.notifications?.warn?.(reasonMessages[result?.reason] ?? "Wall edit could not be applied.");
     }
 
     #isDesignLensActive(panelId) {
