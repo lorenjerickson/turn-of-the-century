@@ -3,7 +3,8 @@
  * Run this in the Foundry VTT console or as a macro.
  */
 export function getLegacyExportSourceFromItemSource(item) {
-  return item?._source?.["flags.exportSource"] ?? item?._source?.flags?.exportSource;
+  const source = item && typeof item.toObject === "function" ? item.toObject() : (item?._source ?? item);
+  return source?.["flags.exportSource"] ?? source?.flags?.exportSource;
 }
 
 export async function migrateExportSourceFlag({ dryRun = false, notify = true, includeCompendiums = true } = {}) {

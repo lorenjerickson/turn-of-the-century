@@ -3336,6 +3336,7 @@ function maybeDeepClone(data) {
 }
 
 function getRawDocumentSource(data) {
+    if (data && typeof data.toObject === "function") return data.toObject();
     if (isObject(data?._source)) return data._source;
     return data;
 }
