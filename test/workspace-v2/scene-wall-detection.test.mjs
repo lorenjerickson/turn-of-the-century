@@ -36,6 +36,28 @@ function drawHorizontalLine(imageData, y, x1, x2, value = 0, thickness = 3) {
     }
 }
 
+function drawDiagonalLine(imageData, x1, y1, x2, y2, value = 0, thickness = 3) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const length = Math.hypot(dx, dy);
+    const steps = Math.round(length);
+    const stepX = steps > 0 ? dx / steps : 0;
+    const stepY = steps > 0 ? dy / steps : 0;
+    const orthoX = steps > 0 ? -dy / length : 0;
+    const orthoY = steps > 0 ? dx / length : 0;
+    const radius = Math.floor(thickness / 2);
+
+    for (let step = 0; step <= steps; step += 1) {
+        const cx = x1 + step * stepX;
+        const cy = y1 + step * stepY;
+        for (let delta = -radius; delta <= radius; delta += 1) {
+            const px = Math.round(cx + orthoX * delta);
+            const py = Math.round(cy + orthoY * delta);
+            setPixel(imageData, px, py, value);
+        }
+    }
+}
+
 function setPixel(imageData, x, y, value) {
     if (x < 0 || y < 0 || x >= imageData.width || y >= imageData.height) return;
     const index = ((y * imageData.width) + x) * 4;
@@ -140,6 +162,96 @@ describe("regular grid wall detection", () => {
         })), [
             { orientation: "horizontal", x1: 0, y1: 100, x2: 100, y2: 100, type: "wall" },
             { orientation: "vertical", x1: 100, y1: 0, x2: 100, y2: 200, type: "wall" }
+        ]);
+    });
+
+    it("scores dark pixels along a diagonal line segment", () => {
+        const imageData = makeImageData(120, 120);
+        drawDiagonalLine(imageData, 10, 10, 110, 110, 0, 3);
+
+        const score = scoreGridLineSegment({
+            imageData,
+            width: 120,
+            height: 120,
+            x1: 15,
+            y1: 15,
+            x2: 105,
+            y2: 105,
+            sampleRadius: 1,
+            darkLuminance: 120
+        });
+
+        assert.ok(score.darkRatio > 0.8);
+    });
+
+    it("scores dark pixels along a slash diagonal line segment", () => {
+        const imageData = makeImageData(120, 120);
+        drawDiagonalLine(imageData, 10, 110, 110, 10, 0, 3);
+
+        const score = scoreGridLineSegment({
+            imageData,
+            width: 120,
+            height: 120,
+            x1: 15,
+            y1: 105,
+            x2: 105,
+            y2: 15,
+            sampleRadius: 1,
+            darkLuminance: 120
+        });
+
+        assert.ok(score.darkRatio > 0.8);
+    });
+
+    it("detects and merges confident diagonal-backslash wall segments", () => {
+        const imageData = makeImageData(201, 201);
+        drawDiagonalLine(imageData, 0, 0, 200, 200, 0, 3);
+
+        const result = detectRegularGridWallSegments({
+            imageData,
+            scene: {
+                width: 200,
+                height: 200,
+                grid: { type: 1, size: 100 }
+            }
+        });
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(result.segments.map((segment) => ({
+            orientation: segment.orientation,
+            x1: segment.x1,
+            y1: segment.y1,
+            x2: segment.x2,
+            y2: segment.y2,
+            type: segment.type
+        })), [
+            { orientation: "diagonal-backslash", x1: 0, y1: 0, x2: 200, y2: 200, type: "wall" }
+        ]);
+    });
+
+    it("detects and merges confident diagonal-slash wall segments", () => {
+        const imageData = makeImageData(201, 201);
+        drawDiagonalLine(imageData, 0, 200, 200, 0, 0, 3);
+
+        const result = detectRegularGridWallSegments({
+            imageData,
+            scene: {
+                width: 200,
+                height: 200,
+                grid: { type: 1, size: 100 }
+            }
+        });
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(result.segments.map((segment) => ({
+            orientation: segment.orientation,
+            x1: segment.x1,
+            y1: segment.y1,
+            x2: segment.x2,
+            y2: segment.y2,
+            type: segment.type
+        })), [
+            { orientation: "diagonal-slash", x1: 0, y1: 200, x2: 200, y2: 0, type: "wall" }
         ]);
     });
 

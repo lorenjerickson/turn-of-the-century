@@ -115,6 +115,10 @@ export function scoreGridLineSegment({
     fixed = 0,
     from = 0,
     to = 0,
+    x1,
+    y1,
+    x2,
+    y2,
     sampleRadius = REGULAR_GRID_WALL_DETECTION_DEFAULTS.sampleRadius,
     darkLuminance = REGULAR_GRID_WALL_DETECTION_DEFAULTS.darkLuminance,
     minContrast = REGULAR_GRID_WALL_DETECTION_DEFAULTS.minContrast,
@@ -125,8 +129,36 @@ export function scoreGridLineSegment({
     const imageHeight = Math.round(positiveNumber(height, 0));
     if (!data || imageWidth <= 0 || imageHeight <= 0) return { samples: 0, darkSamples: 0, darkRatio: 0 };
 
-    const start = Math.round(Math.min(from, to));
-    const end = Math.round(Math.max(from, to));
+    let startX = x1;
+    let y1Val = y1;
+    let endX = x2;
+    let y2Val = y2;
+
+    if (startX === undefined) {
+        if (orientation === "vertical") {
+            startX = fixed;
+            y1Val = from;
+            endX = fixed;
+            y2Val = to;
+        } else {
+            startX = from;
+            y1Val = fixed;
+            endX = to;
+            y2Val = fixed;
+        }
+    }
+
+    const dx = endX - startX;
+    const dy = y2Val - y1Val;
+    const length = Math.hypot(dx, dy);
+    const steps = Math.round(length);
+    const stepX = steps > 0 ? dx / steps : 0;
+    const stepY = steps > 0 ? dy / steps : 0;
+
+    // Perpendicular vector for background sampling and sample radius
+    const orthoX = steps > 0 ? -dy / length : 0;
+    const orthoY = steps > 0 ? dx / length : 0;
+
     const radius = Math.max(0, Math.round(finiteNumber(sampleRadius, 1)));
     const threshold = finiteNumber(darkLuminance, REGULAR_GRID_WALL_DETECTION_DEFAULTS.darkLuminance);
     const contrastMin = finiteNumber(minContrast, REGULAR_GRID_WALL_DETECTION_DEFAULTS.minContrast);
@@ -134,19 +166,23 @@ export function scoreGridLineSegment({
     let samples = 0;
     let darkSamples = 0;
 
-    for (let cursor = start; cursor <= end; cursor += 1) {
+    for (let step = 0; step <= steps; step += 1) {
+        const cx = startX + step * stepX;
+        const cy = y1Val + step * stepY;
+
         for (let delta = -radius; delta <= radius; delta += 1) {
-            const x = orientation === "vertical" ? fixed + delta : cursor;
-            const y = orientation === "vertical" ? cursor : fixed + delta;
+            const x = cx + orthoX * delta;
+            const y = cy + orthoY * delta;
+
             const luminance = luminanceAt(data, imageWidth, imageHeight, x, y);
             if (luminance === null) continue;
             samples += 1;
 
             if (luminance <= threshold) {
-                const bgX1 = orientation === "vertical" ? fixed - offsetBg : cursor;
-                const bgY1 = orientation === "vertical" ? cursor : fixed - offsetBg;
-                const bgX2 = orientation === "vertical" ? fixed + offsetBg : cursor;
-                const bgY2 = orientation === "vertical" ? cursor : fixed + offsetBg;
+                const bgX1 = cx - orthoX * offsetBg;
+                const bgY1 = cy - orthoY * offsetBg;
+                const bgX2 = cx + orthoX * offsetBg;
+                const bgY2 = cy + orthoY * offsetBg;
 
                 const bgLum1 = luminanceAt(data, imageWidth, imageHeight, bgX1, bgY1);
                 const bgLum2 = luminanceAt(data, imageWidth, imageHeight, bgX2, bgY2);
@@ -191,11 +227,21 @@ function segmentKey(segment) {
     ].join(":");
 }
 
+function getSegmentLineId(segment) {
+    if (segment.orientation === "vertical") return segment.x1;
+    if (segment.orientation === "horizontal") return segment.y1;
+    if (segment.orientation === "diagonal-backslash") return segment.y1 - segment.x1;
+    if (segment.orientation === "diagonal-slash") return segment.y1 + segment.x1;
+    return 0;
+}
+
 function mergeSegments(segments = []) {
     const sorted = [...segments].sort((left, right) => {
         if (left.orientation !== right.orientation) return left.orientation.localeCompare(right.orientation);
-        if (left.orientation === "vertical") return (left.x1 - right.x1) || (left.y1 - right.y1);
-        return (left.y1 - right.y1) || (left.x1 - right.x1);
+        const leftId = getSegmentLineId(left);
+        const rightId = getSegmentLineId(right);
+        if (leftId !== rightId) return leftId - rightId;
+        return left.orientation === "vertical" ? left.y1 - right.y1 : left.x1 - right.x1;
     });
     const merged = [];
 
@@ -205,11 +251,8 @@ function mergeSegments(segments = []) {
             previous
             && previous.orientation === segment.orientation
             && previous.type === segment.type
-            && (
-                segment.orientation === "vertical"
-                    ? previous.x1 === segment.x1 && previous.y2 === segment.y1
-                    : previous.y1 === segment.y1 && previous.x2 === segment.x1
-            )
+            && previous.x2 === segment.x1
+            && previous.y2 === segment.y1
         ) {
             previous.x2 = segment.x2;
             previous.y2 = segment.y2;
@@ -360,6 +403,82 @@ export function detectRegularGridWallSegments({
             });
             if (score.darkRatio >= settings.minDarkRatio) {
                 detected.push({ orientation: "horizontal", type: "wall", x1, y1: y, x2, y2: y, score: score.darkRatio });
+            }
+        }
+    }
+
+    // Scan diagonal-backslash lines (top-left to bottom-right)
+    for (let c = 0; c < verticalLines.length - 1; c += 1) {
+        const x1 = verticalLines[c];
+        const x2 = verticalLines[c + 1];
+        const cellSize = x2 - x1;
+        if (cellSize < settings.minSegmentPixels) continue;
+
+        for (let r = 0; r < horizontalLines.length - 1; r += 1) {
+            const y1 = horizontalLines[r];
+            const y2 = horizontalLines[r + 1];
+
+            const score = scoreGridLineSegment({
+                imageData,
+                width: imageWidth,
+                height: imageHeight,
+                x1: x1 + inset,
+                y1: y1 + inset,
+                x2: x2 - inset,
+                y2: y2 - inset,
+                sampleRadius: settings.sampleRadius,
+                darkLuminance: settings.darkLuminance,
+                minContrast: settings.minContrast,
+                bgOffset: settings.bgOffset
+            });
+            if (score.darkRatio >= settings.minDarkRatio) {
+                detected.push({
+                    orientation: "diagonal-backslash",
+                    type: "wall",
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    score: score.darkRatio
+                });
+            }
+        }
+    }
+
+    // Scan diagonal-slash lines (bottom-left to top-right)
+    for (let c = 0; c < verticalLines.length - 1; c += 1) {
+        const x1 = verticalLines[c];
+        const x2 = verticalLines[c + 1];
+        const cellSize = x2 - x1;
+        if (cellSize < settings.minSegmentPixels) continue;
+
+        for (let r = 0; r < horizontalLines.length - 1; r += 1) {
+            const y1 = horizontalLines[r];
+            const y2 = horizontalLines[r + 1];
+
+            const score = scoreGridLineSegment({
+                imageData,
+                width: imageWidth,
+                height: imageHeight,
+                x1: x1 + inset,
+                y1: y2 - inset,
+                x2: x2 - inset,
+                y2: y1 + inset,
+                sampleRadius: settings.sampleRadius,
+                darkLuminance: settings.darkLuminance,
+                minContrast: settings.minContrast,
+                bgOffset: settings.bgOffset
+            });
+            if (score.darkRatio >= settings.minDarkRatio) {
+                detected.push({
+                    orientation: "diagonal-slash",
+                    type: "wall",
+                    x1,
+                    y1: y2,
+                    x2,
+                    y2: y1,
+                    score: score.darkRatio
+                });
             }
         }
     }
