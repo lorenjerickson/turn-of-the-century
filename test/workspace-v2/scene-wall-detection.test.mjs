@@ -168,6 +168,63 @@ describe("regular grid wall detection", () => {
         assert.equal(score.darkRatio, 1);
     });
 
+    it("does not detect a rug edge but detects a wall next to an object", () => {
+        // Test case 1: Rug edge (should NOT be detected)
+        // Side 1 (left) is a dark rug (luminance 80).
+        // Side 2 (right) is light floor (luminance 220).
+        // Candidate line is at x = 50.
+        // We pass cellAvg1 = 80, cellAvg2 = 220.
+        const imgRug = makeImageData(120, 120, 220);
+        for (let y = 0; y < 120; y += 1) {
+            for (let x = 0; x < 50; x += 1) {
+                setPixel(imgRug, x, y, 80);
+            }
+        }
+        const scoreRug = scoreGridLineSegment({
+            imageData: imgRug,
+            width: 120,
+            height: 120,
+            orientation: "vertical",
+            fixed: 50,
+            from: 10,
+            to: 100,
+            sampleRadius: 1,
+            darkLuminance: 120,
+            minContrast: 30,
+            bgOffset: 6,
+            cellAvg1: 80,
+            cellAvg2: 220
+        });
+        assert.equal(scoreRug.darkRatio, 0); // Rug edge should be ignored!
+
+        // Test case 2: Wall next to a dark object (should be detected)
+        // Side 1 (left) has a dark object (nearest pixel bgLum1 = 80), but cellAvg1 = 200 (light).
+        // Side 2 (right) is light floor (bgLum2 = 200, cellAvg2 = 200).
+        // Wall pixel luminance is 0.
+        const imgWall = makeImageData(120, 120, 200);
+        // Draw object at x = 44 (where bgOffset=6 samples)
+        for (let y = 0; y < 120; y += 1) {
+            setPixel(imgWall, 44, y, 80);
+        }
+        drawVerticalLine(imgWall, 50, 0, 119, 0, 3);
+        const scoreWall = scoreGridLineSegment({
+            imageData: imgWall,
+            width: 120,
+            height: 120,
+            orientation: "vertical",
+            fixed: 50,
+            from: 10,
+            to: 100,
+            sampleRadius: 1,
+            darkLuminance: 120,
+            minContrast: 30,
+            bgOffset: 6,
+            cellAvg1: 200,
+            cellAvg2: 200
+        });
+        assert.equal(scoreWall.darkRatio, 1); // Wall next to object should be detected!
+    });
+
     it("detects and merges confident grid-aligned wall segments", () => {
         const imageData = makeImageData(201, 201);
         drawVerticalLine(imageData, 100, 0, 200, 0, 3);

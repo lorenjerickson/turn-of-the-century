@@ -107,6 +107,45 @@ function luminanceAt(imageData, width, height, x, y) {
     return (0.2126 * data[index]) + (0.7152 * data[index + 1]) + (0.0722 * data[index + 2]);
 }
 
+function getCellAverageLuminance(imageData, width, height, x1, y1, x2, y2) {
+    const data = imageData?.data ?? imageData;
+    if (!data) return 128;
+    const rawMinX = Math.min(x1, x2);
+    const rawMaxX = Math.max(x1, x2);
+    const rawMinY = Math.min(y1, y2);
+    const rawMaxY = Math.max(y1, y2);
+
+    const cellW = rawMaxX - rawMinX;
+    const cellH = rawMaxY - rawMinY;
+    const insetX = Math.max(1, Math.round(cellW * 0.15));
+    const insetY = Math.max(1, Math.round(cellH * 0.15));
+
+    const minX = Math.max(0, Math.floor(rawMinX + insetX));
+    const maxX = Math.min(width - 1, Math.ceil(rawMaxX - insetX));
+    const minY = Math.max(0, Math.floor(rawMinY + insetY));
+    const maxY = Math.min(height - 1, Math.ceil(rawMaxY - insetY));
+
+    if (maxX < minX || maxY < minY) return 128;
+
+    // Sample a 5x5 grid of pixels within the inset bounding box
+    let sum = 0;
+    let count = 0;
+    const stepsX = 4;
+    const stepsY = 4;
+    for (let i = 0; i <= stepsX; i += 1) {
+        const px = minX + (i / stepsX) * (maxX - minX);
+        for (let j = 0; j <= stepsY; j += 1) {
+            const py = minY + (j / stepsY) * (maxY - minY);
+            const lum = luminanceAt(data, width, height, px, py);
+            if (lum !== null) {
+                sum += lum;
+                count += 1;
+            }
+        }
+    }
+    return count > 0 ? sum / count : 128;
+}
+
 export function scoreGridLineSegment({
     imageData = null,
     width = 0,
@@ -122,7 +161,9 @@ export function scoreGridLineSegment({
     sampleRadius = REGULAR_GRID_WALL_DETECTION_DEFAULTS.sampleRadius,
     darkLuminance = REGULAR_GRID_WALL_DETECTION_DEFAULTS.darkLuminance,
     minContrast = REGULAR_GRID_WALL_DETECTION_DEFAULTS.minContrast,
-    bgOffset = REGULAR_GRID_WALL_DETECTION_DEFAULTS.bgOffset
+    bgOffset = REGULAR_GRID_WALL_DETECTION_DEFAULTS.bgOffset,
+    cellAvg1 = null,
+    cellAvg2 = null
 } = {}) {
     const data = imageData?.data ?? imageData;
     const imageWidth = Math.round(positiveNumber(width, 0));
@@ -184,21 +225,46 @@ export function scoreGridLineSegment({
                 const bgX2 = cx + orthoX * offsetBg;
                 const bgY2 = cy + orthoY * offsetBg;
 
-                const bgLum1 = luminanceAt(data, imageWidth, imageHeight, bgX1, bgY1);
-                const bgLum2 = luminanceAt(data, imageWidth, imageHeight, bgX2, bgY2);
+                let bgLum1 = luminanceAt(data, imageWidth, imageHeight, bgX1, bgY1);
+                let bgLum2 = luminanceAt(data, imageWidth, imageHeight, bgX2, bgY2);
 
-                let hasContrast = false;
-                if (bgLum1 !== null && bgLum1 - luminance >= contrastMin) {
-                    hasContrast = true;
-                }
-                if (bgLum2 !== null && bgLum2 - luminance >= contrastMin) {
-                    hasContrast = true;
-                }
-                if (bgLum1 === null && bgLum2 === null) {
-                    hasContrast = true;
+                if ((orientation === "vertical" && orthoX < 0) || (orientation === "horizontal" && orthoY < 0)) {
+                    const temp = bgLum1;
+                    bgLum1 = bgLum2;
+                    bgLum2 = temp;
                 }
 
-                if (hasContrast) {
+                let hasContrast1 = false;
+                if (bgLum1 === null) {
+                    hasContrast1 = true;
+                } else if (bgLum1 - luminance >= contrastMin) {
+                    hasContrast1 = true;
+                } else if (cellAvg1 !== null && cellAvg1 - luminance >= contrastMin && cellAvg1 - bgLum1 >= contrastMin) {
+                    hasContrast1 = true;
+                }
+
+                let hasContrast2 = false;
+                if (bgLum2 === null) {
+                    hasContrast2 = true;
+                } else if (bgLum2 - luminance >= contrastMin) {
+                    hasContrast2 = true;
+                } else if (cellAvg2 !== null && cellAvg2 - luminance >= contrastMin && cellAvg2 - bgLum2 >= contrastMin) {
+                    hasContrast2 = true;
+                }
+
+                const isVoid1 = cellAvg1 === null || cellAvg1 < 50;
+                const isVoid2 = cellAvg2 === null || cellAvg2 < 50;
+
+                let wallDetected = false;
+                if (hasContrast1 && hasContrast2) {
+                    wallDetected = true;
+                } else if (isVoid1 && hasContrast2) {
+                    wallDetected = true;
+                } else if (isVoid2 && hasContrast1) {
+                    wallDetected = true;
+                }
+
+                if (wallDetected) {
                     darkSamples += 1;
                 }
             }
@@ -354,11 +420,34 @@ export function detectRegularGridWallSegments({
     const inset = Math.max(0, Math.round(gridModel.cellSize * finiteNumber(settings.insetRatio, 0)));
     const detected = [];
 
-    for (const x of verticalLines) {
+    const cols = verticalLines.length - 1;
+    const rows = horizontalLines.length - 1;
+    const cellAverages = Array.from({ length: cols }, () => new Float64Array(rows));
+
+    for (let c = 0; c < cols; c += 1) {
+        for (let r = 0; r < rows; r += 1) {
+            cellAverages[c][r] = getCellAverageLuminance(
+                imageData,
+                imageWidth,
+                imageHeight,
+                verticalLines[c],
+                horizontalLines[r],
+                verticalLines[c + 1],
+                horizontalLines[r + 1]
+            );
+        }
+    }
+
+    for (let c = 0; c < verticalLines.length; c += 1) {
+        const x = verticalLines[c];
         for (let index = 0; index < horizontalLines.length - 1; index += 1) {
             const y1 = horizontalLines[index];
             const y2 = horizontalLines[index + 1];
             if (y2 - y1 < settings.minSegmentPixels) continue;
+
+            const cellAvg1 = c > 0 ? cellAverages[c - 1][index] : null;
+            const cellAvg2 = c < cols ? cellAverages[c][index] : null;
+
             const score = scoreGridLineSegment({
                 imageData,
                 width: imageWidth,
@@ -370,7 +459,9 @@ export function detectRegularGridWallSegments({
                 sampleRadius: settings.sampleRadius,
                 darkLuminance: settings.darkLuminance,
                 minContrast: settings.minContrast,
-                bgOffset: settings.bgOffset
+                bgOffset: settings.bgOffset,
+                cellAvg1,
+                cellAvg2
             });
             if (score.darkRatio >= settings.minDarkRatio) {
                 detected.push({ orientation: "vertical", type: "wall", x1: x, y1, x2: x, y2, score: score.darkRatio });
@@ -378,11 +469,16 @@ export function detectRegularGridWallSegments({
         }
     }
 
-    for (const y of horizontalLines) {
+    for (let r = 0; r < horizontalLines.length; r += 1) {
+        const y = horizontalLines[r];
         for (let index = 0; index < verticalLines.length - 1; index += 1) {
             const x1 = verticalLines[index];
             const x2 = verticalLines[index + 1];
             if (x2 - x1 < settings.minSegmentPixels) continue;
+
+            const cellAvg1 = r > 0 ? cellAverages[index][r - 1] : null;
+            const cellAvg2 = r < rows ? cellAverages[index][r] : null;
+
             const score = scoreGridLineSegment({
                 imageData,
                 width: imageWidth,
@@ -394,7 +490,9 @@ export function detectRegularGridWallSegments({
                 sampleRadius: settings.sampleRadius,
                 darkLuminance: settings.darkLuminance,
                 minContrast: settings.minContrast,
-                bgOffset: settings.bgOffset
+                bgOffset: settings.bgOffset,
+                cellAvg1,
+                cellAvg2
             });
             if (score.darkRatio >= settings.minDarkRatio) {
                 detected.push({ orientation: "horizontal", type: "wall", x1, y1: y, x2, y2: y, score: score.darkRatio });
@@ -413,6 +511,8 @@ export function detectRegularGridWallSegments({
             const y1 = horizontalLines[r];
             const y2 = horizontalLines[r + 1];
 
+            const cellAvg = cellAverages[c][r];
+
             const score = scoreGridLineSegment({
                 imageData,
                 width: imageWidth,
@@ -424,7 +524,9 @@ export function detectRegularGridWallSegments({
                 sampleRadius: settings.sampleRadius,
                 darkLuminance: settings.darkLuminance,
                 minContrast: settings.minContrast,
-                bgOffset: settings.bgOffset
+                bgOffset: settings.bgOffset,
+                cellAvg1: cellAvg,
+                cellAvg2: cellAvg
             });
             if (score.darkRatio >= settings.minDarkRatio) {
                 detected.push({
@@ -451,6 +553,8 @@ export function detectRegularGridWallSegments({
             const y1 = horizontalLines[r];
             const y2 = horizontalLines[r + 1];
 
+            const cellAvg = cellAverages[c][r];
+
             const score = scoreGridLineSegment({
                 imageData,
                 width: imageWidth,
@@ -462,7 +566,9 @@ export function detectRegularGridWallSegments({
                 sampleRadius: settings.sampleRadius,
                 darkLuminance: settings.darkLuminance,
                 minContrast: settings.minContrast,
-                bgOffset: settings.bgOffset
+                bgOffset: settings.bgOffset,
+                cellAvg1: cellAvg,
+                cellAvg2: cellAvg
             });
             if (score.darkRatio >= settings.minDarkRatio) {
                 detected.push({
