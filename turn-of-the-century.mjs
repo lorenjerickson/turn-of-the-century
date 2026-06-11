@@ -52,6 +52,7 @@ import {
     WorkspaceV2Coordinator,
     registerWorkspaceV2PolicySettings
 } from "./module/ui/workspace-v2/index.mjs";
+import { isTokenCreationAllowed } from "./module/ui/workspace-v2/scene-actor-placement.mjs";
 import {
     TOTC_THEME_SETTING,
     applyTotcTheme,
@@ -961,6 +962,16 @@ Hooks.on("createCombat", (combat) => {
 Hooks.on("combatStart", (combat) => {
     logEncounterLifecycle("combatStart", { combat });
     rerenderEncounterActorSheets(combat);
+});
+
+Hooks.on("preCreateToken", (tokenDoc, data, options, userId) => {
+    if (!isTokenCreationAllowed(tokenDoc)) {
+        const actor = tokenDoc.actor || game.actors?.get(tokenDoc.actorId);
+        const name = actor ? actor.name : "this Actor";
+        const message = game.i18n ? game.i18n.format("TOTC.Warnings.DuplicateTokenBlocked", { name }) : `Cannot place multiple instances of ${name} (only Pawns may have multiple tokens).`;
+        ui.notifications?.warn(message);
+        return false;
+    }
 });
 
 Hooks.once("shutdown", () => {

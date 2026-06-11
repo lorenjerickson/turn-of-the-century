@@ -301,3 +301,23 @@ export async function buildSceneActorTokenData({ actors = [], scene = null, rng 
         return buildTokenDataForActor(actor, placement.position, { name });
     }));
 }
+
+export function isTokenCreationAllowed(tokenDoc, { scene = tokenDoc?.parent, actor = tokenDoc?.actor } = {}) {
+    if (!scene) return true;
+    const actorIdStr = tokenActorId(tokenDoc);
+    if (!actorIdStr) return true;
+
+    const resolvedActor = actor ?? (typeof game !== "undefined" && game.actors?.get(actorIdStr));
+    if (!resolvedActor) return true;
+
+    const role = actorType(resolvedActor);
+    if (role !== "hero" && role !== "villain") return true;
+
+    // Check if the scene already contains a token for this actor
+    const isDuplicate = sceneTokens(scene).some((t) => {
+        return tokenActorId(t) === actorIdStr && (t.id ?? t._id) !== (tokenDoc.id ?? tokenDoc._id);
+    });
+
+    return !isDuplicate;
+}
+

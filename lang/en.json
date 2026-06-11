@@ -125,5 +125,6 @@
     "TOTC.Sheet.Inventory": "Inventory",
     "TOTC.Sheet.Profile": "Profile",
     "TOTC.Sheet.Save": "Save",
-    "TOTC.Sheet.SystemData": "System Data"
+    "TOTC.Sheet.SystemData": "System Data",
+    "TOTC.Warnings.DuplicateTokenBlocked": "Cannot place multiple instances of {name} (only Pawns may have multiple tokens)."
 }
