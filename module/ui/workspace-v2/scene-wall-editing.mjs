@@ -24,7 +24,7 @@ function enumValue(constants, path = [], fallback) {
     return cursor ?? fallback;
 }
 
-function documentId(document) {
+export function wallDocumentId(document) {
     return String(document?.id ?? document?._id ?? "").trim();
 }
 
@@ -33,6 +33,14 @@ function documentSource(document) {
     if (typeof document.toObject === "function") return document.toObject();
     if (typeof document.toJSON === "function") return document.toJSON();
     return document._source ?? document;
+}
+
+function wallDocumentArray(walls = []) {
+    if (Array.isArray(walls)) return walls;
+    if (Array.isArray(walls?.contents)) return walls.contents;
+    if (typeof walls?.values === "function") return Array.from(walls.values());
+    if (typeof walls?.[Symbol.iterator] === "function") return Array.from(walls);
+    return [];
 }
 
 function wallCoordinates(wall) {
@@ -139,6 +147,85 @@ export function findNearestWallAtPoint({ walls = [], point = null, grid = null, 
     return nearest;
 }
 
+function normalizeBounds(bounds = null) {
+    if (!bounds) return null;
+    const left = Math.min(finiteNumber(bounds.left), finiteNumber(bounds.right));
+    const right = Math.max(finiteNumber(bounds.left), finiteNumber(bounds.right));
+    const top = Math.min(finiteNumber(bounds.top), finiteNumber(bounds.bottom));
+    const bottom = Math.max(finiteNumber(bounds.top), finiteNumber(bounds.bottom));
+    if (![left, right, top, bottom].every(Number.isFinite)) return null;
+    return { left, right, top, bottom };
+}
+
+function pointInBounds(point = null, bounds = null) {
+    if (!point || !bounds) return false;
+    const x = finiteNumber(point.x);
+    const y = finiteNumber(point.y);
+    return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+}
+
+function orientation(a, b, c) {
+    const value = ((b.y - a.y) * (c.x - b.x)) - ((b.x - a.x) * (c.y - b.y));
+    if (Math.abs(value) <= 0.000001) return 0;
+    return value > 0 ? 1 : 2;
+}
+
+function segmentsIntersect(a1, a2, b1, b2) {
+    const o1 = orientation(a1, a2, b1);
+    const o2 = orientation(a1, a2, b2);
+    const o3 = orientation(b1, b2, a1);
+    const o4 = orientation(b1, b2, a2);
+
+    if (o1 !== o2 && o3 !== o4) return true;
+    if (o1 === 0 && isPointOnSegment(b1, { x1: a1.x, y1: a1.y, x2: a2.x, y2: a2.y })) return true;
+    if (o2 === 0 && isPointOnSegment(b2, { x1: a1.x, y1: a1.y, x2: a2.x, y2: a2.y })) return true;
+    if (o3 === 0 && isPointOnSegment(a1, { x1: b1.x, y1: b1.y, x2: b2.x, y2: b2.y })) return true;
+    if (o4 === 0 && isPointOnSegment(a2, { x1: b1.x, y1: b1.y, x2: b2.x, y2: b2.y })) return true;
+    return false;
+}
+
+export function wallSegmentIntersectsBounds(segment = null, bounds = null) {
+    const box = normalizeBounds(bounds);
+    if (!segment || !box) return false;
+    const start = { x: finiteNumber(segment.x1), y: finiteNumber(segment.y1) };
+    const end = { x: finiteNumber(segment.x2), y: finiteNumber(segment.y2) };
+    if (pointInBounds(start, box) || pointInBounds(end, box)) return true;
+
+    const corners = [
+        { x: box.left, y: box.top },
+        { x: box.right, y: box.top },
+        { x: box.right, y: box.bottom },
+        { x: box.left, y: box.bottom }
+    ];
+    return segmentsIntersect(start, end, corners[0], corners[1])
+        || segmentsIntersect(start, end, corners[1], corners[2])
+        || segmentsIntersect(start, end, corners[2], corners[3])
+        || segmentsIntersect(start, end, corners[3], corners[0]);
+}
+
+export function wallSegmentWithinBounds(segment = null, bounds = null) {
+    const box = normalizeBounds(bounds);
+    if (!segment || !box) return false;
+    return pointInBounds({ x: segment.x1, y: segment.y1 }, box)
+        && pointInBounds({ x: segment.x2, y: segment.y2 }, box);
+}
+
+export function findWallsIntersectingBounds({ walls = [], bounds = null } = {}) {
+    return wallDocumentArray(walls).map((wall) => ({
+        wall,
+        id: wallDocumentId(wall),
+        segment: wallCoordinates(wall)
+    })).filter((entry) => entry.id && entry.segment && wallSegmentIntersectsBounds(entry.segment, bounds));
+}
+
+export function findWallsWithinBounds({ walls = [], bounds = null } = {}) {
+    return wallDocumentArray(walls).map((wall) => ({
+        wall,
+        id: wallDocumentId(wall),
+        segment: wallCoordinates(wall)
+    })).filter((entry) => entry.id && entry.segment && wallSegmentWithinBounds(entry.segment, bounds));
+}
+
 function gridPointsOnSegment(segment, gridModel) {
     const cellSize = positiveNumber(gridModel?.cellSize, 0);
     if (cellSize <= 0) return [];
@@ -233,10 +320,107 @@ export async function addWallSegmentToScene({ scene = null, start = null, end = 
 export async function removeWallSegmentAtPoint({ scene = null, point = null, grid = null } = {}) {
     if (!scene || typeof scene.deleteEmbeddedDocuments !== "function") return { ok: false, reason: "wall-deletion-unavailable" };
     const nearest = findNearestWallAtPoint({ walls: getSceneWallDocuments(scene), point, grid });
-    const id = documentId(nearest?.wall);
+    const id = wallDocumentId(nearest?.wall);
     if (!nearest || !id) return { ok: false, reason: "wall-not-found" };
     await scene.deleteEmbeddedDocuments("Wall", [id]);
     return { ok: true, reason: "", deleted: [id] };
+}
+
+export async function removeWallSegmentsById({ scene = null, ids = [] } = {}) {
+    if (!scene || typeof scene.deleteEmbeddedDocuments !== "function") return { ok: false, reason: "wall-deletion-unavailable" };
+    const availableIds = new Set(getSceneWallDocuments(scene).map((wall) => wallDocumentId(wall)).filter(Boolean));
+    const selectedIds = [...new Set(Array.from(ids ?? []).map((id) => String(id ?? "").trim()).filter(Boolean))]
+        .filter((id) => availableIds.has(id));
+    if (!selectedIds.length) return { ok: false, reason: "wall-not-found" };
+    await scene.deleteEmbeddedDocuments("Wall", selectedIds);
+    return { ok: true, reason: "", deleted: selectedIds };
+}
+
+function selectedWallEntries(scene = null, ids = []) {
+    const selectedIds = new Set(Array.from(ids ?? []).map((id) => String(id ?? "").trim()).filter(Boolean));
+    return getSceneWallDocuments(scene).map((wall) => ({
+        wall,
+        id: wallDocumentId(wall),
+        segment: wallCoordinates(wall)
+    })).filter((entry) => entry.id && selectedIds.has(entry.id) && entry.segment);
+}
+
+function selectedJoinGroups(entries = []) {
+    const lines = new Map();
+    for (const entry of entries) {
+        const orientation = orientationKey(entry.segment);
+        if (orientation !== "horizontal" && orientation !== "vertical") continue;
+        const fixed = orientation === "horizontal" ? Math.round(entry.segment.y1) : Math.round(entry.segment.x1);
+        const start = orientation === "horizontal"
+            ? Math.min(entry.segment.x1, entry.segment.x2)
+            : Math.min(entry.segment.y1, entry.segment.y2);
+        const end = orientation === "horizontal"
+            ? Math.max(entry.segment.x1, entry.segment.x2)
+            : Math.max(entry.segment.y1, entry.segment.y2);
+        const key = `${orientation}:${fixed}`;
+        const list = lines.get(key) ?? [];
+        list.push({ ...entry, orientation, fixed, start, end });
+        lines.set(key, list);
+    }
+
+    const groups = [];
+    for (const list of lines.values()) {
+        list.sort((left, right) => left.start - right.start);
+        let current = [];
+        let currentEnd = null;
+        for (const entry of list) {
+            if (!current.length || entry.start <= currentEnd + 0.5) {
+                current.push(entry);
+                currentEnd = Math.max(currentEnd ?? entry.end, entry.end);
+                continue;
+            }
+            if (current.length > 1) groups.push(current);
+            current = [entry];
+            currentEnd = entry.end;
+        }
+        if (current.length > 1) groups.push(current);
+    }
+    return groups;
+}
+
+export async function joinWallSegmentsById({ scene = null, ids = [] } = {}) {
+    if (!scene || typeof scene.deleteEmbeddedDocuments !== "function" || typeof scene.createEmbeddedDocuments !== "function") {
+        return { ok: false, reason: "wall-update-unavailable" };
+    }
+
+    const groups = selectedJoinGroups(selectedWallEntries(scene, ids));
+    if (!groups.length) return { ok: false, reason: "join-not-found" };
+
+    const deleted = [];
+    const documents = [];
+    for (const group of groups) {
+        const orientation = group[0].orientation;
+        const fixed = group[0].fixed;
+        const start = Math.min(...group.map((entry) => entry.start));
+        const end = Math.max(...group.map((entry) => entry.end));
+        const data = orientation === "horizontal"
+            ? buildManualWallDocumentData({
+                start: { x: start, y: fixed },
+                end: { x: end, y: fixed },
+                sourceWall: group[0].wall,
+                wallType: "wall"
+            })
+            : buildManualWallDocumentData({
+                start: { x: fixed, y: start },
+                end: { x: fixed, y: end },
+                sourceWall: group[0].wall,
+                wallType: "wall"
+            });
+        if (data) {
+            documents.push(data);
+            deleted.push(...group.map((entry) => entry.id));
+        }
+    }
+
+    if (!deleted.length || !documents.length) return { ok: false, reason: "join-not-found" };
+    await scene.deleteEmbeddedDocuments("Wall", deleted);
+    const created = await scene.createEmbeddedDocuments("Wall", documents);
+    return { ok: true, reason: "", deleted, created: created ?? [] };
 }
 
 export async function splitWallSegmentAtPoint({ scene = null, point = null, grid = null } = {}) {
@@ -245,7 +429,7 @@ export async function splitWallSegmentAtPoint({ scene = null, point = null, grid
     }
 
     const nearest = findNearestWallAtPoint({ walls: getSceneWallDocuments(scene), point, grid });
-    const id = documentId(nearest?.wall);
+    const id = wallDocumentId(nearest?.wall);
     if (!nearest || !id) return { ok: false, reason: "wall-not-found" };
 
     const splitPoint = findSplitPoint({ segment: nearest.segment, point, grid });
@@ -274,7 +458,7 @@ function sharedEndpoint(left, right) {
 
 export function findJoinCandidate({ walls = [], point = null, grid = null } = {}) {
     if (!point) return null;
-    const wallList = Array.from(walls ?? []).map((wall) => ({ wall, segment: wallCoordinates(wall), id: documentId(wall) }))
+    const wallList = Array.from(walls ?? []).map((wall) => ({ wall, segment: wallCoordinates(wall), id: wallDocumentId(wall) }))
         .filter((entry) => entry.segment && entry.id);
     const maximumDistance = clickTolerance(grid);
 

@@ -291,6 +291,10 @@ export class WorkspacePanelHost {
         const wallsActive = mode === "walls";
         const wallCommand = String(state.wallCommand ?? "detect");
         const wallType = String(state.wallType ?? "wall");
+        const selectedWallCount = Number(state.selectedWallCount ?? 0);
+        const joinableWallCount = Number(state.joinableWallCount ?? 0);
+        const canDeleteSelectedWalls = selectedWallCount > 0;
+        const canJoinSelectedWalls = joinableWallCount > 1;
 
         const primarySegment = `
         <div class="totc-v2-map-toolbar__segment" role="group" aria-label="View mode">
@@ -307,7 +311,6 @@ export class WorkspacePanelHost {
         </div>`;
 
         const secondarySegment = wallsActive ? `
-        <div class="totc-v2-map-toolbar__secondary">
             <div class="totc-v2-map-toolbar__segment" role="group" aria-label="Wall command">
                 <button type="button"
                     class="totc-v2-map-toolbar__btn${wallCommand === "detect" ? " is-active" : ""}"
@@ -330,12 +333,13 @@ export class WorkspacePanelHost {
                     <span>Add</span>
                 </button>
                 <button type="button"
-                    class="totc-v2-map-toolbar__btn${wallCommand === "remove" ? " is-active" : ""}"
+                    class="totc-v2-map-toolbar__btn"
                     data-action="map-wall-command"
                     data-map-panel-id="${panelId}"
                     data-command="remove"
-                    aria-pressed="${wallCommand === "remove"}"
-                    title="Click an existing wall segment to remove it">
+                    aria-pressed="false"
+                    ${canDeleteSelectedWalls ? "" : "disabled"}
+                    title="${canDeleteSelectedWalls ? `Delete ${selectedWallCount} selected wall segment${selectedWallCount === 1 ? "" : "s"}` : "Select wall segments to delete them"}">
                     <i class="fa-solid fa-minus" aria-hidden="true"></i>
                     <span>Remove</span>
                 </button>
@@ -350,12 +354,13 @@ export class WorkspacePanelHost {
                     <span>Split</span>
                 </button>
                 <button type="button"
-                    class="totc-v2-map-toolbar__btn${wallCommand === "join" ? " is-active" : ""}"
+                    class="totc-v2-map-toolbar__btn"
                     data-action="map-wall-command"
                     data-map-panel-id="${panelId}"
                     data-command="join"
-                    aria-pressed="${wallCommand === "join"}"
-                    title="Click a shared endpoint to join two aligned wall segments">
+                    aria-pressed="false"
+                    ${canJoinSelectedWalls ? "" : "disabled"}
+                    title="${canJoinSelectedWalls ? `Join ${joinableWallCount} fully selected wall segment${joinableWallCount === 1 ? "" : "s"}` : "Fully enclose adjacent wall segments to join them"}">
                     <i class="fa-solid fa-link" aria-hidden="true"></i>
                     <span>Join</span>
                 </button>
@@ -389,14 +394,14 @@ export class WorkspacePanelHost {
                     <span>Window</span>
                 </button>
             </div>
-        </div>` : "";
+        ` : "";
 
         return `
         <nav class="totc-v2-map-toolbar" aria-label="Map tools" data-map-panel-id="${panelId}">
             <div class="totc-v2-map-toolbar__primary">
                 ${primarySegment}
+                ${secondarySegment}
             </div>
-            ${secondarySegment}
         </nav>`;
     }
 

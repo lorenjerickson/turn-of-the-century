@@ -64,6 +64,30 @@ export function getSceneWallDocuments(scene = null) {
     return collectionContents(scene?.walls).filter(Boolean);
 }
 
+export function buildSceneWallOverlayState(scene = null, { selectedWallIds = new Set() } = {}) {
+    const selectedIds = selectedWallIds instanceof Set
+        ? selectedWallIds
+        : new Set(Array.from(selectedWallIds ?? []).map((id) => String(id ?? "").trim()).filter(Boolean));
+    const segments = getSceneWallDocuments(scene).map((wall) => {
+        const coords = wall?.c ?? wall?._source?.c ?? wall?.toObject?.()?.c ?? [];
+        const [x1, y1, x2, y2] = Array.from(coords ?? []).map((value) => Number(value));
+        return { id: documentId(wall), x1, y1, x2, y2 };
+    }).filter((segment) => [segment.x1, segment.y1, segment.x2, segment.y2].every(Number.isFinite))
+        .map((segment) => ({
+            id: segment.id,
+            x1: Math.round(segment.x1),
+            y1: Math.round(segment.y1),
+            x2: Math.round(segment.x2),
+            y2: Math.round(segment.y2),
+            selected: selectedIds.has(segment.id)
+        }));
+
+    return {
+        segments,
+        intersections: buildDetectedWallIntersections(segments)
+    };
+}
+
 export function buildRegularSquareGridModel(scene = null, { imageWidth = 0, imageHeight = 0 } = {}) {
     const gridType = Number(scene?.grid?.type ?? GRID_TYPES.GRIDLESS);
     const cellSize = positiveNumber(scene?.grid?.size, 0);

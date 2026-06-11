@@ -5,10 +5,16 @@ import {
     addWallSegmentToScene,
     buildManualWallDocumentData,
     buildWallEditingGrid,
+    findWallsIntersectingBounds,
+    findWallsWithinBounds,
+    joinWallSegmentsById,
     joinWallSegmentsAtPoint,
+    removeWallSegmentsById,
     removeWallSegmentAtPoint,
     snapPointToGridIntersection,
-    splitWallSegmentAtPoint
+    splitWallSegmentAtPoint,
+    wallSegmentIntersectsBounds,
+    wallSegmentWithinBounds
 } from "../../module/ui/workspace-v2/scene-wall-editing.mjs";
 
 function makeScene({ walls = [] } = {}) {
@@ -121,6 +127,36 @@ describe("scene wall editing", () => {
         assert.deepEqual(scene.calls[0], { action: "delete", type: "Wall", ids: ["near"] });
     });
 
+    it("selects wall segments when any portion intersects selection bounds", () => {
+        const walls = [
+            wall("crosses", [0, 100, 300, 100]),
+            wall("inside-endpoint", [150, 150, 300, 300]),
+            wall("outside", [0, 300, 100, 300])
+        ];
+        const bounds = { left: 90, top: 90, right: 160, bottom: 160 };
+
+        assert.equal(wallSegmentIntersectsBounds({ x1: 0, y1: 100, x2: 300, y2: 100 }, bounds), true);
+        assert.deepEqual(findWallsIntersectingBounds({ walls, bounds }).map((entry) => entry.id), ["crosses", "inside-endpoint"]);
+        assert.equal(wallSegmentWithinBounds({ x1: 0, y1: 100, x2: 300, y2: 100 }, bounds), false);
+        assert.deepEqual(findWallsWithinBounds({ walls, bounds }).map((entry) => entry.id), []);
+    });
+
+    it("deletes selected wall ids without using point proximity", async () => {
+        const scene = makeScene({
+            walls: [
+                wall("a", [0, 0, 100, 0]),
+                wall("b", [100, 0, 200, 0]),
+                wall("c", [200, 0, 300, 0])
+            ]
+        });
+
+        const result = await removeWallSegmentsById({ scene, ids: ["b", "missing", "a", "a"] });
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(result.deleted, ["b", "a"]);
+        assert.deepEqual(scene.calls[0], { action: "delete", type: "Wall", ids: ["b", "a"] });
+    });
+
     it("splits a wall at the nearest eligible grid point", async () => {
         const scene = makeScene({
             walls: [wall("long", [0, 100, 300, 100])]
@@ -157,5 +193,34 @@ describe("scene wall editing", () => {
         assert.deepEqual(result.joinPoint, { x: 100, y: 100 });
         assert.deepEqual(scene.calls[0], { action: "delete", type: "Wall", ids: ["left", "right"] });
         assert.deepEqual(scene.calls[1].documents[0].c, [0, 100, 300, 100]);
+    });
+
+    it("joins selected horizontal and vertical wall groups independently", async () => {
+        const scene = makeScene({
+            walls: [
+                wall("h-left", [0, 100, 100, 100]),
+                wall("h-right", [100, 100, 300, 100]),
+                wall("v-top", [400, 0, 400, 100]),
+                wall("v-bottom", [400, 100, 400, 250]),
+                wall("other-row", [0, 200, 100, 200]),
+                wall("diagonal", [0, 0, 100, 100])
+            ]
+        });
+
+        const result = await joinWallSegmentsById({
+            scene,
+            ids: ["h-left", "h-right", "v-top", "v-bottom", "other-row", "diagonal"]
+        });
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(scene.calls[0], {
+            action: "delete",
+            type: "Wall",
+            ids: ["h-left", "h-right", "v-top", "v-bottom"]
+        });
+        assert.deepEqual(scene.calls[1].documents.map((document) => document.c), [
+            [0, 100, 300, 100],
+            [400, 0, 400, 250]
+        ]);
     });
 });

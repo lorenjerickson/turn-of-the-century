@@ -55,13 +55,28 @@ describe("workspace token interactions", () => {
 
     it("wires wall edit tools before token selection in root app", () => {
         assert.match(workspaceRootSource, /addWallSegmentToScene/);
-        assert.match(workspaceRootSource, /removeWallSegmentAtPoint/);
+        assert.match(workspaceRootSource, /removeWallSegmentsById/);
+        assert.doesNotMatch(workspaceRootSource, /removeWallSegmentAtPoint/);
+        assert.match(workspaceRootSource, /findWallsIntersectingBounds/);
+        assert.match(workspaceRootSource, /findWallsWithinBounds/);
         assert.match(workspaceRootSource, /splitWallSegmentAtPoint/);
-        assert.match(workspaceRootSource, /joinWallSegmentsAtPoint/);
+        assert.match(workspaceRootSource, /joinWallSegmentsById/);
+        assert.doesNotMatch(workspaceRootSource, /joinWallSegmentsAtPoint/);
         assert.match(workspaceRootSource, /this\._wallAddSequence = null/);
-        assert.match(workspaceRootSource, /this\.\#isWallEditingPointerEvent\(viewport\)[\s\S]*this\.\#handleWallEditingPointerDown\(viewport, event\)/);
+        assert.match(workspaceRootSource, /this\.\#isWallSelectionPointerEvent\(viewport\)[\s\S]*this\.\#beginWallRubberbandSelection\(viewport, event\)[\s\S]*const tokenEl = event\.target\.closest/);
+        assert.match(workspaceRootSource, /if \(!moved\) \{[\s\S]*this\.\#isWallEditingPointerEvent\(viewport\)[\s\S]*this\.\#handleWallEditingPointerDown\(viewport, event\)/);
+        assert.match(workspaceRootSource, /this\.selectedTokenIds\.clear\(\);[\s\S]*querySelectorAll\("\[data-action='map-token'\]"\)[\s\S]*classList\.remove\("is-selected"\)/);
+        assert.match(workspaceRootSource, /else if \(mode === "walls"\) \{[\s\S]*this\.\#deactivateWallModeForPanel\(panelId\)/);
         assert.match(workspaceRootSource, /event\.key !== "Escape"[\s\S]*this\.\#cancelWallAddSequence\(\)/);
         assert.match(workspaceRootSource, /if \(this\._wallAddSequence\) \{[\s\S]*this\.\#cancelWallAddSequence\(\);[\s\S]*return;[\s\S]*\}/);
+    });
+
+    it("redraws wall overlays on normal map renders when grid calibration is inactive", () => {
+        assert.match(workspaceRootSource, /if \(!this\.gridCalibrationController\.active\) \{\s*this\.\#drawGridCalibrationOverlay\(\);\s*return;\s*\}/);
+        assert.match(workspaceRootSource, /if \(result\?\.ok\) this\.\#refreshSceneWallOverlay\(scene\);/);
+        assert.match(workspaceRootSource, /if \(actionId === "scene\.walls" && result\?\.ok && actionScene\) this\.\#refreshSceneWallOverlay\(actionScene\);/);
+        assert.match(workspaceRootSource, /totc-v2-grid-overlay__selected-wall-halo/);
+        assert.match(styles, /\.totc-v2-grid-overlay__selected-wall-halo\s*\{/);
     });
 
     it("defines CSS rules for selected tokens and rubberband selection box", () => {

@@ -120,11 +120,17 @@ import {
 import {
     addWallSegmentToScene,
     buildWallEditingGrid,
-    joinWallSegmentsAtPoint,
-    removeWallSegmentAtPoint,
+    findWallsIntersectingBounds,
+    findWallsWithinBounds,
+    joinWallSegmentsById,
+    removeWallSegmentsById,
     snapPointToGridIntersection,
-    splitWallSegmentAtPoint
+    splitWallSegmentAtPoint,
+    wallDocumentId
 } from "./scene-wall-editing.mjs";
+import {
+    buildSceneWallOverlayState
+} from "./scene-wall-detection.mjs";
 import {
     buildGridCalibrationSceneUpdate,
     buildGridCalibrationOverlayModel,
@@ -904,6 +910,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._appliedGridOverlayStates = new Map();
         this._detectedWallOverlayStates = new Map();
         this._mapPanelToolbarStates = new Map();
+        this._selectedWallIdsByScene = new Map();
+        this._joinableWallIdsByScene = new Map();
         this._wallAddSequence = null;
         this._gmAssistantState = {
             elementType: "campaign",
@@ -1745,6 +1753,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.#patchMapPanelToolbarState(panelId, { mode: nextMode });
                 if (nextMode === "walls") {
                     await this.#executeDesignAction("scene.walls", { panelId });
+                } else if (mode === "walls") {
+                    this.#deactivateWallModeForPanel(panelId);
                 }
                 this.render({ force: false });
             });
@@ -1758,6 +1768,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const panelId = String(button.dataset.mapPanelId ?? "").trim();
                 const command = String(button.dataset.command ?? "").trim();
                 if (command !== "add") this.#cancelWallAddSequence();
+                if (command === "remove") {
+                    await this.#deleteSelectedWallsForPanel(panelId);
+                    return;
+                }
+                if (command === "join") {
+                    await this.#joinSelectedWallsForPanel(panelId);
+                    return;
+                }
                 this.#patchMapPanelToolbarState(panelId, { wallCommand: command });
                 if (command === "detect") {
                     await this.#executeDesignAction("scene.detectWalls", { panelId });
@@ -3546,10 +3564,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 if (viewport.classList.contains("is-calibrating")) return;
 
-                if (this.#isWallEditingPointerEvent(viewport)) {
+                if (this.#isWallSelectionPointerEvent(viewport)) {
                     event.preventDefault();
                     event.stopPropagation();
-                    void this.#handleWallEditingPointerDown(viewport, event);
+                    this.#beginWallRubberbandSelection(viewport, event);
                     return;
                 }
 
@@ -4198,6 +4216,18 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
     }
 
+    #getImageSpaceBoundsFromMapEvents(viewport, startEvent, currentEvent) {
+        const start = this.#getImageSpacePointFromMapEvent(viewport, startEvent);
+        const current = this.#getImageSpacePointFromMapEvent(viewport, currentEvent);
+        if (!start || !current) return null;
+        return {
+            left: Math.min(start.x, current.x),
+            right: Math.max(start.x, current.x),
+            top: Math.min(start.y, current.y),
+            bottom: Math.max(start.y, current.y)
+        };
+    }
+
     #onMapPanPointerMove(event) {
         this.mapViewportController.movePan(event);
     }
@@ -4221,7 +4251,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #isWallEditingPointerEvent(viewport) {
         const state = this.#getMapWallEditingState(viewport);
-        return state.mode === "walls" && ["add", "remove", "split", "join"].includes(state.wallCommand);
+        return state.mode === "walls" && ["add", "split"].includes(state.wallCommand);
+    }
+
+    #isWallSelectionPointerEvent(viewport) {
+        const state = this.#getMapWallEditingState(viewport);
+        return state.mode === "walls";
     }
 
     #getMapWallEditingState(viewport) {
@@ -4257,14 +4292,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.#cancelWallAddSequence({ notify: false });
         let result = null;
-        if (state.wallCommand === "remove") {
-            result = await removeWallSegmentAtPoint({ scene, point, grid });
-        } else if (state.wallCommand === "split") {
+        if (state.wallCommand === "split") {
             result = await splitWallSegmentAtPoint({ scene, point, grid });
-        } else if (state.wallCommand === "join") {
-            result = await joinWallSegmentsAtPoint({ scene, point, grid });
         }
 
+        if (result?.ok) this.#refreshSceneWallOverlay(scene);
         this.#reportWallEditResult(state.wallCommand, result);
     }
 
@@ -4286,8 +4318,140 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             wallType
         });
         this._wallAddSequence = null;
+        if (result?.ok) this.#refreshSceneWallOverlay(scene);
         this.#reportWallEditResult("add", result);
     }
+
+    #beginWallRubberbandSelection(viewport, event) {
+        const scene = this.#getSceneForMapViewport(viewport);
+        if (!scene) {
+            ui.notifications?.warn("Open a scene before selecting walls.");
+            return;
+        }
+
+        const startPoint = this.#getImageSpacePointFromMapEvent(viewport, event);
+        if (!startPoint) return;
+
+        const rect = viewport.getBoundingClientRect();
+        const startViewportX = event.clientX - rect.left;
+        const startViewportY = event.clientY - rect.top;
+        const hasModifier = event.shiftKey || event.ctrlKey || event.metaKey;
+        const initialSelectedIds = new Set(this.#getSelectedWallIds(scene));
+        const initialJoinableIds = new Set(this.#getJoinableWallIds(scene));
+
+        let moved = false;
+        let boxEl = null;
+
+        const onPointerMove = (moveEvent) => {
+            const currentRect = viewport.getBoundingClientRect();
+            const currentViewportX = moveEvent.clientX - currentRect.left;
+            const currentViewportY = moveEvent.clientY - currentRect.top;
+            const left = Math.min(startViewportX, currentViewportX);
+            const top = Math.min(startViewportY, currentViewportY);
+            const width = Math.abs(currentViewportX - startViewportX);
+            const height = Math.abs(currentViewportY - startViewportY);
+
+            if (width > 3 || height > 3) moved = true;
+            if (!moved) return;
+            if (!boxEl) {
+                this.#cancelWallAddSequence({ notify: false });
+                this.selectedTokenIds.clear();
+                viewport.querySelectorAll("[data-action='map-token']").forEach((token) => token.classList.remove("is-selected"));
+                this.#syncSelectionToCanvas();
+
+                boxEl = document.createElement("div");
+                boxEl.className = "totc-v2-map-viewport__selection-box";
+                boxEl.style.position = "absolute";
+                boxEl.style.pointerEvents = "none";
+                boxEl.style.zIndex = "1000";
+                viewport.appendChild(boxEl);
+            }
+
+            boxEl.style.left = `${left}px`;
+            boxEl.style.top = `${top}px`;
+            boxEl.style.width = `${width}px`;
+            boxEl.style.height = `${height}px`;
+
+            const bounds = this.#getImageSpaceBoundsFromMapEvents(viewport, event, moveEvent);
+            const selectedIds = new Set(findWallsIntersectingBounds({ walls: scene.walls, bounds }).map((entry) => entry.id));
+            const joinableIds = new Set(findWallsWithinBounds({ walls: scene.walls, bounds }).map((entry) => entry.id));
+            this.#setSelectedWallIds(scene, hasModifier ? [...initialSelectedIds, ...selectedIds] : selectedIds);
+            this.#setJoinableWallIds(scene, hasModifier ? [...initialJoinableIds, ...joinableIds] : joinableIds);
+            this.#refreshSceneWallOverlay(scene);
+        };
+
+        const onPointerUp = () => {
+            document.removeEventListener("pointermove", onPointerMove);
+            document.removeEventListener("pointerup", onPointerUp);
+            boxEl?.remove();
+
+            if (!moved) {
+                if (this.#isWallEditingPointerEvent(viewport)) {
+                    void this.#handleWallEditingPointerDown(viewport, event);
+                    return;
+                }
+                if (!hasModifier) {
+                    this.#setSelectedWallIds(scene, []);
+                    this.#setJoinableWallIds(scene, []);
+                    this.#refreshSceneWallOverlay(scene);
+                }
+            }
+
+            this.render({ force: false });
+        };
+
+        document.addEventListener("pointermove", onPointerMove);
+        document.addEventListener("pointerup", onPointerUp);
+    }
+
+    #deactivateWallModeForPanel(panelId = "") {
+        const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
+        const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
+        this.#cancelWallAddSequence({ notify: false });
+        if (scene) {
+            this.#setSelectedWallIds(scene, []);
+            this.#setJoinableWallIds(scene, []);
+            this.#setSceneDetectedWallOverlayState(scene, null);
+            this.#drawGridCalibrationOverlay();
+        }
+    }
+
+    async #deleteSelectedWallsForPanel(panelId = "") {
+        const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
+        const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
+        const selectedIds = this.#getSelectedWallIds(scene);
+        if (!scene || !selectedIds.size) {
+            ui.notifications?.warn?.("Select wall segments before deleting them.");
+            return;
+        }
+
+        const result = await removeWallSegmentsById({ scene, ids: selectedIds });
+        if (result?.ok) {
+            this.#setSelectedWallIds(scene, []);
+            this.#setJoinableWallIds(scene, []);
+            this.#refreshSceneWallOverlay(scene);
+        }
+        this.#reportWallEditResult("remove", result);
+    }
+
+    async #joinSelectedWallsForPanel(panelId = "") {
+        const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
+        const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
+        const joinableIds = this.#getJoinableWallIds(scene);
+        if (!scene || joinableIds.size < 2) {
+            ui.notifications?.warn?.("Select fully enclosed wall segments before joining them.");
+            return;
+        }
+
+        const result = await joinWallSegmentsById({ scene, ids: joinableIds });
+        if (result?.ok) {
+            this.#setSelectedWallIds(scene, []);
+            this.#setJoinableWallIds(scene, []);
+            this.#refreshSceneWallOverlay(scene);
+        }
+        this.#reportWallEditResult("join", result);
+    }
+
 
     #cancelWallAddSequence({ notify = true } = {}) {
         if (!this._wallAddSequence) return;
@@ -4297,9 +4461,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #reportWallEditResult(command, result = null) {
         if (result?.ok) {
+            const deletedCount = Array.isArray(result.deleted) ? result.deleted.length : 0;
             const messages = {
                 add: "Wall segment added.",
-                remove: "Wall segment removed.",
+                remove: deletedCount > 1 ? `${deletedCount} wall segments removed.` : "Wall segment removed.",
                 split: "Wall segment split.",
                 join: "Wall segments joined."
             };
@@ -4318,6 +4483,29 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             "wall-update-unavailable": "This scene cannot update walls in the current Foundry session."
         };
         ui.notifications?.warn?.(reasonMessages[result?.reason] ?? "Wall edit could not be applied.");
+    }
+
+    #refreshSceneWallOverlay(scene = null) {
+        if (!scene) return;
+        const walls = scene?.walls;
+        const wallDocuments = Array.isArray(walls)
+            ? walls
+            : Array.isArray(walls?.contents)
+                ? walls.contents
+                : typeof walls?.values === "function"
+                    ? Array.from(walls.values())
+                    : typeof walls?.[Symbol.iterator] === "function"
+                        ? Array.from(walls)
+                        : [];
+        const existingWallIds = new Set(wallDocuments.map((wall) => wallDocumentId(wall)).filter(Boolean));
+        const selectedWallIds = [...this.#getSelectedWallIds(scene)].filter((id) => existingWallIds.has(id));
+        const joinableWallIds = [...this.#getJoinableWallIds(scene)].filter((id) => existingWallIds.has(id));
+        this.#setSelectedWallIds(scene, selectedWallIds);
+        this.#setJoinableWallIds(scene, joinableWallIds);
+        this.#setSceneDetectedWallOverlayState(scene, buildSceneWallOverlayState(scene, {
+            selectedWallIds
+        }));
+        this.#drawGridCalibrationOverlay();
     }
 
     #isDesignLensActive(panelId) {
@@ -4433,7 +4621,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
 
         // Map viewport corner-picking ------------------------------------------
-        if (!this.gridCalibrationController.active) return;
+        if (!this.gridCalibrationController.active) {
+            this.#drawGridCalibrationOverlay();
+            return;
+        }
 
         const viewport = this.element?.querySelector("[data-map-viewport='true']");
         if (!viewport) return;
@@ -4548,9 +4739,20 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (hasDetectedWalls) {
             const toViewportX = (value) => (Number(value) * scale) + offsetX;
             const toViewportY = (value) => (Number(value) * scale) + offsetY;
+            const selectedSegments = detectedWallsOverlay.segments.filter((segment) => segment.selected);
+            if (selectedSegments.length) {
+                inner += `<defs><linearGradient id="totc-v2-wall-selection-halo" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fff799" stop-opacity="0.03"/><stop offset="50%" stop-color="#fff799" stop-opacity="0.28"/><stop offset="100%" stop-color="#fff799" stop-opacity="0.03"/></linearGradient></defs>`;
+            }
 
             for (const segment of detectedWallsOverlay.segments) {
-                inner += `<line x1="${toViewportX(segment.x1).toFixed(1)}" y1="${toViewportY(segment.y1).toFixed(1)}" x2="${toViewportX(segment.x2).toFixed(1)}" y2="${toViewportY(segment.y2).toFixed(1)}" class="totc-v2-grid-overlay__detected-wall"/>`;
+                const x1 = toViewportX(segment.x1).toFixed(1);
+                const y1 = toViewportY(segment.y1).toFixed(1);
+                const x2 = toViewportX(segment.x2).toFixed(1);
+                const y2 = toViewportY(segment.y2).toFixed(1);
+                if (segment.selected) {
+                    inner += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="totc-v2-grid-overlay__selected-wall-halo"/>`;
+                }
+                inner += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="totc-v2-grid-overlay__detected-wall${segment.selected ? " is-selected" : ""}"/>`;
             }
 
             for (const intersection of detectedWallsOverlay.intersections ?? []) {
@@ -4641,10 +4843,40 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return sceneId ? (this._detectedWallOverlayStates.get(sceneId) ?? null) : null;
     }
 
+    #getSelectedWallIds(scene = null) {
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        return sceneId ? (this._selectedWallIdsByScene.get(sceneId) ?? new Set()) : new Set();
+    }
+
+    #setSelectedWallIds(scene = null, ids = []) {
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        if (!sceneId) return;
+        const selectedIds = new Set(Array.from(ids ?? []).map((id) => String(id ?? "").trim()).filter(Boolean));
+        if (selectedIds.size) this._selectedWallIdsByScene.set(sceneId, selectedIds);
+        else this._selectedWallIdsByScene.delete(sceneId);
+    }
+
+    #getJoinableWallIds(scene = null) {
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        return sceneId ? (this._joinableWallIdsByScene.get(sceneId) ?? new Set()) : new Set();
+    }
+
+    #setJoinableWallIds(scene = null, ids = []) {
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        if (!sceneId) return;
+        const joinableIds = new Set(Array.from(ids ?? []).map((id) => String(id ?? "").trim()).filter(Boolean));
+        if (joinableIds.size) this._joinableWallIdsByScene.set(sceneId, joinableIds);
+        else this._joinableWallIdsByScene.delete(sceneId);
+    }
+
     #getMapPanelToolbarState(panel = null) {
         const panelId = String(panel?.id ?? "").trim();
-        if (!panelId) return { mode: null, wallCommand: "detect", wallType: "wall" };
-        return this._mapPanelToolbarStates.get(panelId) ?? { mode: null, wallCommand: "detect", wallType: "wall" };
+        const sceneId = this.#getPanelSceneId(panel);
+        const selectedWallCount = sceneId ? (this._selectedWallIdsByScene.get(sceneId)?.size ?? 0) : 0;
+        const joinableWallCount = sceneId ? (this._joinableWallIdsByScene.get(sceneId)?.size ?? 0) : 0;
+        const defaults = { mode: null, wallCommand: "detect", wallType: "wall", selectedWallCount, joinableWallCount };
+        if (!panelId) return defaults;
+        return { ...defaults, ...(this._mapPanelToolbarStates.get(panelId) ?? {}), selectedWallCount, joinableWallCount };
     }
 
     #patchMapPanelToolbarState(panelId = "", patch = {}) {
@@ -4661,10 +4893,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const values = [segment?.x1, segment?.y1, segment?.x2, segment?.y2].map((value) => Number(value));
                 return values.every(Number.isFinite);
             }).map((segment) => ({
+                id: String(segment.id ?? "").trim(),
                 x1: Math.round(Number(segment.x1)),
                 y1: Math.round(Number(segment.y1)),
                 x2: Math.round(Number(segment.x2)),
-                y2: Math.round(Number(segment.y2))
+                y2: Math.round(Number(segment.y2)),
+                selected: Boolean(segment.selected)
             }))
             : [];
 
@@ -4936,6 +5170,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 combat: game.combats?.active ?? game.combat ?? null,
                 controlledTokens: canvas?.tokens?.controlled ?? []
             });
+
+            if (actionId === "scene.walls" && result?.ok && actionScene) this.#refreshSceneWallOverlay(actionScene);
 
             if (actionId === "scene.detectWalls" && result?.ok && actionScene) {
                 this.#setSceneDetectedWallOverlayState(actionScene, result.detectedWallOverlay ?? null);

@@ -2941,20 +2941,14 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
-    justify-content: space-between;
+    justify-content: flex-start;
     min-height: 2rem;
 }
 
 .turn-of-the-century .totc-v2-map-toolbar__primary {
     display: flex;
-    gap: 0.4rem;
-}
-
-.turn-of-the-century .totc-v2-map-toolbar__secondary {
-    display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
-    margin-inline-start: auto;
 }
 
 .turn-of-the-century .totc-v2-map-toolbar__segment {
@@ -2990,6 +2984,16 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 .turn-of-the-century .totc-v2-map-toolbar__btn:hover {
     background: rgba(148, 163, 184, 0.1);
     color: #e2e8f0;
+}
+
+.turn-of-the-century .totc-v2-map-toolbar__btn:disabled {
+    color: rgba(148, 163, 184, 0.42);
+    cursor: not-allowed;
+}
+
+.turn-of-the-century .totc-v2-map-toolbar__btn:disabled:hover {
+    background: transparent;
+    color: rgba(148, 163, 184, 0.42);
 }
 
 .turn-of-the-century .totc-v2-map-toolbar__btn.is-active {
@@ -3202,6 +3206,18 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 .turn-of-the-century .totc-v2-grid-overlay__detected-wall {
     stroke: rgba(255, 247, 153, 0.96);
     stroke-width: 2.25;
+    vector-effect: non-scaling-stroke;
+}
+
+.turn-of-the-century .totc-v2-grid-overlay__detected-wall.is-selected {
+    stroke: rgba(255, 247, 153, 0.98);
+}
+
+.turn-of-the-century .totc-v2-grid-overlay__selected-wall-halo {
+    filter: drop-shadow(0 0 5px rgba(255, 247, 153, 0.18));
+    stroke: url("#totc-v2-wall-selection-halo");
+    stroke-linecap: round;
+    stroke-width: 10;
     vector-effect: non-scaling-stroke;
 }
 

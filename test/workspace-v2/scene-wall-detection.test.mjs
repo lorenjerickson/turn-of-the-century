@@ -7,6 +7,7 @@ import {
     buildDetectedWallIntersections,
     buildGridLineCoordinates,
     buildRegularSquareGridModel,
+    buildSceneWallOverlayState,
     detectRegularGridWallSegments,
     scoreGridLineSegment
 } from "../../module/ui/workspace-v2/scene-wall-detection.mjs";
@@ -450,6 +451,26 @@ describe("regular grid wall detection", () => {
             { x: 100, y: 100 },
             { x: 100, y: 200 }
         ]);
+    });
+
+    it("builds overlay segments from existing scene walls", () => {
+        assert.deepEqual(buildSceneWallOverlayState({
+            walls: [
+                { id: "wall-a", c: [0.2, 0.8, 100.3, 0.4] },
+                { id: "wall-b", _source: { c: [100, 0, 100, 100] } },
+                { c: ["bad", 0, 50, 50] }
+            ]
+        }, {
+            selectedWallIds: new Set(["wall-b"])
+        }), {
+            segments: [
+                { id: "wall-a", x1: 0, y1: 1, x2: 100, y2: 0, selected: false },
+                { id: "wall-b", x1: 100, y1: 0, x2: 100, y2: 100, selected: true }
+            ],
+            intersections: [
+                { x: 100, y: 0 }
+            ]
+        });
     });
 
     it("uses Foundry wall constants when available", () => {

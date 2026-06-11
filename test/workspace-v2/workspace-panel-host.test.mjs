@@ -9,6 +9,12 @@ const escapeHTML = (value) => String(value ?? "")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 
+function toolbarButton(html, command) {
+    return Array.from(html.matchAll(/<button type="button"[\s\S]*?<\/button>/g))
+        .map((match) => match[0])
+        .find((button) => button.includes(`data-command="${command}"`)) ?? "";
+}
+
 describe("WorkspacePanelHost", () => {
     it("renders scene map panels with actor drop and grid overlay layers", () => {
         const host = new WorkspacePanelHost({
@@ -86,7 +92,7 @@ describe("WorkspacePanelHost", () => {
         assert.match(html, /data-grid-overlay="true"/);
     });
 
-    it("renders split and join wall commands in the walls secondary toolbar", () => {
+    it("renders split and join wall commands in the primary map toolbar", () => {
         const host = new WorkspacePanelHost({
             escapeHTML,
             isGM: () => true,
@@ -109,9 +115,70 @@ describe("WorkspacePanelHost", () => {
         const html = host.renderPanelBodyContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
 
         assert.match(html, /data-command="add"/);
-        assert.match(html, /data-command="remove"/);
+        assert.match(html, /data-command="remove"[\s\S]*disabled/);
         assert.match(html, /data-command="split"[\s\S]*aria-pressed="true"/);
-        assert.match(html, /data-command="join"/);
+        assert.match(html, /data-command="join"[\s\S]*disabled/);
+        assert.doesNotMatch(html, /totc-v2-map-toolbar__secondary/);
+        assert.match(html, /totc-v2-map-toolbar__primary[\s\S]*data-mode="walls"[\s\S]*data-command="add"[\s\S]*data-wall-type="wall"/);
+    });
+
+    it("enables the wall remove tool when wall segments are selected", () => {
+        const host = new WorkspacePanelHost({
+            escapeHTML,
+            isGM: () => true,
+            isMapPanel: () => true,
+            getMapPanelScene: () => ({
+                id: "scene-1",
+                name: "Rookery Yard",
+                mapSrc: "yard.webp",
+                width: 1200,
+                height: 800,
+                shiftX: 0,
+                shiftY: 0,
+                grid: { type: 1, size: 100 },
+                tokens: []
+            }),
+            getMapPanelToolbarState: () => ({ mode: "walls", wallCommand: "split", wallType: "wall", selectedWallCount: 2, joinableWallCount: 2 }),
+            gridCalibrationState: () => ({ active: false })
+        });
+
+        const html = host.renderPanelBodyContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
+        const removeButton = toolbarButton(html, "remove");
+        const joinButton = toolbarButton(html, "join");
+
+        assert.match(removeButton, /Delete 2 selected wall segments/);
+        assert.doesNotMatch(removeButton, /disabled/);
+        assert.doesNotMatch(removeButton, /is-active/);
+        assert.match(joinButton, /Join 2 fully selected wall segments/);
+        assert.doesNotMatch(joinButton, /disabled/);
+        assert.doesNotMatch(joinButton, /is-active/);
+    });
+
+    it("hides wall command controls when wall mode is inactive", () => {
+        const host = new WorkspacePanelHost({
+            escapeHTML,
+            isGM: () => true,
+            isMapPanel: () => true,
+            getMapPanelScene: () => ({
+                id: "scene-1",
+                name: "Rookery Yard",
+                mapSrc: "yard.webp",
+                width: 1200,
+                height: 800,
+                shiftX: 0,
+                shiftY: 0,
+                grid: { type: 1, size: 100 },
+                tokens: []
+            }),
+            getMapPanelToolbarState: () => ({ mode: null, wallCommand: "split", wallType: "wall", selectedWallCount: 2, joinableWallCount: 2 }),
+            gridCalibrationState: () => ({ active: false })
+        });
+
+        const html = host.renderPanelBodyContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
+
+        assert.match(html, /data-mode="walls"[\s\S]*aria-pressed="false"/);
+        assert.doesNotMatch(html, /data-command="split"/);
+        assert.doesNotMatch(html, /data-command="join"/);
     });
 
     it("wraps active design lens markup around panel content", () => {
