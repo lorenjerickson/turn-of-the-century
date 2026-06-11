@@ -1199,6 +1199,21 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const scenePropertiesState = this.sceneWorkspaceController.propertiesState;
         const combat = game.combats?.active ?? game.combat ?? null;
         const controlledTokens = canvas?.tokens?.controlled ?? [];
+        if (controlledTokens.length > 0 || this.selectedTokenIds.size > 0) {
+            const controlledIds = new Set(controlledTokens.map((t) => t.id).filter(Boolean));
+            let mismatch = controlledIds.size !== this.selectedTokenIds.size;
+            if (!mismatch) {
+                for (const id of this.selectedTokenIds) {
+                    if (!controlledIds.has(id)) {
+                        mismatch = true;
+                        break;
+                    }
+                }
+            }
+            if (mismatch) {
+                this.selectedTokenIds = controlledIds;
+            }
+        }
         const gmPanelState = this.#getGamemasterPanelState();
         const gmSnapshot = buildGamemasterContextSnapshot({ scene, combat, controlledTokens });
         const gmPanel = buildGamemasterPanelModel({
@@ -3048,6 +3063,24 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return await this.stateStore?.setUserScopedStatePatch?.(PLAYER_PANEL_STATE_KEY, patch, normalizePlayerPanelState);
     }
 
+    #syncSelectionToCanvas() {
+        if (!canvas?.tokens) return;
+        const currentControlledIds = new Set(canvas.tokens.controlled.map(t => t.id).filter(Boolean));
+
+        for (const token of canvas.tokens.controlled) {
+            if (token && token.id && !this.selectedTokenIds.has(token.id)) {
+                token.release();
+            }
+        }
+
+        for (const id of this.selectedTokenIds) {
+            if (!currentControlledIds.has(id)) {
+                const token = canvas.tokens.get(id);
+                token?.control({ releaseOthers: false });
+            }
+        }
+    }
+
     #getPlayerPanelActors(controlledTokens = []) {
         const tokenActors = (controlledTokens ?? []).map((token) => token?.actor).filter((actor, index, list) => actor && list.findIndex((entry) => entry?.id === actor.id) === index);
         const ownedActors = (game.actors?.contents ?? []).filter((actor) => actor?.isOwner);
@@ -3460,6 +3493,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     event.stopPropagation();
 
                     const tokenId = tokenEl.dataset.tokenId;
+                    const sceneId = viewport.dataset.sceneId;
+                    const scene = game.scenes?.get(sceneId);
+                    if (!scene) return;
+
+                    const tokenDoc = scene.tokens?.get(tokenId);
+                    const actor = tokenDoc?.actor || game.actors?.get(tokenDoc?.actorId);
+                    if (!actor?.isOwner) return;
+
                     const isClickedSelected = this.selectedTokenIds.has(tokenId);
 
                     if (!isClickedSelected) {
@@ -3472,14 +3513,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                             t.classList.toggle("is-selected", this.selectedTokenIds.has(t.dataset.tokenId));
                         }
                     }
-
-                    const sceneId = viewport.dataset.sceneId;
-                    const scene = game.scenes?.get(sceneId);
-                    if (!scene) return;
-
-                    const tokenDoc = scene.tokens?.get(tokenId);
-                    const actor = tokenDoc?.actor || game.actors?.get(tokenDoc?.actorId);
-                    if (!actor?.isOwner) return;
 
                     const draggedTokens = [];
                     for (const id of this.selectedTokenIds) {
@@ -3550,6 +3583,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                                 }
                             }
                         }
+                        this.#syncSelectionToCanvas();
                         this.render({ force: false });
                     };
 
@@ -3559,6 +3593,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     // Rubberband selection
                     event.preventDefault();
                     event.stopPropagation();
+
+                    const sceneId = viewport.dataset.sceneId;
+                    const scene = game.scenes?.get(sceneId);
 
                     const rect = viewport.getBoundingClientRect();
                     const startClientX = event.clientX;
@@ -3611,7 +3648,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                                 tokenRect.top > boxRect.bottom
                             );
                             if (overlaps) {
-                                currentBoxSelected.add(el.dataset.tokenId);
+                                const tDoc = scene?.tokens?.get(el.dataset.tokenId);
+                                const tActor = tDoc?.actor || game.actors?.get(tDoc?.actorId);
+                                if (tActor?.isOwner) {
+                                    currentBoxSelected.add(el.dataset.tokenId);
+                                }
                             }
                         }
 
@@ -3638,6 +3679,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                             }
                         }
 
+                        this.#syncSelectionToCanvas();
                         this.render({ force: false });
                     };
 
