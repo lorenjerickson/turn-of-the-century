@@ -79,6 +79,28 @@ export class MapViewportController {
         this.onTransformChange?.();
     }
 
+    centerOnPoint(viewport, image, { x = 0, y = 0, scale = null, persist = true } = {}) {
+        const metrics = this.#getMetrics(viewport, image);
+        if (!metrics) return false;
+
+        const { viewportWidth, viewportHeight, imageWidth, imageHeight } = metrics;
+        const minScale = Math.min(viewportWidth / imageWidth, viewportHeight / imageHeight);
+        const maxScale = Math.max(minScale, 8);
+        const effectiveScale = Number.isFinite(Number(scale))
+            ? this.#clamp(Number(scale), minScale, maxScale)
+            : this.#clamp(Number(this.state.scale), minScale, maxScale);
+        if (!Number.isFinite(effectiveScale) || effectiveScale <= 0) return false;
+
+        this.state.scale = effectiveScale;
+        this.state.offsetX = (viewportWidth / 2) - (Number(x ?? 0) * effectiveScale);
+        this.state.offsetY = (viewportHeight / 2) - (Number(y ?? 0) * effectiveScale);
+        this.#clampOffsets(metrics);
+        this.#applyTransform(image);
+        if (persist) void this.persist(viewport, image);
+        this.onTransformChange?.();
+        return true;
+    }
+
     beginPan({ pointerId, viewport, image, clientX, clientY }) {
         this.panSession = {
             pointerId,

@@ -92,4 +92,30 @@ describe("MapViewportController", () => {
         assert.equal(viewport.classList.contains("is-panning"), false);
         assert.equal(persisted.key, "scene-1");
     });
+
+    it("centers viewport on an image-space point and persists", () => {
+        let persisted = null;
+        const controller = new MapViewportController({
+            stateStore: {
+                getUserMapViewport: () => null,
+                setUserMapViewport: async (key, value) => {
+                    persisted = { key, value };
+                }
+            }
+        });
+        const viewport = makeViewport({ width: 500, height: 400, mapKey: "scene-1" });
+        const image = makeImage({ width: 1000, height: 800, src: "map.webp" });
+
+        controller.syncViewport(viewport, image);
+        const centered = controller.centerOnPoint(viewport, image, {
+            x: 350,
+            y: 300,
+            scale: 1,
+            persist: true
+        });
+
+        assert.equal(centered, true);
+        assert.equal(image.style.transform, "translate(-100px, -100px) scale(1)");
+        assert.equal(persisted.key, "scene-1");
+    });
 });

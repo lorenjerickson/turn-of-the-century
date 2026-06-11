@@ -105,4 +105,55 @@ describe("SceneWorkspaceController", () => {
         assert.deepEqual(notifications.at(-1), ["error", "Scene activation failed - see console for details."]);
         assert.equal(errors.length, 1);
     });
+
+    it("keeps scene token collections in map view models", () => {
+        const sceneTokens = { contents: [{ id: "token-a", name: "Ada" }] };
+        const scene = { id: "scene-1", name: "Rookery Yard", tokens: sceneTokens };
+        const controller = new SceneWorkspaceController({
+            layoutEngine: layoutEngineStub(),
+            panelRegistry: { get: () => null },
+            sceneResolver: () => scene,
+            getCurrentScene: () => scene
+        });
+
+        const viewModel = controller.getMapPanelScene({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
+        assert.equal(viewModel.tokens, sceneTokens);
+    });
+
+    it("centers map on token when scene token entry is double-clicked", async () => {
+        const listeners = {};
+        const tokenEntry = {
+            dataset: {
+                sceneId: "scene-1",
+                tokenCenterX: "250",
+                tokenCenterY: "350"
+            },
+            addEventListener(type, handler) {
+                listeners[type] = handler;
+            }
+        };
+        const root = {
+            querySelectorAll(selector) {
+                if (selector === "[data-action='scene-token-center']") return [tokenEntry];
+                return [];
+            }
+        };
+        const centered = [];
+        const controller = new SceneWorkspaceController({
+            layoutEngine: layoutEngineStub(),
+            panelRegistry: { get: () => null },
+            centerSceneMapOnToken: async (payload) => {
+                centered.push(payload);
+                return true;
+            }
+        });
+
+        controller.wireScenePropertiesHandlers(root);
+        await listeners.dblclick({
+            preventDefault() {},
+            stopPropagation() {}
+        });
+
+        assert.deepEqual(centered, [{ sceneId: "scene-1", x: 250, y: 350 }]);
+    });
 });

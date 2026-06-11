@@ -291,6 +291,49 @@ describe("Scene properties panel", () => {
         assert.match(html, /Villains/);
     });
 
+    it("builds scene token entries with token centers", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: {
+                id: "scene-a",
+                name: "Whitechapel",
+                grid: { size: 100 },
+                tokens: {
+                    contents: [
+                        { id: "t1", name: "Ada", x: 200, y: 300, width: 1, height: 1 },
+                        { id: "t2", document: { name: "Porter", x: 400, y: 500, width: 2, height: 1 } }
+                    ]
+                }
+            }
+        });
+
+        assert.equal(model.sceneTokens.length, 2);
+        assert.deepEqual(model.sceneTokens.map((entry) => ({ name: entry.name, centerX: entry.centerX, centerY: entry.centerY })), [
+            { name: "Ada", centerX: 250, centerY: 350 },
+            { name: "Porter", centerX: 500, centerY: 550 }
+        ]);
+    });
+
+    it("renders scene token list entries with centering data attributes", () => {
+        const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
+            scene: {
+                id: "scene-a",
+                name: "Whitechapel",
+                grid: { size: 100 },
+                tokens: {
+                    contents: [
+                        { id: "t1", name: "Ada", x: 200, y: 300, width: 1, height: 1 }
+                    ]
+                }
+            }
+        }));
+
+        assert.match(html, /Scene Tokens/);
+        assert.match(html, /data-action="scene-token-center"/);
+        assert.match(html, /data-scene-id="scene-a"/);
+        assert.match(html, /data-token-center-x="250"/);
+        assert.match(html, /data-token-center-y="350"/);
+    });
+
     it("escapes rendered scene values", () => {
         const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
             scene: { id: "x", name: "A <Scene>" }

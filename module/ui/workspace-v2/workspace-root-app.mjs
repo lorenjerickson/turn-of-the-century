@@ -818,6 +818,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getActivePanel: () => this.#getPrimaryActivePanel(),
             getActors: () => Array.from(game.actors?.contents ?? []),
             addActorsToScene: (actors) => this.#addActorsToScene(actors),
+            centerSceneMapOnToken: ({ sceneId, x, y }) => this.#centerSceneMapOnToken({ sceneId, x, y }),
             executeDesignAction: (actionId, options) => this.#executeDesignAction(actionId, options),
             render: () => {
                 if (this.rendered) this.render({ force: false });
@@ -1350,6 +1351,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             designIssuesPanel,
             scenePropertiesPanel: buildScenePropertiesPanelModel({
                 scene: scenePropertiesScene,
+                actors: worldActors,
                 status: scenePropertiesState.status,
                 error: scenePropertiesState.error
             }),
@@ -4448,6 +4450,26 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     async #addActorsToScene(actors = [], { scene = null, anchorPosition = null } = {}) {
         await this.sceneActorDropController.addActorsToScene(actors, { scene, anchorPosition });
+    }
+
+    async #centerSceneMapOnToken({ sceneId = "", x = 0, y = 0 } = {}) {
+        const targetSceneId = String(sceneId ?? "").trim();
+        if (!targetSceneId) return false;
+        const tokenX = Number(x);
+        const tokenY = Number(y);
+        if (!Number.isFinite(tokenX) || !Number.isFinite(tokenY)) return false;
+
+        const viewports = Array.from(this.element?.querySelectorAll("[data-action='map-viewport']") ?? []);
+        const viewport = viewports.find((entry) => String(entry?.dataset?.sceneId ?? "").trim() === targetSceneId) ?? null;
+        const image = viewport?.querySelector?.("[data-action='map-image']");
+        if (!(image instanceof HTMLImageElement) || !image.complete || !Number.isFinite(image.naturalWidth) || image.naturalWidth <= 0) {
+            return false;
+        }
+
+        this.mapViewportController.syncViewport(viewport, image);
+        this.mapViewportController.centerOnPoint(viewport, image, { x: tokenX, y: tokenY, persist: true });
+        this.#syncActorDropPreviewTransform(viewport);
+        return true;
     }
 
     async #executeDesignAction(actionId, { panelId = "" } = {}) {

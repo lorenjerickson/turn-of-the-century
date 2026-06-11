@@ -30,6 +30,7 @@ export class SceneWorkspaceController {
         getActivePanel = () => null,
         getActors = () => [],
         addActorsToScene = async () => {},
+        centerSceneMapOnToken = async () => false,
         executeDesignAction = async () => {},
         render = () => {},
         foundryRef = () => globalThis.foundry,
@@ -48,6 +49,7 @@ export class SceneWorkspaceController {
         this.getActivePanel = getActivePanel;
         this.getActors = getActors;
         this.addActorsToScene = addActorsToScene;
+        this.centerSceneMapOnToken = centerSceneMapOnToken;
         this.executeDesignAction = executeDesignAction;
         this.render = render;
         this.foundryRef = foundryRef;
@@ -127,7 +129,8 @@ export class SceneWorkspaceController {
                 size: Number(scene?.grid?.size ?? fallback.grid?.size ?? 100),
                 distance: Number(scene?.grid?.distance ?? fallback.grid?.distance ?? 5),
                 units: String(scene?.grid?.units ?? fallback.grid?.units ?? "ft")
-            }
+            },
+            tokens: scene?.tokens ?? fallback.tokens ?? []
         };
     }
 
@@ -427,6 +430,18 @@ export class SceneWorkspaceController {
                     .map((id) => this.getActors()?.find?.((actor) => String(actor?.id ?? actor?._id ?? "") === id))
                     .filter(Boolean);
                 await this.addActorsToScene(actors);
+            });
+        });
+
+        root?.querySelectorAll("[data-action='scene-token-center']")?.forEach((entry) => {
+            entry.addEventListener("dblclick", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const sceneId = String(entry.dataset.sceneId ?? "").trim();
+                const x = Number(entry.dataset.tokenCenterX);
+                const y = Number(entry.dataset.tokenCenterY);
+                if (!sceneId || !Number.isFinite(x) || !Number.isFinite(y)) return;
+                await this.centerSceneMapOnToken({ sceneId, x, y });
             });
         });
     }

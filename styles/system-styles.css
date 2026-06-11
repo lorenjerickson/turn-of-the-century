@@ -1538,6 +1538,72 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     font-size: 0.74rem;
 }
 
+.turn-of-the-century .totc-v2-scene-properties-panel__tokens {
+    background: rgba(15, 23, 42, 0.52);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 6px;
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.55rem;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__tokens header {
+    align-items: baseline;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__tokens h3 {
+    color: #fcd34d;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__tokens header span {
+    color: #94a3b8;
+    font-size: 0.7rem;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__token-list {
+    display: grid;
+    gap: 0.28rem;
+    max-height: 11rem;
+    overflow: auto;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__token-entry {
+    align-items: baseline;
+    background: rgba(15, 23, 42, 0.44);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 6px;
+    color: #cbd5e1;
+    cursor: default;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.38rem 0.45rem;
+    text-align: left;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__token-entry:hover {
+    border-color: rgba(147, 197, 253, 0.42);
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__token-name {
+    color: #e2e8f0;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__token-meta {
+    color: #94a3b8;
+    font-size: 0.72rem;
+}
+
 .turn-of-the-century .totc-v2-media-browser {
     display: grid;
     gap: 0.55rem;

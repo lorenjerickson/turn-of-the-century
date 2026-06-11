@@ -18,6 +18,50 @@ function safeEscape(value) {
         .replace(/'/g, "&#39;");
 }
 
+function toArray(collection) {
+    return Array.from(collection?.contents ?? collection ?? []);
+}
+
+function positiveNumber(value, fallback) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
+}
+
+function sceneTokenName(token) {
+    return String(token?.name ?? token?.document?.name ?? token?.actor?.name ?? "Token").trim() || "Token";
+}
+
+function sceneTokenPosition(token, axis) {
+    const numeric = Number(token?.[axis] ?? token?.document?.[axis]);
+    return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function sceneTokenGridSize(token, axis) {
+    return positiveNumber(token?.[axis] ?? token?.document?.[axis], 1);
+}
+
+function buildSceneTokenListModel(scene = null) {
+    const cell = positiveNumber(scene?.grid?.size, 100);
+    const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+    return toArray(scene?.tokens).filter(Boolean).map((token) => {
+        const x = sceneTokenPosition(token, "x");
+        const y = sceneTokenPosition(token, "y");
+        const width = sceneTokenGridSize(token, "width") * cell;
+        const height = sceneTokenGridSize(token, "height") * cell;
+        return {
+            id: String(token?.id ?? token?._id ?? token?.document?.id ?? token?.document?._id ?? "").trim(),
+            sceneId,
+            name: sceneTokenName(token),
+            x,
+            y,
+            width,
+            height,
+            centerX: Math.round(x + (width / 2)),
+            centerY: Math.round(y + (height / 2))
+        };
+    });
+}
+
 export function slugifySceneName(name = "") {
     return String(name ?? "")
         .normalize("NFKD")
@@ -63,6 +107,7 @@ export function buildSceneBackgroundUploadTarget({ sceneName = "", filename = ""
  */
 export function buildScenePropertiesPanelModel({
     scene = null,
+    actors = [],
     status = "",
     error = ""
 } = {}) {
@@ -84,6 +129,8 @@ export function buildScenePropertiesPanelModel({
         isDefault: isDefaultScene(scene),
         uploadEnabled: Boolean(scene && sceneName),
         deleteEnabled: Boolean(scene),
+        actorPlacement: buildSceneActorPlacementPanelModel({ actors, scene }),
+        sceneTokens: buildSceneTokenListModel(scene),
         status: String(status ?? "").trim(),
         error: String(error ?? "").trim()
     };
@@ -212,13 +259,14 @@ function renderActorGroup(title, actors, escapeHTML) {
 }
 
 export function renderScenePropertiesPanel(model = {}, {
-    escapeHTML = safeEscape,
-    actorPlacement = null
+    escapeHTML = safeEscape
 } = {}) {
     const sceneActionDisabled = model.sceneId ? "" : "disabled";
     const uploadDisabled = model.uploadEnabled ? "" : "disabled";
     const accept = escapeHTML(model.accept ?? SCENE_BACKGROUND_IMAGE_EXTENSIONS.map((ext) => `.${ext}`).join(","));
     const targetPath = model.target?.path || `${SCENE_BACKGROUND_IMAGE_ASSET_PATH}/<scene-slug>.<ext>`;
+    const actorPlacement = model.actorPlacement ?? null;
+    const sceneTokens = Array.isArray(model.sceneTokens) ? model.sceneTokens : [];
 
     if (!model.sceneId) {
         return `
@@ -259,5 +307,27 @@ export function renderScenePropertiesPanel(model = {}, {
                 <button type="submit" ${sceneActionDisabled}>Add Selected</button>
             </footer>
         </form>` : ""}
+        <section class="totc-v2-scene-properties-panel__tokens">
+            <header>
+                <h3>Scene Tokens</h3>
+                <span>Double-click to center map</span>
+            </header>
+            <div class="totc-v2-scene-properties-panel__token-list">
+                ${sceneTokens.length
+                    ? sceneTokens.map((token) => `
+                        <button type="button"
+                            class="totc-v2-scene-properties-panel__token-entry"
+                            data-action="scene-token-center"
+                            data-scene-id="${escapeHTML(token.sceneId)}"
+                            data-token-center-x="${escapeHTML(token.centerX)}"
+                            data-token-center-y="${escapeHTML(token.centerY)}"
+                            title="Double-click to center map on this token">
+                            <span class="totc-v2-scene-properties-panel__token-name">${escapeHTML(token.name)}</span>
+                            <span class="totc-v2-scene-properties-panel__token-meta">(${escapeHTML(token.x)}, ${escapeHTML(token.y)})</span>
+                        </button>
+                    `).join("")
+                    : `<div class="totc-v2-scene-properties-panel__actor-empty">No tokens in this scene</div>`}
+            </div>
+        </section>
     </section>`;
 }
