@@ -278,16 +278,26 @@ export function renderScenePropertiesPanel(model = {}, {
             <div class="totc-v2-scene-properties-panel__token-list">
                 ${sceneTokens.length
                     ? sceneTokens.map((token) => `
-                        <button type="button"
-                            class="totc-v2-scene-properties-panel__token-entry"
-                            data-action="scene-token-center"
-                            data-scene-id="${escapeHTML(token.sceneId)}"
-                            data-token-center-x="${escapeHTML(token.centerX)}"
-                            data-token-center-y="${escapeHTML(token.centerY)}"
-                            title="Double-click to center map on this token">
-                            <span class="totc-v2-scene-properties-panel__token-name">${escapeHTML(token.name)}</span>
-                            <span class="totc-v2-scene-properties-panel__token-meta">(${escapeHTML(token.x)}, ${escapeHTML(token.y)})</span>
-                        </button>
+                        <div class="totc-v2-scene-properties-panel__token-entry">
+                            <button type="button"
+                                class="totc-v2-scene-properties-panel__token-center-btn"
+                                data-action="scene-token-center"
+                                data-scene-id="${escapeHTML(token.sceneId)}"
+                                data-token-center-x="${escapeHTML(token.centerX)}"
+                                data-token-center-y="${escapeHTML(token.centerY)}"
+                                title="Double-click to center map on this token">
+                                <span class="totc-v2-scene-properties-panel__token-name">${escapeHTML(token.name)}</span>
+                                <span class="totc-v2-scene-properties-panel__token-meta">(${escapeHTML(token.x)}, ${escapeHTML(token.y)})</span>
+                            </button>
+                            <button type="button"
+                                class="totc-v2-scene-properties-panel__token-delete-btn"
+                                data-action="scene-token-delete"
+                                data-scene-id="${escapeHTML(token.sceneId)}"
+                                data-token-id="${escapeHTML(token.id)}"
+                                title="Delete token from scene">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     `).join("")
                     : `<div class="totc-v2-scene-properties-panel__actor-empty">No tokens in this scene</div>`}
             </div>

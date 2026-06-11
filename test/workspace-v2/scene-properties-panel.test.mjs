@@ -325,6 +325,8 @@ describe("Scene properties panel", () => {
         assert.match(html, /data-scene-id="scene-a"/);
         assert.match(html, /data-token-center-x="250"/);
         assert.match(html, /data-token-center-y="350"/);
+        assert.match(html, /data-action="scene-token-delete"/);
+        assert.match(html, /data-token-id="t1"/);
     });
 
     it("escapes rendered scene values", () => {

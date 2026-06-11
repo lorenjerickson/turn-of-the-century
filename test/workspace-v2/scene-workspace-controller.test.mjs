@@ -156,4 +156,47 @@ describe("SceneWorkspaceController", () => {
 
         assert.deepEqual(centered, [{ sceneId: "scene-1", x: 250, y: 350 }]);
     });
+
+    it("deletes token when delete button is clicked in token entry", async () => {
+        const listeners = {};
+        const deleteBtn = {
+            dataset: {
+                sceneId: "scene-1",
+                tokenId: "token-abc"
+            },
+            addEventListener(type, handler) {
+                listeners[type] = handler;
+            }
+        };
+        const root = {
+            querySelectorAll(selector) {
+                if (selector === "[data-action='scene-token-delete']") return [deleteBtn];
+                return [];
+            }
+        };
+        const deletedIds = [];
+        let renderCalled = false;
+        const mockScene = {
+            deleteEmbeddedDocuments: async (type, ids) => {
+                if (type === "Token") {
+                    deletedIds.push(...ids);
+                }
+            }
+        };
+        const controller = new SceneWorkspaceController({
+            layoutEngine: layoutEngineStub(),
+            panelRegistry: { get: () => null },
+            sceneResolver: (id) => id === "scene-1" ? mockScene : null,
+            render: () => { renderCalled = true; }
+        });
+
+        controller.wireScenePropertiesHandlers(root);
+        await listeners.click({
+            preventDefault() {},
+            stopPropagation() {}
+        });
+
+        assert.deepEqual(deletedIds, ["token-abc"]);
+        assert.equal(renderCalled, true);
+    });
 });

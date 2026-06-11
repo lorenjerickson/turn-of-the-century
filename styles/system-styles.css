@@ -1593,6 +1593,37 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     border-color: rgba(147, 197, 253, 0.42);
 }
 
+.turn-of-the-century .totc-v2-scene-properties-panel__token-center-btn {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-grow: 1;
+    gap: 0.5rem;
+    padding: 0;
+    text-align: left;
+    width: 100%;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__token-delete-btn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0 0.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.1s ease;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__token-delete-btn:hover {
+    color: #ef4444;
+}
+
 .turn-of-the-century .totc-v2-scene-properties-panel__token-name {
     color: #e2e8f0;
     font-size: 0.78rem;

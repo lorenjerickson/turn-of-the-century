@@ -444,6 +444,24 @@ export class SceneWorkspaceController {
                 await this.centerSceneMapOnToken({ sceneId, x, y });
             });
         });
+
+        root?.querySelectorAll("[data-action='scene-token-delete']")?.forEach((btn) => {
+            btn.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const sceneId = String(btn.dataset.sceneId ?? "").trim();
+                const tokenId = String(btn.dataset.tokenId ?? "").trim();
+                if (!sceneId || !tokenId) return;
+                const scene = this.getSceneDocumentById(sceneId);
+                if (!scene) return;
+                try {
+                    await scene.deleteEmbeddedDocuments("Token", [tokenId]);
+                    this.render();
+                } catch (err) {
+                    this.logger?.error?.("[scene-properties-panel] Failed to delete token", err);
+                }
+            });
+        });
     }
 
     async #handleBackgroundUpload(input) {
