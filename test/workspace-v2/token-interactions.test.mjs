@@ -53,7 +53,7 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /boxEl\.remove\(\)/);
     });
 
-    it("wires wall edit tools before token selection in root app", () => {
+    it("wires wall edit tools without intercepting token pointer starts in root app", () => {
         assert.match(workspaceRootSource, /addWallSegmentToScene/);
         assert.match(workspaceRootSource, /removeWallSegmentsById/);
         assert.doesNotMatch(workspaceRootSource, /removeWallSegmentAtPoint/);
@@ -63,7 +63,7 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /joinWallSegmentsById/);
         assert.doesNotMatch(workspaceRootSource, /joinWallSegmentsAtPoint/);
         assert.match(workspaceRootSource, /this\._wallAddSequence = null/);
-        assert.match(workspaceRootSource, /this\.\#isWallSelectionPointerEvent\(viewport\)[\s\S]*this\.\#beginWallRubberbandSelection\(viewport, event\)[\s\S]*const tokenEl = event\.target\.closest/);
+        assert.match(workspaceRootSource, /const tokenEl = event\.target\.closest\("\[data-action='map-token'\]"\);[\s\S]*if \(!tokenEl && this\.\#isWallSelectionPointerEvent\(viewport\)\) \{[\s\S]*this\.\#beginWallRubberbandSelection\(viewport, event\)/);
         assert.match(workspaceRootSource, /if \(!moved\) \{[\s\S]*this\.\#isWallEditingPointerEvent\(viewport\)[\s\S]*this\.\#handleWallEditingPointerDown\(viewport, event\)/);
         assert.match(workspaceRootSource, /this\.selectedTokenIds\.clear\(\);[\s\S]*querySelectorAll\("\[data-action='map-token'\]"\)[\s\S]*classList\.remove\("is-selected"\)/);
         assert.match(workspaceRootSource, /else if \(mode === "walls"\) \{[\s\S]*this\.\#deactivateWallModeForPanel\(panelId\)/);
@@ -84,6 +84,8 @@ describe("workspace token interactions", () => {
 
     it("defines CSS rules for selected tokens and rubberband selection box", () => {
         assert.match(styles, /\.totc-v2-map-panel__token\.is-selected\s*\{/);
+        assert.match(styles, /\.totc-v2-map-panel__token\s*\{[\s\S]*pointer-events:\s*auto;/);
+        assert.match(styles, /\.totc-v2-map-panel__grid-overlay\s*\{[\s\S]*pointer-events:\s*none;/);
         assert.match(styles, /outline:\s*2px\s*solid\s*#fbbf24;/);
         assert.match(styles, /\.totc-v2-map-viewport__selection-box\s*\{/);
         assert.match(styles, /border:\s*1\.5px\s*dashed\s*#fbbf24;/);

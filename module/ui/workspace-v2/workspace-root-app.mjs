@@ -3564,14 +3564,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 if (viewport.classList.contains("is-calibrating")) return;
 
-                if (this.#isWallSelectionPointerEvent(viewport)) {
+                const tokenEl = event.target.closest("[data-action='map-token']");
+
+                if (!tokenEl && this.#isWallSelectionPointerEvent(viewport)) {
                     event.preventDefault();
                     event.stopPropagation();
                     this.#beginWallRubberbandSelection(viewport, event);
                     return;
                 }
 
-                const tokenEl = event.target.closest("[data-action='map-token']");
                 const hasModifier = event.shiftKey || event.ctrlKey || event.metaKey;
                 const initialSelectedIds = new Set(this.selectedTokenIds);
 

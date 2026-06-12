@@ -3057,6 +3057,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     box-sizing: border-box;
     display: block;
     object-fit: cover;
+    pointer-events: auto;
     position: absolute;
     transition: outline 0.1s ease, box-shadow 0.1s ease;
 }
