@@ -95,12 +95,20 @@ export class WorkspacePanelHost {
 
     renderPanelContent(panel, context = {}) {
         const content = this.renderPanelBodyContent(panel, context);
+        const isMapPanel = this.isMapPanel(panel);
+        const panelId = String(panel?.id ?? "").trim();
+        const mapToolbarState = isMapPanel ? this.getMapPanelToolbarState(panel) : {};
+        const mapToolbarMarkup = this.isGM() && isMapPanel
+            ? this.#renderMapToolbar(this.escapeHTML(panelId), mapToolbarState)
+            : "";
         const designLensModel = buildDesignLensModel({
             panel,
             active: this.isDesignLensActive(panel?.id),
             isGM: this.isGM(),
-            registry: this.designActionRegistry
+            registry: this.designActionRegistry,
+            excludeActionIds: isMapPanel ? ["scene.walls"] : []
         });
+        if (mapToolbarMarkup) designLensModel.extraActionsMarkup = mapToolbarMarkup;
         const designLens = renderDesignLensSurface(designLensModel, {
             escapeHTML: (value) => this.escapeHTML(value)
         });
@@ -242,7 +250,6 @@ export class WorkspacePanelHost {
         const sceneId = String(mapScene?.id ?? this.getPanelSceneId(panel, context) ?? "").trim();
         const dimensions = [mapScene?.width, mapScene?.height].filter((value) => Number.isFinite(value) && value > 0);
         const dimensionLabel = dimensions.length === 2 ? `${dimensions[0]} x ${dimensions[1]}` : "Scene map";
-        const panelId = this.escapeHTML(String(panel?.id ?? "").trim());
 
         const calModel = buildGridCalibrationModel({
             state: this.gridCalibrationState(),
@@ -256,8 +263,6 @@ export class WorkspacePanelHost {
         const gridOverlayActive = calActive || sceneGridOverlayActive || wallOverlayActive;
         const calDialog = renderGridCalibrationDialog(calModel, { escapeHTML: (v) => this.escapeHTML(v) });
         const tokenMarkup = this.#renderMapTokenLayer(mapScene);
-        const toolbarState = this.getMapPanelToolbarState(panel);
-        const toolbarMarkup = this.isGM() ? this.#renderMapToolbar(panelId, toolbarState) : "";
 
         const imageMarkup = mapSrc
             ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true"
@@ -273,10 +278,8 @@ export class WorkspacePanelHost {
                 <div class="totc-v2-map-panel__actor-drop-preview" data-actor-drop-preview="true" aria-hidden="true"></div>
             </div>`
             : `<div class="totc-v2-map-panel__empty">No active scene map available</div>`;
-
         return `
-        <figure class="totc-v2-map-panel${calActive ? " is-calibrating" : ""}${toolbarMarkup ? " has-toolbar" : ""}">
-            ${toolbarMarkup}
+        <figure class="totc-v2-map-panel${calActive ? " is-calibrating" : ""}">
             ${imageMarkup}
             <figcaption class="totc-v2-map-panel__caption">
                 <span class="totc-v2-map-panel__name">${sceneName}</span>

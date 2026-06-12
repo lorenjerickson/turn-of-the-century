@@ -4,18 +4,30 @@ export function getDesignLensActions(panelId, { registry = DEFAULT_DESIGN_ACTION
     return registry.getApplicableActions({ panelId, isGM });
 }
 
-export function buildDesignLensModel({ panel = null, active = false, isGM = false, registry = DEFAULT_DESIGN_ACTION_REGISTRY } = {}) {
+export function buildDesignLensModel({
+    panel = null,
+    active = false,
+    isGM = false,
+    registry = DEFAULT_DESIGN_ACTION_REGISTRY,
+    excludeActionIds = []
+} = {}) {
     const panelId = String(panel?.id ?? "").trim();
+    const excludedIds = new Set(
+        Array.isArray(excludeActionIds)
+            ? excludeActionIds.map((id) => String(id ?? "").trim()).filter(Boolean)
+            : []
+    );
     return {
         active: Boolean(active && isGM && panelId),
         panelId,
         title: panel?.title ? `${panel.title} Design` : "Design Lens",
-        actions: getDesignLensActions(panelId, { registry, isGM })
+        actions: getDesignLensActions(panelId, { registry, isGM }).filter((action) => !excludedIds.has(action.id))
     };
 }
 
 export function renderDesignLensSurface(model = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
     if (!model.active) return "";
+    const extraActionsMarkup = String(model.extraActionsMarkup ?? "");
 
     return `
     <aside class="totc-v2-design-lens" data-design-lens-panel-id="${escapeHTML(model.panelId)}">
@@ -34,6 +46,7 @@ export function renderDesignLensSurface(model = {}, { escapeHTML = (value) => St
                     title="${escapeHTML(action.description)}">
                     <span>${escapeHTML(action.label)}</span>
                 </button>`).join("")}
+            ${extraActionsMarkup}
         </div>
     </aside>`;
 }

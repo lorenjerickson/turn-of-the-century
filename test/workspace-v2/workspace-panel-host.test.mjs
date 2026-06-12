@@ -96,7 +96,14 @@ describe("WorkspacePanelHost", () => {
         const host = new WorkspacePanelHost({
             escapeHTML,
             isGM: () => true,
+            isDesignLensActive: () => true,
             isMapPanel: () => true,
+            designActionRegistry: {
+                getApplicableActions: () => [
+                    { id: "scene.walls", label: "Walls", description: "Draw walls." },
+                    { id: "scene.detectWalls", label: "Detect Walls", description: "Detect walls." }
+                ]
+            },
             getMapPanelScene: () => ({
                 id: "scene-1",
                 name: "Rookery Yard",
@@ -112,7 +119,7 @@ describe("WorkspacePanelHost", () => {
             gridCalibrationState: () => ({ active: false })
         });
 
-        const html = host.renderPanelBodyContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
+        const html = host.renderPanelContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
 
         assert.match(html, /data-command="add"/);
         assert.match(html, /data-command="remove"[\s\S]*disabled/);
@@ -120,13 +127,18 @@ describe("WorkspacePanelHost", () => {
         assert.match(html, /data-command="join"[\s\S]*disabled/);
         assert.doesNotMatch(html, /totc-v2-map-toolbar__secondary/);
         assert.match(html, /totc-v2-map-toolbar__primary[\s\S]*data-mode="walls"[\s\S]*data-command="add"[\s\S]*data-wall-type="wall"/);
+        assert.doesNotMatch(html, /data-action="design-lens-action"[\s\S]*data-design-action-id="scene\.walls"/);
     });
 
     it("enables the wall remove tool when wall segments are selected", () => {
         const host = new WorkspacePanelHost({
             escapeHTML,
             isGM: () => true,
+            isDesignLensActive: () => true,
             isMapPanel: () => true,
+            designActionRegistry: {
+                getApplicableActions: () => []
+            },
             getMapPanelScene: () => ({
                 id: "scene-1",
                 name: "Rookery Yard",
@@ -142,7 +154,7 @@ describe("WorkspacePanelHost", () => {
             gridCalibrationState: () => ({ active: false })
         });
 
-        const html = host.renderPanelBodyContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
+        const html = host.renderPanelContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
         const removeButton = toolbarButton(html, "remove");
         const joinButton = toolbarButton(html, "join");
 
@@ -158,7 +170,11 @@ describe("WorkspacePanelHost", () => {
         const host = new WorkspacePanelHost({
             escapeHTML,
             isGM: () => true,
+            isDesignLensActive: () => true,
             isMapPanel: () => true,
+            designActionRegistry: {
+                getApplicableActions: () => []
+            },
             getMapPanelScene: () => ({
                 id: "scene-1",
                 name: "Rookery Yard",
@@ -174,7 +190,7 @@ describe("WorkspacePanelHost", () => {
             gridCalibrationState: () => ({ active: false })
         });
 
-        const html = host.renderPanelBodyContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
+        const html = host.renderPanelContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
 
         assert.match(html, /data-mode="walls"[\s\S]*aria-pressed="false"/);
         assert.doesNotMatch(html, /data-command="split"/);
