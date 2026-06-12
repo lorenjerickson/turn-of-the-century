@@ -143,8 +143,7 @@ export class SceneActorDropController {
                 target.classList.add("is-actor-drop-target");
             });
             target.addEventListener("dragleave", (event) => {
-                const related = event.relatedTarget;
-                if (related && target.contains(related)) return;
+                if (!this.#isDragLeaveOutsideTarget(target, event)) return;
                 target.classList.remove("is-actor-drop-target");
                 this.clearActorDropPreviews();
             });
@@ -431,6 +430,27 @@ export class SceneActorDropController {
             node = node.parentElement ?? node.parentNode ?? null;
         }
         return String(root?.dataset?.sceneActorDropTarget ?? "") === "true" ? root : null;
+    }
+
+    #isDragLeaveOutsideTarget(target, event) {
+        const related = event?.relatedTarget;
+        if (related && target?.contains?.(related)) return false;
+
+        const x = Number(event?.clientX);
+        const y = Number(event?.clientY);
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+            const rect = target?.getBoundingClientRect?.();
+            if (rect) {
+                const insideRect = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+                if (insideRect) return false;
+            }
+
+            const documentRef = this.documentRef?.();
+            const hovered = documentRef?.elementFromPoint?.(x, y);
+            if (hovered && target?.contains?.(hovered)) return false;
+        }
+
+        return true;
     }
 
     #dataTransferTypes(dataTransfer) {

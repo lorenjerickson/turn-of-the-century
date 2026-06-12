@@ -378,6 +378,74 @@ describe("SceneActorDropController", () => {
         }
     });
 
+    it("keeps actor drop cue stable when dragleave has no relatedTarget but pointer is still inside viewport", () => {
+        const originalHTMLElement = globalThis.HTMLElement;
+        const originalHTMLImageElement = globalThis.HTMLImageElement;
+        globalThis.HTMLElement = FakeElement;
+        globalThis.HTMLImageElement = FakeImageElement;
+
+        try {
+            const target = new FakeElement();
+            target.dataset.mapViewport = "true";
+            target.dataset.sceneId = "scene-1";
+            const child = new FakeElement();
+            target.append(child);
+            const layer = new FakeElement();
+            const image = new FakeImageElement();
+            const root = new FakeElement();
+
+            root.querySelectorAll = (selector) => {
+                if (selector === "[data-scene-actor-drop-target='true']") return [target];
+                if (selector === "[data-actor-drop-preview='true']") return [layer];
+                if (selector === "[data-scene-actor-drop-target].is-actor-drop-target") {
+                    return target.classList.contains("is-actor-drop-target") ? [target] : [];
+                }
+                return [];
+            };
+            target.querySelector = (selector) => {
+                if (selector === "[data-actor-drop-preview='true']") return layer;
+                if (selector === "[data-action='map-image']") return image;
+                return null;
+            };
+
+            const controller = new SceneActorDropController({
+                getRoot: () => root,
+                getActorById: (id) => actor(id),
+                getSceneById: () => ({ id: "scene-1", width: 1000, height: 800, grid: { size: 100 } }),
+                getImageSpacePoint: () => ({ x: 120, y: 240 }),
+                documentRef: () => ({
+                    elementFromPoint: () => child
+                }),
+                render: () => {},
+                logger: { error: () => {} }
+            });
+            controller.wireSceneActorDropHandlers(root);
+
+            const dataTransfer = {
+                types: ["text/plain"],
+                getData: (type) => type === "text/plain" ? "a" : "",
+                dropEffect: ""
+            };
+            target.listeners.dragover[0](fakeDragEvent(dataTransfer));
+            assert.equal(target.classList.contains("is-actor-drop-target"), true);
+            assert.equal(layer.classList.contains("has-preview"), true);
+
+            const dragLeaveEvent = fakeDragEvent(dataTransfer, {
+                relatedTarget: null,
+                clientX: 250,
+                clientY: 250
+            });
+            target.listeners.dragleave[0](dragLeaveEvent);
+
+            assert.equal(target.classList.contains("is-actor-drop-target"), true);
+            assert.equal(layer.classList.contains("has-preview"), true);
+            assert.notEqual(layer.innerHTML, "");
+        } finally {
+            globalThis.HTMLElement = originalHTMLElement;
+            globalThis.HTMLImageElement = originalHTMLImageElement;
+        }
+    });
+
     it("logs actor drops captured outside a scene drop target", () => {
         const logs = [];
         const root = new FakeElement();
