@@ -67,7 +67,13 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /if \(!moved\) \{[\s\S]*this\.\#isWallEditingPointerEvent\(viewport\)[\s\S]*this\.\#handleWallEditingPointerDown\(viewport, event\)/);
         assert.match(workspaceRootSource, /this\.selectedTokenIds\.clear\(\);[\s\S]*querySelectorAll\("\[data-action='map-token'\]"\)[\s\S]*classList\.remove\("is-selected"\)/);
         assert.match(workspaceRootSource, /else if \(mode === "walls"\) \{[\s\S]*this\.\#deactivateWallModeForPanel\(panelId\)/);
-        assert.match(workspaceRootSource, /event\.key !== "Escape"[\s\S]*this\.\#cancelWallAddSequence\(\)/);
+        assert.match(workspaceRootSource, /event\.key === "Escape" && this\._wallAddSequence/);
+        assert.match(workspaceRootSource, /if \(key === "w"\) \{[\s\S]*mode: null[\s\S]*#deactivateWallModeForPanel\(panelId\)[\s\S]*mode: "walls"[\s\S]*#executeDesignAction\("scene\.walls", \{ panelId \}\)/);
+        assert.match(workspaceRootSource, /if \(key === "a"\) \{[\s\S]*wallCommand: "add"/);
+        assert.match(workspaceRootSource, /if \(key === "s"\) \{[\s\S]*#cancelWallAddSequence\(\)[\s\S]*wallCommand: "split"/);
+        assert.match(workspaceRootSource, /if \(key === "j"\) \{[\s\S]*#joinSelectedWallsForPanel\(panelId\)/);
+        assert.match(workspaceRootSource, /if \(key === "delete"\) \{[\s\S]*selectedWallCount[\s\S]*#deleteSelectedWallsForPanel\(panelId\)/);
+        assert.match(workspaceRootSource, /const wallTypeByKey = \{[\s\S]*1: "wall",[\s\S]*2: "window",[\s\S]*3: "door"[\s\S]*\}/);
         assert.match(workspaceRootSource, /if \(this\._wallAddSequence\) \{[\s\S]*this\.\#cancelWallAddSequence\(\);[\s\S]*return;[\s\S]*\}/);
     });
 
@@ -76,8 +82,13 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /if \(result\?\.ok\) this\.\#refreshSceneWallOverlay\(scene\);/);
         assert.match(workspaceRootSource, /if \(actionId === "scene\.walls" && result\?\.ok && actionScene\) this\.\#refreshSceneWallOverlay\(actionScene\);/);
         assert.match(workspaceRootSource, /totc-v2-grid-overlay__selected-wall-halo/);
+        assert.match(workspaceRootSource, /stop-opacity="0\.45"/);
+        assert.match(workspaceRootSource, /x - 3\.75\)\.toFixed\(1\)[\s\S]*width="7\.5" height="7\.5"/);
         assert.match(workspaceRootSource, /segment\.wallKind === "door"[\s\S]*is-door[\s\S]*segment\.wallKind === "window"[\s\S]*is-window/);
         assert.match(styles, /\.totc-v2-grid-overlay__selected-wall-halo\s*\{/);
+        assert.match(styles, /\.totc-v2-grid-overlay__selected-wall-halo\s*\{[\s\S]*stroke-width:\s*15;/);
+        assert.match(styles, /\.totc-v2-grid-overlay__detected-wall\s*\{[\s\S]*stroke-width:\s*3\.375;/);
+        assert.match(styles, /\.totc-v2-grid-overlay__detected-wall\.is-selected\s*\{[\s\S]*rgba\(255,\s*247,\s*153,\s*1\)/);
         assert.match(styles, /\.totc-v2-grid-overlay__detected-wall\.is-window\s*\{[\s\S]*rgba\(96,\s*165,\s*250,\s*0\.96\)/);
         assert.match(styles, /\.totc-v2-grid-overlay__detected-wall\.is-door\s*\{[\s\S]*rgba\(74,\s*222,\s*128,\s*0\.96\)/);
     });

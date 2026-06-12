@@ -3206,7 +3206,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 
 .turn-of-the-century .totc-v2-grid-overlay__detected-wall {
     stroke: rgba(255, 247, 153, 0.96);
-    stroke-width: 2.25;
+    stroke-width: 3.375;
     vector-effect: non-scaling-stroke;
 }
 
@@ -3219,22 +3219,22 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 }
 
 .turn-of-the-century .totc-v2-grid-overlay__detected-wall.is-selected {
-    stroke: rgba(255, 247, 153, 0.98);
+    stroke: rgba(255, 247, 153, 1);
 }
 
 .turn-of-the-century .totc-v2-grid-overlay__detected-wall.is-window.is-selected {
-    stroke: rgba(96, 165, 250, 0.98);
+    stroke: rgba(96, 165, 250, 1);
 }
 
 .turn-of-the-century .totc-v2-grid-overlay__detected-wall.is-door.is-selected {
-    stroke: rgba(74, 222, 128, 0.98);
+    stroke: rgba(74, 222, 128, 1);
 }
 
 .turn-of-the-century .totc-v2-grid-overlay__selected-wall-halo {
-    filter: drop-shadow(0 0 5px rgba(255, 247, 153, 0.18));
+    filter: drop-shadow(0 0 8px rgba(255, 247, 153, 0.34));
     stroke: url("#totc-v2-wall-selection-halo");
     stroke-linecap: round;
-    stroke-width: 10;
+    stroke-width: 15;
     vector-effect: non-scaling-stroke;
 }
 
