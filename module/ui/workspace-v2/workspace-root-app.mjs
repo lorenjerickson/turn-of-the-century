@@ -4244,10 +4244,81 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         document.removeEventListener("pointerup", this._onMapPanPointerUp);
     }
 
-    #onWallEditKeyDown(event) {
-        if (event.key !== "Escape" || !this._wallAddSequence) return;
+    async #onWallEditKeyDown(event) {
+        if (event.key === "Escape" && this._wallAddSequence) {
+            event.preventDefault();
+            this.#cancelWallAddSequence();
+            return;
+        }
+
+        if (!game.user?.isGM) return;
+        if (event.altKey || event.ctrlKey || event.metaKey) return;
+        const target = event.target;
+        if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target?.isContentEditable) return;
+
+        const panel = this.#getPrimaryActivePanel();
+        if (!this.#isMapPanel(panel)) return;
+
+        const panelId = String(panel?.id ?? "").trim();
+        if (!panelId) return;
+
+        const state = this.#getMapPanelToolbarState(panel);
+        const key = String(event.key ?? "").toLowerCase();
+        const wallsActive = state.mode === "walls";
+
+        if (key === "w") {
+            event.preventDefault();
+            if (wallsActive) {
+                this.#patchMapPanelToolbarState(panelId, { mode: null });
+                this.#deactivateWallModeForPanel(panelId);
+            } else {
+                this.#patchMapPanelToolbarState(panelId, { mode: "walls" });
+                await this.#executeDesignAction("scene.walls", { panelId });
+            }
+            this.render({ force: false });
+            return;
+        }
+
+        if (!wallsActive) return;
+
+        if (key === "a") {
+            event.preventDefault();
+            this.#patchMapPanelToolbarState(panelId, { wallCommand: "add" });
+            this.render({ force: false });
+            return;
+        }
+
+        if (key === "s") {
+            event.preventDefault();
+            this.#cancelWallAddSequence();
+            this.#patchMapPanelToolbarState(panelId, { wallCommand: "split" });
+            this.render({ force: false });
+            return;
+        }
+
+        if (key === "j") {
+            event.preventDefault();
+            await this.#joinSelectedWallsForPanel(panelId);
+            return;
+        }
+
+        if (key === "delete") {
+            if (Number(state.selectedWallCount ?? 0) <= 0) return;
+            event.preventDefault();
+            await this.#deleteSelectedWallsForPanel(panelId);
+            return;
+        }
+
+        const wallTypeByKey = {
+            1: "wall",
+            2: "window",
+            3: "door"
+        };
+        if (!wallTypeByKey[key]) return;
+
         event.preventDefault();
-        this.#cancelWallAddSequence();
+        this.#patchMapPanelToolbarState(panelId, { wallType: wallTypeByKey[key] });
+        this.render({ force: false });
     }
 
     #isWallEditingPointerEvent(viewport) {
@@ -4742,7 +4813,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             const toViewportY = (value) => (Number(value) * scale) + offsetY;
             const selectedSegments = detectedWallsOverlay.segments.filter((segment) => segment.selected);
             if (selectedSegments.length) {
-                inner += `<defs><linearGradient id="totc-v2-wall-selection-halo" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fff799" stop-opacity="0.03"/><stop offset="50%" stop-color="#fff799" stop-opacity="0.28"/><stop offset="100%" stop-color="#fff799" stop-opacity="0.03"/></linearGradient></defs>`;
+                inner += `<defs><linearGradient id="totc-v2-wall-selection-halo" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fff799" stop-opacity="0.08"/><stop offset="50%" stop-color="#fff799" stop-opacity="0.45"/><stop offset="100%" stop-color="#fff799" stop-opacity="0.08"/></linearGradient></defs>`;
             }
 
             for (const segment of detectedWallsOverlay.segments) {
@@ -4764,7 +4835,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             for (const intersection of detectedWallsOverlay.intersections ?? []) {
                 const x = toViewportX(intersection.x);
                 const y = toViewportY(intersection.y);
-                inner += `<rect x="${(x - 2.5).toFixed(1)}" y="${(y - 2.5).toFixed(1)}" width="5" height="5" class="totc-v2-grid-overlay__detected-wall-junction"/>`;
+                inner += `<rect x="${(x - 3.75).toFixed(1)}" y="${(y - 3.75).toFixed(1)}" width="7.5" height="7.5" class="totc-v2-grid-overlay__detected-wall-junction"/>`;
             }
         }
 
