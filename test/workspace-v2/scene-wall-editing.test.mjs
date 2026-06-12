@@ -95,19 +95,27 @@ describe("scene wall editing", () => {
         assert.equal(window.flags["turn-of-the-century"].wallKind, "window");
     });
 
-    it("adds a wall segment to the scene", async () => {
+    it("adds a wall segment to the scene with the selected wall type", async () => {
         const scene = makeScene();
         const result = await addWallSegmentToScene({
             scene,
             start: { x: 0, y: 0 },
             end: { x: 100, y: 0 },
-            wallType: "wall"
+            wallType: "door",
+            foundryConstants: {
+                WALL_MOVEMENT_TYPES: { NORMAL: "normal" },
+                EDGE_SENSE_TYPES: { NORMAL: "normal", NONE: "none" },
+                WALL_DOOR_TYPES: { NONE: "none", DOOR: "door" },
+                WALL_DOOR_STATES: { CLOSED: "closed" }
+            }
         });
 
         assert.equal(result.ok, true);
         assert.equal(scene.calls[0].action, "create");
         assert.equal(scene.calls[0].type, "Wall");
         assert.deepEqual(scene.calls[0].documents[0].c, [0, 0, 100, 0]);
+        assert.equal(scene.calls[0].documents[0].door, "door");
+        assert.equal(scene.calls[0].documents[0].flags["turn-of-the-century"].wallKind, "door");
     });
 
     it("removes the nearest wall segment clicked along its length", async () => {
@@ -159,7 +167,11 @@ describe("scene wall editing", () => {
 
     it("splits a wall at the nearest eligible grid point", async () => {
         const scene = makeScene({
-            walls: [wall("long", [0, 100, 300, 100])]
+            walls: [wall("long", [0, 100, 300, 100], {
+                flags: { "turn-of-the-century": { wallKind: "window" } },
+                sight: "none",
+                light: "none"
+            })]
         });
         const result = await splitWallSegmentAtPoint({
             scene,
@@ -174,6 +186,7 @@ describe("scene wall editing", () => {
             [0, 100, 200, 100],
             [200, 100, 300, 100]
         ]);
+        assert.deepEqual(scene.calls[1].documents.map((document) => document.flags["turn-of-the-century"].wallKind), ["window", "window"]);
     });
 
     it("joins two aligned wall segments near their shared endpoint", async () => {
@@ -193,6 +206,24 @@ describe("scene wall editing", () => {
         assert.deepEqual(result.joinPoint, { x: 100, y: 100 });
         assert.deepEqual(scene.calls[0], { action: "delete", type: "Wall", ids: ["left", "right"] });
         assert.deepEqual(scene.calls[1].documents[0].c, [0, 100, 300, 100]);
+    });
+
+    it("does not join aligned wall segments with different wall types", async () => {
+        const scene = makeScene({
+            walls: [
+                wall("wall", [0, 100, 100, 100]),
+                wall("door", [100, 100, 300, 100], { flags: { "turn-of-the-century": { wallKind: "door" } } })
+            ]
+        });
+        const result = await joinWallSegmentsAtPoint({
+            scene,
+            point: { x: 100, y: 100 },
+            grid: buildWallEditingGrid(scene)
+        });
+
+        assert.equal(result.ok, false);
+        assert.equal(result.reason, "join-not-found");
+        assert.deepEqual(scene.calls, []);
     });
 
     it("joins selected horizontal and vertical wall groups independently", async () => {
@@ -221,6 +252,36 @@ describe("scene wall editing", () => {
         assert.deepEqual(scene.calls[1].documents.map((document) => document.c), [
             [0, 100, 300, 100],
             [400, 0, 400, 250]
+        ]);
+    });
+
+    it("joins selected wall groups without mixing wall, door, and window types", async () => {
+        const scene = makeScene({
+            walls: [
+                wall("wall-left", [0, 100, 100, 100]),
+                wall("wall-right", [100, 100, 200, 100]),
+                wall("door-left", [0, 200, 100, 200], { flags: { "turn-of-the-century": { wallKind: "door" } } }),
+                wall("door-right", [100, 200, 200, 200], { flags: { "turn-of-the-century": { wallKind: "door" } } }),
+                wall("window-left", [0, 300, 100, 300], { flags: { "turn-of-the-century": { wallKind: "window" } } }),
+                wall("window-right", [100, 300, 200, 300], { flags: { "turn-of-the-century": { wallKind: "window" } } })
+            ]
+        });
+
+        const result = await joinWallSegmentsById({
+            scene,
+            ids: ["wall-left", "wall-right", "door-left", "door-right", "window-left", "window-right"]
+        });
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(scene.calls[1].documents.map((document) => document.c), [
+            [0, 100, 200, 100],
+            [0, 200, 200, 200],
+            [0, 300, 200, 300]
+        ]);
+        assert.deepEqual(scene.calls[1].documents.map((document) => document.flags["turn-of-the-century"].wallKind), [
+            "wall",
+            "door",
+            "window"
         ]);
     });
 });

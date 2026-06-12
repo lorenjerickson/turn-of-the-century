@@ -76,7 +76,10 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /if \(result\?\.ok\) this\.\#refreshSceneWallOverlay\(scene\);/);
         assert.match(workspaceRootSource, /if \(actionId === "scene\.walls" && result\?\.ok && actionScene\) this\.\#refreshSceneWallOverlay\(actionScene\);/);
         assert.match(workspaceRootSource, /totc-v2-grid-overlay__selected-wall-halo/);
+        assert.match(workspaceRootSource, /segment\.wallKind === "door"[\s\S]*is-door[\s\S]*segment\.wallKind === "window"[\s\S]*is-window/);
         assert.match(styles, /\.totc-v2-grid-overlay__selected-wall-halo\s*\{/);
+        assert.match(styles, /\.totc-v2-grid-overlay__detected-wall\.is-window\s*\{[\s\S]*rgba\(96,\s*165,\s*250,\s*0\.96\)/);
+        assert.match(styles, /\.totc-v2-grid-overlay__detected-wall\.is-door\s*\{[\s\S]*rgba\(74,\s*222,\s*128,\s*0\.96\)/);
     });
 
     it("defines CSS rules for selected tokens and rubberband selection box", () => {

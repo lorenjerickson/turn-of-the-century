@@ -35,6 +35,16 @@ function documentSource(document) {
     return document._source ?? document;
 }
 
+function normalizeWallKind(value) {
+    const kind = String(value ?? "").trim().toLowerCase();
+    return ["wall", "door", "window"].includes(kind) ? kind : "wall";
+}
+
+function documentWallKind(document, fallback = "wall") {
+    const source = documentSource(document);
+    return normalizeWallKind(source.flags?.["turn-of-the-century"]?.wallKind ?? fallback);
+}
+
 function wallDocumentArray(walls = []) {
     if (Array.isArray(walls)) return walls;
     if (Array.isArray(walls?.contents)) return walls.contents;
@@ -271,7 +281,7 @@ export function findSplitPoint({ segment = null, point = null, grid = null } = {
 function baseWallData(coords, { sourceWall = null, wallType = "wall", foundryConstants = globalThis.CONST } = {}) {
     const source = documentSource(sourceWall);
     const defaults = buildWallDocumentDefaults({ foundryConstants });
-    const kind = String(source.flags?.["turn-of-the-century"]?.wallKind ?? wallType ?? "wall");
+    const kind = documentWallKind(sourceWall, wallType);
     const data = {
         move: source.move ?? defaults.move,
         sight: source.sight ?? defaults.sight,
@@ -341,6 +351,7 @@ function selectedWallEntries(scene = null, ids = []) {
     return getSceneWallDocuments(scene).map((wall) => ({
         wall,
         id: wallDocumentId(wall),
+        wallKind: documentWallKind(wall),
         segment: wallCoordinates(wall)
     })).filter((entry) => entry.id && selectedIds.has(entry.id) && entry.segment);
 }
@@ -357,7 +368,7 @@ function selectedJoinGroups(entries = []) {
         const end = orientation === "horizontal"
             ? Math.max(entry.segment.x1, entry.segment.x2)
             : Math.max(entry.segment.y1, entry.segment.y2);
-        const key = `${orientation}:${fixed}`;
+        const key = `${orientation}:${entry.wallKind}:${fixed}`;
         const list = lines.get(key) ?? [];
         list.push({ ...entry, orientation, fixed, start, end });
         lines.set(key, list);
@@ -403,13 +414,13 @@ export async function joinWallSegmentsById({ scene = null, ids = [] } = {}) {
                 start: { x: start, y: fixed },
                 end: { x: end, y: fixed },
                 sourceWall: group[0].wall,
-                wallType: "wall"
+                wallType: group[0].wallKind
             })
             : buildManualWallDocumentData({
                 start: { x: fixed, y: start },
                 end: { x: fixed, y: end },
                 sourceWall: group[0].wall,
-                wallType: "wall"
+                wallType: group[0].wallKind
             });
         if (data) {
             documents.push(data);
@@ -437,8 +448,9 @@ export async function splitWallSegmentAtPoint({ scene = null, point = null, grid
 
     const start = { x: nearest.segment.x1, y: nearest.segment.y1 };
     const end = { x: nearest.segment.x2, y: nearest.segment.y2 };
-    const first = buildManualWallDocumentData({ start, end: splitPoint, sourceWall: nearest.wall, wallType: "wall" });
-    const second = buildManualWallDocumentData({ start: splitPoint, end, sourceWall: nearest.wall, wallType: "wall" });
+    const wallType = documentWallKind(nearest.wall);
+    const first = buildManualWallDocumentData({ start, end: splitPoint, sourceWall: nearest.wall, wallType });
+    const second = buildManualWallDocumentData({ start: splitPoint, end, sourceWall: nearest.wall, wallType });
     await scene.deleteEmbeddedDocuments("Wall", [id]);
     const created = await scene.createEmbeddedDocuments("Wall", [first, second].filter(Boolean));
     return { ok: true, reason: "", deleted: [id], created: created ?? [], splitPoint };
@@ -469,6 +481,7 @@ export function findJoinCandidate({ walls = [], point = null, grid = null } = {}
             const join = sharedEndpoint(left.segment, right.segment);
             if (!join || distance(join.shared, point) > maximumDistance) continue;
             if (orientationKey(left.segment) !== orientationKey(right.segment)) continue;
+            if (documentWallKind(left.wall) !== documentWallKind(right.wall)) continue;
             if (!areCollinear(left.segment, right.segment)) continue;
             return {
                 walls: [left.wall, right.wall],
@@ -494,7 +507,7 @@ export async function joinWallSegmentsAtPoint({ scene = null, point = null, grid
         start: candidate.start,
         end: candidate.end,
         sourceWall: candidate.walls[0],
-        wallType: "wall"
+        wallType: documentWallKind(candidate.walls[0])
     });
     if (!data) return { ok: false, reason: "invalid-wall-segment" };
 

@@ -4749,10 +4749,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const y1 = toViewportY(segment.y1).toFixed(1);
                 const x2 = toViewportX(segment.x2).toFixed(1);
                 const y2 = toViewportY(segment.y2).toFixed(1);
+                const wallKindClass = segment.wallKind === "door"
+                    ? " is-door"
+                    : segment.wallKind === "window"
+                        ? " is-window"
+                        : "";
                 if (segment.selected) {
                     inner += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="totc-v2-grid-overlay__selected-wall-halo"/>`;
                 }
-                inner += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="totc-v2-grid-overlay__detected-wall${segment.selected ? " is-selected" : ""}"/>`;
+                inner += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="totc-v2-grid-overlay__detected-wall${wallKindClass}${segment.selected ? " is-selected" : ""}"/>`;
             }
 
             for (const intersection of detectedWallsOverlay.intersections ?? []) {
@@ -4894,6 +4899,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 return values.every(Number.isFinite);
             }).map((segment) => ({
                 id: String(segment.id ?? "").trim(),
+                wallKind: ["door", "window"].includes(String(segment.wallKind ?? "").trim().toLowerCase())
+                    ? String(segment.wallKind ?? "").trim().toLowerCase()
+                    : "wall",
                 x1: Math.round(Number(segment.x1)),
                 y1: Math.round(Number(segment.y1)),
                 x2: Math.round(Number(segment.x2)),

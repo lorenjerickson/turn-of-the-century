@@ -457,15 +457,17 @@ describe("regular grid wall detection", () => {
         assert.deepEqual(buildSceneWallOverlayState({
             walls: [
                 { id: "wall-a", c: [0.2, 0.8, 100.3, 0.4] },
-                { id: "wall-b", _source: { c: [100, 0, 100, 100] } },
+                { id: "wall-b", _source: { c: [100, 0, 100, 100], flags: { "turn-of-the-century": { wallKind: "window" } } } },
+                { id: "wall-c", c: [200, 0, 200, 100], flags: { "turn-of-the-century": { wallKind: "door" } } },
                 { c: ["bad", 0, 50, 50] }
             ]
         }, {
             selectedWallIds: new Set(["wall-b"])
         }), {
             segments: [
-                { id: "wall-a", x1: 0, y1: 1, x2: 100, y2: 0, selected: false },
-                { id: "wall-b", x1: 100, y1: 0, x2: 100, y2: 100, selected: true }
+                { id: "wall-a", wallKind: "wall", x1: 0, y1: 1, x2: 100, y2: 0, selected: false },
+                { id: "wall-b", wallKind: "window", x1: 100, y1: 0, x2: 100, y2: 100, selected: true },
+                { id: "wall-c", wallKind: "door", x1: 200, y1: 0, x2: 200, y2: 100, selected: false }
             ],
             intersections: [
                 { x: 100, y: 0 }

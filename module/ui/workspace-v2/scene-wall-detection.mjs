@@ -40,6 +40,12 @@ function documentId(document) {
     return String(document?.id ?? document?._id ?? "").trim();
 }
 
+function wallKind(document) {
+    const source = typeof document?.toObject === "function" ? document.toObject() : (document?._source ?? document ?? {});
+    const kind = String(source.flags?.["turn-of-the-century"]?.wallKind ?? "").trim().toLowerCase();
+    return ["door", "window"].includes(kind) ? kind : "wall";
+}
+
 function enumValue(constants, path = [], fallback) {
     let cursor = constants;
     for (const key of path) cursor = cursor?.[key];
@@ -71,10 +77,11 @@ export function buildSceneWallOverlayState(scene = null, { selectedWallIds = new
     const segments = getSceneWallDocuments(scene).map((wall) => {
         const coords = wall?.c ?? wall?._source?.c ?? wall?.toObject?.()?.c ?? [];
         const [x1, y1, x2, y2] = Array.from(coords ?? []).map((value) => Number(value));
-        return { id: documentId(wall), x1, y1, x2, y2 };
+        return { id: documentId(wall), x1, y1, x2, y2, wallKind: wallKind(wall) };
     }).filter((segment) => [segment.x1, segment.y1, segment.x2, segment.y2].every(Number.isFinite))
         .map((segment) => ({
             id: segment.id,
+            wallKind: segment.wallKind,
             x1: Math.round(segment.x1),
             y1: Math.round(segment.y1),
             x2: Math.round(segment.x2),
