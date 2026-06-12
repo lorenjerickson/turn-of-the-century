@@ -58,6 +58,7 @@ import {
     applyTotcTheme,
     registerTotcThemeSetting
 } from "./module/ui/theme-manager.mjs";
+import { installWallRenderingOverrides } from "./module/ui/wall-rendering.mjs";
 import {
     ADVERSARY_PROFILES,
     FACTION_METADATA,
@@ -370,6 +371,8 @@ async function maybeRunAutomatedMigrations() {
 }
 
 Hooks.once("init", () => {
+    installWallRenderingOverrides();
+
     CONFIG.Actor.dataModels ??= {};
     CONFIG.Item.dataModels ??= {};
     CONFIG.Actor.documentClass = TurnOfTheCenturyActor;
