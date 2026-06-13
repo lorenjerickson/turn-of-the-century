@@ -244,6 +244,7 @@ export class WorkspacePanelHost {
     }
 
     #renderMapPanel(panel, context = {}) {
+        const panelId = String(panel?.id ?? "").trim();
         const mapScene = this.getMapPanelScene(panel, context);
         const sceneName = this.escapeHTML(mapScene?.name ?? "Current Scene");
         const mapSrc = mapScene?.mapSrc ?? "";
@@ -266,7 +267,7 @@ export class WorkspacePanelHost {
 
         const imageMarkup = mapSrc
             ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true"
-                data-scene-actor-drop-target="true" data-scene-id="${this.escapeHTML(sceneId)}"
+                data-scene-actor-drop-target="true" data-map-panel-id="${this.escapeHTML(panelId)}" data-scene-id="${this.escapeHTML(sceneId)}"
                 data-map-key="${this.escapeHTML(mapScene?.id ?? mapSrc)}"
                 data-grid-type="${this.escapeHTML(sceneGridOverlayState?.gridType ?? mapScene?.grid?.type ?? "")}"
                 data-grid-size="${this.escapeHTML(sceneGridOverlayState?.cellW ?? mapScene?.grid?.size ?? "")}"

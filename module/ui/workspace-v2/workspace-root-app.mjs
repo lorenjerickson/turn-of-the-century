@@ -4340,7 +4340,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #getMapWallEditingState(viewport) {
-        const panelId = String(viewport?.closest?.(".totc-v2-map-panel")?.querySelector?.("[data-map-panel-id]")?.dataset?.mapPanelId ?? "").trim();
+        const panelId = String(
+            viewport?.dataset?.mapPanelId
+            ?? viewport?.closest?.(".totc-v2-map-panel")?.querySelector?.("[data-map-panel-id]")?.dataset?.mapPanelId
+            ?? ""
+        ).trim();
         return this.#getMapPanelToolbarState({ id: panelId });
     }
 

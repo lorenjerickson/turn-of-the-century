@@ -57,7 +57,7 @@ describe("WorkspacePanelHost", () => {
 
         const html = host.renderPanelBodyContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
 
-        assert.match(html, /<div class="totc-v2-map-panel__viewport[^"]*" data-action="map-viewport" data-map-viewport="true"\s+data-scene-actor-drop-target="true" data-scene-id="scene-1"/);
+        assert.match(html, /<div class="totc-v2-map-panel__viewport[^"]*" data-action="map-viewport" data-map-viewport="true"\s+data-scene-actor-drop-target="true" data-map-panel-id="map:scene-1" data-scene-id="scene-1"/);
         assert.doesNotMatch(html, /<figure class="totc-v2-map-panel[^"]*"[^>]*data-scene-actor-drop-target="true"/);
         assert.match(html, /data-map-token-layer="true"/);
         assert.match(html, /class="totc-v2-map-panel__token"[^>]*src="tokens\/ada\.webp"[^>]*style="left:200px;top:300px;width:100px;height:100px"/);

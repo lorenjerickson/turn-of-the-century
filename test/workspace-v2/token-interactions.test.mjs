@@ -63,6 +63,7 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /controlWall", handler: this\._wallSelectionRefreshHandler/);
         assert.match(workspaceRootSource, /#syncSelectedWallsFromCanvas\(scene[\s\S]*getControlledWallIds\(canvas\?\.walls\)/);
         assert.match(workspaceRootSource, /#syncSelectedWallsFromCanvas\(scene\);[\s\S]*const selectedIds = this\.\#getSelectedWallIds\(scene\)/);
+        assert.match(workspaceRootSource, /viewport\?\.dataset\?\.mapPanelId[\s\S]*#getMapPanelToolbarState\(\{ id: panelId \}\)/);
         assert.match(workspaceRootSource, /splitWallSegmentAtPoint/);
         assert.match(workspaceRootSource, /joinWallSegmentsById/);
         assert.doesNotMatch(workspaceRootSource, /joinWallSegmentsAtPoint/);
