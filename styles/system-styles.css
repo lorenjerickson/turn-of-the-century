@@ -2955,10 +2955,10 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 }
 
 .turn-of-the-century .totc-v2-map-toolbar__btn {
-    background: rgba(245, 158, 11, 0.16);
-    border: 1px solid rgba(251, 191, 36, 0.45);
-    border-radius: 999px;
-    color: #fef3c7;
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(147, 197, 253, 0.42);
+    border-radius: 4px;
+    color: #dbeafe;
     cursor: pointer;
     display: flex;
     font-size: 0.72rem;
@@ -2971,31 +2971,31 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 }
 
 .turn-of-the-century .totc-v2-map-toolbar__btn:hover {
-    background: rgba(245, 158, 11, 0.28);
-    border-color: rgba(251, 191, 36, 0.72);
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(191, 219, 254, 0.7);
+    color: #eff6ff;
 }
 
 .turn-of-the-century .totc-v2-map-toolbar__btn:disabled {
-    color: rgba(254, 243, 199, 0.4);
-    cursor: not-allowed;
-    opacity: 0.65;
+    cursor: default;
+    opacity: 0.48;
 }
 
 .turn-of-the-century .totc-v2-map-toolbar__btn:disabled:hover {
-    background: rgba(245, 158, 11, 0.16);
-    border-color: rgba(251, 191, 36, 0.45);
-    color: rgba(254, 243, 199, 0.4);
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(147, 197, 253, 0.42);
+    color: #dbeafe;
 }
 
 .turn-of-the-century .totc-v2-map-toolbar__btn.is-active {
-    background: rgba(245, 158, 11, 0.42);
-    border-color: rgba(251, 191, 36, 0.85);
-    color: #fff7df;
+    background: rgba(37, 99, 235, 0.38);
+    border-color: rgba(191, 219, 254, 0.78);
+    color: #eff6ff;
 }
 
 .turn-of-the-century .totc-v2-map-toolbar__btn.is-active:hover {
-    background: rgba(245, 158, 11, 0.5);
-    border-color: rgba(252, 211, 77, 0.95);
+    background: rgba(37, 99, 235, 0.48);
+    border-color: rgba(219, 234, 254, 0.86);
 }
 
 .turn-of-the-century .totc-v2-map-toolbar__btn i {
@@ -5267,20 +5267,21 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-design-lens__action {
 }
 
 body.totc-theme-victorian .turn-of-the-century .totc-v2-map-toolbar__btn {
-    background: rgba(88, 60, 34, 0.82);
-    border-color: rgba(215, 169, 79, 0.46);
-    color: #f4ddb0;
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(147, 197, 253, 0.42);
+    color: #dbeafe;
 }
 
 body.totc-theme-victorian .turn-of-the-century .totc-v2-map-toolbar__btn:hover {
-    background: rgba(112, 74, 41, 0.9);
-    border-color: rgba(228, 184, 94, 0.64);
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(191, 219, 254, 0.7);
+    color: #eff6ff;
 }
 
 body.totc-theme-victorian .turn-of-the-century .totc-v2-map-toolbar__btn.is-active {
-    background: rgba(132, 87, 48, 0.94);
-    border-color: rgba(236, 195, 108, 0.84);
-    color: #fdebc8;
+    background: rgba(37, 99, 235, 0.38);
+    border-color: rgba(191, 219, 254, 0.78);
+    color: #eff6ff;
 }
 
 body.totc-theme-victorian .turn-of-the-century .totc-v2-design-command-palette {

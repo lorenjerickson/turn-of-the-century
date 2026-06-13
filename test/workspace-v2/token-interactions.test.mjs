@@ -59,6 +59,10 @@ describe("workspace token interactions", () => {
         assert.doesNotMatch(workspaceRootSource, /removeWallSegmentAtPoint/);
         assert.match(workspaceRootSource, /findWallsIntersectingBounds/);
         assert.match(workspaceRootSource, /findWallsWithinBounds/);
+        assert.match(workspaceRootSource, /getControlledWallIds/);
+        assert.match(workspaceRootSource, /controlWall", handler: this\._wallSelectionRefreshHandler/);
+        assert.match(workspaceRootSource, /#syncSelectedWallsFromCanvas\(scene[\s\S]*getControlledWallIds\(canvas\?\.walls\)/);
+        assert.match(workspaceRootSource, /#syncSelectedWallsFromCanvas\(scene\);[\s\S]*const selectedIds = this\.\#getSelectedWallIds\(scene\)/);
         assert.match(workspaceRootSource, /splitWallSegmentAtPoint/);
         assert.match(workspaceRootSource, /joinWallSegmentsById/);
         assert.doesNotMatch(workspaceRootSource, /joinWallSegmentsAtPoint/);
@@ -101,5 +105,11 @@ describe("workspace token interactions", () => {
         assert.match(styles, /\.totc-v2-map-viewport__selection-box\s*\{/);
         assert.match(styles, /border:\s*1\.5px\s*dashed\s*#fbbf24;/);
         assert.match(styles, /background:\s*rgba\(251,\s*191,\s*36,\s*0\.12\);/);
+    });
+
+    it("styles map toolbar buttons like other panel action buttons", () => {
+        assert.match(styles, /\.totc-v2-actor-list-panel__new,[\s\S]*background:\s*rgba\(59,\s*130,\s*246,\s*0\.2\);[\s\S]*border-radius:\s*4px;/);
+        assert.match(styles, /\.totc-v2-map-toolbar__btn\s*\{[\s\S]*background:\s*rgba\(59,\s*130,\s*246,\s*0\.2\);[\s\S]*border-radius:\s*4px;[\s\S]*color:\s*#dbeafe;/);
+        assert.match(styles, /\.totc-v2-map-toolbar__btn:hover\s*\{[\s\S]*background:\s*rgba\(59,\s*130,\s*246,\s*0\.3\);[\s\S]*border-color:\s*rgba\(191,\s*219,\s*254,\s*0\.7\);/);
     });
 });

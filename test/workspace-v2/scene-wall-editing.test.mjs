@@ -7,6 +7,7 @@ import {
     buildWallEditingGrid,
     findWallsIntersectingBounds,
     findWallsWithinBounds,
+    getControlledWallIds,
     joinWallSegmentsById,
     joinWallSegmentsAtPoint,
     removeWallSegmentsById,
@@ -58,6 +59,27 @@ function wall(id, c, extra = {}) {
 }
 
 describe("scene wall editing", () => {
+    it("collects controlled wall ids from Foundry wall layer shapes", () => {
+        const controlledObjects = new Map([
+            ["b", { document: wall("b", [100, 0, 200, 0]) }],
+            ["duplicate", { document: wall("a", [0, 0, 100, 0]) }]
+        ]);
+        const wallLayer = {
+            controlled: [
+                { document: wall("a", [0, 0, 100, 0]) },
+                wall("direct", [200, 0, 300, 0])
+            ],
+            controlledObjects,
+            placeables: [
+                { controlled: true, document: wall("c", [300, 0, 400, 0]) },
+                { controlled: false, document: wall("ignored", [400, 0, 500, 0]) }
+            ]
+        };
+
+        assert.deepEqual(getControlledWallIds(wallLayer), ["a", "direct", "b", "c"]);
+        assert.deepEqual(getControlledWallIds(null), []);
+    });
+
     it("snaps wall clicks to nearest grid intersections", () => {
         const grid = buildWallEditingGrid(makeScene());
 

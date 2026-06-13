@@ -122,6 +122,7 @@ import {
     buildWallEditingGrid,
     findWallsIntersectingBounds,
     findWallsWithinBounds,
+    getControlledWallIds,
     joinWallSegmentsById,
     removeWallSegmentsById,
     snapPointToGridIntersection,
@@ -986,6 +987,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._designIssuesRefreshHandler = () => {
             if (this.rendered) this.render({ force: false });
         };
+        this._wallSelectionRefreshHandler = () => {
+            const scene = canvas?.scene ?? game.scenes?.viewed ?? game.scenes?.active ?? null;
+            this.#syncSelectedWallsFromCanvas(scene, { clearWhenEmpty: true });
+            if (scene) this.#refreshSceneWallOverlay(scene);
+            if (this.rendered) this.render({ force: false });
+        };
         this._dieRollRequestUnsubscribe = dieRollRequestManager.onChange((change) => {
             void this.#handleDieRollRequestChange(change);
         });
@@ -1002,7 +1009,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             { event: "canvasTearDown", handler: this._sceneRefreshHandler },
             { event: "updateScene", handler: this._sceneRefreshHandler },
             { event: "createScene", handler: this._sceneRefreshHandler },
-            { event: "deleteScene", handler: this._deletedSceneHandler }
+            { event: "deleteScene", handler: this._deletedSceneHandler },
+            { event: "controlWall", handler: this._wallSelectionRefreshHandler }
         ]);
         this.hooksController.registerFamily("compendium", [
             { event: "createCompendium", handler: this._compendiumRefreshHandler },
@@ -4491,6 +4499,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async #deleteSelectedWallsForPanel(panelId = "") {
         const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
         const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
+        this.#syncSelectedWallsFromCanvas(scene);
         const selectedIds = this.#getSelectedWallIds(scene);
         if (!scene || !selectedIds.size) {
             ui.notifications?.warn?.("Select wall segments before deleting them.");
@@ -4920,6 +4929,27 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return sceneId ? (this._detectedWallOverlayStates.get(sceneId) ?? null) : null;
     }
 
+    #syncSelectedWallsFromCanvas(scene = null, { clearWhenEmpty = false } = {}) {
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        if (!sceneId) return false;
+
+        const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
+        if (canvasSceneId && canvasSceneId !== sceneId) return false;
+
+        const selectedIds = getControlledWallIds(canvas?.walls);
+        if (selectedIds.length) {
+            this.#setSelectedWallIds(scene, selectedIds);
+            this.#setJoinableWallIds(scene, []);
+            return true;
+        }
+
+        if (clearWhenEmpty) {
+            this.#setSelectedWallIds(scene, []);
+            this.#setJoinableWallIds(scene, []);
+        }
+        return false;
+    }
+
     #getSelectedWallIds(scene = null) {
         const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
         return sceneId ? (this._selectedWallIdsByScene.get(sceneId) ?? new Set()) : new Set();
@@ -4949,6 +4979,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     #getMapPanelToolbarState(panel = null) {
         const panelId = String(panel?.id ?? "").trim();
         const sceneId = this.#getPanelSceneId(panel);
+        if (sceneId) this.#syncSelectedWallsFromCanvas(this.#getSceneDocumentById(sceneId));
         const selectedWallCount = sceneId ? (this._selectedWallIdsByScene.get(sceneId)?.size ?? 0) : 0;
         const joinableWallCount = sceneId ? (this._joinableWallIdsByScene.get(sceneId)?.size ?? 0) : 0;
         const defaults = { mode: null, wallCommand: "detect", wallType: "wall", selectedWallCount, joinableWallCount };

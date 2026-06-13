@@ -28,6 +28,25 @@ export function wallDocumentId(document) {
     return String(document?.id ?? document?._id ?? "").trim();
 }
 
+function wallPlaceableDocument(placeable = null) {
+    return placeable?.document ?? placeable?.wall ?? placeable;
+}
+
+export function getControlledWallIds(wallLayer = null) {
+    const candidates = [];
+    if (Array.isArray(wallLayer?.controlled)) {
+        candidates.push(...wallLayer.controlled);
+    }
+    if (wallLayer?.controlledObjects && typeof wallLayer.controlledObjects.values === "function") {
+        candidates.push(...wallLayer.controlledObjects.values());
+    }
+    if (Array.isArray(wallLayer?.placeables)) {
+        candidates.push(...wallLayer.placeables.filter((placeable) => placeable?.controlled));
+    }
+
+    return [...new Set(candidates.map((placeable) => wallDocumentId(wallPlaceableDocument(placeable))).filter(Boolean))];
+}
+
 function documentSource(document) {
     if (!document) return {};
     if (typeof document.toObject === "function") return document.toObject();
