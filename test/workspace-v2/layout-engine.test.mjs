@@ -25,6 +25,8 @@ const panelLibrary = Object.freeze([
     { id: "chat", title: "Chat and Messages" },
     { id: "tracker", title: "Turn Tracker" },
     { id: "camp", title: "Camp" },
+    { id: "encounter", title: "Encounter Planner", defaultDock: "rightDock" },
+    { id: "encounter-manager", title: "Encounter Manager", defaultDock: "leftDock" },
     { id: "player", title: "Player Panel", defaultDock: "rightDock" }
 ]);
 
@@ -187,6 +189,43 @@ describe("LayoutEngine", () => {
 
         const layout = engine.restorePanel({ id: "chat", title: "Chat and Messages" });
         assert.equal(layout.root.topDock.stacks[0].panels[0].id, "chat");
+    });
+
+    it("restores the encounter panel to its remembered dock before using the right-dock fallback", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const engine = new LayoutEngine({ panels: panelLibrary });
+
+        engine.applyDropIntent(
+            { id: "encounter", title: "Encounter Planner", defaultDock: "rightDock" },
+            { kind: "edge", dockId: "bottomDock" }
+        );
+        engine.closePanel("encounter");
+
+        const layout = engine.restorePanel(
+            { id: "encounter", title: "Encounter Planner", defaultDock: "rightDock" },
+            { preferredDockId: "rightDock" }
+        );
+
+        assert.equal(
+            layout.root.bottomDock.stacks.some((stack) => stack.panels.some((panel) => panel.id === "encounter")),
+            true
+        );
+        assert.equal(
+            layout.root.rightDock.stacks.some((stack) => stack.panels.some((panel) => panel.id === "encounter")),
+            false
+        );
+    });
+
+    it("restores the encounter manager to the left dock by default", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const engine = new LayoutEngine({ panels: panelLibrary });
+
+        const layout = engine.restorePanel({ id: "encounter-manager", title: "Encounter Manager", defaultDock: "leftDock" });
+
+        assert.equal(
+            layout.root.leftDock.stacks.some((stack) => stack.panels.some((panel) => panel.id === "encounter-manager")),
+            true
+        );
     });
 
     it("removes deleted scene map panels without remembering them", async () => {

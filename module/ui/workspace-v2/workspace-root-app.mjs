@@ -191,6 +191,12 @@ import {
     buildEncounterDesignerPanelModel
 } from "./panels/encounter-designer-panel.mjs";
 import {
+    buildEncounterManagerPanelModel
+} from "./panels/encounter-manager-panel.mjs";
+import {
+    buildPlayerEncounterPanelModel
+} from "./panels/player-encounter-panel.mjs";
+import {
     buildCampaignViewDeletePlan,
     buildCampaignViewMovePlan,
     buildCampaignViewPanelModel,
@@ -639,25 +645,12 @@ function buildPlayerPanelModel({ actor = null, combat = null, panelState = {}, a
     const actionsSection = {
         id: "actions",
         title: "Actions",
-        priority: combat ? 95 : 55,
+        priority: 55,
         visible: Boolean(actor),
         collapsed: collapsedSectionIds.has("actions"),
         highlighted: highlightedIds.has("actions"),
-        summary: combat ? `${planner?.availableActions?.length ?? 0} combat choices` : `${quickActions.length} quick actions`,
-        actions: combat ? (planner?.availableActions ?? []).map((action) => ({
-            id: action.id,
-            label: action.label,
-            detail: action.apLabel,
-            img: action.img,
-            disabled: false,
-            type: action.type,
-            apCost: action.apCost,
-            apMin: action.apMin,
-            apMax: action.apMax,
-            variableAp: Boolean(action.variableAp),
-            requiresToHit: Boolean(action.requiresToHit),
-            itemId: action.itemId ?? null
-        })) : quickActions
+        summary: `${quickActions.length} quick action${quickActions.length === 1 ? "" : "s"}`,
+        actions: quickActions
     };
 
     const effectsSection = {
@@ -693,33 +686,18 @@ function buildPlayerPanelModel({ actor = null, combat = null, panelState = {}, a
         slots: equippedBySlot.filter((slot) => slot.items.length)
     };
 
-    const encounterSection = {
-        id: "encounter",
-        title: "Encounter",
-        priority: planner ? 110 : 0,
-        visible: Boolean(planner),
-        collapsed: collapsedSectionIds.has("encounter"),
-        highlighted: highlightedIds.has("encounter"),
-        summary: planner ? `${planner.phase ?? "planning"} · ${planner.remainingAp ?? 0} AP remaining` : "",
-        planner
-    };
-
     const promptSection = {
         id: "prompts",
         title: "Prompts",
-        priority: planner ? 85 : 40,
+        priority: 40,
         visible: Boolean(actor),
         collapsed: collapsedSectionIds.has("prompts"),
         highlighted: highlightedIds.has("prompts"),
-        summary: planner
-            ? (planner.canCommit ? "Ready to commit this turn." : (planner.canRollInitiative ? "Roll initiative when ready." : "Follow the current encounter flow."))
-            : "Open the sheet or select a token to focus the panel.",
-        prompts: planner
-            ? [planner.canCommit ? "Commit the turn once your plan is complete." : "Choose a tactical action or adjust your plan."]
-            : ["Select or focus an actor to populate the player panel."]
+        summary: "Open the Encounter panel for combat planning.",
+        prompts: ["Use the Encounter panel to plan actions during combat."]
     };
 
-    const sections = [statusSection, resourcesSection, actionsSection, effectsSection, inventorySection, equipmentSection, encounterSection, promptSection]
+    const sections = [statusSection, resourcesSection, actionsSection, effectsSection, inventorySection, equipmentSection, promptSection]
         .filter((section) => section.visible)
         .sort((left, right) => right.priority - left.priority || String(left.title).localeCompare(String(right.title), undefined, { sensitivity: "base" }));
 
@@ -1301,6 +1279,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             actorOptions: playerActorOptions,
             highlightedSectionIds: []
         });
+        const playerEncounterPlanner = selectedPlayerActor
+            ? buildEncounterPlanner(selectedPlayerActor, selectedPlayerActor?.getActiveTokens?.()?.[0] ?? selectedPlayerActor?.token ?? null)
+            : null;
+        const playerEncounterPanel = buildPlayerEncounterPanelModel({
+            actor: selectedPlayerActor,
+            planner: playerEncounterPlanner,
+            combat
+        });
         const playerVisibleSectionIds = playerPanel.sections.map((section) => section.id);
         const playerHighlightedSectionIds = this.#trackPanelSectionHighlights("player", playerVisibleSectionIds);
         const highlightedPlayerPanel = {
@@ -1392,6 +1378,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             gmPanel: highlightedGmPanel,
             marketPanel,
             playerPanel: highlightedPlayerPanel,
+            playerEncounterPanel,
             designIssuesPanel,
             scenePropertiesPanel: buildScenePropertiesPanelModel({
                 scene: scenePropertiesScene,
@@ -1408,6 +1395,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }),
             encounterDesignerPanel: buildEncounterDesignerPanelModel({
                 encounters: Array.from(game.items?.contents || []).filter(i => i.type === "encounter-design")
+            }),
+            encounterManagerPanel: buildEncounterManagerPanelModel({
+                combat
             }),
             campaignViewPanel: buildCampaignViewPanelModel({
                 items: Array.from(game.items?.contents || []),
@@ -1565,6 +1555,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
+        this.#wirePlayerEncounterPanelHandlers();
+        this.#wireEncounterManagerPanelHandlers();
+
         this.element?.querySelectorAll("[data-action='media-browser-filter-type']")?.forEach((select) => {
             select.addEventListener("change", () => {
                 this._mediaBrowserState = {
@@ -1682,47 +1675,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const token = actor?.getActiveTokens?.()?.[0] ?? actor?.token ?? null;
                 if (!token) return;
                 await canvas?.animatePan?.({ x: token.center?.x ?? token.x, y: token.center?.y ?? token.y, scale: canvas.stage?.scale?.x ?? 1 });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='player-execute-encounter-action']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-
-                const combat = game.combat;
-                if (!combat?.addCombatantAction) {
-                    ui.notifications?.warn("Encounter actions are not available right now.");
-                    return;
-                }
-
-                const actorId = String(button.dataset.actorId ?? "").trim();
-                const actor = actorId ? game.actors?.get?.(actorId) : null;
-                const combatant = actor ? combat.getCombatantByActor?.(actor.id) ?? combat.combatants?.contents?.find((entry) => entry.actorId === actor.id) ?? null : null;
-                if (!combatant) {
-                    ui.notifications?.warn("This actor is not part of the current encounter.");
-                    return;
-                }
-
-                if (button.dataset.variableAp === "true" || button.dataset.requiresToHit === "true") {
-                    ui.notifications?.info("Use the actor sheet planner for configurable encounter actions.");
-                    return;
-                }
-
-                const actionData = {
-                    id: String(button.dataset.playerActionId ?? ""),
-                    type: String(button.dataset.playerActionType ?? "action"),
-                    label: button.querySelector("span")?.textContent?.trim() ?? String(button.dataset.playerActionId ?? "Action"),
-                    apCost: Math.max(1, Number(button.dataset.apCost ?? 1)),
-                    apMin: Math.max(1, Number(button.dataset.apMin ?? 1)),
-                    apMax: Math.max(1, Number(button.dataset.apMax ?? 1)),
-                    variableAp: button.dataset.variableAp === "true",
-                    requiresToHit: button.dataset.requiresToHit === "true",
-                    itemId: String(button.dataset.itemId ?? "") || null
-                };
-
-                await combat.addCombatantAction(combatant.id, actionData);
-                this.render({ force: false });
             });
         });
 
@@ -2596,6 +2548,249 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         </article>`;
     }
 
+    #readEncounterActionData(element = null) {
+        if (!element) return null;
+        const apMin = Math.max(1, Number(element.dataset.apMin ?? element.dataset.apCost ?? 1));
+        const apMax = Math.max(apMin, Number(element.dataset.apMax ?? element.dataset.apCost ?? apMin));
+        const apCost = Math.max(apMin, Math.min(apMax, Number(element.dataset.apCost ?? apMin)));
+        return {
+            id: String(element.dataset.id ?? element.dataset.actionId ?? "").trim(),
+            actionId: String(element.dataset.actionId ?? element.dataset.id ?? "").trim(),
+            type: String(element.dataset.type ?? "action").trim(),
+            label: String(element.dataset.label ?? element.value ?? "Action").trim(),
+            apCost,
+            apMin,
+            apMax,
+            variableAp: element.dataset.variableAp === "true",
+            requiresToHit: element.dataset.requiresToHit === "true",
+            toHitBonus: Number(element.dataset.toHitBonus ?? 0),
+            movementFeet: Number(element.dataset.movementFeet ?? 0),
+            movementFeetPerAp: Number(element.dataset.movementFeetPerAp ?? 0),
+            itemId: String(element.dataset.itemId ?? "").trim() || null,
+            img: String(element.dataset.img ?? "").trim()
+        };
+    }
+
+    #findEncounterActionOption(input = null) {
+        const value = String(input?.value ?? "").trim();
+        if (!value || !input?.list?.options) return null;
+        return Array.from(input.list.options).find((option) => String(option.value ?? "").trim() === value) ?? null;
+    }
+
+    #getEncounterPanelCombatantId(element = null) {
+        return String(element?.closest?.(".totc-v2-encounter-panel")?.dataset?.combatantId ?? "").trim();
+    }
+
+    #getEncounterCombat() {
+        return game.combat ?? ui.combat?.viewed ?? null;
+    }
+
+    #wireEncounterManagerPanelHandlers() {
+        this.element?.querySelectorAll("[data-action='encounter-manager-start-round']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const combat = this.#getEncounterCombat();
+                if (!combat?.initializeEncounterRound) return;
+                await combat.initializeEncounterRound();
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-manager-roll-initiative']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const combat = this.#getEncounterCombat();
+                if (!combat?.rollAllMissingInitiatives) return;
+                await combat.rollAllMissingInitiatives();
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-manager-set-phase']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const phase = String(button.dataset.phase ?? "").trim();
+                const combat = this.#getEncounterCombat();
+                if (!phase || !combat?.setEncounterPhase) return;
+                await combat.setEncounterPhase(phase);
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-manager-resolve-round']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const combat = this.#getEncounterCombat();
+                if (!combat?.resolveEncounterRound) return;
+                await combat.resolveEncounterRound();
+                this.render({ force: false });
+            });
+        });
+    }
+
+    async #moveEncounterAction(combatantId = "", fromIndex = -1, toIndex = -1) {
+        const combat = this.#getEncounterCombat();
+        if (!combatantId || !combat?.setCombatantPlan) return;
+        const plan = [...(combat.getCombatantPlan?.(combatantId) ?? [])];
+        if (fromIndex < 0 || fromIndex >= plan.length) return;
+        const [moved] = plan.splice(fromIndex, 1);
+        const target = Math.max(0, Math.min(plan.length, toIndex));
+        plan.splice(target, 0, moved);
+        await combat.setCombatantPlan(combatantId, plan);
+        this.render({ force: false });
+    }
+
+    #wirePlayerEncounterPanelHandlers() {
+        this.element?.querySelectorAll("[data-action='encounter-add-action']")?.forEach((input) => {
+            input.addEventListener("change", async (event) => {
+                const option = this.#findEncounterActionOption(input);
+                if (!option) return;
+                const combatantId = this.#getEncounterPanelCombatantId(input);
+                const combat = this.#getEncounterCombat();
+                if (!combatantId || !combat?.addCombatantAction) return;
+                const actionData = this.#readEncounterActionData(option);
+                if (!actionData) return;
+                await combat.addCombatantAction(combatantId, actionData);
+                input.value = "";
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-remove-action']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const combatantId = this.#getEncounterPanelCombatantId(button);
+                const actionIndex = Number(button.dataset.actionIndex);
+                const combat = this.#getEncounterCombat();
+                if (!combatantId || Number.isNaN(actionIndex) || !combat?.removeCombatantAction) return;
+                await combat.removeCombatantAction(combatantId, actionIndex);
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-clear-plan']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const combatantId = this.#getEncounterPanelCombatantId(button);
+                const combat = this.#getEncounterCombat();
+                if (!combatantId || !combat?.clearCombatantPlan) return;
+                await combat.clearCombatantPlan(combatantId);
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-toggle-ready']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const combatantId = this.#getEncounterPanelCombatantId(button);
+                const combat = this.#getEncounterCombat();
+                if (!combatantId || !combat?.setCombatantReady) return;
+                await combat.setCombatantReady(combatantId, button.dataset.ready !== "true");
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-roll-initiative']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const combatantId = this.#getEncounterPanelCombatantId(button);
+                const combat = this.#getEncounterCombat();
+                if (!combatantId || !combat?.rollEncounterInitiative) return;
+                await combat.rollEncounterInitiative(combatantId);
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-plan-segment']")?.forEach((segment) => {
+            segment.addEventListener("dragstart", (event) => {
+                if (!event.dataTransfer) return;
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("application/x-totc-encounter-action-index", String(segment.dataset.actionIndex ?? ""));
+            });
+            segment.addEventListener("dragover", (event) => {
+                event.preventDefault();
+                if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+            });
+            segment.addEventListener("drop", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const combatantId = this.#getEncounterPanelCombatantId(segment);
+                const fromIndex = Number(event.dataTransfer?.getData("application/x-totc-encounter-action-index"));
+                const toIndex = Number(segment.dataset.actionIndex);
+                await this.#moveEncounterAction(combatantId, fromIndex, toIndex);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-plan-bar']")?.forEach((bar) => {
+            bar.addEventListener("dragover", (event) => {
+                event.preventDefault();
+                if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+            });
+            bar.addEventListener("drop", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (event.target?.closest?.("[data-action='encounter-plan-segment']")) return;
+                const combatantId = this.#getEncounterPanelCombatantId(bar);
+                const fromIndex = Number(event.dataTransfer?.getData("application/x-totc-encounter-action-index"));
+                const planLength = this.#getEncounterCombat()?.getCombatantPlan?.(combatantId)?.length ?? 0;
+                await this.#moveEncounterAction(combatantId, fromIndex, planLength);
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-resize-action']")?.forEach((handle) => {
+            handle.addEventListener("pointerdown", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const segment = handle.closest("[data-action='encounter-plan-segment']");
+                const bar = handle.closest("[data-action='encounter-plan-bar']");
+                const combatantId = this.#getEncounterPanelCombatantId(handle);
+                const actionIndex = Number(handle.dataset.actionIndex);
+                const combat = this.#getEncounterCombat();
+                const plan = combat?.getCombatantPlan?.(combatantId) ?? [];
+                const action = plan[actionIndex];
+                if (!segment || !bar || !combatantId || !combat?.setCombatantActionApCost || !action) return;
+
+                const apBudget = Math.max(1, Number(bar.dataset.apBudget ?? 1));
+                const rect = bar.getBoundingClientRect();
+                const cellWidth = rect.width / apBudget;
+                const priorAp = plan.slice(0, actionIndex).reduce((sum, entry) => sum + Math.max(1, Number(entry.apCost ?? 1)), 0);
+                const apMin = Math.max(1, Number(action.apMin ?? action.apCost ?? 1));
+                const apMax = Math.max(apMin, Number(action.apMax ?? action.apCost ?? apMin));
+                const remainingAfter = plan.slice(actionIndex + 1).reduce((sum, entry) => sum + Math.max(1, Number(entry.apCost ?? 1)), 0);
+                const maxByBudget = Math.max(apMin, apBudget - priorAp - remainingAfter);
+                const upper = Math.min(apMax, maxByBudget);
+                let nextCost = Math.max(apMin, Math.min(upper, Number(action.apCost ?? apMin)));
+
+                const onPointerMove = (moveEvent) => {
+                    const relativeX = Math.max(0, Math.min(rect.width, moveEvent.clientX - rect.left));
+                    const endBoundary = Math.round(relativeX / cellWidth);
+                    nextCost = Math.max(apMin, Math.min(upper, endBoundary - priorAp));
+                    segment.style.gridColumn = `span ${nextCost}`;
+                    const detail = segment.querySelector("small");
+                    if (detail) detail.textContent = `${nextCost} AP`;
+                };
+
+                const onPointerUp = async () => {
+                    document.removeEventListener("pointermove", onPointerMove);
+                    document.removeEventListener("pointerup", onPointerUp);
+                    await combat.setCombatantActionApCost(combatantId, actionIndex, nextCost);
+                    this.render({ force: false });
+                };
+
+                document.addEventListener("pointermove", onPointerMove);
+                document.addEventListener("pointerup", onPointerUp);
+            });
+        });
+    }
+
 
 
     #renderPlayerSectionBody(section, playerPanel = {}) {
@@ -2613,12 +2808,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (section.id === "actions") {
             return `
             <div class="totc-v2-player-panel__action-grid">
-                ${(section.actions ?? []).map((action) => `
-                    <button type="button" class="totc-v2-player-panel__action" data-action="${action.type === "camera" ? "player-center-token" : action.type ? "player-execute-encounter-action" : "player-open-sheet"}" data-actor-id="${this.#escapeHTML(playerPanel.actorId ?? "")}" data-player-action-id="${this.#escapeHTML(action.id)}" data-player-action-type="${this.#escapeHTML(action.type ?? "")}" data-ap-cost="${this.#escapeHTML(String(action.apCost ?? 0))}" data-ap-min="${this.#escapeHTML(String(action.apMin ?? 0))}" data-ap-max="${this.#escapeHTML(String(action.apMax ?? 0))}" data-variable-ap="${action.variableAp ? "true" : "false"}" data-requires-to-hit="${action.requiresToHit ? "true" : "false"}" data-item-id="${this.#escapeHTML(action.itemId ?? "")}">
+                ${(section.actions ?? []).map((action) => {
+                    const actionType = action.type === "camera" ? "player-center-token" : "player-open-sheet";
+                    return `
+                    <button type="button" class="totc-v2-player-panel__action" data-action="${actionType}" data-actor-id="${this.#escapeHTML(playerPanel.actorId ?? "")}" data-player-action-id="${this.#escapeHTML(action.id)}" data-player-action-type="${this.#escapeHTML(action.type ?? "")}">
                         ${action.img ? `<img src="${this.#escapeHTML(action.img)}" alt="">` : ""}
                         <span>${this.#escapeHTML(action.label)}</span>
                         ${action.detail ? `<small>${this.#escapeHTML(action.detail)}</small>` : ""}
-                    </button>`).join("")}
+                    </button>`;
+                }).join("")}
             </div>`;
         }
 
@@ -3308,6 +3506,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (activeCombat?.initializeEncounterRound) {
                     await activeCombat.initializeEncounterRound();
                 }
+                await this.#showEncounterManagerPanel();
                 break;
             }
             case "gm-next-turn": {
@@ -5504,6 +5703,24 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._mediaBrowserSelectCallback = typeof onSelect === "function" ? onSelect : null;
 
         const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
+        await this.stateStore?.setUserLayout?.(nextLayout);
+        this.render({ force: false });
+    }
+
+    async #showEncounterPanel() {
+        const panelDef = this.panelRegistry.get("encounter");
+        if (!panelDef) return;
+
+        const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
+        await this.stateStore?.setUserLayout?.(nextLayout);
+        this.render({ force: false });
+    }
+
+    async #showEncounterManagerPanel() {
+        const panelDef = this.panelRegistry.get("encounter-manager");
+        if (!panelDef) return;
+
+        const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "leftDock" });
         await this.stateStore?.setUserLayout?.(nextLayout);
         this.render({ force: false });
     }

@@ -58,6 +58,29 @@ describe("WorkspacePanelRegistry", () => {
         });
     });
 
+    it("registers the encounter panel for right-dock restoration", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.deepEqual(registry.get("encounter"), {
+            id: "encounter",
+            title: "Encounter Planner",
+            defaultDock: "rightDock",
+            contextTags: ["encounter", "combat"]
+        });
+    });
+
+    it("registers the GM encounter manager for left-dock restoration", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.deepEqual(registry.get("encounter-manager"), {
+            id: "encounter-manager",
+            title: "Encounter Manager",
+            defaultDock: "leftDock",
+            roleAccess: { gmOnly: true },
+            contextTags: ["gm", "encounter", "combat"]
+        });
+    });
+
     it("registers the scenes panel for the left dock", () => {
         const registry = new WorkspacePanelRegistry();
 

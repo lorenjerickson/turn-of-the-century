@@ -223,4 +223,81 @@ describe("WorkspacePanelHost", () => {
 
         assert.match(html, /only available to the active Gamemaster/);
     });
+
+    it("renders the player encounter panel for the encounter workspace panel", () => {
+        const host = new WorkspacePanelHost({ escapeHTML });
+
+        const html = host.renderPanelBodyContent({ id: "encounter", title: "Encounter" }, {
+            playerEncounterPanel: {
+                status: {
+                    name: "Ada Price",
+                    type: "hero",
+                    img: "actors/ada.webp",
+                    health: { value: 8, max: 10 },
+                    grit: { value: 2, max: 3 },
+                    defenseRating: 14,
+                    effects: []
+                },
+                combatantId: "combatant-1",
+                encounterName: "Rookery Ambush",
+                phase: "planning",
+                round: 1,
+                apBudget: 6,
+                remainingAp: 6,
+                initiativeReady: true,
+                canEditPlan: true,
+                canCommit: false,
+                availableActions: [
+                    { id: "move", actionId: "move", type: "movement", label: "Move", apCost: 1, apMin: 1, apMax: 3, variableAp: true }
+                ],
+                plannedActions: [],
+                historyRows: []
+            }
+        });
+
+        assert.match(html, /totc-v2-encounter-panel/);
+        assert.match(html, /data-action="encounter-add-action"/);
+        assert.match(html, /totc-encounter-actions-combatant-1/);
+    });
+
+    it("renders the GM encounter manager panel", () => {
+        const host = new WorkspacePanelHost({ escapeHTML });
+
+        const html = host.renderPanelBodyContent({ id: "encounter-manager", title: "Encounter Manager" }, {
+            gm: { isGM: true },
+            encounterManagerPanel: {
+                active: true,
+                initialized: true,
+                name: "Rookery Ambush",
+                round: 2,
+                phase: "planning",
+                apBudget: 6,
+                currentTick: 1,
+                actors: [
+                    {
+                        id: "combatant-1",
+                        name: "Ada Price",
+                        img: "actors/ada.webp",
+                        health: { value: 8, max: 10 },
+                        conditions: ["Bleeding"],
+                        initiative: 12,
+                        ready: false,
+                        apBudget: 6,
+                        segments: [{ id: "move", label: "Move", start: 1, span: 2 }]
+                    }
+                ],
+                lastNarrative: "",
+                lastEvaluatedTick: null,
+                canStartRound: true,
+                canRollInitiative: true,
+                canResolveRound: true,
+                canSetPhase: true,
+                missingInitiativeCount: 1
+            }
+        });
+
+        assert.match(html, /totc-v2-encounter-manager/);
+        assert.match(html, /data-action="encounter-manager-resolve-round"/);
+        assert.match(html, /totc-v2-encounter-manager__actors-current-line/);
+    });
 });

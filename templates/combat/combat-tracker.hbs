@@ -47,59 +47,6 @@
                     {{/if}}
                 {{/if}}
 
-                {{#if turn.encounter.queue.length}}
-                    <ol class="totc-encounter-queue">
-                        {{#each turn.encounter.queue as |action actionIndex|}}
-                            <li>
-                                <span>{{action.label}} ({{action.apCost}} AP)</span>
-                                {{#if turn.canPlan}}
-                                    <button type="button" data-action="totc-remove-action" data-combatant-id="{{turn.id}}" data-action-index="{{actionIndex}}">{{localize "TOTC.Encounter.RemoveAction"}}</button>
-                                {{/if}}
-                            </li>
-                        {{/each}}
-                    </ol>
-                {{/if}}
-
-                {{#if turn.canPlan}}
-                    <div class="totc-encounter-plan-controls">
-                        <select class="totc-encounter-action-select">
-                            {{#each turn.encounter.availableActions as |action|}}
-                                <option
-                                    value="{{action.id}}"
-                                    data-id="{{action.id}}"
-                                    data-action-id="{{action.actionId}}"
-                                    data-type="{{action.type}}"
-                                    data-label="{{action.label}}"
-                                    data-ap-cost="{{action.apCost}}"
-                                    data-ap-min="{{action.apMin}}"
-                                    data-ap-max="{{action.apMax}}"
-                                    data-variable-ap="{{action.variableAp}}"
-                                    data-requires-to-hit="{{action.requiresToHit}}"
-                                    data-to-hit-bonus="{{action.toHitBonus}}"
-                                    data-item-id="{{action.itemId}}"
-                                    data-movement-feet="{{action.movementFeet}}"
-                                    data-movement-feet-per-ap="{{action.movementFeetPerAp}}"
-                                >{{action.label}} ({{action.apCost}} AP)</option>
-                            {{/each}}
-                        </select>
-                        <select class="totc-encounter-target-select">
-                            <option value="">{{localize "TOTC.Encounter.TargetNone"}}</option>
-                            {{#each turn.encounter.targetOptions as |target|}}
-                                <option value="{{target.id}}">{{target.name}}</option>
-                            {{/each}}
-                        </select>
-                        <input class="totc-encounter-ap-input" type="number" value="1" min="1" max="6" step="1" />
-                        <button type="button" data-action="totc-add-action" data-combatant-id="{{turn.id}}">{{localize "TOTC.Encounter.AddAction"}}</button>
-                        <button type="button" data-action="totc-clear-plan" data-combatant-id="{{turn.id}}">{{localize "TOTC.Encounter.ClearPlan"}}</button>
-                        <button type="button" data-action="totc-toggle-ready" data-combatant-id="{{turn.id}}" data-ready="{{turn.encounter.ready}}">
-                            {{#if turn.encounter.ready}}
-                                {{localize "TOTC.Encounter.Ready"}}
-                            {{else}}
-                                {{localize "TOTC.Encounter.MarkReady"}}
-                            {{/if}}
-                        </button>
-                    </div>
-                {{/if}}
             </li>
         {{/each}}
     </ol>

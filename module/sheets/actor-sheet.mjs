@@ -1,7 +1,5 @@
 import { TOTC_EQUIPMENT_SLOT_KEYS } from "../models/actor.mjs";
-import { buildEncounterPlanner } from "../encounters/planner-context.mjs";
 import {
-    renderFoundryApplication,
     requireActorSheetV2,
     requireItemDocumentClass
 } from "../foundry-v14-runtime.mjs";
@@ -300,116 +298,6 @@ async function assignItemToSlot(actor, itemId, slotKey, index) {
     });
 }
 
-function readActionFromElement(el) {
-    if (!el) return null;
-    const d = el.dataset;
-    return {
-        id: d.id,
-        actionId: d.actionId,
-        type: d.type,
-        label: d.label,
-        img: d.img || null,
-        apCost: Number(d.apCost || 1),
-        apMin: Number(d.apMin || d.apCost || 1),
-        apMax: Number(d.apMax || d.apCost || 1),
-        variableAp: d.variableAp === "true",
-        requiresToHit: d.requiresToHit === "true",
-        toHitBonus: Number(d.toHitBonus || 0),
-        movementFeet: Number(d.movementFeet || 0),
-        movementFeetPerAp: Number(d.movementFeetPerAp || 0),
-        itemId: d.itemId || null,
-        targetId: null
-    };
-}
-
-function finalizeActionData(actionData, apCost, targetId) {
-    const min = Math.max(1, Number(actionData.apMin || 1));
-    const max = Math.max(min, Number(actionData.apMax || min));
-    const cost = Math.max(min, Math.min(max, Number(apCost) || min));
-    const result = { ...actionData, apCost: cost, targetId: targetId || null };
-    if (result.type === "movement") {
-        const feetPerAp = Number(result.movementFeetPerAp || 10);
-        result.movementFeet = feetPerAp * cost;
-    }
-    return result;
-}
-
-function showInlinePlannerConfig(plannerSection, planner, actionData, remainingAp, combatantId, sheet) {
-    // Remove any existing inline config panel
-    plannerSection?.querySelector(".totc-planner-inline-config")?.remove();
-
-    const targetOptions = game.combat?.getTargetOptionsForCombatant?.(combatantId) ?? [];
-    const needsTarget = actionData.requiresToHit && targetOptions.length > 0;
-    const needsAp = actionData.variableAp;
-    const apMin = Math.max(1, Number(actionData.apMin || 1));
-    const apMax = Math.min(Math.max(apMin, Number(actionData.apMax || apMin)), remainingAp);
-    const apDefault = Math.max(apMin, Math.min(apMax, Number(actionData.apCost || apMin)));
-
-    const panel = document.createElement("div");
-    panel.className = "totc-planner-inline-config";
-
-    let apHtml = "";
-    if (needsAp) {
-        apHtml = `
-            <label class="totc-planner-config-row">
-                <span>${game.i18n?.localize("TOTC.Encounter.ActionPoints") ?? "Action Points"} (${apMin}–${apMax})</span>
-                <input type="range" class="totc-planner-config__ap-range" min="${apMin}" max="${apMax}" step="1" value="${apDefault}" />
-                <span class="totc-planner-config__ap-display">${apDefault}</span>
-            </label>`;
-    }
-
-    let targetHtml = "";
-    if (needsTarget) {
-        const options = targetOptions.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
-        targetHtml = `
-            <label class="totc-planner-config-row">
-                <span>${game.i18n?.localize("TOTC.Encounter.TargetLabel") ?? "Target"}</span>
-                <select class="totc-planner-config__target">${options}</select>
-            </label>`;
-    }
-
-    panel.innerHTML = `
-        <div class="totc-planner-config-header">
-            <img src="${actionData.img || "icons/svg/d20-grey.svg"}" class="totc-planner-config__img" onerror="this.src='icons/svg/d20-grey.svg'" />
-            <span class="totc-planner-config__name">${actionData.label}</span>
-        </div>
-        ${apHtml}
-        ${targetHtml}
-        <div class="totc-planner-config-footer">
-            <button type="button" class="totc-planner-config__cancel">${game.i18n?.localize("TOTC.Encounter.Cancel") ?? "Cancel"}</button>
-            <button type="button" class="totc-planner-config__confirm">${game.i18n?.localize("TOTC.Encounter.ConfirmAction") ?? "Confirm"}</button>
-        </div>`;
-
-    // Live-update the AP display as the slider moves
-    const rangeInput = panel.querySelector(".totc-planner-config__ap-range");
-    const apDisplay = panel.querySelector(".totc-planner-config__ap-display");
-    if (rangeInput && apDisplay) {
-        rangeInput.addEventListener("input", () => { apDisplay.textContent = rangeInput.value; });
-    }
-
-    panel.querySelector(".totc-planner-config__cancel").addEventListener("click", () => {
-        panel.remove();
-    });
-
-    panel.querySelector(".totc-planner-config__confirm").addEventListener("click", async () => {
-        const apCost = rangeInput ? Number(rangeInput.value) : actionData.apCost;
-        const targetId = panel.querySelector(".totc-planner-config__target")?.value ?? null;
-        const final = finalizeActionData(actionData, apCost, targetId);
-        panel.remove();
-        if (!game.combat?.addCombatantAction) return;
-        await game.combat.addCombatantAction(combatantId, final);
-        renderFoundryApplication(sheet, { force: true });
-    });
-
-    // Insert just before the planned column footer
-    const footer = plannerSection?.querySelector(".totc-planner-footer");
-    if (footer) {
-        footer.closest(".totc-planner-planned")?.insertBefore(panel, footer);
-    } else {
-        plannerSection?.appendChild(panel);
-    }
-}
-
 export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
     static templatePath = "systems/turn-of-the-century/templates/actors/hero-sheet.hbs";
 
@@ -451,7 +339,6 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
         context.system = systemSource;
         context.equipmentSlots = buildEquipmentSlots(this.actor, systemSource);
         context.inventorySummary = buildInventorySummary(this.actor, systemSource);
-        context.encounterPlanner = buildEncounterPlanner(this.actor, this.token);
         
         const packItemIds = systemSource.inventory?.pack?.itemIds ?? [];
         context.packItems = packItemIds
@@ -576,135 +463,6 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
             }
         }));
 
-        this.element.querySelectorAll("[data-action='totc-encounter-toggle-ready']").forEach((element) => element.addEventListener("click", async (event) => {
-            event.preventDefault();
-            const combatantId = event.currentTarget.dataset.combatantId;
-            const ready = event.currentTarget.dataset.ready === "true";
-            if (!combatantId || !game.combat?.setCombatantReady) return;
-
-            await game.combat.setCombatantReady(combatantId, !ready);
-            this.render({ force: true });
-        }));
-
-        this.element.querySelectorAll("[data-action='totc-roll-initiative']").forEach((element) => element.addEventListener("click", async (event) => {
-            event.preventDefault();
-            const combatId = event.currentTarget.dataset.combatId;
-            const combatantId = event.currentTarget.dataset.combatantId;
-            const combat = (combatId && game.combats?.get(combatId)) || game.combat;
-            if (!combatantId || !combat?.rollEncounterInitiative) return;
-
-            await combat.rollEncounterInitiative(combatantId);
-            this.render({ force: true });
-        }));
-
-        this.element.querySelectorAll(".totc-planner-available-action").forEach((element) => element.addEventListener("dblclick", async (event) => {
-            event.preventDefault();
-            const el = event.currentTarget;
-            if (el.classList.contains("totc-planner-available-action--disabled")) return;
-
-            const planner = el.closest(".totc-planner-columns");
-            const combatantId = planner?.dataset.combatantId;
-            if (!combatantId || !game.combat?.addCombatantAction) return;
-
-            const actionData = readActionFromElement(el);
-            if (!actionData) return;
-
-            const remainingAp = Number(planner.dataset.remainingAp ?? 0);
-            if (actionData.apMin > remainingAp) {
-                ui.notifications?.warn(game.i18n?.localize("TOTC.Encounter.InsufficientAp") ?? "Insufficient AP remaining.");
-                return;
-            }
-
-            const needsConfig = actionData.variableAp
-                || (actionData.requiresToHit && (game.combat?.getTargetOptionsForCombatant?.(combatantId) ?? []).length > 0);
-
-            if (needsConfig) {
-                showInlinePlannerConfig(el.closest(".totc-encounter-planner"), planner, actionData, remainingAp, combatantId, this);
-            } else {
-                await game.combat.addCombatantAction(combatantId, actionData);
-                this.render({ force: true });
-            }
-        }));
-
-        this.element.querySelectorAll(".totc-planner-available-action").forEach((element) => element.addEventListener("dragstart", (event) => {
-            const el = event.currentTarget;
-            if (el.classList.contains("totc-planner-available-action--disabled")) {
-                event.preventDefault();
-                return;
-            }
-            const actionData = readActionFromElement(el);
-            if (!actionData) return;
-            if (!event.dataTransfer) return;
-            event.dataTransfer.effectAllowed = "copy";
-            event.dataTransfer.setData("text/plain", JSON.stringify({ totcAction: actionData }));
-        }));
-
-        this.element.querySelectorAll(".totc-planner-slot--empty").forEach((element) => element.addEventListener("dragover", (event) => {
-            event.preventDefault();
-            if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
-            event.currentTarget.classList.add("totc-planner-slot--drag-over");
-        }));
-
-        this.element.querySelectorAll(".totc-planner-slot--empty").forEach((element) => element.addEventListener("dragleave", (event) => {
-            event.currentTarget.classList.remove("totc-planner-slot--drag-over");
-        }));
-
-        this.element.querySelectorAll(".totc-planner-slot--empty").forEach((element) => element.addEventListener("drop", async (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            event.currentTarget.classList.remove("totc-planner-slot--drag-over");
-
-            let payload;
-            try {
-                payload = JSON.parse(event.dataTransfer?.getData("text/plain") ?? "{}");
-            } catch {
-                return;
-            }
-            if (!payload?.totcAction) return;
-
-            const actionData = payload.totcAction;
-            const slot = event.currentTarget;
-            const planner = slot.closest(".totc-planner-columns");
-            const combatantId = slot.dataset.combatantId ?? planner?.dataset.combatantId;
-            if (!combatantId || !game.combat?.addCombatantAction) return;
-
-            const remainingAp = Number(planner?.dataset.remainingAp ?? 0);
-            if (actionData.apMin > remainingAp) {
-                ui.notifications?.warn(game.i18n?.localize("TOTC.Encounter.InsufficientAp") ?? "Insufficient AP remaining.");
-                return;
-            }
-
-            const needsConfig = actionData.variableAp
-                || (actionData.requiresToHit && (game.combat?.getTargetOptionsForCombatant?.(combatantId) ?? []).length > 0);
-
-            if (needsConfig) {
-                showInlinePlannerConfig(slot.closest(".totc-encounter-planner"), planner, actionData, remainingAp, combatantId, this);
-            } else {
-                await game.combat.addCombatantAction(combatantId, actionData);
-                this.render({ force: true });
-            }
-        }));
-
-        this.element.querySelectorAll("[data-action='totc-encounter-remove-action']").forEach((element) => element.addEventListener("click", async (event) => {
-            event.preventDefault();
-
-            const combatantId = event.currentTarget.dataset.combatantId;
-            const actionIndex = Number(event.currentTarget.dataset.actionIndex);
-            if (!combatantId || Number.isNaN(actionIndex) || !game.combat?.removeCombatantAction) return;
-
-            await game.combat.removeCombatantAction(combatantId, actionIndex);
-            this.render({ force: true });
-        }));
-
-        this.element.querySelectorAll("[data-action='totc-encounter-clear-plan']").forEach((element) => element.addEventListener("click", async (event) => {
-            event.preventDefault();
-
-            const combatantId = event.currentTarget.dataset.combatantId;
-            if (!combatantId || !game.combat?.clearCombatantPlan) return;
-
-            await game.combat.clearCombatantPlan(combatantId);
-            this.render({ force: true });
-        }));
     }
 }
 
