@@ -2656,8 +2656,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #getEncounterCombat(element = null) {
         const combatId = String(element?.closest?.(".totc-v2-encounter-panel")?.dataset?.combatId ?? "").trim();
-        if (combatId) return this.#getEncounterCombatById(combatId) ?? game.combats?.active ?? game.combat ?? ui.combat?.viewed ?? null;
-        return game.combats?.active ?? game.combat ?? ui.combat?.viewed ?? null;
+        if (combatId) return this.#getEncounterCombatById(combatId) ?? ui.combat?.viewed ?? game.combat ?? game.combats?.active ?? null;
+        return ui.combat?.viewed ?? game.combat ?? game.combats?.active ?? null;
     }
 
     #wireEncounterManagerPanelHandlers() {
@@ -2744,22 +2744,21 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     #getEncounterCombatForToken(token = null) {
         const tokenCombatant = token?.combatant;
         const tokenCombat = tokenCombatant?.combat ?? tokenCombatant?.parent;
-        if (tokenCombat && this.#isEncounterPlanningAvailable(tokenCombat)) {
+        if (tokenCombat) {
             return tokenCombat;
         }
 
         const candidates = [
-            game.combats?.active,
-            game.combat,
             ui.combat?.viewed,
+            game.combat,
+            game.combats?.active,
             ...this.#collectionContents(game.combats)
         ]
             .filter(Boolean)
             .filter((combat, index, list) => list.findIndex((entry) => entry?.id === combat?.id) === index);
 
         return candidates.find((combat) => (
-            this.#isEncounterPlanningAvailable(combat)
-            && this.#getEncounterCombatantForToken(combat, token)
+            this.#getEncounterCombatantForToken(combat, token)
         )) ?? null;
     }
 
@@ -2775,11 +2774,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #canPlanEncounterToken({ combat = null, token = null, actor = null } = {}) {
-        if (!this.#isEncounterPlanningAvailable(combat)) return false;
+        if (!combat) return false;
         const combatant = this.#getEncounterCombatantForToken(combat, token);
         if (!combatant) return false;
         const resolvedActor = actor ?? combatant.actor ?? this.#resolveTokenActor(token);
-        return Boolean(game.user?.isGM || resolvedActor?.isOwner);
+        const isOwner = game.user?.isGM || resolvedActor?.isOwner;
+        if (!isOwner) return false;
+
+        const initialized = Boolean(combat?.encounterState?.initialized ?? combat?.encounter?.state?.initialized);
+        if (!initialized && !game.user?.isGM) return false;
+
+        return true;
     }
 
     #resolveTokenActor(token = null) {
