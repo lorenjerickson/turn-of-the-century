@@ -25,10 +25,10 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /this\.selectedTokenIds = new Set\(\)/);
         assert.match(workspaceRootSource, /getSelectedTokenIds: \(\) => this\.selectedTokenIds/);
 
-        // Assert double-clicking opens details and opens editor
+        // Assert double-clicking opens the editor without bypassing selection-driven details
         assert.match(workspaceRootSource, /viewport\.addEventListener\("dblclick"/);
-        assert.match(workspaceRootSource, /this\.actorWorkspaceController\.openDetails\(actorId\)/);
         assert.match(workspaceRootSource, /this\.actorWorkspaceController\.openActorEditor\(\)/);
+        assert.doesNotMatch(workspaceRootSource, /const actorId = tokenEl\.dataset\.actorId;[\s\S]*openDetails\(actorId\)/);
 
         // Assert left-click pointerdown logic checks for calibrating and resolves tokens or selection
         assert.match(workspaceRootSource, /viewport\.classList\.contains\("is-calibrating"\)/);
@@ -43,8 +43,13 @@ describe("workspace token interactions", () => {
 
         // Assert token dragging checks for owner permission on actors
         assert.match(workspaceRootSource, /const tokenDoc = scene\.tokens\?\.get\(tokenId\);/);
-        assert.match(workspaceRootSource, /if \(!actor\?\.isOwner\) return;/);
-        assert.match(workspaceRootSource, /if \(!tActor\?\.isOwner\) continue;/);
+        assert.match(workspaceRootSource, /if \(!\(game\.user\?\.isGM \|\| actor\?\.isOwner\)\) return;/);
+        assert.match(workspaceRootSource, /if \(!\(game\.user\?\.isGM \|\| tActor\?\.isOwner\)\) continue;/);
+        assert.match(workspaceRootSource, /#resolveActorFromSelectedSceneTokens\(scene = canvas\?\.scene \?\? null\)/);
+        assert.match(workspaceRootSource, /if \(this\.selectedTokenIds\.size !== 1\) return null;/);
+        assert.match(workspaceRootSource, /if \(game\.user\?\.isGM \|\| actor\.isOwner\) return actor;/);
+        assert.match(workspaceRootSource, /#syncActorDetailsToTokenSelection\(scene = canvas\?\.scene \?\? null\)/);
+        assert.match(workspaceRootSource, /this\.actorWorkspaceController\.clearDetails\(\)/);
 
         // Assert rubberband selection box creation, class toggling, and cleanup
         assert.match(workspaceRootSource, /totc-v2-map-viewport__selection-box/);

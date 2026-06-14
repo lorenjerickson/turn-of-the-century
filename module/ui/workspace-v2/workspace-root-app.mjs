@@ -1230,6 +1230,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.selectedTokenIds = controlledIds;
             }
         }
+        this.#syncActorDetailsToTokenSelection(scene);
         const gmPanelState = this.#getGamemasterPanelState();
         const gmSnapshot = buildGamemasterContextSnapshot({ scene, combat, controlledTokens });
         const gmPanel = buildGamemasterPanelModel({
@@ -3362,6 +3363,26 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }
     }
 
+    #resolveActorFromSelectedSceneTokens(scene = canvas?.scene ?? null) {
+        if (this.selectedTokenIds.size !== 1) return null;
+        const tokenId = [...this.selectedTokenIds][0];
+        const tokenDoc = scene?.tokens?.get?.(tokenId) ?? null;
+        const actor = tokenDoc?.actor ?? game.actors?.get?.(tokenDoc?.actorId) ?? null;
+        if (!actor) return null;
+        if (game.user?.isGM || actor.isOwner) return actor;
+        return null;
+    }
+
+    #syncActorDetailsToTokenSelection(scene = canvas?.scene ?? null) {
+        if (this.actorWorkspaceController.state.editorState.mode === "create") return;
+        const actor = this.#resolveActorFromSelectedSceneTokens(scene);
+        if (actor?.id) {
+            this.actorWorkspaceController.openDetails(actor.id);
+        } else {
+            this.actorWorkspaceController.clearDetails();
+        }
+    }
+
     #getPlayerPanelActors(controlledTokens = []) {
         const tokenActors = (controlledTokens ?? []).map((token) => token?.actor).filter((actor, index, list) => actor && list.findIndex((entry) => entry?.id === actor.id) === index);
         const ownedActors = (game.actors?.contents ?? []).filter((actor) => actor?.isOwner);
@@ -3737,10 +3758,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (!tokenEl) return;
                 event.preventDefault();
                 event.stopPropagation();
-                const actorId = tokenEl.dataset.actorId;
-                if (actorId && this.actorWorkspaceController.openDetails(actorId)) {
-                    await this.actorWorkspaceController.openActorEditor();
-                }
+                await this.actorWorkspaceController.openActorEditor();
             });
 
             viewport.addEventListener("pointerdown", (event) => {
@@ -3796,7 +3814,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                     const tokenDoc = scene.tokens?.get(tokenId);
                     const actor = tokenDoc?.actor || game.actors?.get(tokenDoc?.actorId);
-                    if (!actor?.isOwner) return;
+                    if (!(game.user?.isGM || actor?.isOwner)) return;
 
                     const isClickedSelected = this.selectedTokenIds.has(tokenId);
 
@@ -3815,7 +3833,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     for (const id of this.selectedTokenIds) {
                         const tDoc = scene.tokens?.get(id);
                         const tActor = tDoc?.actor || game.actors?.get(tDoc?.actorId);
-                        if (!tActor?.isOwner) continue;
+                        if (!(game.user?.isGM || tActor?.isOwner)) continue;
 
                         const el = viewport.querySelector(`[data-token-id="${id}"]`);
                         if (el) {
@@ -3947,7 +3965,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                             if (overlaps) {
                                 const tDoc = scene?.tokens?.get(el.dataset.tokenId);
                                 const tActor = tDoc?.actor || game.actors?.get(tDoc?.actorId);
-                                if (tActor?.isOwner) {
+                                if (game.user?.isGM || tActor?.isOwner) {
                                     currentBoxSelected.add(el.dataset.tokenId);
                                 }
                             }

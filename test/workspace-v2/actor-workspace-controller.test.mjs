@@ -28,6 +28,11 @@ describe("ActorWorkspaceController", () => {
         assert.equal(controller.state.editorState.actorId, "a");
         assert.equal(controller.state.editorState.actorType, "hero");
         assert.equal(opened, 1);
+
+        controller.clearDetails();
+        assert.equal(controller.state.editorState.mode, "empty");
+        assert.equal(controller.state.editorState.actorId, "");
+        assert.equal(controller.state.editorState.dirty, false);
     });
 
     it("generates actors through injected services and updates editor status", async () => {

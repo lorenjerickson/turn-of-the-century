@@ -89,6 +89,20 @@ export class ActorWorkspaceController {
         return true;
     }
 
+    clearDetails() {
+        this.editorState = {
+            ...this.editorState,
+            mode: "empty",
+            actorId: "",
+            additionalPrompt: "",
+            isGenerating: false,
+            formData: {},
+            dirty: false,
+            status: "",
+            error: ""
+        };
+    }
+
     setCreateActorType(actorType = "pawn") {
         this.editorState = {
             ...this.editorState,
