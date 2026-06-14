@@ -218,8 +218,6 @@ function buildEncounterPlanner(actor, tokenDocument = null) {
     const combatants = combat.combatants?.contents ?? [];
     const committedCount = combatants.filter((entry) => Boolean(combat.getCombatantState?.(entry.id)?.ready)).length;
     const round = Number(combat.encounterState?.round ?? combat.round ?? 1);
-    const missingInitiative = combat.getMissingInitiativeCombatants?.() ?? [];
-    const initiativeReady = missingInitiative.length === 0;
     const remainingAp = Number(combat.getCombatantRemainingAp?.(combatant.id) ?? 0);
     const planningRemainingSeconds = Number(combat.planningRemainingSeconds ?? 0);
     const phase = combat.phase ?? "planning";
@@ -254,11 +252,8 @@ function buildEncounterPlanner(actor, tokenDocument = null) {
         committedCount,
         combatantCount: combatants.length,
         ready: Boolean(combatantState?.ready),
-        initiativeReady,
-        missingInitiativeCount: missingInitiative.length,
-        canRollInitiative: Boolean(combat.canCurrentUserRollInitiative?.(combatant.id)),
-        canCommit: initiativeReady && phase === "planning" && !Boolean(combatantState?.ready),
-        canEditPlan: initiativeReady && phase === "planning" && !Boolean(combatantState?.ready),
+        canCommit: phase === "planning" && !Boolean(combatantState?.ready),
+        canEditPlan: phase === "planning" && !Boolean(combatantState?.ready),
         planningWarningActive: Boolean(combat.isPlanningWarningActive),
         queue,
         planSlots,

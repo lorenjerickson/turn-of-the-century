@@ -30,21 +30,14 @@ export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
         const planningLimitSeconds = combat.planningLimitSeconds ?? 60;
         const planningRemainingSeconds = combat.planningRemainingSeconds ?? 0;
         const planningWarningSeconds = combat.planningWarningSeconds ?? 45;
-        const missingInitiativeCombatants = combat.getMissingInitiativeCombatants?.() ?? [];
-        const initiativeReady = missingInitiativeCombatants.length === 0;
-
         const turns = (context.turns ?? []).map((turn) => {
             const combatantId = turn.id;
-            const trackedCombatant = combat.combatants?.get(combatantId);
             const combatantState = combat.getCombatantState?.(combatantId) ?? null;
-            const missingInitiative = !Number.isFinite(Number(trackedCombatant?.initiative));
 
             return {
                 ...turn,
                 encounter: {
                     ready: Boolean(combatantState?.ready),
-                    missingInitiative,
-                    canRollInitiative: Boolean(combat.canCurrentUserRollInitiative?.(combatantId)),
                     spentAp: Number(combatantState?.spentAp ?? 0),
                     remainingAp: Number(combat.getCombatantRemainingAp?.(combatantId) ?? combat.apBudget ?? 0)
                 }
@@ -56,8 +49,6 @@ export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
             active: Boolean(encounterState?.initialized),
             phase,
             apBudget: combat.apBudget ?? 6,
-            initiativeReady,
-            missingInitiativeCount: missingInitiativeCombatants.length,
             planningElapsedSeconds,
             planningLimitSeconds,
             planningRemainingSeconds,
@@ -77,24 +68,6 @@ export class TurnOfTheCenturyCombatTracker extends BaseCombatTracker {
             const combat = this.viewed ?? game.combat;
             if (!combat?.initializeEncounterRound) return;
             await combat.initializeEncounterRound();
-            this.render();
-        }));
-
-        this.element.querySelectorAll("[data-action='totc-roll-all-initiative']").forEach((element) => element.addEventListener("click", async (event) => {
-            event.preventDefault();
-            const combat = this.viewed ?? game.combat;
-            if (!combat?.rollAllMissingInitiatives) return;
-            await combat.rollAllMissingInitiatives();
-            this.render();
-        }));
-
-        this.element.querySelectorAll("[data-action='totc-roll-initiative']").forEach((element) => element.addEventListener("click", async (event) => {
-            event.preventDefault();
-            const combatantId = event.currentTarget.dataset.combatantId;
-            const combat = this.viewed ?? game.combat;
-            if (!combatantId || !combat?.rollEncounterInitiative) return;
-
-            await combat.rollEncounterInitiative(combatantId);
             this.render();
         }));
 

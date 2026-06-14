@@ -17,7 +17,7 @@ Owner in this document means the target panel (or panel system component) accoun
 | Window blocking and allow policy | module/ui/workspace-v2/ui-region-governor.mjs | UiRegionGovernor | Planned | Replace legacy heuristics with deterministic region policy. |
 | Application render interception for policy | module/ui/workspace-v2/ui-region-governor.mjs | UiRegionGovernor | Planned | Must be robust to rerender churn. |
 | Encounter initialize/roll/resolve controls | module/ui/workspace-v2/workspace-root-app.mjs | Turn Tracker Panel + GM Combat Oversight Panel | Planned | Split GM and player concerns explicitly. |
-| Combatant initiative roll | module/ui/workspace-v2/workspace-root-app.mjs | Player Combat Panel + Turn Tracker Panel | Planned | Role-gated controls required. |
+| Combatant AP planning readiness | module/ui/workspace-v2/workspace-root-app.mjs | Player Combat Panel + Encounter Manager Panel | Planned | Role-gated controls required. |
 | Add/remove/clear planned actions | module/ui/workspace-v2/workspace-root-app.mjs | Player Combat Panel | Planned | Preserve AP and target semantics. |
 | Ready/commit toggles | module/ui/workspace-v2/workspace-root-app.mjs | Player Combat Panel | Planned | Preserve canCommit gating. |
 | Travel pace/region/day/watch/weather controls | module/ui/workspace-v2/workspace-root-app.mjs | Travel Panel | Planned | Should remain panel-local commands. |

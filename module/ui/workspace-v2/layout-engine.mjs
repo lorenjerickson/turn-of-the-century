@@ -5,6 +5,7 @@ const LOCAL_ZONE_BOTTOM = "local-bottom";
 const LOCAL_ZONE_CENTER = "local-center";
 const LOCAL_ZONE_LEFT = "local-left";
 const LOCAL_ZONE_RIGHT = "local-right";
+const REMOVED_PANEL_IDS = new Set(["encounter-designer", "tracker"]);
 
 function clone(value) {
     return foundry.utils.deepClone(value);
@@ -101,6 +102,10 @@ function isRemovedGenericMapPanel(panel) {
     return panel?.id === "map" && !panel?.sceneId && !panel?.baseId;
 }
 
+function isRemovedPanel(panel) {
+    return isRemovedGenericMapPanel(panel) || REMOVED_PANEL_IDS.has(panel?.id);
+}
+
 export class LayoutEngine {
     static createDefaultLayout({ panels = [] } = {}) {
         const leftPanel = findPanelById(panels, "gamemaster");
@@ -108,7 +113,7 @@ export class LayoutEngine {
         const campaignViewPanel = findPanelById(panels, "campaign-view");
         const topPanel = findPanelById(panels, "chat");
         const rightPanel = findPanelById(panels, "compendium");
-        const bottomPanel = findPanelById(panels, "tracker");
+        const bottomPanel = findPanelById(panels, "roll-feed");
         const floatingPanel = findPanelById(panels, "camp");
 
         return {
@@ -180,7 +185,7 @@ export class LayoutEngine {
             dock.stacks = dock.stacks
                 .map((stack) => ({
                     ...stack,
-                    panels: (stack?.panels ?? []).filter((panel) => !isRemovedGenericMapPanel(panel))
+                    panels: (stack?.panels ?? []).filter((panel) => !isRemovedPanel(panel))
                 }))
                 .filter((stack) => stack.panels.length > 0)
                 .map((stack) => ({
@@ -201,7 +206,7 @@ export class LayoutEngine {
         } else {
             candidate.root.floatingWindows = candidate.root.floatingWindows
                 .filter((window) => window && window.panel?.id)
-                .filter((window) => !isRemovedGenericMapPanel(window.panel))
+                .filter((window) => !isRemovedPanel(window.panel))
                 .map((window) => ({
                     id: window.id ?? nextId("float"),
                     panel: makePanelInstance(window.panel),

@@ -17,7 +17,8 @@ const styles = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
 describe("workspace actor drag and drop", () => {
     it("marks map panels as actor drop targets with scene ids", () => {
-        assert.match(workspacePanelHostSource, /data-map-viewport="true"[\s\S]*data-scene-actor-drop-target="true" data-scene-id="\$\{this\.escapeHTML\(sceneId\)\}"/);
+        assert.match(workspacePanelHostSource, /data-map-viewport="true"[\s\S]*data-scene-actor-drop-target="true"/);
+        assert.match(workspacePanelHostSource, /data-scene-id="\$\{this\.escapeHTML\(sceneId\)\}"/);
         assert.doesNotMatch(workspacePanelHostSource, /<figure class="totc-v2-map-panel[\s\S]*data-scene-actor-drop-target="true"/);
         assert.match(workspacePanelHostSource, /data-actor-drop-preview="true"/);
     });

@@ -133,8 +133,6 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
         remainingAp: toNumber(planner?.remainingAp, apBudget),
         plannedAp: toNumber(planner?.plannedAp, plannedActions.reduce((sum, action) => sum + action.apCost, 0)),
         planningTimeDisplay: String(planner?.planningTimeDisplay ?? ""),
-        initiativeReady: Boolean(planner?.initiativeReady),
-        canRollInitiative: Boolean(planner?.canRollInitiative),
         canEditPlan: Boolean(planner?.canEditPlan),
         canCommit: Boolean(planner?.canCommit),
         ready: Boolean(planner?.ready),
@@ -242,25 +240,18 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
                 <h3>Round Planning</h3>
                 <span>${escapeHTML(String(model.remainingAp))} AP remaining${model.planningTimeDisplay ? ` · ${escapeHTML(model.planningTimeDisplay)}` : ""}</span>
             </header>
-            ${model.initiativeReady ? `
-                <label class="totc-v2-encounter-panel__picker">
-                    <span>Available action</span>
-                    <input type="search" list="totc-encounter-actions-${escapeHTML(model.combatantId)}" data-action="encounter-add-action" placeholder="Search actions" ${model.canEditPlan ? "" : "disabled"}>
-                    <datalist id="totc-encounter-actions-${escapeHTML(model.combatantId)}">
-                        ${actionOptions}
-                    </datalist>
-                </label>
-                ${renderPlanBar(model, escapeHTML)}
-                <footer class="totc-v2-encounter-panel__actions">
-                    <button type="button" data-action="encounter-clear-plan" ${model.canEditPlan && model.hasPlannedActions ? "" : "disabled"}>Clear Plan</button>
-                    <button type="button" data-action="encounter-toggle-ready" data-ready="${model.ready ? "true" : "false"}" aria-pressed="${model.ready ? "true" : "false"}" ${model.canCommit ? "" : "disabled"}>Ready</button>
-                </footer>
-            ` : `
-                <div class="totc-v2-encounter-panel__warning">
-                    Initiative is required before planning.
-                    ${model.canRollInitiative ? `<button type="button" data-action="encounter-roll-initiative">Roll Initiative</button>` : ""}
-                </div>
-            `}
+            <label class="totc-v2-encounter-panel__picker">
+                <span>Available action</span>
+                <input type="search" list="totc-encounter-actions-${escapeHTML(model.combatantId)}" data-action="encounter-add-action" placeholder="Search actions" ${model.canEditPlan ? "" : "disabled"}>
+                <datalist id="totc-encounter-actions-${escapeHTML(model.combatantId)}">
+                    ${actionOptions}
+                </datalist>
+            </label>
+            ${renderPlanBar(model, escapeHTML)}
+            <footer class="totc-v2-encounter-panel__actions">
+                <button type="button" data-action="encounter-clear-plan" ${model.canEditPlan && model.hasPlannedActions ? "" : "disabled"}>Clear Plan</button>
+                <button type="button" data-action="encounter-toggle-ready" data-ready="${model.ready ? "true" : "false"}" aria-pressed="${model.ready ? "true" : "false"}" ${model.canCommit ? "" : "disabled"}>Ready</button>
+            </footer>
         </section>
 
         <section class="totc-v2-encounter-panel__history">

@@ -49,7 +49,6 @@ function makeCombatant(overrides = {}) {
     return {
         id: "combatant-1",
         name: "Inspector Ashworth",
-        initiative: 14,
         ...overrides
     };
 }
@@ -389,53 +388,13 @@ describe("scanDesignIssues — actor checks", () => {
 // ---------------------------------------------------------------------------
 
 describe("scanDesignIssues — encounter checks", () => {
-    it("returns no issues when all combatants have initiative", () => {
+    it("does not require combatants to have turn-order roll values", () => {
         const combat = makeCombat([
-            makeCombatant({ id: "c1", initiative: 18 }),
-            makeCombatant({ id: "c2", initiative: 7 })
+            makeCombatant({ id: "c1" }),
+            makeCombatant({ id: "c2", name: "Pale Constable" })
         ]);
         const issues = scanDesignIssues({ combat });
         assert.deepEqual(issues, []);
-    });
-
-    it("flags a combatant with null initiative", () => {
-        const combat = makeCombat([
-            makeCombatant({ id: "c1", initiative: 12 }),
-            makeCombatant({ id: "c2", name: "Pale Constable", initiative: null })
-        ]);
-        const issues = scanDesignIssues({ combat });
-        const issue = issues.find((i) => i.id === "encounter.no-initiative.c2");
-        assert.ok(issue, "expected encounter.no-initiative.c2");
-        assert.equal(issue.category, "encounter");
-        assert.equal(issue.severity, "warning");
-        assert.equal(issue.subjectId, "c2");
-        assert.equal(issue.subjectType, "Combatant");
-        assert.equal(issue.navigateAction, "navigate.combat");
-    });
-
-    it("flags a combatant with undefined initiative", () => {
-        const combat = makeCombat([makeCombatant({ id: "c1", initiative: undefined })]);
-        const issues = scanDesignIssues({ combat });
-        assert.ok(issues.some((i) => i.id === "encounter.no-initiative.c1"));
-    });
-
-    it("does not flag a combatant with initiative of 0", () => {
-        const combat = makeCombat([makeCombatant({ id: "c1", initiative: 0 })]);
-        const issues = scanDesignIssues({ combat });
-        assert.ok(!issues.some((i) => i.id === "encounter.no-initiative.c1"));
-    });
-
-    it("accepts combatants as a plain array", () => {
-        const combat = { id: "combat-1", combatants: [makeCombatant({ id: "c1", initiative: null })] };
-        const issues = scanDesignIssues({ combat });
-        assert.ok(issues.some((i) => i.id === "encounter.no-initiative.c1"));
-    });
-
-    it("falls back to token name and actor name when combatant has no name", () => {
-        const combatant = { id: "c1", initiative: null, token: { name: "The Pale Kennel Jackal" } };
-        const combat = makeCombat([combatant]);
-        const issues = scanDesignIssues({ combat });
-        assert.match(issues[0].title, /Pale Kennel Jackal/);
     });
 });
 
@@ -444,7 +403,7 @@ describe("scanDesignIssues — encounter checks", () => {
 // ---------------------------------------------------------------------------
 
 describe("scanDesignIssues — combined output", () => {
-    it("returns issues from all three categories in a single call", () => {
+    it("returns scene and actor issues without adding encounter roll-gate issues", () => {
         const scene = makeScene({
             img: "",
             walls: { size: 0 },
@@ -453,13 +412,13 @@ describe("scanDesignIssues — combined output", () => {
             tokens: { contents: [makeToken()] }
         });
         const actors = [makeActor({ img: null, items: [] })];
-        const combat = makeCombat([makeCombatant({ id: "c1", initiative: null })]);
+        const combat = makeCombat([makeCombatant({ id: "c1" })]);
         const issues = scanDesignIssues({ scene, actors, combat });
 
         const categories = [...new Set(issues.map((i) => i.category))];
         assert.ok(categories.includes("scene"), "missing scene issues");
         assert.ok(categories.includes("actor"), "missing actor issues");
-        assert.ok(categories.includes("encounter"), "missing encounter issues");
+        assert.ok(!categories.includes("encounter"), "unexpected encounter issues");
     });
 
     it("all returned issues have the required fields", () => {

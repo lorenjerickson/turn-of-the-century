@@ -90,7 +90,6 @@ function buildCombatantSummary(combatant, state, timeline, apBudget) {
         id,
         name: String(combatant?.name ?? actor?.name ?? "Combatant"),
         img: String(combatant?.img ?? actor?.img ?? ""),
-        initiative: Number.isFinite(Number(combatant?.initiative)) ? Number(combatant.initiative) : null,
         ready: Boolean(currentState.ready),
         health: {
             value: toNumber(system.resources?.health?.value, 0),
@@ -119,9 +118,7 @@ export function buildEncounterManagerPanelModel({ combat = null } = {}) {
         phase: String(combat?.phase ?? state?.phase ?? "planning"),
         apBudget,
         currentTick,
-        missingInitiativeCount: toArray(combat?.getMissingInitiativeCombatants?.()).length,
         canStartRound: Boolean(combat?.initializeEncounterRound),
-        canRollInitiative: Boolean(combat?.rollAllMissingInitiatives),
         canResolveRound: Boolean(combat?.resolveEncounterRound),
         canSetPhase: Boolean(combat?.setEncounterPhase),
         actors: combatantContents(combat?.combatants).map((combatant) => buildCombatantSummary(combatant, state, timeline, apBudget)),
@@ -165,7 +162,6 @@ function renderActorSummary(actor, currentTick, escapeHTML) {
                 <dl>
                     <div><dt>Health</dt><dd>${escapeHTML(String(actor.health.value))}/${escapeHTML(String(actor.health.max))}</dd></div>
                     <div><dt>Conditions</dt><dd>${escapeHTML(conditions)}</dd></div>
-                    <div><dt>Initiative</dt><dd>${actor.initiative === null ? "-" : escapeHTML(String(actor.initiative))}</dd></div>
                 </dl>
                 ${renderPlanBar(actor, currentTick, escapeHTML)}
             </div>
@@ -192,7 +188,6 @@ export function renderEncounterManagerPanel(model = {}, { escapeHTML = (value) =
 
         <div class="totc-v2-encounter-manager__controls">
             <button type="button" data-action="encounter-manager-start-round" ${model.canStartRound ? "" : "disabled"}>New Round</button>
-            <button type="button" data-action="encounter-manager-roll-initiative" ${model.canRollInitiative && model.missingInitiativeCount ? "" : "disabled"}>Roll Initiative</button>
             <button type="button" data-action="encounter-manager-set-phase" data-phase="locked" ${model.canSetPhase && model.phase === "planning" ? "" : "disabled"}>Lock Plans</button>
             <button type="button" data-action="encounter-manager-set-phase" data-phase="planning" ${model.canSetPhase && model.phase !== "planning" ? "" : "disabled"}>Reopen Planning</button>
             <button type="button" data-action="encounter-manager-resolve-round" ${model.canResolveRound ? "" : "disabled"}>Resolve Round</button>

@@ -215,8 +215,7 @@ class CreatureActorDataModel extends foundry.abstract.TypeDataModel {
                 passiveInsight: new NumberField({ required: true, integer: true, min: 0, initial: 10 })
             }),
             defenses: new SchemaField({
-                armorClass: new NumberField({ required: true, integer: true, min: 0, initial: 10 }),
-                initiative: new NumberField({ required: true, integer: true, initial: 0 })
+                armorClass: new NumberField({ required: true, integer: true, min: 0, initial: 10 })
             }),
             inventory: new SchemaField({
                 equipment: createEquipmentSlotsField(),

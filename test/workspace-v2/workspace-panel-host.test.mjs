@@ -244,7 +244,6 @@ describe("WorkspacePanelHost", () => {
                 round: 1,
                 apBudget: 6,
                 remainingAp: 6,
-                initiativeReady: true,
                 canEditPlan: true,
                 canCommit: false,
                 availableActions: [
@@ -280,7 +279,6 @@ describe("WorkspacePanelHost", () => {
                         img: "actors/ada.webp",
                         health: { value: 8, max: 10 },
                         conditions: ["Bleeding"],
-                        initiative: 12,
                         ready: false,
                         apBudget: 6,
                         segments: [{ id: "move", label: "Move", start: 1, span: 2 }]
@@ -289,10 +287,8 @@ describe("WorkspacePanelHost", () => {
                 lastNarrative: "",
                 lastEvaluatedTick: null,
                 canStartRound: true,
-                canRollInitiative: true,
                 canResolveRound: true,
-                canSetPhase: true,
-                missingInitiativeCount: 1
+                canSetPhase: true
             }
         });
 

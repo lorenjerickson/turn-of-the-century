@@ -25,9 +25,7 @@ function combatFixture() {
         round: 4,
         phase: "roundComplete",
         apBudget: 6,
-        getMissingInitiativeCombatants: () => [],
         initializeEncounterRound: async () => {},
-        rollAllMissingInitiatives: async () => {},
         setEncounterPhase: async () => {},
         resolveEncounterRound: async () => {},
         combatants: {
@@ -36,7 +34,6 @@ function combatFixture() {
                     id: "combatant-1",
                     name: "Ada Price",
                     img: "actors/ada.webp",
-                    initiative: 14,
                     actor: {
                         name: "Ada Price",
                         img: "actors/ada.webp",
@@ -49,7 +46,6 @@ function combatFixture() {
                 {
                     id: "combatant-2",
                     name: "Brass Knuckles Briggs",
-                    initiative: 9,
                     actor: {
                         system: {
                             resources: { health: { value: 5, max: 7 } }
@@ -118,7 +114,7 @@ describe("encounter manager panel", () => {
         assert.match(html, /totc-v2-encounter-manager__actors-current-line/);
         assert.match(html, /--totc-current-tick:3/);
         assert.match(html, /data-action="encounter-manager-start-round"/);
-        assert.match(html, /data-action="encounter-manager-roll-initiative"/);
+        assert.doesNotMatch(html, /turn-order roll/i);
         assert.match(html, /data-action="encounter-manager-set-phase" data-phase="locked"/);
         assert.match(html, /data-action="encounter-manager-resolve-round"/);
         assert.match(html, /Briggs hunkers down\./);

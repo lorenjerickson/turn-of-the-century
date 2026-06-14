@@ -20,7 +20,6 @@ export const DEFAULT_WORKSPACE_PANELS = Object.freeze([
     { id: "media-browser", title: "Media Browser", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "media", "assets"] },
     { id: "campaign-builder", title: "Campaign Builder", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "campaign", "design"] },
     { id: "scenario-builder", title: "Scenario Builder", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "scenario", "design"] },
-    { id: "encounter-designer", title: "Encounter Designer", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "encounter", "design"] },
     { id: "encounter-manager", title: "Encounter Manager", defaultDock: "leftDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "encounter", "combat"] },
     { id: "gm-assistant", title: "GM Assistant", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "llm", "design"] },
     { id: "travel", title: "Travel", contextTags: ["travel", "exploration"] },
@@ -31,7 +30,6 @@ export const DEFAULT_WORKSPACE_PANELS = Object.freeze([
     { id: "camp", title: "Camp", contextTags: ["camp", "travel"] },
     { id: "chat", title: "Chat and Messages", contextTags: ["chat", "messages"] },
     { id: "roll-feed", title: "Dice and Roll Feed", defaultDock: "bottomDock", contextTags: ["dice", "rolls", "messages"] },
-    { id: "tracker", title: "Turn Tracker", contextTags: ["combat", "turns"] },
     { id: "die-roll-request", title: "Die Roll Request", defaultDock: "bottomDock", roleAccess: { internalOnly: true }, contextTags: ["dice", "rolls", "request", "player"] },
     { id: "logging", title: "Debug Log", defaultDock: "bottomDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "debug"] }
 ]);

@@ -126,7 +126,6 @@ const BaseActorSheetClass = requireActorSheetV2();
 const BaseItemSheetClass = requireItemSheetV2();
 const CombatDocumentClass = requireCombatDocumentClass();
 let encounterPlanningWatchHandle = null;
-const initiativePromptKeys = new Set();
 let workspaceV2Coordinator = null;
 
 function logEncounterLifecycle(eventName, payload = {}) {
@@ -144,24 +143,6 @@ function logEncounterLifecycle(eventName, payload = {}) {
         combatantCount,
         ...payload
     });
-}
-
-function maybePromptInitiativeRolls(combat) {
-    if (!combat?.hasInitiativeGateActive) return;
-
-    const planningStartedAt = Number(combat.encounterState?.planningStartedAt ?? 0);
-    if (!planningStartedAt) return;
-
-    const rollableCombatants = (combat.getMissingInitiativeCombatants?.() ?? [])
-        .filter((combatant) => combat.canCurrentUserRollInitiative?.(combatant.id));
-    if (!rollableCombatants.length) return;
-
-    const promptKey = `${game.user?.id}:${combat.id}:${planningStartedAt}`;
-    if (initiativePromptKeys.has(promptKey)) return;
-    initiativePromptKeys.add(promptKey);
-
-    const names = rollableCombatants.map((combatant) => combatant.name).join(", ");
-    ui.notifications?.info(game.i18n.format("TOTC.Encounter.InitiativePrompt", { names }));
 }
 
 function rerenderEncounterActorSheets(combat) {
@@ -203,7 +184,6 @@ function handleEncounterEventHook(hookName, payload = {}) {
     };
 
     logEncounterLifecycle(hookName, summary);
-    maybePromptInitiativeRolls(combat);
     rerenderEncounterActorSheets(combat);
     rerenderEncounterTracker(combat);
 }
@@ -695,14 +675,6 @@ Hooks.once("ready", async () => {
             if (!combat?.setCombatantReady) throw new Error("Active combat does not support AP ready state updates.");
             return combat.setCombatantReady(combatantId, ready);
         },
-        rollInitiative: async ({ combat = game.combat, combatantId }) => {
-            if (!combat?.rollEncounterInitiative) throw new Error("Active combat does not support participant initiative rolls.");
-            return combat.rollEncounterInitiative(combatantId);
-        },
-        rollAllMissingInitiatives: async (combat = game.combat) => {
-            if (!combat?.rollAllMissingInitiatives) throw new Error("Active combat does not support bulk initiative rolls.");
-            return combat.rollAllMissingInitiatives();
-        },
         resolveRound: async (combat = game.combat) => {
             if (!combat?.resolveEncounterRound) throw new Error("Active combat does not support AP resolution.");
             return combat.resolveEncounterRound();
@@ -915,13 +887,10 @@ Hooks.once("ready", async () => {
         }, 1000);
     }
 
-    maybePromptInitiativeRolls(game.combat);
-
 });
 
 Hooks.on("updateCombat", (combat) => {
     logEncounterLifecycle("updateCombat", { combat });
-    maybePromptInitiativeRolls(combat);
     rerenderEncounterActorSheets(combat);
     rerenderEncounterTracker(combat);
 });
@@ -945,7 +914,6 @@ Hooks.on("deleteCombatant", (combatant) => {
 Hooks.on("updateCombatant", (combatant, change) => {
     logEncounterLifecycle("updateCombatant", {
         combatantId: combatant?.id,
-        initiative: combatant?.initiative,
         change,
         combatant
     });

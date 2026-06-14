@@ -15,7 +15,6 @@ const {
 export const TOTC_MODIFIER_TARGETS = {
     // Defenses
     "defenses.armorClass":          { label: "Armor Class",          applicableTo: ["actor"] },
-    "defenses.initiative":          { label: "Initiative",           applicableTo: ["actor"] },
 
     // Movement
     "movement.walk":                { label: "Walk Speed",           applicableTo: ["actor"] },

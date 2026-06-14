@@ -61,10 +61,6 @@ export function getEncounterHookName(eventName) {
     return TOTC_ENCOUNTER_HOOKS[eventName] ?? null;
 }
 
-function sortByInitiativeDescending(combatants = []) {
-    return [...combatants].sort((left, right) => Number(right.initiative ?? 0) - Number(left.initiative ?? 0));
-}
-
 function toArray(value) {
     return Array.isArray(value) ? value : [];
 }
@@ -99,11 +95,6 @@ function getCombatantFromId(combat, combatantId) {
 function toNumber(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
-}
-
-function hasInitiativeValue(value) {
-    const number = Number(value);
-    return Number.isFinite(number);
 }
 
 function clampActionData(action, index = 0) {
@@ -605,37 +596,6 @@ export class TurnOfTheCenturyEncounter {
         return Math.max(0, this.apBudget - this.getCombatantPlan(combatantId).reduce((sum, action) => sum + Number(action.apCost || 0), 0));
     }
 
-    /**
-     * Returns combatants that have not yet rolled initiative this round.
-     *
-     * @returns {Combatant[]}
-     */
-    getMissingInitiativeCombatants() {
-        return (this.#combat.combatants?.contents ?? []).filter((combatant) => !hasInitiativeValue(combatant.initiative));
-    }
-
-    /**
-     * `true` when at least one combatant still needs to roll initiative,
-     * blocking the planning phase from proceeding.
-     * @returns {boolean}
-     */
-    get hasInitiativeGateActive() {
-        return this.getMissingInitiativeCombatants().length > 0;
-    }
-
-    /**
-     * Returns `true` if the current user is allowed to roll initiative for
-     * the given combatant (GM always can; players must own the combatant's actor).
-     *
-     * @param {string} combatantId
-     * @returns {boolean}
-     */
-    canCurrentUserRollInitiative(combatantId) {
-        if (game.user?.isGM) return true;
-        const combatant = getCombatantFromId(this.#combat, combatantId);
-        return Boolean(combatant?.actor?.isOwner);
-    }
-
     #isCombatantOwnedByCurrentUser(combatantId) {
         if (game.user?.isGM) return true;
 
@@ -646,11 +606,6 @@ export class TurnOfTheCenturyEncounter {
     #requireGm(action) {
         if (game.user?.isGM) return;
         throw new Error(`Only the GM can ${action}.`);
-    }
-
-    #requireInitiativeReady() {
-        if (!this.hasInitiativeGateActive) return;
-        throw new Error("All encounter participants must roll initiative before planning can begin.");
     }
 
     #requirePlanningOpen(combatantId) {
@@ -673,7 +628,6 @@ export class TurnOfTheCenturyEncounter {
      * @returns {Promise<boolean>} `true` if resolution was triggered, `false` otherwise.
      */
     async maybeAutoFinalizePlanning() {
-        if (this.hasInitiativeGateActive) return false;
         if (this.phase !== "planning") return false;
 
         const combatants = this.#combat.combatants?.contents ?? [];
@@ -698,7 +652,6 @@ export class TurnOfTheCenturyEncounter {
      * @returns {Promise<void>}
      */
     async setCombatantReady(combatantId, ready) {
-        this.#requireInitiativeReady();
         if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
             throw new Error("You do not have permission to commit this combatant's plan.");
         }
@@ -734,7 +687,6 @@ export class TurnOfTheCenturyEncounter {
      * @returns {Promise<void>}
      */
     async addCombatantAction(combatantId, action) {
-        this.#requireInitiativeReady();
         if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
             throw new Error("You do not have permission to edit this combatant's plan.");
         }
@@ -753,7 +705,6 @@ export class TurnOfTheCenturyEncounter {
      * @returns {Promise<void>}
      */
     async removeCombatantAction(combatantId, index) {
-        this.#requireInitiativeReady();
         if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
             throw new Error("You do not have permission to edit this combatant's plan.");
         }
@@ -772,7 +723,6 @@ export class TurnOfTheCenturyEncounter {
      * @returns {Promise<void>}
      */
     async clearCombatantPlan(combatantId) {
-        this.#requireInitiativeReady();
         if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
             throw new Error("You do not have permission to edit this combatant's plan.");
         }
@@ -793,7 +743,6 @@ export class TurnOfTheCenturyEncounter {
      * @returns {Promise<void>}
      */
     async setCombatantActionApCost(combatantId, actionIndex, apCost) {
-        this.#requireInitiativeReady();
         if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
             throw new Error("You do not have permission to edit this combatant's plan.");
         }
@@ -921,8 +870,8 @@ export class TurnOfTheCenturyEncounter {
     }
 
     /**
-     * Initialize a new encounter round. Clears all combatant plans, resets
-     * initiative values, writes fresh state to the combat flag, and emits
+     * Initialize a new encounter round. Clears all combatant plans, writes
+     * fresh state to the combat flag, and emits
      * {@link TOTC_ENCOUNTER_EVENTS.STATE_INITIALIZED}, {@link TOTC_ENCOUNTER_EVENTS.ROUND_STARTED},
      * and (if starting in the planning phase) {@link TOTC_ENCOUNTER_EVENTS.PLANNING_STARTED}.
      *
@@ -936,8 +885,6 @@ export class TurnOfTheCenturyEncounter {
         this.#requireGm("initialize encounter rounds");
 
         if (!TOTC_ENCOUNTER_PHASES.includes(phase)) phase = "planning";
-
-        await this.#resetInitiativeForEncounter();
 
         const perCombatant = Object.fromEntries(
             (this.#combat.combatants?.contents ?? []).map((combatant) => [
@@ -966,47 +913,7 @@ export class TurnOfTheCenturyEncounter {
         return state;
     }
 
-    async #resetInitiativeForEncounter() {
-        const updates = (this.#combat.combatants?.contents ?? [])
-            .filter((combatant) => hasInitiativeValue(combatant.initiative))
-            .map((combatant) => ({ _id: combatant.id, initiative: null }));
-
-        if (!updates.length) return;
-        await this.#combat.updateEmbeddedDocuments("Combatant", updates);
-    }
-
-    /**
-     * Roll initiative for a single combatant. Any user who owns the combatant's
-     * actor may call this; the GM can roll for any combatant.
-     *
-     * @param {string} combatantId
-     * @returns {Promise<Combatant>} The updated combatant document.
-     */
-    async rollEncounterInitiative(combatantId) {
-        if (!combatantId) throw new Error("Missing combatant ID for initiative roll.");
-        if (!this.canCurrentUserRollInitiative(combatantId)) {
-            throw new Error("You do not have permission to roll initiative for this combatant.");
-        }
-
-        await this.#combat.rollInitiative([combatantId]);
-        return getCombatantFromId(this.#combat, combatantId);
-    }
-
-    /**
-     * Roll initiative for every combatant that has not yet rolled. GM only.
-     *
-     * @returns {Promise<string[]>} Array of combatant IDs that were rolled.
-     */
-    async rollAllMissingInitiatives() {
-        this.#requireGm("roll initiative for all participants");
-        const ids = this.getMissingInitiativeCombatants().map((combatant) => combatant.id);
-        if (!ids.length) return [];
-        await this.#combat.rollInitiative(ids);
-        return ids;
-    }
-
     async setCombatantPlan(combatantId, actions = []) {
-        this.#requireInitiativeReady();
         if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
             throw new Error("You do not have permission to edit this combatant's plan.");
         }
@@ -1114,7 +1021,6 @@ export class TurnOfTheCenturyEncounter {
      */
     async resolveEncounterRound() {
         this.#requireGm("resolve encounter rounds");
-        this.#requireInitiativeReady();
 
         await this.setEncounterPhase("locked");
         await this.setEncounterPhase("resolving");
@@ -1496,10 +1402,6 @@ export class TurnOfTheCenturyCombat extends BaseCombatDocument {
         return this.encounter.isPlanningWarningActive;
     }
 
-    get hasInitiativeGateActive() {
-        return this.encounter.hasInitiativeGateActive;
-    }
-
     onEncounter(eventName, listener) {
         return this.encounter.on(eventName, listener);
     }
@@ -1522,14 +1424,6 @@ export class TurnOfTheCenturyCombat extends BaseCombatDocument {
 
     getCombatantRemainingAp(combatantId) {
         return this.encounter.getCombatantRemainingAp(combatantId);
-    }
-
-    getMissingInitiativeCombatants() {
-        return this.encounter.getMissingInitiativeCombatants();
-    }
-
-    canCurrentUserRollInitiative(combatantId) {
-        return this.encounter.canCurrentUserRollInitiative(combatantId);
     }
 
     async maybeAutoFinalizePlanning() {
@@ -1566,14 +1460,6 @@ export class TurnOfTheCenturyCombat extends BaseCombatDocument {
 
     async initializeEncounterRound(options = {}) {
         return this.encounter.initializeEncounterRound(options);
-    }
-
-    async rollEncounterInitiative(combatantId) {
-        return this.encounter.rollEncounterInitiative(combatantId);
-    }
-
-    async rollAllMissingInitiatives() {
-        return this.encounter.rollAllMissingInitiatives();
     }
 
     async setCombatantPlan(combatantId, actions = []) {

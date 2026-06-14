@@ -147,8 +147,7 @@ function createBaseActorSystem() {
             passiveInsight: 10
         },
         defenses: {
-            armorClass: 10,
-            initiative: 0
+            armorClass: 10
         },
         inventory: {
             equipment: {
@@ -586,7 +585,7 @@ const ACTOR_CONFIGS = [
             biography: html("A veteran constable who believes every alley remembers the men who bled there."),
             classification: { category: "character", profession: "Railway Marshal", origin: "Manchester" },
             abilities: { str: { value: 13, bonus: 1 }, con: { value: 12, bonus: 1 } },
-            defenses: { armorClass: 12, initiative: 1 },
+            defenses: { armorClass: 12 },
             skills: { athletics: { ability: "str", value: 2, bonus: 1, proficiency: 1, passive: 12 } },
             inventory: { equipment: { belt: { quality: "poor", capacity: 2 } } },
             traits: { languages: ["english"] }
@@ -657,7 +656,7 @@ const ACTOR_CONFIGS = [
             classification: { category: "monster", species: "Construct", profession: "Pursuit Unit", origin: "Dockside Workshops" },
             movement: { walk: 40, climb: 20, swim: 0, fly: 0 },
             abilities: { str: { value: 12, bonus: 1 }, dex: { value: 12, bonus: 1 }, san: { value: 6, bonus: -2 } },
-            defenses: { armorClass: 13, initiative: 2 },
+            defenses: { armorClass: 13 },
             traits: { languages: [], immunities: ["fear"], resistances: ["poison"], vulnerabilities: ["electric"] }
         }
     },
@@ -680,7 +679,7 @@ const ACTOR_CONFIGS = [
             classification: { category: "monster", species: "Vermin Swarm", profession: "Swarm", origin: "Lower Catacombs" },
             movement: { walk: 20, climb: 20, swim: 10, fly: 0 },
             abilities: { str: { value: 8, bonus: -1 }, dex: { value: 14, bonus: 2 }, con: { value: 11, bonus: 0 } },
-            defenses: { armorClass: 12, initiative: 2 },
+            defenses: { armorClass: 12 },
             traits: { languages: [], immunities: ["charm"], resistances: ["slashing"], vulnerabilities: ["fire"] }
         }
     },
@@ -854,7 +853,7 @@ const ACTOR_CONFIGS = [
             classification: { category: "monster", species: "Mutated Beast", profession: "Stalker", origin: "Ash Tunnels" },
             movement: { walk: 35, climb: 15, swim: 0, fly: 0 },
             abilities: { str: { value: 11, bonus: 0 }, dex: { value: 14, bonus: 2 }, con: { value: 12, bonus: 1 } },
-            defenses: { armorClass: 13, initiative: 2 },
+            defenses: { armorClass: 13 },
             traits: { languages: [], immunities: [], resistances: ["fire"], vulnerabilities: ["cold"] }
         }
     }
@@ -1613,7 +1612,7 @@ const EFFECT_CONFIGS = [
             category: "chemical",
             duration: { value: 5, unit: "minute" },
             impacts: [
-                { label: "Quickened Reflex", targetType: "defense", target: "initiative", path: "", operation: "add", value: 2, formula: "", condition: "", notes: html("Initiative rises briefly.") },
+                { label: "Heightened Guard", targetType: "defense", target: "armorClass", path: "", operation: "add", value: 1, formula: "", condition: "", notes: html("Defensive posture improves briefly.") },
                 { label: "Muscle Tremor", targetType: "skill", target: "sleightOfHand", path: "", operation: "add", value: -1, formula: "", condition: "", notes: html("Fine motor checks worsen.") }
             ],
             affectedKeys: { abilities: ["dex"], skills: ["sleightOfHand"], actions: [] },

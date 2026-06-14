@@ -109,31 +109,7 @@ export class DesignIssueScanner {
     scanEncounterIssues(combat) {
         if (!combat) return [];
 
-        const issues = [];
-        for (const combatant of this.#collectionContents(combat.combatants)) {
-            const combatantId = String(combatant.id ?? "");
-            const combatantName = String(
-                combatant.name
-                ?? combatant.token?.name
-                ?? combatant.actor?.name
-                ?? "Unknown Combatant"
-            );
-
-            if (combatant.initiative === null || combatant.initiative === undefined) {
-                issues.push({
-                    id: `encounter.no-initiative.${combatantId}`,
-                    category: "encounter",
-                    severity: "warning",
-                    title: `${combatantName} has not rolled initiative`,
-                    detail: "This combatant has no initiative value. The encounter cannot resolve turns until every participant has rolled.",
-                    subjectId: combatantId,
-                    subjectType: "Combatant",
-                    navigateAction: "navigate.combat"
-                });
-            }
-        }
-
-        return issues;
+        return [];
     }
 
     #pushActorIssues(issues, actor) {

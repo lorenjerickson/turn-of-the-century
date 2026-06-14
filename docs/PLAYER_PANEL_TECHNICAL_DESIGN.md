@@ -107,7 +107,7 @@ Examples:
 - effects block: active effects, durations, and constraints
 - inventory block: carried items, including equippable items that are not currently equipped
 - equipment block: items actively assigned to a slot and currently equipped
-- encounter block: turn/initiative/ready state, if relevant
+- encounter block: turn planning and ready state, if relevant
 - prompt block: next useful action for the actor in the current context
 - dock block: docked, floating, stacked, tabbed, or closed state
 
@@ -143,7 +143,7 @@ Current customizations to preserve:
   - Source: [module/sheets/actor-sheet.mjs](module/sheets/actor-sheet.mjs)
   - Migration target: actor panel sections fed by the same underlying data contracts.
 
-- Encounter ready, initiative, and AP actions
+- Encounter ready state and AP actions
   - Source: [module/sheets/actor-sheet.mjs](module/sheets/actor-sheet.mjs), [turn-of-the-century.mjs](turn-of-the-century.mjs)
   - Migration target: Encounter Section and Actions Section.
 
@@ -179,7 +179,7 @@ ActorContextService responsibilities:
   - owned actor, observed actor, GM-available actor, controlled token
 
 - Combat state
-  - active combat, turn state, ready state, initiative state
+  - active combat, turn state, ready state, AP planning state
 
 - Actor state
   - resources, inventory changes, equipment changes, active effects, conditions
@@ -208,7 +208,7 @@ ActorContextService responsibilities:
   - visible only when items are assigned to a slot and actively equipped
 
 - Encounter Section
-  - visible only when combat or initiative state is active
+  - visible only when combat or AP planning state is active
 
 - Prompts Section
   - visible when there is a current best next action

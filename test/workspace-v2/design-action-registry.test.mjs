@@ -60,6 +60,16 @@ describe("WorkspaceDesignActionRegistry", () => {
         assert.deepEqual(actions.map((action) => action.id), ["inspect.context", "design.issues"]);
     });
 
+    it("does not expose actions for obsolete combat tracker panels", () => {
+        const actions = DEFAULT_DESIGN_ACTION_REGISTRY.getApplicableActions({
+            panelId: "tracker",
+            isGM: true
+        });
+
+        assert.deepEqual(actions.map((action) => action.id), ["inspect.context", "design.issues"]);
+        assert.equal(DEFAULT_DESIGN_ACTION_REGISTRY.get("encounter.pacing"), null);
+    });
+
     it("treats scene-specific map panels as map context", () => {
         const actions = DEFAULT_DESIGN_ACTION_REGISTRY.getApplicableActions({
             panelId: "map:scene-draft",

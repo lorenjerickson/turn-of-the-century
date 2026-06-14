@@ -22,17 +22,6 @@
     },
     "impacts": [
       {
-        "label": "Quickened Reflex",
-        "targetType": "defense",
-        "target": "initiative",
-        "path": "",
-        "operation": "add",
-        "value": 2,
-        "formula": "",
-        "condition": "",
-        "notes": "<p>Initiative rises briefly.</p>"
-      },
-      {
         "label": "Muscle Tremor",
         "targetType": "skill",
         "target": "sleightOfHand",

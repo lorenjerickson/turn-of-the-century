@@ -19,7 +19,6 @@ import {
 } from "../panels/actor-management-panel.mjs";
 import { renderCampaignBuilderPanel } from "../panels/campaign-builder-panel.mjs";
 import { renderScenarioBuilderPanel } from "../panels/scenario-builder-panel.mjs";
-import { renderEncounterDesignerPanel } from "../panels/encounter-designer-panel.mjs";
 import { renderEncounterManagerPanel } from "../panels/encounter-manager-panel.mjs";
 import { renderPlayerEncounterPanel } from "../panels/player-encounter-panel.mjs";
 import { renderCampaignViewPanel } from "../panels/campaign-view-panel.mjs";
@@ -200,10 +199,6 @@ export class WorkspacePanelHost {
 
         if (panel.id === "scenario-builder") {
             return renderScenarioBuilderPanel(context.scenarioBuilderPanel ?? {}, { escapeHTML: (v) => this.escapeHTML(v) });
-        }
-
-        if (panel.id === "encounter-designer") {
-            return renderEncounterDesignerPanel(context.encounterDesignerPanel ?? {}, { escapeHTML: (v) => this.escapeHTML(v) });
         }
 
         if (panel.id === "encounter-manager") {

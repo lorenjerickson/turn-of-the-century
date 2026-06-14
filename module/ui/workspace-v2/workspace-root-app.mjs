@@ -188,9 +188,6 @@ import {
     buildScenarioBuilderPanelModel
 } from "./panels/scenario-builder-panel.mjs";
 import {
-    buildEncounterDesignerPanelModel
-} from "./panels/encounter-designer-panel.mjs";
-import {
     buildEncounterManagerPanelModel
 } from "./panels/encounter-manager-panel.mjs";
 import {
@@ -259,7 +256,7 @@ const GM_ACTION_MODELS = Object.freeze([
         label: "Start Encounter",
         description: "Start a new encounter from the current scene context.",
         groupId: "encounter-control",
-        keywords: ["combat", "encounter", "initiative", "start"],
+        keywords: ["combat", "encounter", "start"],
         isRelevant: (snapshot) => !snapshot.hasActiveCombat
     },
     {
@@ -267,7 +264,7 @@ const GM_ACTION_MODELS = Object.freeze([
         label: "Open Combat Tracker",
         description: "Open the combat tracker popout for detailed round control.",
         groupId: "encounter-control",
-        keywords: ["combat", "tracker", "initiative", "round"],
+        keywords: ["combat", "tracker", "round"],
         isRelevant: (snapshot) => snapshot.hasActiveCombat
     },
     {
@@ -620,7 +617,6 @@ function buildPlayerPanelModel({ actor = null, combat = null, panelState = {}, a
             { label: "Health", value: `${Number(system.resources?.health?.value ?? 0)} / ${Number(system.resources?.health?.max ?? 0)}` },
             { label: "Grit", value: `${Number(system.resources?.grit?.value ?? 0)} / ${Number(system.resources?.grit?.max ?? 0)}` },
             { label: "Armor Class", value: String(system.defenses?.armorClass ?? 0) },
-            { label: "Initiative", value: String(system.defenses?.initiative ?? 0) },
             { label: "Level", value: String(system.progression?.level ?? 0) },
             { label: "Passive Perception", value: String(system.senses?.passivePerception ?? 0) }
         ] : []
@@ -1392,9 +1388,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }),
             scenarioBuilderPanel: buildScenarioBuilderPanelModel({
                 scenarios: Array.from(game.items?.contents || []).filter(i => i.type === "scenario")
-            }),
-            encounterDesignerPanel: buildEncounterDesignerPanelModel({
-                encounters: Array.from(game.items?.contents || []).filter(i => i.type === "encounter-design")
             }),
             encounterManagerPanel: buildEncounterManagerPanelModel({
                 combat
@@ -2597,17 +2590,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
-        this.element?.querySelectorAll("[data-action='encounter-manager-roll-initiative']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const combat = this.#getEncounterCombat();
-                if (!combat?.rollAllMissingInitiatives) return;
-                await combat.rollAllMissingInitiatives();
-                this.render({ force: false });
-            });
-        });
-
         this.element?.querySelectorAll("[data-action='encounter-manager-set-phase']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
@@ -2693,18 +2675,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const combat = this.#getEncounterCombat();
                 if (!combatantId || !combat?.setCombatantReady) return;
                 await combat.setCombatantReady(combatantId, button.dataset.ready !== "true");
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='encounter-roll-initiative']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const combatantId = this.#getEncounterPanelCombatantId(button);
-                const combat = this.#getEncounterCombat();
-                if (!combatantId || !combat?.rollEncounterInitiative) return;
-                await combat.rollEncounterInitiative(combatantId);
                 this.render({ force: false });
             });
         });
@@ -2867,7 +2837,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     <div class="totc-v2-player-panel__kv-row"><dt>Phase</dt><dd>${this.#escapeHTML(planner.phase ?? "planning")}</dd></div>
                     <div class="totc-v2-player-panel__kv-row"><dt>Remaining AP</dt><dd>${this.#escapeHTML(String(planner.remainingAp ?? 0))}</dd></div>
                     <div class="totc-v2-player-panel__kv-row"><dt>Ready</dt><dd>${planner.ready ? "Yes" : "No"}</dd></div>
-                    <div class="totc-v2-player-panel__kv-row"><dt>Initiative</dt><dd>${planner.canRollInitiative ? "Available" : "Locked"}</dd></div>
                 </dl>
             </div>`;
         }

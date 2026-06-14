@@ -253,8 +253,7 @@
       "passiveInsight": 10
     },
     "defenses": {
-      "armorClass": 12,
-      "initiative": 2
+      "armorClass": 12
     },
     "inventory": {
       "equipment": {

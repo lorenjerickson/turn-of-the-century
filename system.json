@@ -277,7 +277,6 @@
         }
     },
     "socket": true,
-    "initiative": "1d20",
     "grid": {
         "distance": 10,
         "units": "ft"

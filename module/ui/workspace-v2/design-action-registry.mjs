@@ -148,7 +148,7 @@ export const DEFAULT_DESIGN_ACTIONS = Object.freeze([
         label: "Create NPC",
         description: "Create a supporting character from the current actor context.",
         domain: "actor",
-        contexts: ["player", "encounter", "tracker"],
+        contexts: ["player", "encounter"],
         relevance: 86,
         execute: async (context = {}) => createNpcDesignActor({
             actorClass: context.actorClass,
@@ -172,14 +172,6 @@ export const DEFAULT_DESIGN_ACTIONS = Object.freeze([
         domain: "encounter",
         contexts: ["encounter"],
         relevance: 84
-    },
-    {
-        id: "encounter.pacing",
-        label: "Round Design",
-        description: "Review initiative and AP pacing assumptions.",
-        domain: "encounter",
-        contexts: ["tracker"],
-        relevance: 72
     },
     {
         id: "market.stock",

@@ -69,6 +69,16 @@ describe("WorkspacePanelRegistry", () => {
         });
     });
 
+    it("does not register obsolete encounter designer or combat tracker panels", () => {
+        const registry = new WorkspacePanelRegistry();
+        const gmPanelIds = registry.getAvailability({ isGM: true }).map((panel) => panel.id);
+
+        assert.equal(registry.get("encounter-designer"), null);
+        assert.equal(registry.get("tracker"), null);
+        assert.equal(gmPanelIds.includes("encounter-designer"), false);
+        assert.equal(gmPanelIds.includes("tracker"), false);
+    });
+
     it("registers the GM encounter manager for left-dock restoration", () => {
         const registry = new WorkspacePanelRegistry();
 

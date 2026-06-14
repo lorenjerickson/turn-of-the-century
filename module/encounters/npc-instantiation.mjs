@@ -151,16 +151,13 @@ async function createNpcsFromEncounterSeed(seed, difficulty = "standard", folder
  * @returns {Promise<Array<Combatant>>} Created combatants
  */
 async function addActorsToCombat(combat, actors, options = {}) {
-    const { init = 0, initiative = null } = options;
-
     if (!combat || !Array.isArray(actors)) return [];
 
     const combatantData = actors.map((actor) => ({
         actorId: actor.id,
         tokenId: null,
         hidden: false,
-        defeated: false,
-        ...(initiative !== null && { initiative })
+        defeated: false
     }));
 
     const combatants = await combat.createEmbeddedDocuments("Combatant", combatantData);

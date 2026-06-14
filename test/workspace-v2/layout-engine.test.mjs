@@ -23,7 +23,7 @@ const panelLibrary = Object.freeze([
     { id: "campaign-view", title: "Campaign View", defaultDock: "leftDock" },
     { id: "scenes", title: "Scenes", defaultDock: "leftDock" },
     { id: "chat", title: "Chat and Messages" },
-    { id: "tracker", title: "Turn Tracker" },
+    { id: "roll-feed", title: "Dice and Roll Feed", defaultDock: "bottomDock" },
     { id: "camp", title: "Camp" },
     { id: "encounter", title: "Encounter Planner", defaultDock: "rightDock" },
     { id: "encounter-manager", title: "Encounter Manager", defaultDock: "leftDock" },
@@ -40,7 +40,7 @@ describe("LayoutEngine", () => {
         assert.equal(layout.root.leftDock.stacks[0].activePanelId, "gamemaster");
         assert.deepEqual(layout.root.centerDock.stacks, []);
         assert.equal(layout.root.topDock.stacks[0].panels[0].id, "chat");
-        assert.equal(layout.root.bottomDock.stacks[0].panels[0].id, "tracker");
+        assert.equal(layout.root.bottomDock.stacks[0].panels[0].id, "roll-feed");
         assert.equal(layout.root.floatingWindows[0].panel.id, "camp");
     });
 
@@ -136,7 +136,7 @@ describe("LayoutEngine", () => {
 
         assert.deepEqual(
             layout.root.bottomDock.stacks.map((stack) => stack.panels[0].id),
-            ["tracker", "player"]
+            ["roll-feed", "player"]
         );
     });
 
@@ -264,6 +264,43 @@ describe("LayoutEngine", () => {
 
         assert.deepEqual(stack.panels.map((panel) => panel.id), ["map:scene-a"]);
         assert.equal(stack.activePanelId, "map:scene-a");
+    });
+
+    it("removes obsolete panels from persisted layouts", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const layout = LayoutEngine.createDefaultLayout({ panels: panelLibrary });
+        layout.root.rightDock.stacks = [{
+            id: "stack-old-encounter-designer",
+            panels: [
+                { id: "encounter-designer", title: "Encounter Designer" },
+                { id: "player", title: "Player Panel" }
+            ],
+            activePanelId: "encounter-designer",
+            size: 1
+        }];
+        layout.root.bottomDock.stacks = [{
+            id: "stack-old-tracker",
+            panels: [{ id: "tracker", title: "Turn Tracker" }],
+            activePanelId: "tracker",
+            size: 1
+        }];
+        layout.root.floatingWindows = [{
+            id: "float-old-tracker",
+            panel: { id: "tracker", title: "Turn Tracker" },
+            x: 80,
+            y: 80,
+            width: 480,
+            height: 360,
+            zIndex: 10
+        }];
+
+        const engine = new LayoutEngine({ layout, panels: panelLibrary });
+        const nextLayout = engine.getLayout();
+
+        assert.deepEqual(nextLayout.root.rightDock.stacks[0].panels.map((panel) => panel.id), ["player"]);
+        assert.equal(nextLayout.root.rightDock.stacks[0].activePanelId, "player");
+        assert.deepEqual(nextLayout.root.bottomDock.stacks, []);
+        assert.deepEqual(nextLayout.root.floatingWindows, []);
     });
 
     it("enforces minimum floating window dimensions", async () => {

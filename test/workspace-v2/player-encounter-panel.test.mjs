@@ -49,7 +49,6 @@ function plannerFixture() {
         remainingAp: 3,
         plannedAp: 3,
         planningTimeDisplay: "38s",
-        initiativeReady: true,
         canEditPlan: true,
         canCommit: true,
         ready: false,
@@ -154,6 +153,8 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /addCombatantAction/);
         assert.match(workspaceRootSource, /setCombatantPlan/);
         assert.match(workspaceRootSource, /setCombatantActionApCost/);
+        assert.doesNotMatch(workspaceRootSource, /rollEncounter/);
+        assert.doesNotMatch(workspaceRootSource, /rollAllMissing/);
         assert.doesNotMatch(workspaceRootSource, /player-execute-encounter-action/);
     });
 

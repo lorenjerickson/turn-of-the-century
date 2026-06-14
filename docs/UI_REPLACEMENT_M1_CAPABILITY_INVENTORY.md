@@ -51,9 +51,9 @@ Primary evidence:
 ### D. Encounter Planning and Round Flow
 
 1. Initialize round.
-2. Roll all missing initiatives.
+2. Start AP round planning.
 3. Resolve round.
-4. Roll initiative for combatant.
+4. Mark combatant planning readiness.
 5. Add/remove/clear planned actions.
 6. Toggle combatant ready state.
 7. AP-bound action planning and target assignment.
