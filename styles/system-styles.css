@@ -3090,6 +3090,37 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     box-shadow: 0 0 10px #fbbf24, 0 0.18rem 0.45rem rgba(15, 23, 42, 0.5);
 }
 
+.turn-of-the-century .totc-v2-map-panel__movement-overlay {
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    transform-origin: 0 0;
+    z-index: 3;
+}
+
+.turn-of-the-century .totc-v2-map-panel__movement-cell {
+    background: rgba(56, 189, 248, 0.18);
+    border: 1px solid rgba(125, 211, 252, 0.58);
+    box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.18);
+    box-sizing: border-box;
+    cursor: pointer;
+    display: block;
+    padding: 0;
+    pointer-events: auto;
+    position: absolute;
+}
+
+.turn-of-the-century .totc-v2-map-panel__movement-cell:hover {
+    background: rgba(56, 189, 248, 0.32);
+    border-color: rgba(186, 230, 253, 0.84);
+}
+
+.turn-of-the-century .totc-v2-map-panel__movement-cell.is-origin {
+    background: rgba(251, 191, 36, 0.22);
+    border-color: rgba(253, 230, 138, 0.76);
+}
+
 .turn-of-the-century .totc-v2-map-viewport__selection-box {
     border: 1.5px dashed #fbbf24;
     background: rgba(251, 191, 36, 0.12);
@@ -3153,7 +3184,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     overflow: visible;
     pointer-events: none;
     position: absolute;
-    z-index: 3;
+    z-index: 4;
 }
 
 .turn-of-the-century .totc-v2-map-panel__actor-drop-preview {
@@ -3162,7 +3193,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     position: absolute;
     top: 0;
     transform-origin: 0 0;
-    z-index: 4;
+    z-index: 5;
 }
 
 .turn-of-the-century .totc-v2-map-panel__actor-drop-preview.has-preview {

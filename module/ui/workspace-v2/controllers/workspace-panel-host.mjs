@@ -71,6 +71,7 @@ export class WorkspacePanelHost {
         gridCalibrationState = () => ({}),
         getSceneGridOverlayState = () => null,
         getSceneWallOverlayState = () => null,
+        getEncounterMovementOverlayState = () => null,
         getMapPanelToolbarState = () => ({}),
         renderMarketPanel = () => "",
         renderPlayerPanel = () => "",
@@ -87,6 +88,7 @@ export class WorkspacePanelHost {
         this.gridCalibrationState = gridCalibrationState;
         this.getSceneGridOverlayState = getSceneGridOverlayState;
         this.getSceneWallOverlayState = getSceneWallOverlayState;
+        this.getEncounterMovementOverlayState = getEncounterMovementOverlayState;
         this.getMapPanelToolbarState = getMapPanelToolbarState;
         this.renderMarketPanel = renderMarketPanel;
         this.renderPlayerPanel = renderPlayerPanel;
@@ -267,6 +269,7 @@ export class WorkspacePanelHost {
         const calActive = calModel.active;
         const sceneGridOverlayState = this.getSceneGridOverlayState(mapScene);
         const sceneWallOverlayState = this.getSceneWallOverlayState(mapScene);
+        const encounterMovementOverlayState = this.getEncounterMovementOverlayState(mapScene);
         const sceneGridOverlayActive = Boolean(!calActive && sceneGridOverlayState);
         const wallOverlayActive = Boolean(sceneWallOverlayState?.segments?.length);
         const gridOverlayActive = calActive || sceneGridOverlayActive || wallOverlayActive;
@@ -283,6 +286,7 @@ export class WorkspacePanelHost {
                 data-grid-offset-y="${this.escapeHTML(sceneGridOverlayState?.offsetY ?? -Number(mapScene?.shiftY ?? 0))}">
                 <img class="totc-v2-map-panel__image" src="${this.escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false" data-action="map-image">
                 ${tokenMarkup}
+                ${this.#renderEncounterMovementOverlay(encounterMovementOverlayState)}
                 ${gridOverlayActive ? `<svg class="totc-v2-map-panel__grid-overlay" data-grid-overlay="true" aria-hidden="true"></svg>` : ""}
                 <div class="totc-v2-map-panel__actor-drop-preview" data-actor-drop-preview="true" aria-hidden="true"></div>
             </div>`
@@ -437,6 +441,22 @@ export class WorkspacePanelHost {
                 : `<span class="totc-v2-map-panel__token totc-v2-map-panel__token--fallback${isSelected}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token">${this.escapeHTML(name.slice(0, 1).toUpperCase() || "?")}</span>`;
         }).join("");
         return `<div class="totc-v2-map-panel__token-layer" data-map-token-layer="true" aria-label="Scene tokens">${tokenMarkup}</div>`;
+    }
+
+    #renderEncounterMovementOverlay(model = null) {
+        if (!model?.active || !Array.isArray(model.cells) || !model.cells.length) return "";
+        const cells = model.cells.map((cell) => {
+            const classes = [
+                "totc-v2-map-panel__movement-cell",
+                cell.origin ? "is-origin" : ""
+            ].filter(Boolean).join(" ");
+            const style = `left:${this.escapeHTML(cell.left)}px;top:${this.escapeHTML(cell.top)}px;width:${this.escapeHTML(cell.width)}px;height:${this.escapeHTML(cell.height)}px`;
+            const title = cell.origin
+                ? "Current position"
+                : `${this.escapeHTML(cell.distanceFeet)} ft, ${this.escapeHTML(cell.requiredAp)} AP`;
+            return `<button type="button" class="${classes}" style="${style}" data-action="encounter-move-square" data-row="${this.escapeHTML(cell.row)}" data-col="${this.escapeHTML(cell.col)}" data-required-ap="${this.escapeHTML(cell.requiredAp)}" title="${title}" aria-label="${title}"></button>`;
+        }).join("");
+        return `<div class="totc-v2-map-panel__movement-overlay" data-encounter-movement-overlay="true" aria-label="Reachable movement squares">${cells}</div>`;
     }
 
     #renderCompendiumPanel(context = {}) {

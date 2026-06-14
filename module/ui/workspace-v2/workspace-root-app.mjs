@@ -138,6 +138,10 @@ import {
     buildSceneGridOverlayState,
     GRID_CAL_PHASE_HINTS
 } from "./panels/grid-calibration.mjs";
+import {
+    buildEncounterMovementOverlayModel,
+    findEncounterMovementOverlayCellAtPoint
+} from "./encounter-movement-overlay.mjs";
 
 const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
 
@@ -859,6 +863,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             gridCalibrationState: () => this.gridCalibrationController.state,
             getSceneGridOverlayState: (scene) => this.#getSceneGridOverlayState(scene),
             getSceneWallOverlayState: (scene) => this.#getSceneDetectedWallOverlayState(scene),
+            getEncounterMovementOverlayState: (scene) => this.#getEncounterMovementOverlayState(scene),
             getMapPanelToolbarState: (panel) => this.#getMapPanelToolbarState(panel),
             renderMarketPanel: (marketPanel) => this.#renderMarketPanel(marketPanel),
             renderPlayerPanel: (playerPanel, dieRollRequestPanel) => this.#renderPlayerPanel(playerPanel, dieRollRequestPanel),
@@ -900,6 +905,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._appliedGridOverlayStates = new Map();
         this._detectedWallOverlayStates = new Map();
         this._mapPanelToolbarStates = new Map();
+        this._encounterPlannerSelection = null;
+        this._encounterMovementInteraction = null;
         this._selectedWallIdsByScene = new Map();
         this._joinableWallIdsByScene = new Map();
         this._wallAddSequence = null;
@@ -1291,11 +1298,18 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             actorOptions: playerActorOptions,
             highlightedSectionIds: []
         });
-        const playerEncounterPlanner = selectedPlayerActor
-            ? buildEncounterPlanner(selectedPlayerActor, selectedPlayerActor?.getActiveTokens?.()?.[0] ?? selectedPlayerActor?.token ?? null)
+        const encounterPlannerSelection = this.#resolveEncounterPlannerSelection({
+            combat,
+            scene,
+            fallbackActor: selectedPlayerActor
+        });
+        const selectedEncounterActor = encounterPlannerSelection?.actor ?? selectedPlayerActor;
+        const selectedEncounterToken = encounterPlannerSelection?.token ?? selectedEncounterActor?.getActiveTokens?.()?.[0] ?? selectedEncounterActor?.token ?? null;
+        const playerEncounterPlanner = selectedEncounterActor
+            ? buildEncounterPlanner(selectedEncounterActor, selectedEncounterToken)
             : null;
         const playerEncounterPanel = buildPlayerEncounterPanelModel({
-            actor: selectedPlayerActor,
+            actor: selectedEncounterActor,
             planner: playerEncounterPlanner,
             combat
         });
@@ -2642,7 +2656,187 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.render({ force: false });
     }
 
+    #collectionContents(collection) {
+        if (!collection) return [];
+        if (Array.isArray(collection)) return collection;
+        if (Array.isArray(collection.contents)) return collection.contents;
+        if (typeof collection.values === "function") return Array.from(collection.values());
+        if (typeof collection[Symbol.iterator] === "function") return Array.from(collection);
+        return [];
+    }
+
+    #collectionGet(collection, id = "") {
+        const key = String(id ?? "").trim();
+        if (!key) return null;
+        return collection?.get?.(key) ?? this.#collectionContents(collection).find((entry) => (
+            String(entry?.id ?? entry?._id ?? entry?.document?.id ?? "").trim() === key
+        )) ?? null;
+    }
+
+    #getEncounterCombatant(combat = null, combatantId = "") {
+        return this.#collectionGet(combat?.combatants, combatantId);
+    }
+
+    #getEncounterCombatantForToken(combat = null, token = null) {
+        if (!combat || !token) return null;
+        const tokenIds = new Set([
+            token.id,
+            token._id,
+            token.document?.id
+        ].filter(Boolean).map(String));
+        const actorIds = new Set([
+            token.actorId,
+            token.document?.actorId,
+            token.actor?.id,
+            token.actor?._id
+        ].filter(Boolean).map(String));
+
+        return this.#collectionContents(combat.combatants).find((combatant) => (
+            tokenIds.has(String(combatant?.tokenId ?? ""))
+            || tokenIds.has(String(combatant?.token?.id ?? ""))
+            || actorIds.has(String(combatant?.actorId ?? ""))
+            || actorIds.has(String(combatant?.actor?.id ?? ""))
+            || actorIds.has(String(combatant?.token?.actorId ?? ""))
+        )) ?? null;
+    }
+
+    #isEncounterPlanningAvailable(combat = null) {
+        return Boolean(combat?.getCombatantPlan && combat?.getAvailableActionsForCombatant && (combat?.encounterState?.initialized ?? combat?.encounter?.state?.initialized));
+    }
+
+    #canPlanEncounterToken({ combat = null, token = null, actor = null } = {}) {
+        if (!this.#isEncounterPlanningAvailable(combat)) return false;
+        if (!this.#getEncounterCombatantForToken(combat, token)) return false;
+        return Boolean(game.user?.isGM || actor?.isOwner);
+    }
+
+    #resolveTokenActor(token = null) {
+        return token?.actor ?? game.actors?.get?.(token?.actorId ?? token?.document?.actorId) ?? null;
+    }
+
+    #resolveEncounterPlannerSelection({ combat = null, scene = null, fallbackActor = null } = {}) {
+        const selection = this._encounterPlannerSelection;
+        if (selection) {
+            const selectedScene = this.#collectionGet(game.scenes, selection.sceneId) ?? scene;
+            const token = this.#collectionGet(selectedScene?.tokens, selection.tokenId);
+            const actor = this.#resolveTokenActor(token);
+            if (this.#canPlanEncounterToken({ combat, token, actor })) {
+                return {
+                    actor,
+                    token,
+                    combatant: this.#getEncounterCombatantForToken(combat, token)
+                };
+            }
+            this._encounterPlannerSelection = null;
+        }
+
+        const fallbackToken = fallbackActor?.getActiveTokens?.()?.[0] ?? fallbackActor?.token ?? null;
+        if (this.#canPlanEncounterToken({ combat, token: fallbackToken, actor: fallbackActor })) {
+            return {
+                actor: fallbackActor,
+                token: fallbackToken,
+                combatant: this.#getEncounterCombatantForToken(combat, fallbackToken)
+            };
+        }
+
+        return null;
+    }
+
+    async #showEncounterPanelForToken({ combat = null, scene = null, token = null, actor = null } = {}) {
+        if (!this.#canPlanEncounterToken({ combat, token, actor })) return false;
+        this._encounterPlannerSelection = {
+            sceneId: String(scene?.id ?? scene?._id ?? ""),
+            tokenId: String(token?.id ?? token?._id ?? token?.document?.id ?? ""),
+            actorId: String(actor?.id ?? actor?._id ?? "")
+        };
+        await this.#showEncounterPanel();
+        return true;
+    }
+
+    #getEncounterMovementToken({ combat = null, combatantId = "", scene = canvas?.scene ?? game.scenes?.viewed ?? null } = {}) {
+        const combatant = this.#getEncounterCombatant(combat, combatantId);
+        const tokenId = String(combatant?.tokenId ?? combatant?.token?.id ?? "").trim();
+        const directToken = this.#collectionGet(scene?.tokens, tokenId);
+        if (directToken) return directToken;
+
+        const actorId = String(combatant?.actorId ?? combatant?.actor?.id ?? combatant?.token?.actorId ?? "").trim();
+        if (!actorId) return null;
+        return this.#collectionContents(scene?.tokens).find((token) => (
+            String(token?.actorId ?? token?.actor?.id ?? token?.document?.actorId ?? "").trim() === actorId
+        )) ?? null;
+    }
+
+    #beginEncounterMovementInteraction({ combat = null, combatantId = "", actionIndex = -1, maxAp = 0 } = {}) {
+        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
+        const token = this.#getEncounterMovementToken({ combat, combatantId, scene });
+        if (!scene || !token || Number(maxAp) <= 0) {
+            this._encounterMovementInteraction = null;
+            return;
+        }
+
+        this._encounterMovementInteraction = {
+            combatId: String(combat?.id ?? ""),
+            combatantId: String(combatantId ?? ""),
+            actionIndex: Number(actionIndex),
+            sceneId: String(scene.id ?? scene._id ?? ""),
+            tokenId: String(token.id ?? token._id ?? token.document?.id ?? ""),
+            maxAp: Math.max(1, Math.floor(Number(maxAp) || 1)),
+            feetPerAp: 10
+        };
+    }
+
+    #getEncounterMovementOverlayState(scene = null) {
+        const interaction = this._encounterMovementInteraction;
+        if (!interaction || !scene) return null;
+        const sceneId = String(scene.id ?? scene._id ?? "").trim();
+        if (sceneId && interaction.sceneId && sceneId !== interaction.sceneId) return null;
+        const token = this.#collectionGet(scene.tokens, interaction.tokenId);
+        if (!token) return null;
+        return buildEncounterMovementOverlayModel({
+            token,
+            scene,
+            maxAp: interaction.maxAp,
+            feetPerAp: interaction.feetPerAp || 10,
+            feetPerSquare: Number(scene.grid?.distance ?? 5) || 5,
+            gridSize: Number(scene.grid?.size ?? 100) || 100
+        });
+    }
+
+    async #finishEncounterMovementInteraction(requiredAp) {
+        const interaction = this._encounterMovementInteraction;
+        if (!interaction) return;
+        const combat = this.#getEncounterCombat();
+        this._encounterMovementInteraction = null;
+        if (!combat?.setCombatantActionApCost) {
+            this.render({ force: false });
+            return;
+        }
+        const cost = Math.max(1, Number(requiredAp) || 1);
+        await combat.setCombatantActionApCost(interaction.combatantId, interaction.actionIndex, cost);
+        this.render({ force: false });
+    }
+
+    async #cancelEncounterMovementInteraction() {
+        const interaction = this._encounterMovementInteraction;
+        if (!interaction) return;
+        const combat = this.#getEncounterCombat();
+        this._encounterMovementInteraction = null;
+        if (combat?.removeCombatantAction) {
+            await combat.removeCombatantAction(interaction.combatantId, interaction.actionIndex);
+        }
+        this.render({ force: false });
+    }
+
     #wirePlayerEncounterPanelHandlers() {
+        this.element?.addEventListener("click", (event) => {
+            if (!this._encounterMovementInteraction) return;
+            if (event.target?.closest?.("[data-action='encounter-move-square']")) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation?.();
+            void this.#cancelEncounterMovementInteraction();
+        }, { capture: true });
+
         this.element?.querySelectorAll("[data-action='encounter-add-action']")?.forEach((input) => {
             input.addEventListener("change", async (event) => {
                 if (input.dataset.canEditPlan !== "true") return;
@@ -2653,7 +2847,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (!combatantId || !combat?.addCombatantAction) return;
                 const actionData = this.#readEncounterActionData(option);
                 if (!actionData) return;
+                const previousPlan = combat.getCombatantPlan?.(combatantId) ?? [];
+                const previousRemainingAp = Number(combat.getCombatantRemainingAp?.(combatantId) ?? 0);
                 await combat.addCombatantAction(combatantId, actionData);
+                if (actionData.type === "movement") {
+                    this.#beginEncounterMovementInteraction({
+                        combat,
+                        combatantId,
+                        actionIndex: previousPlan.length,
+                        maxAp: previousRemainingAp
+                    });
+                } else {
+                    this._encounterMovementInteraction = null;
+                }
                 input.value = "";
                 this.render({ force: false });
             });
@@ -3788,6 +3994,20 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 // Handle left-click actions (dragging or rubberband selection)
                 if (event.button !== 0) return;
 
+                if (this._encounterMovementInteraction) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const overlayModel = this.#getEncounterMovementOverlayState(game.scenes?.get(viewport.dataset.sceneId) ?? canvas?.scene ?? game.scenes?.viewed ?? null);
+                    const point = this.#getImageSpacePointFromMapEvent(viewport, event);
+                    const cell = findEncounterMovementOverlayCellAtPoint(overlayModel, point);
+                    if (cell) {
+                        void this.#finishEncounterMovementInteraction(cell.requiredAp);
+                    } else {
+                        void this.#cancelEncounterMovementInteraction();
+                    }
+                    return;
+                }
+
                 if (viewport.classList.contains("is-calibrating")) return;
 
                 const tokenEl = event.target.closest("[data-action='map-token']");
@@ -3896,6 +4116,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                                 for (const t of viewport.querySelectorAll("[data-action='map-token']")) {
                                     t.classList.toggle("is-selected", this.selectedTokenIds.has(t.dataset.tokenId));
                                 }
+                            }
+                            if (!hasModifier) {
+                                await this.#showEncounterPanelForToken({
+                                    combat: this.#getEncounterCombat(),
+                                    scene,
+                                    token: tokenDoc,
+                                    actor
+                                });
                             }
                         }
                         this.#syncSelectionToCanvas();

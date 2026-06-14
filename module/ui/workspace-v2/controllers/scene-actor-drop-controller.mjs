@@ -200,6 +200,7 @@ export class SceneActorDropController {
     syncActorDropPreviewTransform(viewport) {
         const layers = [
             viewport?.querySelector?.("[data-map-token-layer='true']"),
+            viewport?.querySelector?.("[data-encounter-movement-overlay='true']"),
             viewport?.querySelector?.("[data-actor-drop-preview='true']")
         ].filter(isElementLike);
         const image = viewport?.querySelector?.("[data-action='map-image']");

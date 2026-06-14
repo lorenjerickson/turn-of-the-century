@@ -92,6 +92,38 @@ describe("WorkspacePanelHost", () => {
         assert.match(html, /data-grid-overlay="true"/);
     });
 
+    it("renders encounter movement overlay squares above the map token layer", () => {
+        const host = new WorkspacePanelHost({
+            escapeHTML,
+            isMapPanel: () => true,
+            getMapPanelScene: () => ({
+                id: "scene-1",
+                name: "Rookery Yard",
+                mapSrc: "yard.webp",
+                width: 1200,
+                height: 800,
+                shiftX: 0,
+                shiftY: 0,
+                grid: { type: 1, size: 100, distance: 5 },
+                tokens: []
+            }),
+            getEncounterMovementOverlayState: () => ({
+                active: true,
+                cells: [
+                    { row: 2, col: 2, left: 200, top: 200, width: 100, height: 100, requiredAp: 0, distanceFeet: 0, origin: true },
+                    { row: 2, col: 4, left: 400, top: 200, width: 100, height: 100, requiredAp: 1, distanceFeet: 10, origin: false }
+                ]
+            }),
+            gridCalibrationState: () => ({ active: false })
+        });
+
+        const html = host.renderPanelBodyContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
+
+        assert.match(html, /data-encounter-movement-overlay="true"/);
+        assert.match(html, /data-action="encounter-move-square"[^>]*data-row="2"[^>]*data-col="4"[^>]*data-required-ap="1"/);
+        assert.match(html, /class="totc-v2-map-panel__movement-cell is-origin"/);
+    });
+
     it("renders split and join wall commands in the primary map toolbar", () => {
         const host = new WorkspacePanelHost({
             escapeHTML,

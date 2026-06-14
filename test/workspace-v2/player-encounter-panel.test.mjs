@@ -182,4 +182,12 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /this\.panelRegistry\.get\("encounter"\)/);
         assert.match(workspaceRootSource, /restorePanel\(panelDef, \{ preferredDockId: panelDef\.defaultDock \?\? "rightDock" \}\)/);
     });
+
+    it("uses encounter-specific token selection when building the encounter planner", () => {
+        assert.match(workspaceRootSource, /const encounterPlannerSelection = this\.\#resolveEncounterPlannerSelection\(\{/);
+        assert.match(workspaceRootSource, /const selectedEncounterActor = encounterPlannerSelection\?\.actor \?\? selectedPlayerActor/);
+        assert.match(workspaceRootSource, /const selectedEncounterToken = encounterPlannerSelection\?\.token/);
+        assert.match(workspaceRootSource, /buildEncounterPlanner\(selectedEncounterActor, selectedEncounterToken\)/);
+        assert.match(workspaceRootSource, /actor: selectedEncounterActor,[\s\S]*planner: playerEncounterPlanner/);
+    });
 });
