@@ -13,6 +13,7 @@ const ChatMessageDocument = foundry.documents?.ChatMessage ?? ChatMessage;
 
 const ENCOUNTER_FLAG_SCOPE = "turn-of-the-century";
 const ENCOUNTER_FLAG_KEY = "encounter";
+const ACTION_ITEM_TYPES = new Set(["armor", "consumable", "weapon"]);
 
 /**
  * Event name constants emitted by {@link TurnOfTheCenturyEncounter}.
@@ -72,6 +73,15 @@ function collectionContents(collection) {
     if (typeof collection.values === "function") return Array.from(collection.values());
     if (typeof collection[Symbol.iterator] === "function") return Array.from(collection);
     return [];
+}
+
+function getEquippedItemIds(actor) {
+    const equipment = actor?.system?.inventory?.equipment ?? {};
+    return new Set(
+        Object.values(equipment)
+            .flatMap((slot) => toArray(slot?.itemIds))
+            .filter(Boolean)
+    );
 }
 
 function clampActionCost(value) {
@@ -825,7 +835,10 @@ export class TurnOfTheCenturyEncounter {
                 };
             });
 
+        const equippedItemIds = getEquippedItemIds(combatant.actor);
         const itemActions = collectionContents(combatant.actor.items).flatMap((item) => {
+            if (!ACTION_ITEM_TYPES.has(item.type) || !equippedItemIds.has(item.id)) return [];
+
             const variants = item.actionVariants ?? [];
             return variants.map((variant) => ({
                 id: `${item.id}:${variant.id}`,
