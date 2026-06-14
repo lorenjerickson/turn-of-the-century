@@ -65,6 +65,15 @@ function toArray(value) {
     return Array.isArray(value) ? value : [];
 }
 
+function collectionContents(collection) {
+    if (!collection) return [];
+    if (Array.isArray(collection)) return collection;
+    if (Array.isArray(collection.contents)) return collection.contents;
+    if (typeof collection.values === "function") return Array.from(collection.values());
+    if (typeof collection[Symbol.iterator] === "function") return Array.from(collection);
+    return [];
+}
+
 function clampActionCost(value) {
     const cost = Number(value);
     if (!Number.isFinite(cost)) return 1;
@@ -784,45 +793,39 @@ export class TurnOfTheCenturyEncounter {
         if (!combatant?.actor) return [];
 
         const catalog = this.actionCatalog;
-        const movementTemplate = catalog.move ?? catalog.move10ft;
         const movementFeetPerAp = Number(getMovementFeetPerAp() || 10);
-        const movementAction = movementTemplate
-            ? [{
-                id: movementTemplate.id,
-                actionId: movementTemplate.id,
-                type: movementTemplate.type,
-                label: game.i18n.localize("TOTC.Encounter.Action.MoveLabel"),
-                description: game.i18n.localize("TOTC.Encounter.Action.MoveDescription"),
-                apCost: Number(movementTemplate.apCost ?? 1),
-                apMin: Number(movementTemplate.apMin ?? 1),
-                apMax: Number(movementTemplate.apMax ?? this.apBudget),
-                variableAp: Boolean(movementTemplate.variableAp),
-                movementFeet: Number((movementTemplate.apCost ?? 1) * movementFeetPerAp),
-                movementFeetPerAp,
-                requiresToHit: false,
-                toHitBonus: 0,
-                itemId: null
-            }]
-            : [];
+        const globalActions = Object.values(catalog)
+            .filter((template) => template?.id)
+            .map((template) => {
+                const apMin = Number(template.apMin ?? template.apCost ?? 1);
+                const apMax = Math.min(this.apBudget, Math.max(apMin, Number(template.apMax ?? template.apCost ?? apMin)));
+                const apCost = Math.max(apMin, Math.min(apMax, Number(template.apCost ?? apMin)));
 
-        const defendAction = catalog.defend
-            ? [{
-                id: catalog.defend.id,
-                actionId: catalog.defend.id,
-                type: catalog.defend.type,
-                label: game.i18n.localize("TOTC.Encounter.Action.DefendLabel"),
-                description: game.i18n.localize("TOTC.Encounter.Action.DefendDescription"),
-                apCost: Number(catalog.defend.apCost ?? 1),
-                apMin: Number(catalog.defend.apMin ?? 1),
-                apMax: Number(catalog.defend.apMax ?? this.apBudget),
-                variableAp: Boolean(catalog.defend.variableAp),
-                requiresToHit: false,
-                toHitBonus: 0,
-                itemId: null
-            }]
-            : [];
+                return {
+                    id: template.id,
+                    actionId: template.id,
+                    type: String(template.type ?? "action"),
+                    label: String(template.label ?? template.id),
+                    description: String(template.description ?? "").trim() || null,
+                    apCost,
+                    apMin,
+                    apMax,
+                    variableAp: Boolean(template.variableAp && apMax > apMin),
+                    movementFeet: template.type === "movement" ? Number(apCost * movementFeetPerAp) : Number(template.movementFeet ?? 0),
+                    movementFeetPerAp: template.type === "movement" ? movementFeetPerAp : Number(template.movementFeetPerAp ?? 0),
+                    requiresToHit: Boolean(template.requiresToHit),
+                    toHitBonus: Number(template.toHitBonus ?? 0),
+                    itemId: null,
+                    completionPhaseIncrement: Number(template.completionPhaseIncrement ?? 0),
+                    cpiPerFeet: Number(template.cpiPerFeet ?? 0),
+                    autoResolve: Boolean(template.autoResolve),
+                    interruptible: Boolean(template.interruptible),
+                    isReaction: Boolean(template.isReaction),
+                    reactionTriggerType: String(template.reactionTriggerType ?? "")
+                };
+            });
 
-        const itemActions = combatant.actor.items.contents.flatMap((item) => {
+        const itemActions = collectionContents(combatant.actor.items).flatMap((item) => {
             const variants = item.actionVariants ?? [];
             return variants.map((variant) => ({
                 id: `${item.id}:${variant.id}`,
@@ -840,7 +843,7 @@ export class TurnOfTheCenturyEncounter {
             }));
         });
 
-        return [...movementAction, ...defendAction, ...itemActions];
+        return [...globalActions, ...itemActions];
     }
 
     #getConsumableApCost(actor, item, variant) {

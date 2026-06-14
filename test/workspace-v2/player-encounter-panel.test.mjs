@@ -133,6 +133,24 @@ describe("player encounter panel", () => {
         assert.match(html, /data-action="encounter-clear-plan" disabled>Clear Plan<\/button>/);
     });
 
+    it("keeps the action search focusable for browsing when actions are available", () => {
+        const model = buildPlayerEncounterPanelModel({
+            actor: actorFixture(),
+            planner: {
+                ...plannerFixture(),
+                canEditPlan: false
+            },
+            combat: null
+        });
+
+        const html = renderPlayerEncounterPanel(model, { escapeHTML });
+
+        assert.match(html, /data-action="encounter-add-action"[^>]*data-can-edit-plan="false"/);
+        assert.doesNotMatch(html, /data-action="encounter-add-action"[^>]*disabled/);
+        assert.match(html, /<option value="Move"/);
+        assert.match(html, /<option value="Strike"/);
+    });
+
     it("keeps encounter planning out of actor sheets and the combat tracker", () => {
         for (const file of [
             "templates/actors/hero-sheet.hbs",
@@ -153,6 +171,7 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /addCombatantAction/);
         assert.match(workspaceRootSource, /setCombatantPlan/);
         assert.match(workspaceRootSource, /setCombatantActionApCost/);
+        assert.match(workspaceRootSource, /if \(input\.dataset\.canEditPlan !== "true"\) return;/);
         assert.doesNotMatch(workspaceRootSource, /rollEncounter/);
         assert.doesNotMatch(workspaceRootSource, /rollAllMissing/);
         assert.doesNotMatch(workspaceRootSource, /player-execute-encounter-action/);

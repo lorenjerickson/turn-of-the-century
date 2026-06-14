@@ -2629,6 +2629,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     #wirePlayerEncounterPanelHandlers() {
         this.element?.querySelectorAll("[data-action='encounter-add-action']")?.forEach((input) => {
             input.addEventListener("change", async (event) => {
+                if (input.dataset.canEditPlan !== "true") return;
                 const option = this.#findEncounterActionOption(input);
                 if (!option) return;
                 const combatantId = this.#getEncounterPanelCombatantId(input);

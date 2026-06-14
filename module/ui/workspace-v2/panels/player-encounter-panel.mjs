@@ -218,6 +218,7 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
     const status = model.status;
     const actionOptions = (model.availableActions ?? []).map((action) => `
         <option value="${escapeHTML(action.label)}" ${actionDataAttributes(action, escapeHTML)}>${escapeHTML(action.apLabel)}</option>`).join("");
+    const canBrowseActions = (model.availableActions ?? []).length > 0;
 
     return `
     <section class="totc-v2-encounter-panel" data-combatant-id="${escapeHTML(model.combatantId)}">
@@ -242,7 +243,7 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
             </header>
             <label class="totc-v2-encounter-panel__picker">
                 <span>Available action</span>
-                <input type="search" list="totc-encounter-actions-${escapeHTML(model.combatantId)}" data-action="encounter-add-action" placeholder="Search actions" ${model.canEditPlan ? "" : "disabled"}>
+                <input type="search" list="totc-encounter-actions-${escapeHTML(model.combatantId)}" data-action="encounter-add-action" data-can-edit-plan="${model.canEditPlan ? "true" : "false"}" placeholder="Search actions" ${canBrowseActions ? "" : "disabled"}>
                 <datalist id="totc-encounter-actions-${escapeHTML(model.combatantId)}">
                     ${actionOptions}
                 </datalist>
