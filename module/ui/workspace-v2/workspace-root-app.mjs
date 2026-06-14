@@ -2724,8 +2724,33 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         )) ?? null;
     }
 
+    #getEncounterCombatants(combat = null, actor = null) {
+        const actorIds = [
+            actor?.id,
+            actor?._id,
+            actor?.baseActor?.id,
+            actor?.baseActor?._id
+        ].filter(Boolean);
+        const entries = [
+            ...this.#collectionContents(combat?.combatants),
+            ...this.#collectionContents(combat?.turns),
+            ...actorIds.flatMap((actorId) => this.#collectionContents(combat?.getCombatantsByActor?.(actorId))),
+            combat?.combatant
+        ].filter(Boolean);
+
+        return entries.filter((entry, index, list) => {
+            const id = String(entry?.id ?? entry?._id ?? "");
+            if (!id) return true;
+            return list.findIndex((candidate) => String(candidate?.id ?? candidate?._id ?? "") === id) === index;
+        });
+    }
+
     #getEncounterCombatant(combat = null, combatantId = "") {
-        return this.#collectionGet(combat?.combatants, combatantId);
+        const key = String(combatantId ?? "").trim();
+        if (!key) return null;
+        return this.#collectionGet(combat?.combatants, key)
+            ?? this.#getEncounterCombatants(combat).find((entry) => String(entry?.id ?? entry?._id ?? "") === key)
+            ?? null;
     }
 
     #getEncounterCombatantForToken(combat = null, token = null) {
@@ -2734,10 +2759,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (tokenCombatant && (tokenCombatant.combat === combat || tokenCombatant.parent === combat || tokenCombatant.combat?.id === combat.id || tokenCombatant.parent?.id === combat.id)) {
             return tokenCombatant;
         }
+        const actor = this.#resolveTokenActor(token);
         return findCombatantForToken({
-            combatants: this.#collectionContents(combat.combatants),
+            combatants: this.#getEncounterCombatants(combat, actor),
             token,
-            actor: this.#resolveTokenActor(token)
+            actor
         });
     }
 
@@ -2837,9 +2863,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             actorIsOwner: Boolean(actor?.isOwner ?? combatant?.actor?.isOwner),
             planningAvailable: this.#isEncounterPlanningAvailable(combat),
             canPlan,
+            combatantCount: this.#collectionContents(combat?.combatants).length,
+            turnCount: this.#collectionContents(combat?.turns).length,
             combatantRefs: combatant
                 ? []
-                : getCombatantReferenceDiagnostics(this.#collectionContents(combat?.combatants)).slice(0, 12)
+                : getCombatantReferenceDiagnostics(this.#getEncounterCombatants(combat, actor)).slice(0, 12)
         });
         if (!canPlan) return false;
         this._encounterPlannerSelection = {

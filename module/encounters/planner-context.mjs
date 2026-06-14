@@ -3,6 +3,35 @@ function toNumber(value, fallback = 0) {
     return Number.isFinite(number) ? number : fallback;
 }
 
+function collectionContents(collection) {
+    if (!collection) return [];
+    if (Array.isArray(collection)) return collection;
+    if (Array.isArray(collection.contents)) return collection.contents;
+    if (typeof collection.values === "function") return Array.from(collection.values());
+    if (typeof collection[Symbol.iterator] === "function") return Array.from(collection);
+    return [];
+}
+
+function combatantContents(combat = null) {
+    const entries = [
+        ...collectionContents(combat?.combatants),
+        ...collectionContents(combat?.turns)
+    ];
+    return entries.filter((entry, index, list) => {
+        const id = String(entry?.id ?? entry?._id ?? "");
+        if (!id) return true;
+        return list.findIndex((candidate) => String(candidate?.id ?? candidate?._id ?? "") === id) === index;
+    });
+}
+
+function getCombatantById(combat = null, combatantId = "") {
+    const id = String(combatantId ?? "").trim();
+    if (!id) return null;
+    return combat?.combatants?.get?.(id)
+        ?? combatantContents(combat).find((entry) => String(entry?.id ?? entry?._id ?? "") === id)
+        ?? null;
+}
+
 function pickPreferredCombatant(combatants = []) {
     if (!combatants.length) return null;
     if (combatants.length === 1) return combatants[0];
@@ -77,14 +106,15 @@ function findCombatantForActor(combat, actor, tokenDocument = null) {
         }
     }
 
-    const byExplicitToken = (combat.combatants?.contents ?? []).filter(
+    const combatants = combatantContents(combat);
+    const byExplicitToken = combatants.filter(
         (entry) => explicitTokenIds.has(entry.tokenId) || explicitTokenIds.has(entry.token?.id)
     );
     if (byExplicitToken.length) {
         return pickPreferredCombatant(byExplicitToken);
     }
 
-    const byToken = (combat.combatants?.contents ?? []).filter(
+    const byToken = combatants.filter(
         (entry) => tokenIds.has(entry.tokenId) || tokenIds.has(entry.token?.id)
     );
     if (byToken.length) {
@@ -104,7 +134,7 @@ function findCombatantForActor(combat, actor, tokenDocument = null) {
         return pickPreferredCombatant(byActor);
     }
 
-    const actorMatches = (combat.combatants?.contents ?? []).filter((entry) => (
+    const actorMatches = combatants.filter((entry) => (
         actorIds.has(entry.actorId)
         || actorIds.has(entry.actor?.id)
         || actorIds.has(entry.token?.actorId)
@@ -214,7 +244,7 @@ function buildEncounterPlannerFromResolvedCombatant({ actor = null, tokenDocumen
     const queue = combat.getCombatantPlan?.(combatant.id) ?? [];
     const apBudget = Number(combat.apBudget ?? 6);
     const plannedAp = queue.reduce((sum, action) => sum + toNumber(action.apCost, 0), 0);
-    const combatants = combat.combatants?.contents ?? [];
+    const combatants = combatantContents(combat);
     const committedCount = combatants.filter((entry) => Boolean(combat.getCombatantState?.(entry.id)?.ready)).length;
     const round = Number(combat.encounterState?.round ?? combat.round ?? 1);
     const remainingAp = Number(combat.getCombatantRemainingAp?.(combatant.id) ?? 0);
@@ -267,9 +297,7 @@ function buildEncounterPlanner(actor, tokenDocument = null) {
 }
 
 function buildEncounterPlannerForCombatant({ actor = null, tokenDocument = null, combat = null, combatantId = "" } = {}) {
-    const combatant = (combat?.combatants?.contents ?? []).find((entry) => String(entry?.id ?? "") === String(combatantId ?? ""))
-        ?? combat?.combatants?.get?.(combatantId)
-        ?? null;
+    const combatant = getCombatantById(combat, combatantId);
     const resolvedActor = actor ?? combatant?.actor ?? tokenDocument?.actor ?? null;
     return buildEncounterPlannerFromResolvedCombatant({
         actor: resolvedActor,

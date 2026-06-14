@@ -82,4 +82,40 @@ describe("encounter planner context", () => {
         assert.deepEqual(planner.queue.map((action) => action.id), ["dodge"]);
         assert.deepEqual(planner.availableActions.map((action) => action.id), ["move"]);
     });
+
+    it("builds a planner from combat turns when the combatants collection has no contents", async () => {
+        const { buildEncounterPlannerForCombatant } = await loadPlannerContext();
+        const actor = actorFixture("actor-ada", "Ada Price");
+        const combatant = { id: "combatant-ada", actor, actorId: actor.id, tokenId: "token-ada" };
+        const combat = {
+            id: "combat-1",
+            name: "Rookery Ambush",
+            phase: "planning",
+            round: 1,
+            apBudget: 6,
+            planningRemainingSeconds: 42,
+            combatants: {
+                contents: [],
+                get: () => null
+            },
+            turns: [combatant],
+            encounterState: { initialized: true },
+            getCombatantState: () => ({ ready: false, spentAp: 0, plan: [] }),
+            getCombatantPlan: () => [],
+            getCombatantRemainingAp: () => 6,
+            getAvailableActionsForCombatant: () => [{ id: "move", actionId: "move", type: "movement", label: "Move", apCost: 1 }],
+            getTargetOptionsForCombatant: () => []
+        };
+
+        const planner = buildEncounterPlannerForCombatant({
+            actor,
+            tokenDocument: { id: "token-ada", actor },
+            combat,
+            combatantId: "combatant-ada"
+        });
+
+        assert.equal(planner.combatantId, "combatant-ada");
+        assert.equal(planner.combatantCount, 1);
+        assert.deepEqual(planner.availableActions.map((action) => action.id), ["move"]);
+    });
 });
