@@ -4359,6 +4359,25 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     resize: vertical;
 }
 
+.turn-of-the-century .totc-v2-actor-editor__section-fields {
+    align-items: flex-start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.6rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__section-fields .totc-v2-actor-editor__field {
+    flex: 1 1 13rem;
+    max-width: 18rem;
+    min-width: min(100%, 10.5rem);
+}
+
+.turn-of-the-century .totc-v2-actor-editor__section-fields .totc-v2-actor-editor__field--textarea,
+.turn-of-the-century .totc-v2-actor-editor__section-fields .totc-v2-actor-editor__field--html {
+    flex-basis: 20rem;
+    max-width: 32rem;
+}
+
 .turn-of-the-century .totc-v2-actor-editor__field--html {
     gap: 0.3rem;
 }

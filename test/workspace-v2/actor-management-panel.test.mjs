@@ -87,6 +87,12 @@ describe("Actor management panel", () => {
         assert.match(styles, /\.totc-v2-actor-list-panel__entry-meta\s*\{[\s\S]*justify-self:\s*start;/);
     });
 
+    it("styles actor details sections as wrapping rows of compact fields", () => {
+        assert.match(styles, /\.totc-v2-actor-editor__section-fields\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-wrap:\s*wrap;/);
+        assert.match(styles, /\.totc-v2-actor-editor__section-fields \.totc-v2-actor-editor__field\s*\{[\s\S]*flex:\s*1 1 13rem;[\s\S]*max-width:\s*18rem;/);
+        assert.match(styles, /\.totc-v2-actor-editor__section-fields \.totc-v2-actor-editor__field--textarea,[\s\S]*\.totc-v2-actor-editor__section-fields \.totc-v2-actor-editor__field--html\s*\{[\s\S]*flex-basis:\s*20rem;[\s\S]*max-width:\s*32rem;/);
+    });
+
     it("builds drag payloads from the current multi-selection", () => {
         assert.deepEqual(buildActorListDragPayload({
             actorId: "b",
@@ -135,6 +141,7 @@ describe("Actor management panel", () => {
         assert.match(html, /data-action="actor-editor-save-form"/);
         assert.match(html, /name="system.profile.role"/);
         assert.match(html, /Investigator/);
+        assert.match(html, /totc-v2-actor-editor__section-fields/);
         assert.match(html, /<button type="submit"[^>]*disabled/);
     });
 
@@ -161,6 +168,7 @@ describe("Actor management panel", () => {
 
         assert.match(html, /totc-v2-actor-editor__section--abilities/);
         assert.match(html, /totc-v2-actor-editor__ability-scores/);
+        assert.ok(html.indexOf("totc-v2-actor-editor__section--abilities") < html.indexOf("<legend>Identity</legend>"));
         assert.match(html, /<span class="totc-v2-actor-editor__ability-label">STR<\/span>/);
         assert.match(html, /<strong class="totc-v2-actor-editor__ability-modifier">-1<\/strong>/);
         assert.match(html, /<strong class="totc-v2-actor-editor__ability-modifier">\+2<\/strong>/);

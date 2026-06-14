@@ -284,10 +284,16 @@ export function buildGeneratedActorDocumentData(result = {}, actorType = DEFAULT
 }
 
 function renderField(field, escapeHTML) {
+    const fieldClass = [
+        "totc-v2-actor-editor__field",
+        field.type === "textarea" ? "totc-v2-actor-editor__field--textarea" : "",
+        field.type === "html" ? "totc-v2-actor-editor__field--html" : ""
+    ].filter(Boolean).join(" ");
+
     if (field.type === "html") {
         const htmlClass = ["totc-v2-actor-editor__html", field.className].filter(Boolean).join(" ");
         return `
-        <div class="totc-v2-actor-editor__field totc-v2-actor-editor__field--html">
+        <div class="${escapeHTML(fieldClass)}">
             <span>${escapeHTML(field.label)}</span>
             <div class="${escapeHTML(htmlClass)}">${String(field.value ?? "")}</div>
         </div>`;
@@ -298,7 +304,7 @@ function renderField(field, escapeHTML) {
     const control = field.type === "textarea"
         ? `<textarea ${common}>${value}</textarea>`
         : `<input ${common} type="${escapeHTML(field.type ?? "text")}" value="${value}">`;
-    return `<label class="totc-v2-actor-editor__field"><span>${escapeHTML(field.label)}</span>${control}</label>`;
+    return `<label class="${escapeHTML(fieldClass)}"><span>${escapeHTML(field.label)}</span>${control}</label>`;
 }
 
 function renderAbilityField(field, escapeHTML) {
@@ -318,7 +324,7 @@ function renderFieldSection(title, fields, escapeHTML) {
         <legend>${escapeHTML(title)}</legend>
         ${isAbilitySection
             ? `<div class="totc-v2-actor-editor__ability-scores">${fields.map((field) => renderAbilityField(field, escapeHTML)).join("")}</div>`
-            : fields.map((field) => renderField(field, escapeHTML)).join("")}
+            : `<div class="totc-v2-actor-editor__section-fields">${fields.map((field) => renderField(field, escapeHTML)).join("")}</div>`}
     </fieldset>`;
 }
 
@@ -391,6 +397,11 @@ export function renderActorEditorPanel(model = {}, { escapeHTML = (value) => Str
         if (!sections.has(field.section)) sections.set(field.section, []);
         sections.get(field.section).push(field);
     }
+    const sectionEntries = Array.from(sections.entries()).sort(([left], [right]) => {
+        if (left === "Abilities") return -1;
+        if (right === "Abilities") return 1;
+        return 0;
+    });
 
     return `
     <section class="totc-v2-actor-editor">
@@ -403,7 +414,7 @@ export function renderActorEditorPanel(model = {}, { escapeHTML = (value) => Str
         <form class="totc-v2-actor-editor__form" data-action="actor-editor-save-form">
             <input type="hidden" name="actorId" value="${escapeHTML(model.actorId)}">
             <div class="totc-v2-actor-editor__sections">
-                ${Array.from(sections.entries()).map(([title, fields]) => renderFieldSection(title, fields, escapeHTML)).join("")}
+                ${sectionEntries.map(([title, fields]) => renderFieldSection(title, fields, escapeHTML)).join("")}
             </div>
             <footer class="totc-v2-actor-editor__actions">
                 <button type="submit" class="totc-v2-actor-editor__primary" data-action="actor-editor-save" ${model.dirty ? "" : "disabled"}>Save</button>
