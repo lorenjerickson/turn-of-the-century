@@ -21,6 +21,16 @@ function buildCompendiumSemanticKey(entry) {
     return `${type}|${name}`;
 }
 
+function stripHtml(value) {
+    return String(value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function briefDescription(value, maxLength = 96) {
+    const description = stripHtml(value);
+    if (description.length <= maxLength) return description;
+    return `${description.slice(0, maxLength - 1).trim()}...`;
+}
+
 function isBetterSemanticCompendiumEntry(candidate, existing) {
     const existingAggregate = Boolean(existing?.aggregate);
     const candidateAggregate = Boolean(candidate?.aggregate);
@@ -68,7 +78,7 @@ export async function loadUnifiedCompendiumItems({
         const aggregate = isAggregateCompendiumPack(pack);
         let indexEntries = [];
         try {
-            const rawIndex = await pack.getIndex({ fields: ["name", "img", "type"] });
+            const rawIndex = await pack.getIndex({ fields: ["name", "img", "type", "system.description"] });
             indexEntries = normalizeIndexEntries(rawIndex);
             loadedPackCount += 1;
             indexedEntryCount += indexEntries.length;
@@ -91,6 +101,8 @@ export async function loadUnifiedCompendiumItems({
                 uuid,
                 name: entry?.name ?? "Unnamed Entry",
                 type: String(entry?.type ?? "item"),
+                img: String(entry?.img ?? "").trim(),
+                description: briefDescription(entry?.system?.description),
                 packLabel: getPackLabel(pack),
                 aggregate
             };

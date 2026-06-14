@@ -5,6 +5,22 @@ export const MARKET_TRADABLE_ITEM_TYPES = Object.freeze(new Set([
     "consumable",
     "item"
 ]));
+const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
+
+function stripHtml(value) {
+    return String(value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function briefDescription(value, maxLength = 96) {
+    const description = stripHtml(value);
+    if (description.length <= maxLength) return description;
+    return `${description.slice(0, maxLength - 1).trim()}...`;
+}
+
+function itemImage(item) {
+    const system = item?.system?.toObject?.() ?? item?.system ?? {};
+    return String(item?.img ?? system.artwork?.image ?? "").trim() || DEFAULT_ITEM_ICON;
+}
 
 export function normalizeMarketPanelState(value = {}) {
     return {
@@ -73,6 +89,9 @@ export class MarketController {
             return {
                 id: String(offer.id),
                 name: String(offer.name ?? "Unnamed Item"),
+                type: String(offer.type ?? "item"),
+                img: String(offer.img ?? "").trim() || DEFAULT_ITEM_ICON,
+                description: briefDescription(offer.description),
                 packLabel: String(offer.packLabel ?? "Market Stock"),
                 stockLabel: `Stock ${stock}`,
                 priceLabel: this.formatCurrency(price, offer.currency),
@@ -134,6 +153,8 @@ export class MarketController {
                     uuid: String(offer?.uuid ?? ""),
                     name: String(offer?.name ?? "Unnamed Item"),
                     type: String(offer?.type ?? "item"),
+                    img: String(offer?.img ?? "").trim() || DEFAULT_ITEM_ICON,
+                    description: briefDescription(offer?.description),
                     packLabel: String(offer?.packLabel ?? "Market Stock"),
                     price: Math.max(0, Number(offer?.price ?? 0)),
                     basePrice: Math.max(0, Number(offer?.basePrice ?? offer?.price ?? 0)),
@@ -176,6 +197,9 @@ export class MarketController {
                 return {
                     id: String(item?.id ?? ""),
                     name: String(item?.name ?? "Unnamed Item"),
+                    type: String(item?.type ?? "item"),
+                    img: itemImage(item),
+                    description: briefDescription(item?.system?.description),
                     quantity,
                     basePrice,
                     currency,
@@ -217,6 +241,8 @@ export class MarketController {
                 basePrice = Math.max(0, Number(document?.system?.value?.price ?? basePrice));
                 currency = String(document?.system?.value?.currency ?? currency);
                 type = String(document?.type ?? type);
+                entry.img = itemImage(document ?? entry);
+                entry.description = briefDescription(document?.system?.description ?? entry?.description);
             } catch (error) {
                 this.logger?.warn?.("[turn-of-the-century] Failed to resolve market item uuid", entry?.uuid, error);
             }
@@ -227,6 +253,8 @@ export class MarketController {
                 uuid: String(entry?.uuid ?? ""),
                 name: String(entry?.name ?? "Unnamed Item"),
                 type,
+                img: String(entry?.img ?? "").trim() || DEFAULT_ITEM_ICON,
+                description: briefDescription(entry?.description),
                 packLabel: String(entry?.packLabel ?? "Market Stock"),
                 basePrice,
                 price: Math.max(1, Math.round(basePrice * (1.1 + this.random() * 0.45) * 100) / 100),
@@ -386,6 +414,8 @@ export class MarketController {
                 uuid: "",
                 name: String(item.name ?? "Sold Item"),
                 type: String(item.type ?? "item"),
+                img: itemImage(item),
+                description: briefDescription(item?.system?.description),
                 packLabel: "Party Stock",
                 price: Math.max(1, Math.round(basePrice * Math.max(1, Number(marketState.buyMarkup ?? 1.2)) * 100) / 100),
                 basePrice,

@@ -93,6 +93,15 @@ describe("Actor management panel", () => {
         assert.match(styles, /\.totc-v2-actor-editor__section-fields \.totc-v2-actor-editor__field--textarea,[\s\S]*\.totc-v2-actor-editor__section-fields \.totc-v2-actor-editor__field--html\s*\{[\s\S]*flex-basis:\s*20rem;[\s\S]*max-width:\s*32rem;/);
     });
 
+    it("styles actor equipment as a mannequin layout with belt slots below", () => {
+        assert.match(styles, /\.totc-v2-actor-equipment__body\s*\{[\s\S]*grid-template-areas:/);
+        assert.match(styles, /"\. head \."/);
+        assert.match(styles, /"hand-left torso hand-right"/);
+        assert.match(styles, /"\. feet \."/);
+        assert.match(styles, /\.totc-v2-actor-equipment__belt\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-wrap:\s*wrap;[\s\S]*justify-content:\s*center;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__item\s*\{[\s\S]*grid-template-columns:\s*2rem minmax\(0, 1fr\);/);
+    });
+
     it("builds drag payloads from the current multi-selection", () => {
         assert.deepEqual(buildActorListDragPayload({
             actorId: "b",
@@ -175,6 +184,50 @@ describe("Actor management panel", () => {
         assert.match(html, /class="totc-v2-actor-editor__ability-score"[^>]+name="system\.abilities\.int\.value"[^>]+type="number"[^>]+value="14"/);
     });
 
+    it("renders an equipment mannequin with compatible item selectors and item summaries", () => {
+        const actor = {
+            id: "a",
+            name: "Ada Finch",
+            type: "hero",
+            items: {
+                contents: [
+                    { id: "hat", name: "Oilskin Hat", type: "armor", img: "", system: { slot: "head", description: "<p>Keeps rain out of suspicious eyes.</p>" } },
+                    { id: "revolver", name: "Service Revolver", type: "weapon", img: "revolver.webp", system: { slot: "hands", description: "<p>A six-shot sidearm.</p>" } },
+                    { id: "vest", name: "Mourning Silk Vest", type: "armor", img: "vest.webp", system: { slot: "torso", description: "<p>Armored formal wear.</p>" } },
+                    { id: "tonic", name: "Nightwatch Tonic", type: "consumable", img: "tonic.webp", system: { slot: "belt", description: "<p>Sharpens attention briefly.</p>" } }
+                ]
+            },
+            system: {
+                abilities: { str: { value: 9 }, dex: { value: 12 }, con: { value: 10 }, int: { value: 14 }, wis: { value: 13 }, cha: { value: 11 }, san: { value: 8 } },
+                inventory: {
+                    equipment: {
+                        head: { label: "Head", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: ["hat"] },
+                        neck: { label: "Neck", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
+                        torso: { label: "Torso", capacity: 2, allowedTypes: ["armor", "equipment", "item"], itemIds: ["vest"] },
+                        hands: { label: "Hands", capacity: 2, allowedTypes: ["armor", "weapon", "tool", "equipment"], itemIds: ["revolver"] },
+                        legs: { label: "Legs", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
+                        feet: { label: "Feet", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
+                        belt: { label: "Belt", capacity: 4, quality: "standard", allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"], itemIds: ["tonic"] }
+                    }
+                }
+            }
+        };
+
+        const model = buildActorEditorPanelModel({ actor, state: { mode: "edit" } });
+        const html = renderActorEditorPanel(model, { escapeHTML });
+
+        assert.match(html, /totc-v2-actor-editor__section--equipment/);
+        assert.match(html, /totc-v2-actor-equipment__slot--head/);
+        assert.match(html, /totc-v2-actor-equipment__slot--hand-left/);
+        assert.match(html, /totc-v2-actor-equipment__belt/);
+        assert.match(html, /<img src="icons\/svg\/item-bag\.svg" alt="">/);
+        assert.match(html, /<strong>Oilskin Hat<\/strong>/);
+        assert.match(html, /Armor - Keeps rain out of suspicious eyes\./);
+        assert.match(html, /name="system\.inventory\.equipment\.hands\.itemIds\.0"[^>]*data-action="actor-editor-field"/);
+        assert.match(html, /<option value="revolver" selected >Service Revolver \(Weapon\) - A six-shot sidearm\.<\/option>/);
+        assert.doesNotMatch(html, /<option value="tonic"[^>]*>Nightwatch Tonic \(Consumable\)[^<]*<\/option>[\s\S]*name="system\.inventory\.equipment\.hands/);
+    });
+
     it("renders biography and GM notes as injected HTML instead of editable textareas", () => {
         const actor = {
             id: "a",
@@ -201,7 +254,10 @@ describe("Actor management panel", () => {
             ["name", "Ada Finch"],
             ["system.progression.level", "3"],
             ["system.profile.tags", "inspector, meticulous"],
-            ["system.abilities.int.value", "15"]
+            ["system.abilities.int.value", "15"],
+            ["system.inventory.equipment.hands.itemIds.0", "revolver"],
+            ["system.inventory.equipment.hands.itemIds.1", ""],
+            ["system.inventory.equipment.belt.itemIds.0", "tonic"]
         ]);
 
         assert.deepEqual(buildActorUpdateDataFromFormData(formData), {
@@ -209,7 +265,13 @@ describe("Actor management panel", () => {
             system: {
                 progression: { level: 3 },
                 profile: { tags: ["inspector", "meticulous"] },
-                abilities: { int: { value: 15 } }
+                abilities: { int: { value: 15 } },
+                inventory: {
+                    equipment: {
+                        hands: { itemIds: ["revolver"] },
+                        belt: { itemIds: ["tonic"] }
+                    }
+                }
             }
         });
     });

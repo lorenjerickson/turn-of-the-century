@@ -27,4 +27,14 @@ describe("actor sheet templates", () => {
             );
         }
     });
+
+    it("renders inventory item lists with icon, name, type, and description slots", () => {
+        for (const { fileName, source } of actorSheetTemplates) {
+            assert.match(source, /<img src="\{\{item\.img\}\}" alt="\{\{item\.name\}\}" \/>/, fileName);
+            assert.match(source, /<span class="totc-inventory-item__body">/, fileName);
+            assert.match(source, /<strong>\{\{item\.name\}\}<\/strong>/, fileName);
+            assert.match(source, /<span>\{\{item\.type\}\}<\/span>/, fileName);
+            assert.match(source, /<small>\{\{item\.description\}\}<\/small>/, fileName);
+        }
+    });
 });

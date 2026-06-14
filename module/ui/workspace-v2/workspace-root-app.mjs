@@ -138,6 +138,29 @@ import {
     buildSceneGridOverlayState,
     GRID_CAL_PHASE_HINTS
 } from "./panels/grid-calibration.mjs";
+
+const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
+
+function stripHtml(value) {
+    return String(value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function briefItemDescription(value, maxLength = 96) {
+    const description = stripHtml(value);
+    if (description.length <= maxLength) return description;
+    return `${description.slice(0, maxLength - 1).trim()}...`;
+}
+
+function buildWorkspaceItemSummary(item = {}) {
+    const system = item?.system?.toObject?.() ?? item?.system ?? {};
+    return {
+        id: String(item?.id ?? item?._id ?? ""),
+        name: String(item?.name ?? "Unnamed Item"),
+        type: String(item?.type ?? "item"),
+        img: String(item?.img ?? system.artwork?.image ?? "").trim() || DEFAULT_ITEM_ICON,
+        description: briefItemDescription(system.description ?? item?.description ?? "")
+    };
+}
 import {
     buildScenePropertiesPanelModel,
 } from "./panels/scene-properties-panel.mjs";
@@ -556,10 +579,7 @@ function buildPlayerPanelModel({ actor = null, combat = null, panelState = {}, a
     const equippedIds = new Set(Object.values(equipmentSlots).flatMap((slot) => Array.isArray(slot?.itemIds) ? slot.itemIds : []).filter(Boolean));
     const allItems = Array.isArray(actor?.items?.contents) ? actor.items.contents : [];
     const actorItems = allItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        type: String(item.type ?? "item"),
-        img: item.img ?? "",
+        ...buildWorkspaceItemSummary(item),
         quantity: Math.max(0, Math.floor(Number(item.system?.physical?.quantity ?? 1))),
         value: Math.max(0, Number(item.system?.value?.price ?? 0)),
         slot: String(item.system?.slot ?? ""),
@@ -574,12 +594,7 @@ function buildPlayerPanelModel({ actor = null, combat = null, panelState = {}, a
             items: (Array.isArray(slot?.itemIds) ? slot.itemIds : [])
                 .map((itemId) => allItems.find((item) => item.id === itemId))
                 .filter(Boolean)
-                .map((item) => ({
-                    id: item.id,
-                    name: item.name,
-                    type: String(item.type ?? "item"),
-                    img: item.img ?? ""
-                }))
+                .map((item) => buildWorkspaceItemSummary(item))
         }));
 
     const inventoryItems = actorItems
@@ -2806,9 +2821,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             return `
             <ul class="totc-v2-player-panel__list">
                 ${(section.items ?? []).map((item) => `
-                    <li class="totc-v2-player-panel__list-item">
-                        <strong>${this.#escapeHTML(item.name)}</strong>
-                        <span>${this.#escapeHTML(item.type)}${item.quantity > 1 ? ` × ${item.quantity}` : ""}</span>
+                    <li class="totc-v2-player-panel__list-item totc-v2-player-panel__item-row">
+                        <img class="totc-v2-player-panel__item-img" src="${this.#escapeHTML(item.img || DEFAULT_ITEM_ICON)}" alt="">
+                        <span class="totc-v2-player-panel__item-main">
+                            <strong>${this.#escapeHTML(item.name)}</strong>
+                            <span>${this.#escapeHTML(item.type)}${item.quantity > 1 ? ` x ${item.quantity}` : ""}</span>
+                            ${item.description ? `<small>${this.#escapeHTML(item.description)}</small>` : ""}
+                        </span>
                     </li>`).join("")}
             </ul>`;
         }
@@ -2821,9 +2840,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                         <h4>${this.#escapeHTML(slot.label)}</h4>
                         <ul class="totc-v2-player-panel__list">
                             ${(slot.items ?? []).map((item) => `
-                                <li class="totc-v2-player-panel__list-item">
-                                    <strong>${this.#escapeHTML(item.name)}</strong>
-                                    <span>${this.#escapeHTML(item.type)}</span>
+                                <li class="totc-v2-player-panel__list-item totc-v2-player-panel__item-row">
+                                    <img class="totc-v2-player-panel__item-img" src="${this.#escapeHTML(item.img || DEFAULT_ITEM_ICON)}" alt="">
+                                    <span class="totc-v2-player-panel__item-main">
+                                        <strong>${this.#escapeHTML(item.name)}</strong>
+                                        <span>${this.#escapeHTML(item.type)}</span>
+                                        ${item.description ? `<small>${this.#escapeHTML(item.description)}</small>` : ""}
+                                    </span>
                                 </li>`).join("")}
                         </ul>
                     </article>`).join("")}
@@ -3155,8 +3178,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const offersMarkup = (marketPanel.offers ?? []).map((offer) => `
             <article class="totc-v2-market-panel__entry">
                 <div class="totc-v2-market-panel__entry-main">
-                    <div class="totc-v2-market-panel__entry-name">${this.#escapeHTML(offer.name)}</div>
-                    <div class="totc-v2-market-panel__entry-meta">${this.#escapeHTML(offer.stockLabel)} · ${this.#escapeHTML(offer.packLabel)}</div>
+                    <img class="totc-v2-market-panel__entry-img" src="${this.#escapeHTML(offer.img || DEFAULT_ITEM_ICON)}" alt="">
+                    <div class="totc-v2-market-panel__entry-copy">
+                        <div class="totc-v2-market-panel__entry-name">${this.#escapeHTML(offer.name)}</div>
+                        <div class="totc-v2-market-panel__entry-meta">${this.#escapeHTML(offer.type)} · ${this.#escapeHTML(offer.stockLabel)} · ${this.#escapeHTML(offer.packLabel)}</div>
+                        ${offer.description ? `<div class="totc-v2-market-panel__entry-description">${this.#escapeHTML(offer.description)}</div>` : ""}
+                    </div>
                 </div>
                 <div class="totc-v2-market-panel__entry-actions">
                     <span class="totc-v2-market-panel__price">${this.#escapeHTML(offer.priceLabel)}</span>
@@ -3185,8 +3212,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const sellMarkup = (marketPanel.sellableItems ?? []).map((entry) => `
             <article class="totc-v2-market-panel__entry">
                 <div class="totc-v2-market-panel__entry-main">
-                    <div class="totc-v2-market-panel__entry-name">${this.#escapeHTML(entry.name)}</div>
-                    <div class="totc-v2-market-panel__entry-meta">Qty ${entry.quantity} · Base ${this.#escapeHTML(entry.basePriceLabel)}</div>
+                    <img class="totc-v2-market-panel__entry-img" src="${this.#escapeHTML(entry.img || DEFAULT_ITEM_ICON)}" alt="">
+                    <div class="totc-v2-market-panel__entry-copy">
+                        <div class="totc-v2-market-panel__entry-name">${this.#escapeHTML(entry.name)}</div>
+                        <div class="totc-v2-market-panel__entry-meta">${this.#escapeHTML(entry.type)} · Qty ${entry.quantity} · Base ${this.#escapeHTML(entry.basePriceLabel)}</div>
+                        ${entry.description ? `<div class="totc-v2-market-panel__entry-description">${this.#escapeHTML(entry.description)}</div>` : ""}
+                    </div>
                 </div>
                 <div class="totc-v2-market-panel__entry-actions">
                     <span class="totc-v2-market-panel__price">${this.#escapeHTML(entry.sellPriceLabel)}</span>

@@ -40,6 +40,8 @@ describe("unified compendium item loading", () => {
             uuid: "Compendium.turn-of-the-century.starter-items.lantern",
             name: "Bullseye Lantern",
             type: "equipment",
+            img: "",
+            description: "",
             packLabel: "Starter Library: Items"
         }]);
     });
@@ -66,6 +68,8 @@ describe("unified compendium item loading", () => {
             uuid: "Compendium.turn-of-the-century.equipment.equipment-lantern",
             name: "Bullseye Lantern",
             type: "equipment",
+            img: "",
+            description: "",
             packLabel: "Equipment"
         });
     });

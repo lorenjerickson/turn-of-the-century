@@ -118,7 +118,11 @@
                                         {{#each slot.equippedItems as |item|}}
                                             <li class="totc-inventory-item">
                                                 <img src="{{item.img}}" alt="{{item.name}}" />
-                                                <span>{{item.name}} ({{item.type}})</span>
+                                                <span class="totc-inventory-item__body">
+                                                    <strong>{{item.name}}</strong>
+                                                    <span>{{item.type}}</span>
+                                                    <small>{{item.description}}</small>
+                                                </span>
                                             </li>
                                         {{/each}}
                                     </ul>
@@ -137,7 +141,11 @@
                             {{#each inventorySummary.packItems as |item|}}
                                 <li class="totc-inventory-item">
                                     <img src="{{item.img}}" alt="{{item.name}}" />
-                                    <span>{{item.name}} ({{item.type}})</span>
+                                    <span class="totc-inventory-item__body">
+                                        <strong>{{item.name}}</strong>
+                                        <span>{{item.type}}</span>
+                                        <small>{{item.description}}</small>
+                                    </span>
                                 </li>
                             {{/each}}
                         </ul>
@@ -153,7 +161,11 @@
                             {{#each inventorySummary.otherItems as |item|}}
                                 <li class="totc-inventory-item">
                                     <img src="{{item.img}}" alt="{{item.name}}" />
-                                    <span>{{item.name}} ({{item.type}})</span>
+                                    <span class="totc-inventory-item__body">
+                                        <strong>{{item.name}}</strong>
+                                        <span>{{item.type}}</span>
+                                        <small>{{item.description}}</small>
+                                    </span>
                                 </li>
                             {{/each}}
                         </ul>

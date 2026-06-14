@@ -583,9 +583,39 @@
 
 .turn-of-the-century.sheet.actor .totc-inventory-item img {
     border-radius: 4px;
+    flex: 0 0 auto;
     height: 28px;
     object-fit: cover;
     width: 28px;
+}
+
+.turn-of-the-century.sheet.actor .totc-inventory-item__body {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    text-align: left;
+}
+
+.turn-of-the-century.sheet.actor .totc-inventory-item__body strong {
+    color: #2b241c;
+    font-size: 0.86rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.turn-of-the-century.sheet.actor .totc-inventory-item__body span,
+.turn-of-the-century.sheet.actor .totc-inventory-item__body small {
+    color: #5f574c;
+    font-size: 0.72rem;
+    line-height: 1.25;
+}
+
+.turn-of-the-century.sheet.actor .totc-inventory-item__body small {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
 }
 
 .turn-of-the-century .totc-encounter-meta {
@@ -3486,6 +3516,22 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
 
 .turn-of-the-century .totc-v2-compendium-panel__entry {
     cursor: default;
+    display: grid;
+    gap: 0.45rem;
+    grid-template-columns: 2.2rem minmax(0, 1fr);
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__entry-img {
+    background: rgba(30, 41, 59, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 5px;
+    height: 2.2rem;
+    object-fit: cover;
+    width: 2.2rem;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__entry-main {
+    min-width: 0;
 }
 
 .turn-of-the-century .totc-v2-compendium-panel__entry-name {
@@ -3498,6 +3544,17 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     color: #94a3b8;
     font-size: 0.72rem;
     margin-top: 0.15rem;
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__entry-description {
+    color: #cbd5e1;
+    display: -webkit-box;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    margin-top: 0.18rem;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
 }
 
 .turn-of-the-century .totc-v2-compendium-panel__empty {
@@ -4472,6 +4529,147 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     margin: 0;
 }
 
+.turn-of-the-century .totc-v2-actor-equipment {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__body {
+    align-items: stretch;
+    display: grid;
+    gap: 0.45rem 0.6rem;
+    grid-template-areas:
+        ". head ."
+        ". neck ."
+        "hand-left torso hand-right"
+        "hand-left torso-extra hand-right"
+        ". legs ."
+        ". feet .";
+    grid-template-columns: minmax(8.5rem, 1fr) minmax(10rem, 1.1fr) minmax(8.5rem, 1fr);
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__belt {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__slot {
+    background: rgba(15, 23, 42, 0.42);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 6px;
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    padding: 0.45rem;
+    text-align: left;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__slot--head {
+    grid-area: head;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__slot--neck {
+    grid-area: neck;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__slot--torso {
+    grid-area: torso;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__slot--torso-extra {
+    grid-area: torso-extra;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__slot--hand-left {
+    grid-area: hand-left;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__slot--hand-right {
+    grid-area: hand-right;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__slot--legs {
+    grid-area: legs;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__slot--feet {
+    grid-area: feet;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__slot--belt {
+    flex: 1 1 11rem;
+    max-width: 16rem;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__slot-label {
+    color: #fde68a;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__item {
+    align-items: center;
+    display: grid;
+    gap: 0.45rem;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    min-width: 0;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__item img {
+    background: rgba(30, 41, 59, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 5px;
+    height: 2rem;
+    object-fit: cover;
+    width: 2rem;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__item strong {
+    color: #e2e8f0;
+    display: block;
+    font-size: 0.78rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__item span {
+    color: #94a3b8;
+    display: -webkit-box;
+    font-size: 0.68rem;
+    line-height: 1.25;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__item.is-empty strong {
+    color: #cbd5e1;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__slot select {
+    min-width: 0;
+    width: 100%;
+}
+
+@media (max-width: 720px) {
+    .turn-of-the-century .totc-v2-actor-equipment__body {
+        grid-template-areas:
+            "head"
+            "neck"
+            "torso"
+            "torso-extra"
+            "hand-left"
+            "hand-right"
+            "legs"
+            "feet";
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .turn-of-the-century .totc-v2-actor-list-panel__summary {
     color: #94a3b8;
     font-size: 0.75rem;
@@ -5115,16 +5313,51 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.turn-of-the-century .totc-v2-market-panel__entry-main {
+    align-items: center;
+    display: grid;
+    gap: 0.45rem;
+    grid-template-columns: 2.2rem minmax(0, 1fr);
+    min-width: 0;
+}
+
+.turn-of-the-century .totc-v2-market-panel__entry-img {
+    background: rgba(30, 41, 59, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 5px;
+    height: 2.2rem;
+    object-fit: cover;
+    width: 2.2rem;
+}
+
+.turn-of-the-century .totc-v2-market-panel__entry-copy {
+    min-width: 0;
+}
+
 .turn-of-the-century .totc-v2-market-panel__entry-name {
     color: #e2e8f0;
     font-size: 0.82rem;
     font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .turn-of-the-century .totc-v2-market-panel__entry-meta {
     color: #94a3b8;
     font-size: 0.72rem;
     margin-top: 0.12rem;
+}
+
+.turn-of-the-century .totc-v2-market-panel__entry-description {
+    color: #cbd5e1;
+    display: -webkit-box;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    margin-top: 0.16rem;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
 }
 
 .turn-of-the-century .totc-v2-market-panel__entry-actions {
@@ -5354,6 +5587,38 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     color: #94a3b8;
     font-size: 0.74rem;
     margin: 0;
+}
+
+.turn-of-the-century .totc-v2-player-panel__item-row {
+    align-items: center;
+    display: grid;
+    gap: 0.45rem;
+    grid-template-columns: 2rem minmax(0, 1fr);
+}
+
+.turn-of-the-century .totc-v2-player-panel__item-img {
+    background: rgba(30, 41, 59, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 5px;
+    height: 2rem;
+    object-fit: cover;
+    width: 2rem;
+}
+
+.turn-of-the-century .totc-v2-player-panel__item-main {
+    display: grid;
+    gap: 0.08rem;
+    min-width: 0;
+}
+
+.turn-of-the-century .totc-v2-player-panel__item-main small {
+    color: #cbd5e1;
+    display: -webkit-box;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
 }
 
 .turn-of-the-century .totc-v2-player-panel__action-grid,

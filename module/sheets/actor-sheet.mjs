@@ -24,6 +24,7 @@ function toArray(value) {
 }
 
 const EQUIPMENT_SLOT_FORM_PREFIX = "_slot.system.inventory.equipment.";
+const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
 const BELT_QUALITY_CAPACITY = {
     poor: 2,
     standard: 4,
@@ -55,6 +56,27 @@ function formatTypeLabel(type) {
         .replace(/([A-Z])/g, " $1")
         .replace(/^./, (value) => value.toUpperCase())
         .trim();
+}
+
+function stripHtml(value) {
+    return String(value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function briefDescription(value, maxLength = 96) {
+    const description = stripHtml(value);
+    if (description.length <= maxLength) return description;
+    return `${description.slice(0, maxLength - 1).trim()}...`;
+}
+
+function summarizeInventoryItem(item) {
+    const system = item?.system?.toObject?.() ?? item?.system ?? {};
+    return {
+        id: item.id,
+        name: item.name,
+        type: formatTypeLabel(item.type),
+        img: String(item.img ?? system.artwork?.image ?? "").trim() || DEFAULT_ITEM_ICON,
+        description: briefDescription(system.description)
+    };
 }
 
 function isSlotCompatible(item, slotKey, slot) {
@@ -160,12 +182,7 @@ function buildInventorySummary(actor, systemSource) {
             const equippedItems = toArray(slot.itemIds)
                 .map((itemId) => actor.items.get(itemId))
                 .filter(Boolean)
-                .map((item) => ({
-                    id: item.id,
-                    name: item.name,
-                    type: formatTypeLabel(item.type),
-                    img: item.img
-                }));
+                .map((item) => summarizeInventoryItem(item));
 
             return {
                 key: slotKey,
@@ -180,12 +197,7 @@ function buildInventorySummary(actor, systemSource) {
     const packItems = [];
     const otherItems = [];
     for (const item of actor.items.contents) {
-        const summary = {
-            id: item.id,
-            name: item.name,
-            type: formatTypeLabel(item.type),
-            img: item.img
-        };
+        const summary = summarizeInventoryItem(item);
 
         if (equippedIds.has(item.id)) continue;
         if (packIds.has(item.id)) {
@@ -345,10 +357,7 @@ export class TurnOfTheCenturyActorSheet extends BaseActorSheet {
             .map((itemId) => this.actor.items.get(itemId))
             .filter(Boolean)
             .map((item) => ({
-                id: item.id,
-                name: item.name,
-                type: item.type,
-                img: item.img,
+                ...summarizeInventoryItem(item),
                 data: item.toObject()
             }));
         

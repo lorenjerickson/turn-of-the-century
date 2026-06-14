@@ -1,6 +1,26 @@
 const ACTOR_TYPES = Object.freeze(["hero", "pawn", "villain"]);
 const DEFAULT_ACTOR_TYPE = "pawn";
 export const ACTOR_LIST_DRAG_MIME = "application/x-totc-actor-list";
+const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
+const EQUIPMENT_SLOT_KEYS = Object.freeze(["head", "neck", "torso", "hands", "legs", "feet", "belt"]);
+const EQUIPMENT_SLOT_CONFIG = Object.freeze({
+    head: { label: "Head", capacity: 1, allowedTypes: ["armor", "equipment"] },
+    neck: { label: "Neck", capacity: 1, allowedTypes: ["armor", "equipment"] },
+    torso: { label: "Torso", capacity: 2, allowedTypes: ["armor", "equipment", "item"] },
+    hands: { label: "Hands", capacity: 2, allowedTypes: ["armor", "weapon", "tool", "equipment"] },
+    legs: { label: "Legs", capacity: 1, allowedTypes: ["armor", "equipment"] },
+    feet: { label: "Feet", capacity: 1, allowedTypes: ["armor", "equipment"] },
+    belt: { label: "Belt", capacity: 4, allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"] }
+});
+const BELT_QUALITY_CAPACITY = Object.freeze({
+    poor: 2,
+    standard: 4,
+    fine: 5,
+    exceptional: 6,
+    masterwork: 7,
+    experimental: 8
+});
+const EQUIPMENT_ITEM_IDS_PREFIX = "system.inventory.equipment.";
 
 function getCollectionEntries(collection) {
     if (!collection) return [];
@@ -93,11 +113,172 @@ function coerceFieldValue(path, value) {
     return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function isEquipmentItemIdPath(path) {
+    return /^system\.inventory\.equipment\.[^.]+\.itemIds\.\d+$/.test(String(path ?? ""));
+}
+
+function collectEquipmentSlotSelection(selections, path, value) {
+    const [, slotKey, indexString] = String(path ?? "").match(/^system\.inventory\.equipment\.([^.]+)\.itemIds\.(\d+)$/) ?? [];
+    const index = Number(indexString);
+    if (!slotKey || !Number.isInteger(index)) return;
+
+    const selected = String(value ?? "").trim();
+    const entries = selections.get(slotKey) ?? [];
+    entries[index] = selected;
+    selections.set(slotKey, entries);
+}
+
+function applyEquipmentSlotSelections(updateData, selections) {
+    const seenIds = new Set();
+    for (const slotKey of EQUIPMENT_SLOT_KEYS) {
+        if (!selections.has(slotKey)) continue;
+
+        const itemIds = (selections.get(slotKey) ?? []).filter((itemId) => {
+            if (!itemId || seenIds.has(itemId)) return false;
+            seenIds.add(itemId);
+            return true;
+        });
+        setPathValue(updateData, `${EQUIPMENT_ITEM_IDS_PREFIX}${slotKey}.itemIds`, itemIds);
+    }
+}
+
 function fieldValue(actor, path, staged = {}) {
     if (Object.hasOwn(staged, path)) return staged[path];
     const source = path === "name" ? actor : actor;
     const value = getPathValue(source, path, "");
     return Array.isArray(value) ? stringifyArray(value) : String(value ?? "");
+}
+
+function itemSystem(item) {
+    return item?.system?.toObject?.() ?? item?.system ?? {};
+}
+
+function itemImage(item) {
+    return String(item?.img ?? item?.system?.artwork?.image ?? "").trim() || DEFAULT_ITEM_ICON;
+}
+
+function stripHtml(value) {
+    return String(value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function briefDescription(value, maxLength = 96) {
+    const description = stripHtml(value);
+    if (description.length <= maxLength) return description;
+    return `${description.slice(0, maxLength - 1).trim()}...`;
+}
+
+function formatItemType(type) {
+    return String(type ?? "")
+        .replace(/([A-Z])/g, " $1")
+        .replace(/^./, (value) => value.toUpperCase())
+        .trim();
+}
+
+function isToolItem(item) {
+    const system = itemSystem(item);
+    return (item?.type === "equipment" || item?.type === "item") && system.category === "tool";
+}
+
+function getSlotDefinition(actor, slotKey) {
+    const fallback = EQUIPMENT_SLOT_CONFIG[slotKey] ?? { label: slotKey, capacity: 1, allowedTypes: [] };
+    const source = actorSystem(actor)?.inventory?.equipment?.[slotKey] ?? {};
+    return {
+        key: slotKey,
+        label: String(source.label ?? fallback.label),
+        capacity: Number(source.capacity ?? fallback.capacity),
+        quality: String(source.quality ?? "standard"),
+        allowedTypes: Array.isArray(source.allowedTypes) ? source.allowedTypes : [...fallback.allowedTypes],
+        itemIds: Array.isArray(source.itemIds) ? [...source.itemIds] : []
+    };
+}
+
+function getSlotCapacity(slotKey, slot) {
+    if (slotKey === "belt") {
+        return BELT_QUALITY_CAPACITY[slot.quality] ?? Number(slot.capacity ?? EQUIPMENT_SLOT_CONFIG.belt.capacity);
+    }
+    return Math.max(1, Number(slot.capacity ?? 1));
+}
+
+function isSlotCompatible(item, slotKey, slot) {
+    const allowedTypes = new Set(slot.allowedTypes ?? []);
+    const system = itemSystem(item);
+
+    if (system.slot !== slotKey) return false;
+    if (item.type === "armor") return allowedTypes.has("armor");
+    if (allowedTypes.has(item.type)) return true;
+    return allowedTypes.has("tool") && isToolItem(item);
+}
+
+function buildEquipmentViewModel(actor, staged = {}) {
+    const items = getCollectionEntries(actor?.items).map((item) => ({
+        id: String(item?.id ?? item?._id ?? ""),
+        name: String(item?.name ?? "Unnamed Item"),
+        img: itemImage(item),
+        type: String(item?.type ?? ""),
+        typeLabel: formatItemType(item?.type),
+        description: briefDescription(itemSystem(item).description),
+        system: itemSystem(item)
+    })).filter((item) => item.id);
+    const slots = Object.fromEntries(EQUIPMENT_SLOT_KEYS.map((slotKey) => [slotKey, getSlotDefinition(actor, slotKey)]));
+    const selectedBySlot = Object.fromEntries(EQUIPMENT_SLOT_KEYS.map((slotKey) => [
+        slotKey,
+        Array.from({ length: getSlotCapacity(slotKey, slots[slotKey]) }, (_, index) => {
+            const path = `${EQUIPMENT_ITEM_IDS_PREFIX}${slotKey}.itemIds.${index}`;
+            return Object.hasOwn(staged, path) ? String(staged[path] ?? "") : String(slots[slotKey].itemIds[index] ?? "");
+        })
+    ]));
+
+    return {
+        bodySlots: [
+            { area: "head", slotKey: "head", position: 0 },
+            { area: "neck", slotKey: "neck", position: 0 },
+            { area: "torso", slotKey: "torso", position: 0 },
+            { area: "torso-extra", slotKey: "torso", position: 1 },
+            { area: "hand-left", slotKey: "hands", position: 0 },
+            { area: "hand-right", slotKey: "hands", position: 1 },
+            { area: "legs", slotKey: "legs", position: 0 },
+            { area: "feet", slotKey: "feet", position: 0 }
+        ].map((placement) => buildEquipmentSlotControl(placement, slots, selectedBySlot, items)),
+        beltSlots: Array.from({ length: getSlotCapacity("belt", slots.belt) }, (_, position) => (
+            buildEquipmentSlotControl({ area: "belt", slotKey: "belt", position }, slots, selectedBySlot, items)
+        ))
+    };
+}
+
+function buildEquipmentSlotControl(placement, slots, selectedBySlot, items) {
+    const slot = slots[placement.slotKey];
+    const selectedItemId = selectedBySlot[placement.slotKey]?.[placement.position] ?? "";
+    const selectedElsewhere = new Set(
+        Object.entries(selectedBySlot)
+            .flatMap(([slotKey, itemIds]) => itemIds.map((itemId, index) => ({ slotKey, itemId, index })))
+            .filter((entry) => entry.itemId && (entry.slotKey !== placement.slotKey || entry.index !== placement.position))
+            .map((entry) => entry.itemId)
+    );
+    const compatibleItems = items.filter((item) => isSlotCompatible(item, placement.slotKey, slot));
+    const selectedItem = compatibleItems.find((item) => item.id === selectedItemId)
+        ?? items.find((item) => item.id === selectedItemId)
+        ?? null;
+
+    return {
+        ...placement,
+        label: placement.slotKey === "hands"
+            ? (placement.position === 0 ? "Left Hand" : "Right Hand")
+            : placement.slotKey === "torso"
+                ? `Torso ${placement.position + 1}`
+            : slot.label,
+        name: `${EQUIPMENT_ITEM_IDS_PREFIX}${placement.slotKey}.itemIds.${placement.position}`,
+        selectedItemId,
+        selectedItem,
+        options: compatibleItems.map((item) => ({
+            id: item.id,
+            name: item.name,
+            type: item.typeLabel,
+            img: item.img,
+            description: item.description,
+            selected: item.id === selectedItemId,
+            disabled: item.id !== selectedItemId && selectedElsewhere.has(item.id)
+        }))
+    };
 }
 
 function abilityModifier(value) {
@@ -209,7 +390,8 @@ export function buildActorEditorPanelModel({
         status: String(state.status ?? ""),
         error: String(state.error ?? ""),
         additionalPrompt: String(state.additionalPrompt ?? ""),
-        fields: actor ? buildEditableActorFields(actor, staged, actorType) : []
+        fields: actor ? buildEditableActorFields(actor, staged, actorType) : [],
+        equipment: actor ? buildEquipmentViewModel(actor, staged) : null
     };
 }
 
@@ -268,10 +450,16 @@ export function buildEditableActorFields(actor, staged = {}, actorType = normali
 
 export function buildActorUpdateDataFromFormData(formData) {
     const updateData = {};
+    const equipmentSelections = new Map();
     for (const [path, rawValue] of formData.entries()) {
         if (!path || path === "actorId") continue;
+        if (isEquipmentItemIdPath(path)) {
+            collectEquipmentSlotSelection(equipmentSelections, path, rawValue);
+            continue;
+        }
         setPathValue(updateData, path, coerceFieldValue(path, rawValue));
     }
+    applyEquipmentSlotSelections(updateData, equipmentSelections);
     return updateData;
 }
 
@@ -325,6 +513,57 @@ function renderFieldSection(title, fields, escapeHTML) {
         ${isAbilitySection
             ? `<div class="totc-v2-actor-editor__ability-scores">${fields.map((field) => renderAbilityField(field, escapeHTML)).join("")}</div>`
             : `<div class="totc-v2-actor-editor__section-fields">${fields.map((field) => renderField(field, escapeHTML)).join("")}</div>`}
+    </fieldset>`;
+}
+
+function renderEquipmentItemSummary(item, escapeHTML) {
+    if (!item) {
+        return `
+        <div class="totc-v2-actor-equipment__item is-empty">
+            <img src="${escapeHTML(DEFAULT_ITEM_ICON)}" alt="">
+            <div>
+                <strong>Empty</strong>
+                <span>No item equipped</span>
+            </div>
+        </div>`;
+    }
+
+    return `
+    <div class="totc-v2-actor-equipment__item">
+        <img src="${escapeHTML(item.img || DEFAULT_ITEM_ICON)}" alt="">
+        <div>
+            <strong>${escapeHTML(item.name)}</strong>
+            <span>${escapeHTML(item.typeLabel ?? item.type)}${item.description ? ` - ${escapeHTML(item.description)}` : ""}</span>
+        </div>
+    </div>`;
+}
+
+function renderEquipmentSlot(slot, escapeHTML) {
+    const optionLabel = (option) => `${option.name} (${option.type})${option.description ? ` - ${option.description}` : ""}`;
+    return `
+    <label class="totc-v2-actor-equipment__slot totc-v2-actor-equipment__slot--${escapeHTML(slot.area)}">
+        <span class="totc-v2-actor-equipment__slot-label">${escapeHTML(slot.label)}</span>
+        ${renderEquipmentItemSummary(slot.selectedItem, escapeHTML)}
+        <select name="${escapeHTML(slot.name)}" data-action="actor-editor-field" data-actor-field="${escapeHTML(slot.name)}">
+            <option value="">Empty</option>
+            ${slot.options.map((option) => `<option value="${escapeHTML(option.id)}" ${option.selected ? "selected" : ""} ${option.disabled ? "disabled" : ""}>${escapeHTML(optionLabel(option))}</option>`).join("")}
+        </select>
+    </label>`;
+}
+
+function renderEquipmentSection(equipment, escapeHTML) {
+    if (!equipment) return "";
+    return `
+    <fieldset class="totc-v2-actor-editor__section totc-v2-actor-editor__section--equipment">
+        <legend>Equipment</legend>
+        <div class="totc-v2-actor-equipment">
+            <div class="totc-v2-actor-equipment__body">
+                ${equipment.bodySlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
+            </div>
+            <div class="totc-v2-actor-equipment__belt" aria-label="Belt slots">
+                ${equipment.beltSlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
+            </div>
+        </div>
     </fieldset>`;
 }
 
@@ -414,7 +653,7 @@ export function renderActorEditorPanel(model = {}, { escapeHTML = (value) => Str
         <form class="totc-v2-actor-editor__form" data-action="actor-editor-save-form">
             <input type="hidden" name="actorId" value="${escapeHTML(model.actorId)}">
             <div class="totc-v2-actor-editor__sections">
-                ${sectionEntries.map(([title, fields]) => renderFieldSection(title, fields, escapeHTML)).join("")}
+                ${sectionEntries.map(([title, fields], index) => `${renderFieldSection(title, fields, escapeHTML)}${index === 0 ? renderEquipmentSection(model.equipment, escapeHTML) : ""}`).join("")}
             </div>
             <footer class="totc-v2-actor-editor__actions">
                 <button type="submit" class="totc-v2-actor-editor__primary" data-action="actor-editor-save" ${model.dirty ? "" : "disabled"}>Save</button>
