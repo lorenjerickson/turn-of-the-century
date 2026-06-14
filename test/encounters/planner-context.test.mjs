@@ -1,0 +1,85 @@
+import assert from "node:assert/strict";
+import { afterEach, beforeEach, describe, it } from "node:test";
+
+let originalConsoleDebug;
+
+beforeEach(() => {
+    originalConsoleDebug = console.debug;
+    console.debug = () => {};
+    globalThis.game = {
+        combat: null,
+        combats: { contents: [] }
+    };
+    globalThis.ui = {
+        combat: { viewed: null }
+    };
+    globalThis.canvas = {
+        tokens: {
+            controlled: [],
+            placeables: []
+        }
+    };
+});
+
+afterEach(() => {
+    console.debug = originalConsoleDebug;
+});
+
+async function loadPlannerContext() {
+    const moduleUrl = new URL(`../../module/encounters/planner-context.mjs?test=${Date.now()}`, import.meta.url);
+    return import(moduleUrl.href);
+}
+
+function actorFixture(id, name) {
+    return {
+        id,
+        name,
+        isOwner: true,
+        items: { get: () => null },
+        img: `${id}.webp`
+    };
+}
+
+describe("encounter planner context", () => {
+    it("builds a planner from an explicit combatant id without falling back to another actor", async () => {
+        const { buildEncounterPlannerForCombatant } = await loadPlannerContext();
+        const ada = actorFixture("actor-ada", "Ada Price");
+        const rook = actorFixture("actor-rook", "Rook Bruiser");
+        const combatants = [
+            { id: "combatant-ada", actor: ada, actorId: ada.id, tokenId: "token-ada" },
+            { id: "combatant-rook", actor: rook, actorId: rook.id, tokenId: "token-rook" }
+        ];
+        const combat = {
+            id: "combat-1",
+            name: "Rookery Ambush",
+            phase: "planning",
+            round: 1,
+            apBudget: 6,
+            planningRemainingSeconds: 42,
+            combatants: {
+                contents: combatants,
+                get: (id) => combatants.find((entry) => entry.id === id) ?? null
+            },
+            encounterState: { initialized: true },
+            getCombatantState: (id) => ({ ready: false, spentAp: 0, plan: id === "combatant-rook" ? [{ id: "dodge", label: "Dodge", apCost: 1 }] : [] }),
+            getCombatantPlan: (id) => id === "combatant-rook" ? [{ id: "dodge", label: "Dodge", apCost: 1 }] : [],
+            getCombatantRemainingAp: (id) => id === "combatant-rook" ? 5 : 6,
+            getAvailableActionsForCombatant: (id) => id === "combatant-rook"
+                ? [{ id: "move", actionId: "move", type: "movement", label: "Move", apCost: 1, apMin: 1, apMax: 5, variableAp: true }]
+                : [],
+            getTargetOptionsForCombatant: () => []
+        };
+
+        const planner = buildEncounterPlannerForCombatant({
+            actor: rook,
+            tokenDocument: { id: "token-rook", actor: rook },
+            combat,
+            combatantId: "combatant-rook"
+        });
+
+        assert.equal(planner.combatantId, "combatant-rook");
+        assert.equal(planner.remainingAp, 5);
+        assert.deepEqual(planner.queue.map((action) => action.id), ["dodge"]);
+        assert.deepEqual(planner.availableActions.map((action) => action.id), ["move"]);
+    });
+});

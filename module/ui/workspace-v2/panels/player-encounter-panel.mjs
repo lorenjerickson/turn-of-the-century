@@ -221,7 +221,7 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
     const canBrowseActions = (model.availableActions ?? []).length > 0;
 
     return `
-    <section class="totc-v2-encounter-panel" data-combatant-id="${escapeHTML(model.combatantId)}">
+    <section class="totc-v2-encounter-panel" data-combat-id="${escapeHTML(model.combatId)}" data-combatant-id="${escapeHTML(model.combatantId)}">
         <header class="totc-v2-encounter-panel__status">
             ${status.img ? `<img src="${escapeHTML(status.img)}" alt="">` : `<span class="totc-v2-encounter-panel__portrait-fallback">${escapeHTML(status.name.slice(0, 1).toUpperCase())}</span>`}
             <div>

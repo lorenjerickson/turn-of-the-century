@@ -49,7 +49,8 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /#canPlanEncounterToken\(\{ combat = null, token = null, actor = null \}/);
         assert.match(workspaceRootSource, /game\.user\?\.isGM \|\| actor\?\.isOwner/);
         assert.match(workspaceRootSource, /combat\?\.encounterState\?\.initialized \?\? combat\?\.encounter\?\.state\?\.initialized/);
-        assert.match(workspaceRootSource, /await this\.\#showEncounterPanelForToken\(\{[\s\S]*combat: this\.\#getEncounterCombat\(\),[\s\S]*token: tokenDoc,[\s\S]*actor[\s\S]*\}\)/);
+        assert.match(workspaceRootSource, /#getEncounterCombatForToken\(token = null\)/);
+        assert.match(workspaceRootSource, /await this\.\#showEncounterPanelForToken\(\{[\s\S]*combat: this\.\#getEncounterCombatForToken\(tokenDoc\) \?\? this\.\#getEncounterCombat\(\),[\s\S]*token: tokenDoc,[\s\S]*actor[\s\S]*\}\)/);
         assert.match(workspaceRootSource, /this\._encounterPlannerSelection = \{[\s\S]*sceneId:[\s\S]*tokenId:[\s\S]*actorId:/);
         assert.match(workspaceRootSource, /#resolveActorFromSelectedSceneTokens\(scene = canvas\?\.scene \?\? null\)/);
         assert.match(workspaceRootSource, /if \(this\.selectedTokenIds\.size !== 1\) return null;/);

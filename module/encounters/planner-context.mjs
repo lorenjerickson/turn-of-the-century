@@ -189,8 +189,7 @@ function formatPlanningTime(totalSeconds) {
     return `${secs}s`;
 }
 
-function buildEncounterPlanner(actor, tokenDocument = null) {
-    const { combat, combatant } = resolveEncounterCombatForActor(actor, tokenDocument);
+function buildEncounterPlannerFromResolvedCombatant({ actor = null, tokenDocument = null, combat = null, combatant = null } = {}) {
     if (!combat || !combatant) {
         console.debug("[turn-of-the-century] encounter planner unresolved", {
             actorId: actor?.id,
@@ -262,7 +261,26 @@ function buildEncounterPlanner(actor, tokenDocument = null) {
     };
 }
 
+function buildEncounterPlanner(actor, tokenDocument = null) {
+    const { combat, combatant } = resolveEncounterCombatForActor(actor, tokenDocument);
+    return buildEncounterPlannerFromResolvedCombatant({ actor, tokenDocument, combat, combatant });
+}
+
+function buildEncounterPlannerForCombatant({ actor = null, tokenDocument = null, combat = null, combatantId = "" } = {}) {
+    const combatant = (combat?.combatants?.contents ?? []).find((entry) => String(entry?.id ?? "") === String(combatantId ?? ""))
+        ?? combat?.combatants?.get?.(combatantId)
+        ?? null;
+    const resolvedActor = actor ?? combatant?.actor ?? tokenDocument?.actor ?? null;
+    return buildEncounterPlannerFromResolvedCombatant({
+        actor: resolvedActor,
+        tokenDocument,
+        combat,
+        combatant
+    });
+}
+
 export {
     buildEncounterPlanner,
+    buildEncounterPlannerForCombatant,
     resolveEncounterCombatForActor
 };

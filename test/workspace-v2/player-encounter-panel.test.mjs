@@ -107,6 +107,7 @@ describe("player encounter panel", () => {
         const html = renderPlayerEncounterPanel(model, { escapeHTML });
 
         assert.match(html, /class="totc-v2-encounter-panel"/);
+        assert.match(html, /data-combat-id="combat-1" data-combatant-id="combatant-1"/);
         assert.match(html, /type="search"[^>]*data-action="encounter-add-action"/);
         assert.match(html, /<datalist id="totc-encounter-actions-combatant-1">/);
         assert.match(html, /data-action="encounter-plan-segment"[\s\S]*draggable="true"/);
@@ -187,7 +188,11 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /const encounterPlannerSelection = this\.\#resolveEncounterPlannerSelection\(\{/);
         assert.match(workspaceRootSource, /const selectedEncounterActor = encounterPlannerSelection\?\.actor \?\? selectedPlayerActor/);
         assert.match(workspaceRootSource, /const selectedEncounterToken = encounterPlannerSelection\?\.token/);
-        assert.match(workspaceRootSource, /buildEncounterPlanner\(selectedEncounterActor, selectedEncounterToken\)/);
+        assert.match(workspaceRootSource, /buildEncounterPlannerForCombatant\(\{/);
+        assert.match(workspaceRootSource, /combatantId: encounterPlannerSelection\.combatant\.id/);
         assert.match(workspaceRootSource, /actor: selectedEncounterActor,[\s\S]*planner: playerEncounterPlanner/);
+        assert.match(workspaceRootSource, /#getEncounterCombat\(element = null\)/);
+        assert.match(workspaceRootSource, /closest\?\.\("\.totc-v2-encounter-panel"\)\?\.dataset\?\.combatId/);
+        assert.match(workspaceRootSource, /const combat = this\.\#getEncounterCombat\(input\)/);
     });
 });
