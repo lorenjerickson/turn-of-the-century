@@ -775,6 +775,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.ghostIntent = null;
         this.activeDesignLensPanelIds = new Set();
         this.selectedTokenIds = new Set();
+        this._lastEncounterPlannerDebugSnapshot = "";
         this.designCommandPaletteOpen = false;
         this.designCommandPaletteQuery = "";
         this.compendiumSearchQuery = "";
@@ -1323,6 +1324,24 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             planner: playerEncounterPlanner,
             combat
         });
+        this.#debugEncounterPlannerSelection({
+            playerActorId: String(selectedPlayerActor?.id ?? ""),
+            playerActorName: selectedPlayerActor?.name ?? "",
+            playerPanelStateActorId: String(playerPanelState.selectedActorId ?? ""),
+            pinnedActorId: String(this._encounterPlannerSelection?.actorId ?? ""),
+            pinnedTokenId: String(this._encounterPlannerSelection?.tokenId ?? ""),
+            pinnedCombatantId: String(this._encounterPlannerSelection?.combatantId ?? ""),
+            resolvedActorId: String(selectedEncounterActor?.id ?? ""),
+            resolvedActorName: selectedEncounterActor?.name ?? "",
+            resolvedTokenId: String(selectedEncounterToken?.id ?? selectedEncounterToken?._id ?? selectedEncounterToken?.document?.id ?? ""),
+            resolvedCombatId: String(encounterPlannerSelection?.combat?.id ?? combat?.id ?? ""),
+            resolvedCombatantId: String(encounterPlannerSelection?.combatant?.id ?? playerEncounterPlanner?.combatantId ?? ""),
+            availableActionCount: Number(playerEncounterPlanner?.availableActions?.length ?? 0),
+            plannedActionCount: Number(playerEncounterPlanner?.planActions?.length ?? 0),
+            canEditPlan: Boolean(playerEncounterPlanner?.canEditPlan),
+            usingPinnedSelection: Boolean(this._encounterPlannerSelection && encounterPlannerSelection),
+            usingFallbackActor: !this._encounterPlannerSelection
+        });
         const playerVisibleSectionIds = playerPanel.sections.map((section) => section.id);
         const playerHighlightedSectionIds = this.#trackPanelSectionHighlights("player", playerVisibleSectionIds);
         const highlightedPlayerPanel = {
@@ -1583,7 +1602,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.element?.querySelectorAll("[data-action='player-select-actor']")?.forEach((select) => {
             select.addEventListener("change", async () => {
-                await this.#setPlayerPanelStatePatch({ selectedActorId: String(select.value ?? "") });
+                const selectedActorId = String(select.value ?? "");
+                const pinnedSelection = this._encounterPlannerSelection;
+                this._encounterPlannerSelection = null;
+                this._lastEncounterPlannerDebugSnapshot = "";
+                totcLogger.debug("[encounter-planner] player actor selection changed", {
+                    selectedActorId,
+                    clearedPinnedActorId: String(pinnedSelection?.actorId ?? ""),
+                    clearedPinnedTokenId: String(pinnedSelection?.tokenId ?? ""),
+                    clearedPinnedCombatantId: String(pinnedSelection?.combatantId ?? "")
+                });
+                await this.#setPlayerPanelStatePatch({ selectedActorId });
                 this.render({ force: false });
             });
         });
@@ -2732,6 +2761,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         )) ?? null;
     }
 
+    #debugEncounterPlannerSelection(details = {}) {
+        const snapshot = JSON.stringify(details);
+        if (snapshot === this._lastEncounterPlannerDebugSnapshot) return;
+        this._lastEncounterPlannerDebugSnapshot = snapshot;
+        totcLogger.debug("[encounter-planner] selection resolved", details);
+    }
+
     #isEncounterPlanningAvailable(combat = null) {
         return Boolean(combat?.getCombatantPlan && combat?.getAvailableActionsForCombatant && (combat?.encounterState?.initialized ?? combat?.encounter?.state?.initialized));
     }
@@ -2782,8 +2818,20 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     async #showEncounterPanelForToken({ combat = null, scene = null, token = null, actor = null } = {}) {
-        if (!this.#canPlanEncounterToken({ combat, token, actor })) return false;
         const combatant = this.#getEncounterCombatantForToken(combat, token);
+        const canPlan = this.#canPlanEncounterToken({ combat, token, actor });
+        totcLogger.debug("[encounter-planner] token click", {
+            combatId: String(combat?.id ?? ""),
+            combatantId: String(combatant?.id ?? ""),
+            sceneId: String(scene?.id ?? scene?._id ?? ""),
+            tokenId: String(token?.id ?? token?._id ?? token?.document?.id ?? ""),
+            actorId: String(actor?.id ?? actor?._id ?? combatant?.actor?.id ?? ""),
+            isGM: Boolean(game.user?.isGM),
+            actorIsOwner: Boolean(actor?.isOwner ?? combatant?.actor?.isOwner),
+            planningAvailable: this.#isEncounterPlanningAvailable(combat),
+            canPlan
+        });
+        if (!canPlan) return false;
         this._encounterPlannerSelection = {
             combatId: String(combat?.id ?? ""),
             combatantId: String(combatant?.id ?? ""),

@@ -50,8 +50,14 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /game\.user\?\.isGM \|\| actor\?\.isOwner/);
         assert.match(workspaceRootSource, /combat\?\.encounterState\?\.initialized \?\? combat\?\.encounter\?\.state\?\.initialized/);
         assert.match(workspaceRootSource, /#getEncounterCombatForToken\(token = null\)/);
+        assert.match(workspaceRootSource, /totcLogger\.debug\("\[encounter-planner\] token click"/);
+        assert.match(workspaceRootSource, /planningAvailable: this\.\#isEncounterPlanningAvailable\(combat\)/);
+        assert.match(workspaceRootSource, /canPlan\s*\}/);
         assert.match(workspaceRootSource, /await this\.\#showEncounterPanelForToken\(\{[\s\S]*combat: this\.\#getEncounterCombatForToken\(tokenDoc\) \?\? this\.\#getEncounterCombat\(\),[\s\S]*token: tokenDoc,[\s\S]*actor[\s\S]*\}\)/);
         assert.match(workspaceRootSource, /this\._encounterPlannerSelection = \{[\s\S]*sceneId:[\s\S]*tokenId:[\s\S]*actorId:/);
+        assert.match(workspaceRootSource, /#debugEncounterPlannerSelection\(details = \{\}\)/);
+        assert.match(workspaceRootSource, /totcLogger\.debug\("\[encounter-planner\] selection resolved", details\)/);
+        assert.match(workspaceRootSource, /this\._lastEncounterPlannerDebugSnapshot = snapshot/);
         assert.match(workspaceRootSource, /#resolveActorFromSelectedSceneTokens\(scene = canvas\?\.scene \?\? null\)/);
         assert.match(workspaceRootSource, /if \(this\.selectedTokenIds\.size !== 1\) return null;/);
         assert.match(workspaceRootSource, /if \(game\.user\?\.isGM \|\| actor\.isOwner\) return actor;/);
@@ -124,5 +130,15 @@ describe("workspace token interactions", () => {
         assert.match(styles, /\.totc-v2-actor-list-panel__new,[\s\S]*background:\s*rgba\(59,\s*130,\s*246,\s*0\.2\);[\s\S]*border-radius:\s*4px;/);
         assert.match(styles, /\.totc-v2-map-toolbar__btn\s*\{[\s\S]*background:\s*rgba\(59,\s*130,\s*246,\s*0\.2\);[\s\S]*border-radius:\s*4px;[\s\S]*color:\s*#dbeafe;/);
         assert.match(styles, /\.totc-v2-map-toolbar__btn:hover\s*\{[\s\S]*background:\s*rgba\(59,\s*130,\s*246,\s*0\.3\);[\s\S]*border-color:\s*rgba\(191,\s*219,\s*254,\s*0\.7\);/);
+    });
+
+    it("clears pinned encounter planner token selection when the player actor changes", () => {
+        assert.match(workspaceRootSource, /data-action='player-select-actor'/);
+        assert.match(workspaceRootSource, /const pinnedSelection = this\._encounterPlannerSelection;/);
+        assert.match(workspaceRootSource, /this\._encounterPlannerSelection = null;/);
+        assert.match(workspaceRootSource, /this\._lastEncounterPlannerDebugSnapshot = "";/);
+        assert.match(workspaceRootSource, /totcLogger\.debug\("\[encounter-planner\] player actor selection changed"/);
+        assert.match(workspaceRootSource, /clearedPinnedCombatantId: String\(pinnedSelection\?\.combatantId \?\? ""\)/);
+        assert.match(workspaceRootSource, /await this\.\#setPlayerPanelStatePatch\(\{ selectedActorId \}\)/);
     });
 });
