@@ -236,6 +236,10 @@ import {
     buildEncounterPlannerForCombatant
 } from "../../encounters/planner-context.mjs";
 import {
+    findCombatantForToken,
+    getCombatantReferenceDiagnostics
+} from "../../encounters/combatant-token-matching.mjs";
+import {
     requireActorDocumentClass,
     renderFoundryApplication,
     requireApplicationV2,
@@ -2725,25 +2729,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #getEncounterCombatantForToken(combat = null, token = null) {
         if (!combat || !token) return null;
-        const tokenIds = new Set([
-            token.id,
-            token._id,
-            token.document?.id
-        ].filter(Boolean).map(String));
-        const actorIds = new Set([
-            token.actorId,
-            token.document?.actorId,
-            token.actor?.id,
-            token.actor?._id
-        ].filter(Boolean).map(String));
-
-        return this.#collectionContents(combat.combatants).find((combatant) => (
-            tokenIds.has(String(combatant?.tokenId ?? ""))
-            || tokenIds.has(String(combatant?.token?.id ?? ""))
-            || actorIds.has(String(combatant?.actorId ?? ""))
-            || actorIds.has(String(combatant?.actor?.id ?? ""))
-            || actorIds.has(String(combatant?.token?.actorId ?? ""))
-        )) ?? null;
+        return findCombatantForToken({
+            combatants: this.#collectionContents(combat.combatants),
+            token,
+            actor: this.#resolveTokenActor(token)
+        });
     }
 
     #getEncounterCombatForToken(token = null) {
@@ -2829,7 +2819,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             isGM: Boolean(game.user?.isGM),
             actorIsOwner: Boolean(actor?.isOwner ?? combatant?.actor?.isOwner),
             planningAvailable: this.#isEncounterPlanningAvailable(combat),
-            canPlan
+            canPlan,
+            combatantRefs: combatant
+                ? []
+                : getCombatantReferenceDiagnostics(this.#collectionContents(combat?.combatants)).slice(0, 12)
         });
         if (!canPlan) return false;
         this._encounterPlannerSelection = {

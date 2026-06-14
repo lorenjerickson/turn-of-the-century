@@ -52,7 +52,9 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /#getEncounterCombatForToken\(token = null\)/);
         assert.match(workspaceRootSource, /totcLogger\.debug\("\[encounter-planner\] token click"/);
         assert.match(workspaceRootSource, /planningAvailable: this\.\#isEncounterPlanningAvailable\(combat\)/);
-        assert.match(workspaceRootSource, /canPlan\s*\}/);
+        assert.match(workspaceRootSource, /canPlan,[\s\S]*combatantRefs:/);
+        assert.match(workspaceRootSource, /getCombatantReferenceDiagnostics\(this\.\#collectionContents\(combat\?\.combatants\)\)\.slice\(0, 12\)/);
+        assert.match(workspaceRootSource, /findCombatantForToken\(\{[\s\S]*combatants: this\.\#collectionContents\(combat\.combatants\),[\s\S]*actor: this\.\#resolveTokenActor\(token\)/);
         assert.match(workspaceRootSource, /await this\.\#showEncounterPanelForToken\(\{[\s\S]*combat: this\.\#getEncounterCombatForToken\(tokenDoc\) \?\? this\.\#getEncounterCombat\(\),[\s\S]*token: tokenDoc,[\s\S]*actor[\s\S]*\}\)/);
         assert.match(workspaceRootSource, /this\._encounterPlannerSelection = \{[\s\S]*sceneId:[\s\S]*tokenId:[\s\S]*actorId:/);
         assert.match(workspaceRootSource, /#debugEncounterPlannerSelection\(details = \{\}\)/);
