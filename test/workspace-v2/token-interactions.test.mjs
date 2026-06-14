@@ -52,6 +52,8 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /#getEncounterCombatForToken\(token = null\)/);
         assert.match(workspaceRootSource, /totcLogger\.debug\("\[encounter-planner\] token click"/);
         assert.match(workspaceRootSource, /planningAvailable: this\.\#isEncounterPlanningAvailable\(combat\)/);
+        assert.match(workspaceRootSource, /#canViewEncounterToken\(\{ token = null, actor = null, combatant = null \}/);
+        assert.match(workspaceRootSource, /canView,/);
         assert.match(workspaceRootSource, /canPlan,[\s\S]*combatantRefs:/);
         assert.match(workspaceRootSource, /combatantCount: this\.\#collectionContents\(combat\?\.combatants\)\.length/);
         assert.match(workspaceRootSource, /turnCount: this\.\#collectionContents\(combat\?\.turns\)\.length/);
@@ -59,6 +61,7 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /#getEncounterCombatants\(combat = null, actor = null\)/);
         assert.match(workspaceRootSource, /\.\.\.this\.\#collectionContents\(combat\?\.turns\)/);
         assert.match(workspaceRootSource, /findCombatantForToken\(\{[\s\S]*combatants: this\.\#getEncounterCombatants\(combat, actor\),[\s\S]*actor/);
+        assert.match(workspaceRootSource, /if \(!canView\) return false;/);
         assert.match(workspaceRootSource, /await this\.\#showEncounterPanelForToken\(\{[\s\S]*combat: this\.\#getEncounterCombatForToken\(tokenDoc\) \?\? this\.\#getEncounterCombat\(\),[\s\S]*token: tokenDoc,[\s\S]*actor[\s\S]*\}\)/);
         assert.match(workspaceRootSource, /this\._encounterPlannerSelection = \{[\s\S]*sceneId:[\s\S]*tokenId:[\s\S]*actorId:/);
         assert.match(workspaceRootSource, /#debugEncounterPlannerSelection\(details = \{\}\)/);

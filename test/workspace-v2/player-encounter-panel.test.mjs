@@ -186,11 +186,14 @@ describe("player encounter panel", () => {
 
     it("uses encounter-specific token selection when building the encounter planner", () => {
         assert.match(workspaceRootSource, /const encounterPlannerSelection = this\.\#resolveEncounterPlannerSelection\(\{/);
-        assert.match(workspaceRootSource, /const selectedEncounterActor = encounterPlannerSelection\?\.actor \?\? selectedPlayerActor/);
-        assert.match(workspaceRootSource, /const selectedEncounterToken = encounterPlannerSelection\?\.token/);
+        assert.match(workspaceRootSource, /const selectedEncounterActor = encounterPlannerSelection\?\.actor \?\? null/);
+        assert.match(workspaceRootSource, /const selectedEncounterToken = encounterPlannerSelection\?\.token \?\? null/);
+        assert.doesNotMatch(workspaceRootSource, /const selectedEncounterActor = encounterPlannerSelection\?\.actor \?\? selectedPlayerActor/);
+        assert.doesNotMatch(workspaceRootSource, /buildEncounterPlanner\(selectedEncounterActor, selectedEncounterToken\)/);
         assert.match(workspaceRootSource, /buildEncounterPlannerForCombatant\(\{/);
         assert.match(workspaceRootSource, /combatantId: encounterPlannerSelection\.combatant\.id/);
         assert.match(workspaceRootSource, /actor: selectedEncounterActor,[\s\S]*planner: playerEncounterPlanner/);
+        assert.match(workspaceRootSource, /#getSelectedEncounterToken\(scene = null\)/);
         assert.match(workspaceRootSource, /#getEncounterCombat\(element = null\)/);
         assert.match(workspaceRootSource, /closest\?\.\("\.totc-v2-encounter-panel"\)\?\.dataset\?\.combatId/);
         assert.match(workspaceRootSource, /const combat = this\.\#getEncounterCombat\(input\)/);
