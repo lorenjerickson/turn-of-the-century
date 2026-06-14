@@ -2649,14 +2649,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #getEncounterCombatById(combatId = "") {
         return this.#collectionGet(game.combats, combatId)
+            ?? (String(game.combats?.active?.id ?? "") === String(combatId ?? "") ? game.combats.active : null)
             ?? (String(game.combat?.id ?? "") === String(combatId ?? "") ? game.combat : null)
             ?? (String(ui.combat?.viewed?.id ?? "") === String(combatId ?? "") ? ui.combat.viewed : null);
     }
 
     #getEncounterCombat(element = null) {
         const combatId = String(element?.closest?.(".totc-v2-encounter-panel")?.dataset?.combatId ?? "").trim();
-        if (combatId) return this.#getEncounterCombatById(combatId) ?? game.combat ?? ui.combat?.viewed ?? null;
-        return game.combat ?? ui.combat?.viewed ?? null;
+        if (combatId) return this.#getEncounterCombatById(combatId) ?? game.combats?.active ?? game.combat ?? ui.combat?.viewed ?? null;
+        return game.combats?.active ?? game.combat ?? ui.combat?.viewed ?? null;
     }
 
     #wireEncounterManagerPanelHandlers() {
@@ -2729,6 +2730,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #getEncounterCombatantForToken(combat = null, token = null) {
         if (!combat || !token) return null;
+        const tokenCombatant = token.combatant;
+        if (tokenCombatant && (tokenCombatant.combat === combat || tokenCombatant.parent === combat || tokenCombatant.combat?.id === combat.id || tokenCombatant.parent?.id === combat.id)) {
+            return tokenCombatant;
+        }
         return findCombatantForToken({
             combatants: this.#collectionContents(combat.combatants),
             token,
@@ -2737,7 +2742,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #getEncounterCombatForToken(token = null) {
+        const tokenCombatant = token?.combatant;
+        const tokenCombat = tokenCombatant?.combat ?? tokenCombatant?.parent;
+        if (tokenCombat && this.#isEncounterPlanningAvailable(tokenCombat)) {
+            return tokenCombat;
+        }
+
         const candidates = [
+            game.combats?.active,
             game.combat,
             ui.combat?.viewed,
             ...this.#collectionContents(game.combats)
