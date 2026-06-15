@@ -3080,6 +3080,21 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }
             console.log("[TOTC-DEBUG] Bubble click on target:", target, "outerHTML:", target?.outerHTML?.slice(0, 250), "path:", path.reverse().join(" -> "));
 
+            const combatantId = this.#getEncounterPanelCombatantId(target);
+            const combat = this.#getEncounterCombat(target);
+            const combatant = combatantId && combat?.combatants ? combat.combatants.get(combatantId) : null;
+            const ready = combatant?.ready ?? false;
+            const phase = combat?.phase ?? "";
+            const canEditPlan = phase === "planning" && !ready;
+            console.log("[TOTC-DEBUG] Diagnostic state - phase:", phase, "ready:", ready, "canEditPlan:", canEditPlan, "combatantId:", combatantId);
+
+            const barEl = target.closest(".totc-v2-encounter-panel__bar");
+            if (barEl) {
+                const childrenTags = Array.from(barEl.children).map(c => `${c.tagName.toLowerCase()}${c.className ? '.' + c.className.trim().replace(/\s+/g, '.') : ''}${c.dataset?.action ? '[data-action="' + c.dataset.action + '"]' : ''}`);
+                console.log("[TOTC-DEBUG] Bar clicked. Children tags:", childrenTags);
+                console.log("[TOTC-DEBUG] Bar innerHTML:", barEl.innerHTML);
+            }
+
             // Click plan segments or empty slots to open action popup
             const el = event.target?.closest?.("[data-action='encounter-plan-segment'], [data-action='encounter-edit-plan-slot']");
             console.log("[TOTC-DEBUG] closest segment/slot:", el);
