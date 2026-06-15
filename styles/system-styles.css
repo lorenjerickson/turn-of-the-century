@@ -3884,9 +3884,15 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     color: #e2e8f0;
     font-size: 0.82rem;
     letter-spacing: 0;
-    padding: 0.4rem 0.5rem;
+    padding: 0.4rem 1.75rem 0.4rem 0.5rem;
     text-transform: none;
     width: 100%;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__picker input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    vertical-align: middle;
+    margin-right: 0.25rem;
 }
 
 .turn-of-the-century .totc-v2-encounter-panel__picker input:focus {
