@@ -3067,7 +3067,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         // Delegated clicks for panel actions
         this.element?.addEventListener("click", async (event) => {
-            console.log("[TOTC-DEBUG] Bubble click on target:", event.target);
+            const target = event.target;
+            const path = [];
+            let current = target;
+            while (current && current !== this.element) {
+                const tag = current.tagName?.toLowerCase() ?? "";
+                const idStr = current.id ? `#${current.id}` : "";
+                const classes = current.className && typeof current.className === "string" ? `.${current.className.trim().replace(/\s+/g, ".")}` : "";
+                const action = current.dataset?.action ? `[data-action="${current.dataset.action}"]` : "";
+                path.push(`${tag}${idStr}${classes}${action}`);
+                current = current.parentElement;
+            }
+            console.log("[TOTC-DEBUG] Bubble click on target:", target, "outerHTML:", target?.outerHTML?.slice(0, 250), "path:", path.reverse().join(" -> "));
+
             // Click plan segments or empty slots to open action popup
             const el = event.target?.closest?.("[data-action='encounter-plan-segment'], [data-action='encounter-edit-plan-slot']");
             console.log("[TOTC-DEBUG] closest segment/slot:", el);
