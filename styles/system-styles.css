@@ -3877,6 +3877,12 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     text-transform: uppercase;
 }
 
+.turn-of-the-century .totc-v2-encounter-panel__picker-row {
+    display: grid;
+    gap: 0.4rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .turn-of-the-century .totc-v2-encounter-panel__picker input {
     background: rgba(15, 23, 42, 0.72);
     border: 1px solid rgba(148, 163, 184, 0.4);
@@ -3898,6 +3904,30 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
 .turn-of-the-century .totc-v2-encounter-panel__picker input:focus {
     border-color: rgba(147, 197, 253, 0.68);
     outline: none;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__picker button {
+    background: rgba(30, 41, 59, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 5px;
+    color: #e2e8f0;
+    cursor: pointer;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    min-width: 4rem;
+    padding: 0.4rem 0.7rem;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__picker button:hover:not(:disabled) {
+    background: rgba(51, 65, 85, 0.86);
+    border-color: rgba(148, 163, 184, 0.6);
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__picker button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
 }
 
 .turn-of-the-century .totc-v2-encounter-panel__bar,
