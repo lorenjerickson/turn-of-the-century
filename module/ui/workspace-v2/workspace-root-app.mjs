@@ -1313,6 +1313,23 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             combat,
             scene
         });
+        console.group("[TOTC-DEBUG] Encounter Planner Selection Resolution");
+        console.log("Encounter Planner Selection:", encounterPlannerSelection);
+        console.log("Active Combat:", combat);
+        console.log("Active Scene:", scene);
+        console.log("Pinned selection state (this._encounterPlannerSelection):", this._encounterPlannerSelection);
+        console.log("Selected Token IDs (this.selectedTokenIds):", this.selectedTokenIds ? Array.from(this.selectedTokenIds) : []);
+        if (encounterPlannerSelection) {
+            console.log("Resolved Actor:", encounterPlannerSelection.actor);
+            console.log("Resolved Token:", encounterPlannerSelection.token);
+            console.log("Resolved Combat:", encounterPlannerSelection.combat);
+            console.log("Resolved Combatant:", encounterPlannerSelection.combatant);
+            if (!encounterPlannerSelection.combatant) {
+                console.warn("Resolved Combatant is null/undefined! This will prevent planner context generation.");
+            }
+        }
+        console.groupEnd();
+
         const selectedEncounterActor = encounterPlannerSelection?.actor ?? null;
         const selectedEncounterToken = encounterPlannerSelection?.token ?? null;
         const playerEncounterPlanner = encounterPlannerSelection?.combatant?.id
@@ -1323,6 +1340,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 combatantId: encounterPlannerSelection.combatant.id
             })
             : null;
+        console.log("[TOTC-DEBUG] Resolved playerEncounterPlanner:", playerEncounterPlanner);
         const playerEncounterPanel = buildPlayerEncounterPanelModel({
             actor: selectedEncounterActor,
             planner: playerEncounterPlanner,

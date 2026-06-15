@@ -114,11 +114,36 @@ function historyRowsFromTimeline({ planner = null, combat = null } = {}) {
 }
 
 export function buildPlayerEncounterPanelModel({ actor = null, planner = null, combat = null } = {}) {
+    console.group("[TOTC-DEBUG] buildPlayerEncounterPanelModel");
+    console.log("Actor:", actor);
+    console.log("Planner:", planner);
+    console.log("Combat:", combat);
+    if (planner) {
+        console.log("Raw Planner Available Actions:", planner.availableActions);
+    } else {
+        console.warn("Planner is null! availableActions will default to empty.");
+    }
     const status = actorStatusModel(actor);
     const apBudget = Math.max(1, toNumber(planner?.apBudget ?? combat?.apBudget, 6));
-    const availableActions = toArray(planner?.availableActions).map(actionOptionModel)
-        .filter((action) => action.id)
+    
+    const rawActions = toArray(planner?.availableActions);
+    const mappedActions = rawActions.map(actionOptionModel);
+    console.log("Mapped Actions (before ID filtering):", mappedActions);
+
+    const availableActions = mappedActions
+        .filter((action) => {
+            const hasId = Boolean(action.id);
+            if (!hasId) {
+                console.warn("Action filtered out because it has no ID:", action);
+            }
+            return hasId;
+        })
         .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: "base" }));
+        
+    console.log("Final Filtered/Sorted Available Actions:", availableActions);
+    console.log("canBrowseActions will be:", availableActions.length > 0);
+    console.groupEnd();
+
     const plannedActions = toArray(planner?.queue).map(planSegmentModel);
 
     return {

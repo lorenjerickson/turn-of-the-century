@@ -817,13 +817,26 @@ export class TurnOfTheCenturyEncounter {
      * @returns {object[]} Array of action descriptor objects.
      */
     getAvailableActionsForCombatant(combatantId) {
+        console.group(`[TOTC-DEBUG] getAvailableActionsForCombatant - Combatant ID: ${combatantId}`);
         const combatant = getCombatantFromId(this.#combat, combatantId);
-        if (!combatant?.actor) return [];
+        console.log("Resolved Combatant from ID:", combatant);
+        if (!combatant?.actor) {
+            console.warn("Combatant actor is missing! Returning empty array.");
+            console.groupEnd();
+            return [];
+        }
 
         const catalog = this.actionCatalog;
+        console.log("Action Catalog:", catalog);
         const movementFeetPerAp = Number(getMovementFeetPerAp() || 10);
         const globalActions = Object.values(catalog)
-            .filter((template) => template?.id)
+            .filter((template) => {
+                const hasId = Boolean(template?.id);
+                if (!hasId) {
+                    console.warn("Catalog template filtered out because it lacks an ID:", template);
+                }
+                return hasId;
+            })
             .map((template) => {
                 const apMin = Number(template.apMin ?? template.apCost ?? 1);
                 const apMax = Math.min(this.apBudget, Math.max(apMin, Number(template.apMax ?? template.apCost ?? apMin)));
@@ -874,7 +887,12 @@ export class TurnOfTheCenturyEncounter {
             }));
         });
 
-        return [...globalActions, ...itemActions];
+        console.log("Mapped Global Actions:", globalActions);
+        console.log("Mapped Item Actions:", itemActions);
+        const finalActions = [...globalActions, ...itemActions];
+        console.log("Final Returned Actions:", finalActions);
+        console.groupEnd();
+        return finalActions;
     }
 
     #getConsumableApCost(actor, item, variant) {
