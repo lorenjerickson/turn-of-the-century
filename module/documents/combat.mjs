@@ -107,8 +107,26 @@ function formatDamageText(amount) {
     return `${Math.max(0, Number(amount) || 0)} damage`;
 }
 
+function combatantContents(combat = null) {
+    const entries = [
+        ...collectionContents(combat?.combatants),
+        ...collectionContents(combat?.turns),
+        combat?.combatant
+    ].filter(Boolean);
+
+    return entries.filter((entry, index, list) => {
+        const id = String(entry?.id ?? entry?._id ?? "");
+        if (!id) return true;
+        return list.findIndex((candidate) => String(candidate?.id ?? candidate?._id ?? "") === id) === index;
+    });
+}
+
 function getCombatantFromId(combat, combatantId) {
-    return combat.combatants?.get(combatantId) ?? null;
+    const id = String(combatantId ?? "").trim();
+    if (!id) return null;
+    return combat.combatants?.get?.(id)
+        ?? combatantContents(combat).find((combatant) => String(combatant?.id ?? combatant?._id ?? "") === id)
+        ?? null;
 }
 
 function toNumber(value, fallback = 0) {
@@ -545,7 +563,7 @@ export class TurnOfTheCenturyEncounter {
         const apBudget = Number(existing.apBudget ?? getActionPointBudget() ?? TOTC_BASE_ACTION_POINT_BUDGET);
 
         const perCombatant = foundry.utils.deepClone(existing.perCombatant ?? {});
-        for (const combatant of this.#combat.combatants?.contents ?? []) {
+        for (const combatant of combatantContents(this.#combat)) {
             perCombatant[combatant.id] = {
                 ...this.#defaultCombatantState(apBudget),
                 ...(perCombatant[combatant.id] ?? {}),
@@ -649,7 +667,7 @@ export class TurnOfTheCenturyEncounter {
     async maybeAutoFinalizePlanning() {
         if (this.phase !== "planning") return false;
 
-        const combatants = this.#combat.combatants?.contents ?? [];
+        const combatants = combatantContents(this.#combat);
         if (!combatants.length) return false;
 
         const allCommitted = combatants.every((combatant) => Boolean(this.getCombatantState(combatant.id)?.ready));
@@ -877,7 +895,7 @@ export class TurnOfTheCenturyEncounter {
      * @returns {{ id: string, name: string }[]}
      */
     getTargetOptionsForCombatant(combatantId) {
-        return (this.#combat.combatants?.contents ?? [])
+        return combatantContents(this.#combat)
             .filter((combatant) => combatant.id !== combatantId)
             .map((combatant) => ({
                 id: combatant.id,
@@ -903,7 +921,7 @@ export class TurnOfTheCenturyEncounter {
         if (!TOTC_ENCOUNTER_PHASES.includes(phase)) phase = "planning";
 
         const perCombatant = Object.fromEntries(
-            (this.#combat.combatants?.contents ?? []).map((combatant) => [
+            combatantContents(this.#combat).map((combatant) => [
                 combatant.id,
                 this.#defaultCombatantState()
             ])
@@ -1041,7 +1059,7 @@ export class TurnOfTheCenturyEncounter {
         await this.setEncounterPhase("locked");
         await this.setEncounterPhase("resolving");
 
-        const combatants = this.#combat.combatants?.contents ?? [];
+        const combatants = combatantContents(this.#combat);
         const apBudget = this.apBudget;
         const round = this.#combat.round || this.state.round || 1;
 
@@ -1307,12 +1325,12 @@ export class TurnOfTheCenturyEncounter {
     }
 
     #fallbackTarget(sourceCombatantId) {
-        const candidates = (this.#combat.combatants?.contents ?? []).filter((c) => c.id !== sourceCombatantId);
+        const candidates = combatantContents(this.#combat).filter((c) => c.id !== sourceCombatantId);
         return candidates[0] ?? null;
     }
 
     #selectCriticalFailureTarget(sourceCombatantId, intendedTargetId) {
-        const candidates = (this.#combat.combatants?.contents ?? []).filter((c) => {
+        const candidates = combatantContents(this.#combat).filter((c) => {
             if (!c?.id) return false;
             if (c.id === intendedTargetId) return false;
             return true;

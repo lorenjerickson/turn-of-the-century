@@ -61,6 +61,33 @@ describe("TurnOfTheCenturyEncounter actions", () => {
         assert.equal(actions.find((action) => action.id === "move").movementFeetPerAp, 10);
     });
 
+    it("lists actions for combatants found through combat turns", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        const combatant = {
+            id: "combatant-from-turns",
+            actor: {
+                items: { contents: [] },
+                system: {}
+            }
+        };
+        const combat = {
+            id: "combat-1",
+            round: 1,
+            combatants: {
+                contents: [],
+                get: () => null
+            },
+            turns: [combatant],
+            getFlag: () => null
+        };
+
+        const encounter = new TurnOfTheCenturyEncounter(combat);
+        const actions = encounter.getAvailableActionsForCombatant("combatant-from-turns");
+
+        assert.deepEqual(actions.map((action) => action.id), ["move", "hunkDown", "dodge", "overwatch"]);
+        assert.equal(encounter.getCombatantState("combatant-from-turns")?.ready, false);
+    });
+
     it("lists actions from equipped weapons, armor, and consumables only", async () => {
         const { TurnOfTheCenturyEncounter } = await loadCombatModule();
         const items = [
