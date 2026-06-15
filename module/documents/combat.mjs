@@ -938,6 +938,22 @@ export class TurnOfTheCenturyEncounter {
 
         if (!TOTC_ENCOUNTER_PHASES.includes(phase)) phase = "planning";
 
+        const scene = this.#combat.scene;
+        if (scene && typeof this.#combat.createEmbeddedDocuments === "function") {
+            const tokens = scene.tokens?.contents ?? [];
+            const existingTokenIds = new Set(this.#combat.combatants?.map(c => c.tokenId).filter(Boolean) ?? []);
+            const newTokens = tokens.filter(t => t.id && !existingTokenIds.has(t.id) && t.actor);
+            const combatantData = newTokens.map((token) => ({
+                tokenId: token.id,
+                actorId: token.actor.id,
+                sceneId: scene.id,
+                hidden: Boolean(token.hidden)
+            }));
+            if (combatantData.length > 0) {
+                await this.#combat.createEmbeddedDocuments("Combatant", combatantData);
+            }
+        }
+
         const perCombatant = Object.fromEntries(
             combatantContents(this.#combat).map((combatant) => [
                 combatant.id,

@@ -945,6 +945,31 @@ Hooks.on("preCreateToken", (tokenDoc, data, options, userId) => {
     }
 });
 
+Hooks.on("createToken", async (tokenDoc, options, userId) => {
+    if (!game.user?.isGM) return;
+    const activeCombat = game.combat;
+    if (!activeCombat) return;
+
+    // Only add if it's on the same scene as the combat
+    const sceneId = tokenDoc.parent?.id ?? tokenDoc.scene?.id;
+    if (sceneId !== activeCombat.scene?.id) return;
+
+    const actor = tokenDoc.actor;
+    if (!actor) return;
+
+    // Check if the token is already in combat
+    const existing = activeCombat.combatants?.some(c => c.tokenId === tokenDoc.id);
+    if (existing) return;
+
+    // Add to combat
+    await activeCombat.createEmbeddedDocuments("Combatant", [{
+        tokenId: tokenDoc.id,
+        actorId: actor.id,
+        sceneId,
+        hidden: Boolean(tokenDoc.hidden)
+    }]);
+});
+
 Hooks.once("shutdown", () => {
     if (encounterPlanningWatchHandle) {
         clearInterval(encounterPlanningWatchHandle);
