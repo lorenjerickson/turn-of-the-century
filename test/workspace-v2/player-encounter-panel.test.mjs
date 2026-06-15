@@ -194,6 +194,7 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /combatantId: encounterPlannerSelection\.combatant\.id/);
         assert.match(workspaceRootSource, /actor: selectedEncounterActor,[\s\S]*planner: playerEncounterPlanner/);
         assert.match(workspaceRootSource, /#getSelectedEncounterToken\(scene = null\)/);
+        assert.match(workspaceRootSource, /selectionSource: String\(encounterPlannerSelection\?\.source \?\? ""\)/);
         assert.match(workspaceRootSource, /#getEncounterCombat\(element = null\)/);
         assert.match(workspaceRootSource, /closest\?\.\("\.totc-v2-encounter-panel"\)\?\.dataset\?\.combatId/);
         assert.match(workspaceRootSource, /const combat = this\.\#getEncounterCombat\(input\)/);

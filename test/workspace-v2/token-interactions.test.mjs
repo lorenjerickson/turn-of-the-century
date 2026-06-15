@@ -24,6 +24,9 @@ describe("workspace token interactions", () => {
         // Assert selectedTokenIds initialization and passage to host
         assert.match(workspaceRootSource, /this\.selectedTokenIds = new Set\(\)/);
         assert.match(workspaceRootSource, /getSelectedTokenIds: \(\) => this\.selectedTokenIds/);
+        assert.match(workspaceRootSource, /const pinnedEncounterSceneId = String\(this\._encounterPlannerSelection\?\.sceneId \?\? ""\)\.trim\(\)/);
+        assert.match(workspaceRootSource, /const canSyncTokenSelectionFromCanvas = !pinnedEncounterSceneId \|\| !canvasSceneId \|\| pinnedEncounterSceneId === canvasSceneId/);
+        assert.match(workspaceRootSource, /if \(canSyncTokenSelectionFromCanvas && \(controlledTokens\.length > 0 \|\| this\.selectedTokenIds\.size > 0\)\)/);
 
         // Assert double-clicking opens the editor without bypassing selection-driven details
         assert.match(workspaceRootSource, /viewport\.addEventListener\("dblclick"/);
@@ -65,7 +68,8 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /findCombatantForToken\(\{[\s\S]*combatants: this\.\#getEncounterCombatants\(combat, actor\),[\s\S]*actor/);
         assert.match(workspaceRootSource, /if \(!canView\) return false;/);
         assert.match(workspaceRootSource, /await this\.\#showEncounterPanelForToken\(\{[\s\S]*combat: this\.\#getEncounterCombatForToken\(tokenDoc\) \?\? this\.\#getEncounterCombat\(\),[\s\S]*token: tokenDoc,[\s\S]*actor[\s\S]*\}\)/);
-        assert.match(workspaceRootSource, /this\._encounterPlannerSelection = \{[\s\S]*sceneId:[\s\S]*tokenId:[\s\S]*actorId:/);
+        assert.match(workspaceRootSource, /this\._encounterPlannerSelection = \{[\s\S]*sceneId:[\s\S]*tokenId:[\s\S]*actorId:[\s\S]*combat,[\s\S]*scene,[\s\S]*token,[\s\S]*actor/);
+        assert.match(workspaceRootSource, /source: "pinned"/);
         assert.match(workspaceRootSource, /#debugEncounterPlannerSelection\(details = \{\}\)/);
         assert.match(workspaceRootSource, /totcLogger\.debug\("\[encounter-planner\] selection resolved", details\)/);
         assert.match(workspaceRootSource, /this\._lastEncounterPlannerDebugSnapshot = snapshot/);

@@ -1230,7 +1230,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const scenePropertiesState = this.sceneWorkspaceController.propertiesState;
         const combat = game.combats?.active ?? game.combat ?? null;
         const controlledTokens = canvas?.tokens?.controlled ?? [];
-        if (controlledTokens.length > 0 || this.selectedTokenIds.size > 0) {
+        const pinnedEncounterSceneId = String(this._encounterPlannerSelection?.sceneId ?? "").trim();
+        const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
+        const canSyncTokenSelectionFromCanvas = !pinnedEncounterSceneId || !canvasSceneId || pinnedEncounterSceneId === canvasSceneId;
+        if (canSyncTokenSelectionFromCanvas && (controlledTokens.length > 0 || this.selectedTokenIds.size > 0)) {
             const controlledIds = new Set(controlledTokens.map((t) => t.id).filter(Boolean));
             let mismatch = controlledIds.size !== this.selectedTokenIds.size;
             if (!mismatch) {
@@ -1337,6 +1340,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             resolvedTokenId: String(selectedEncounterToken?.id ?? selectedEncounterToken?._id ?? selectedEncounterToken?.document?.id ?? ""),
             resolvedCombatId: String(encounterPlannerSelection?.combat?.id ?? combat?.id ?? ""),
             resolvedCombatantId: String(encounterPlannerSelection?.combatant?.id ?? playerEncounterPlanner?.combatantId ?? ""),
+            selectionSource: String(encounterPlannerSelection?.source ?? ""),
             availableActionCount: Number(playerEncounterPlanner?.availableActions?.length ?? 0),
             plannedActionCount: Number(playerEncounterPlanner?.planActions?.length ?? 0),
             canEditPlan: Boolean(playerEncounterPlanner?.canEditPlan),
@@ -2831,7 +2835,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return this.#collectionGet(scene?.tokens, tokenId);
     }
 
-    #buildEncounterPlannerSelectionForToken({ combat = null, token = null, actor = null } = {}) {
+    #buildEncounterPlannerSelectionForToken({ combat = null, token = null, actor = null, source = "" } = {}) {
         const selectedCombat = combat ?? this.#getEncounterCombatForToken(token) ?? this.#getEncounterCombat();
         const combatant = selectedCombat ? this.#getEncounterCombatantForToken(selectedCombat, token) : null;
         const resolvedActor = actor ?? combatant?.actor ?? this.#resolveTokenActor(token);
@@ -2840,20 +2844,22 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             actor: resolvedActor ?? null,
             token,
             combat: selectedCombat,
-            combatant
+            combatant,
+            source
         };
     }
 
     #resolveEncounterPlannerSelection({ combat = null, scene = null } = {}) {
         const selection = this._encounterPlannerSelection;
         if (selection) {
-            const selectedCombat = this.#collectionGet(game.combats, selection.combatId) ?? combat;
-            const selectedScene = this.#collectionGet(game.scenes, selection.sceneId) ?? scene;
-            const token = this.#collectionGet(selectedScene?.tokens, selection.tokenId);
+            const selectedCombat = this.#collectionGet(game.combats, selection.combatId) ?? selection.combat ?? combat;
+            const selectedScene = this.#collectionGet(game.scenes, selection.sceneId) ?? selection.scene ?? scene;
+            const token = selection.token ?? this.#collectionGet(selectedScene?.tokens, selection.tokenId);
             const resolved = this.#buildEncounterPlannerSelectionForToken({
                 combat: selectedCombat,
                 token,
-                actor: this.#resolveTokenActor(token)
+                actor: selection.actor ?? this.#resolveTokenActor(token),
+                source: "pinned"
             });
             if (resolved) return resolved;
             this._encounterPlannerSelection = null;
@@ -2863,7 +2869,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const resolved = this.#buildEncounterPlannerSelectionForToken({
             combat,
             token: selectedToken,
-            actor: this.#resolveTokenActor(selectedToken)
+            actor: this.#resolveTokenActor(selectedToken),
+            source: "selected-token"
         });
         if (resolved) return resolved;
 
@@ -2897,7 +2904,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             combatantId: String(combatant?.id ?? ""),
             sceneId: String(scene?.id ?? scene?._id ?? ""),
             tokenId: String(token?.id ?? token?._id ?? token?.document?.id ?? ""),
-            actorId: String(actor?.id ?? actor?._id ?? combatant?.actor?.id ?? "")
+            actorId: String(actor?.id ?? actor?._id ?? combatant?.actor?.id ?? ""),
+            combat,
+            scene,
+            token,
+            actor
         };
         await this.#showEncounterPanel();
         return true;
