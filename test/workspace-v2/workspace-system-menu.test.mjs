@@ -192,6 +192,8 @@ describe("workspace system menu", () => {
     it("renders visible panel toggles in a separate floating panel menu", () => {
         assert.match(workspaceRootSource, /data-action="totc-v2-panel-menu-toggle"[\s\S]*fa-window-maximize/);
         assert.match(workspaceRootSource, /data-panel-menu="true"[\s\S]*aria-label="Visible panels"[\s\S]*\$\{panelToggleMarkup\}/);
+        assert.match(workspaceRootSource, /const panelVisibility = this\.panelRegistry\.getVisibilityModel\(visiblePanels, \{ isGM: isGMUser \}\);/);
+        assert.match(workspaceRootSource, /if \(!isGMUser\) \{[\s\S]*for \(const panelId of visiblePanels\)/);
         assert.match(workspaceRootSource, /data-action="totc-v2-command-menu-toggle"[\s\S]*data-command-menu="true"[\s\S]*totc-v2-open-foundry-settings[\s\S]*totc-v2-exit-world/);
 
         const commandMenuBlock = workspaceRootSource.match(/<div class="totc-v2-command-menu" data-command-menu="true" hidden>[\s\S]*?<\/div>/)?.[0] ?? "";

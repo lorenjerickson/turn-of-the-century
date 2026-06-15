@@ -172,6 +172,7 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /encounter-add-action/);
         assert.match(workspaceRootSource, /encounter-add-selected-action/);
         assert.match(workspaceRootSource, /syncEncounterAddButtonState/);
+        assert.match(workspaceRootSource, /hasSelectedAction\s*=\s*Boolean\(this\.#findEncounterActionOptionWithSearch\(input\)\)/);
         assert.match(workspaceRootSource, /addEncounterActionFromInput/);
         assert.match(workspaceRootSource, /addCombatantAction/);
         assert.match(workspaceRootSource, /setCombatantPlan/);

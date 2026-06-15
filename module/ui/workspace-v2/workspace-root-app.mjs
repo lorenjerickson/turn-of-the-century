@@ -1390,6 +1390,20 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const worldActors = Array.from(game.actors?.contents ?? []);
         const actorWorkspaceState = this.actorWorkspaceController.state;
         const selectedActor = this.actorWorkspaceController.getSelectedActor();
+        const isGMUser = Boolean(game.user?.isGM);
+        const panelVisibility = this.panelRegistry.getVisibilityModel(visiblePanels, { isGM: isGMUser });
+        if (!isGMUser) {
+            for (const panelId of visiblePanels) {
+                if (panelVisibility.some((panel) => panel.id === panelId)) continue;
+                const panelDef = this.panelRegistry.get(panelId);
+                if (!panelDef || panelDef.roleAccess?.internalOnly) continue;
+                panelVisibility.push({
+                    id: panelDef.id,
+                    title: panelDef.title,
+                    visible: true
+                });
+            }
+        }
         const designIssuesPanel = buildDesignIssuesPanelModel({
             scene,
             actors: worldActors,
@@ -1401,11 +1415,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             debugGovernance: policy.debugGovernance,
             hasUserLayout: Boolean(this.stateStore?.getUserLayout?.()),
             panels: this.panels,
-            panelVisibility: this.panelRegistry.getVisibilityModel(visiblePanels, { isGM: Boolean(game.user?.isGM) }),
+            panelVisibility,
             designCommandPalette: buildDesignCommandPaletteModel({
                 active: this.designCommandPaletteOpen,
                 activePanel: activeWorkspacePanel,
-                isGM: Boolean(game.user?.isGM),
+                isGM: isGMUser,
                 query: this.designCommandPaletteQuery,
                 registry: this.designActionRegistry
             }),
@@ -1425,7 +1439,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 actor: selectedActor,
                 state: actorWorkspaceState.editorState,
                 users: game.users,
-                isGM: Boolean(game.user?.isGM)
+                isGM: isGMUser
             }),
             compendiumLoadingState: this.compendiumCacheController.loadingFailureMessage,
             mediaBrowserPanel: buildMediaBrowserPanelModel({
@@ -3031,7 +3045,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             const button = picker?.querySelector?.("[data-action='encounter-add-selected-action']");
             if (!button) return;
             const canEditPlan = input?.dataset?.canEditPlan === "true";
-            const hasSelectedAction = Boolean(this.#findEncounterActionOption(input));
+            const hasSelectedAction = Boolean(this.#findEncounterActionOptionWithSearch(input));
             button.disabled = !(canEditPlan && hasSelectedAction);
         };
 
