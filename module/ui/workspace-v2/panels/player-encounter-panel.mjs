@@ -171,7 +171,7 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
 
 function renderTicks(apBudget) {
     return Array.from({ length: Math.max(1, Number(apBudget) || 1) }, (_, index) => `
-        <span class="totc-v2-encounter-panel__tick" style="grid-column:${index + 1};">${index + 1}</span>`).join("");
+        <li class="totc-v2-encounter-panel__tick" style="grid-column:${index + 1};">${index + 1}</li>`).join("");
 }
 
 function actionDataAttributes(action, escapeHTML) {
@@ -205,7 +205,7 @@ function renderPlanBar(model, escapeHTML) {
             : `style="grid-column:${startTick} / span ${action.span};"`;
 
         return `
-            <article class="totc-v2-encounter-panel__segment${action.variableAp ? " is-variable" : ""}"
+            <li class="totc-v2-encounter-panel__segment${action.variableAp ? " is-variable" : ""}"
                 draggable="${model.canEditPlan ? "true" : "false"}"
                 data-action="encounter-plan-segment"
                 ${clickableAttrs}
@@ -215,31 +215,31 @@ function renderPlanBar(model, escapeHTML) {
                 <small>${escapeHTML(action.apLabel)}</small>
                 ${model.canEditPlan ? `<button type="button" data-action="encounter-remove-action" data-action-index="${escapeHTML(String(action.index))}" title="Remove ${escapeHTML(action.label)}" aria-label="Remove ${escapeHTML(action.label)}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>` : ""}
                 ${model.canEditPlan && action.variableAp ? `<span class="totc-v2-encounter-panel__resize" data-action="encounter-resize-action" data-action-index="${escapeHTML(String(action.index))}" title="Resize action duration" aria-hidden="true"></span>` : ""}
-            </article>`;
+            </li>`;
     }).join("");
 
     let placeholdersMarkup = "";
     if (model.canEditPlan) {
         for (let tick = currentTick; tick <= model.apBudget; tick++) {
             placeholdersMarkup += `
-            <div class="totc-v2-encounter-panel__segment is-empty"
+            <li class="totc-v2-encounter-panel__segment is-empty"
                 style="grid-column:${tick}; cursor:pointer;"
                 data-action="encounter-edit-plan-slot"
                 data-action-index="${escapeHTML(String(planned.length))}"
                 data-start-tick="${tick}"
                 title="Click to add action starting at AP ${tick}">
                 <span>+ Add</span>
-            </div>`;
+            </li>`;
         }
     }
 
     return `
-    <div class="totc-v2-encounter-panel__bar" data-action="encounter-plan-bar" data-combatant-id="${escapeHTML(model.combatantId)}" data-ap-budget="${escapeHTML(String(model.apBudget))}" style="--totc-ap-budget:${model.apBudget};">
+    <ul class="totc-v2-encounter-panel__bar" data-action="encounter-plan-bar" data-combatant-id="${escapeHTML(model.combatantId)}" data-ap-budget="${escapeHTML(String(model.apBudget))}" style="--totc-ap-budget:${model.apBudget};">
         ${renderTicks(model.apBudget)}
         ${segmentsMarkup}
         ${placeholdersMarkup}
-        ${planned.length || model.canEditPlan ? "" : `<div class="totc-v2-encounter-panel__empty-bar">No planned actions</div>`}
-    </div>`;
+        ${planned.length || model.canEditPlan ? "" : `<li class="totc-v2-encounter-panel__empty-bar">No planned actions</li>`}
+    </ul>`;
 }
 
 function renderHistoryRows(model, escapeHTML) {
@@ -248,15 +248,15 @@ function renderHistoryRows(model, escapeHTML) {
     return rows.map((row) => `
         <article class="totc-v2-encounter-panel__history-row">
             <strong>${escapeHTML(row.label)}</strong>
-            <div class="totc-v2-encounter-panel__history-bar" style="--totc-ap-budget:${row.apBudget};">
+            <ul class="totc-v2-encounter-panel__history-bar" style="--totc-ap-budget:${row.apBudget};">
                 ${renderTicks(row.apBudget)}
                 ${(row.segments ?? []).map((segment) => `
-                    <span class="totc-v2-encounter-panel__history-segment"
+                    <li class="totc-v2-encounter-panel__history-segment"
                         style="grid-column:${segment.start} / span ${segment.span};"
                         title="${escapeHTML(segment.label)}${segment.result ? `: ${escapeHTML(segment.result)}` : ""}">
                         ${escapeHTML(segment.label)}
-                    </span>`).join("")}
-            </div>
+                    </li>`).join("")}
+            </ul>
         </article>`).join("");
 }
 

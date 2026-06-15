@@ -3931,8 +3931,13 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     opacity: 0.55;
 }
 
-.turn-of-the-century .totc-v2-encounter-panel__bar,
-.turn-of-the-century .totc-v2-encounter-panel__history-bar {
+.turn-of-the-century ul.totc-v2-encounter-panel__bar,
+.turn-of-the-century ul.totc-v2-encounter-panel__history-bar {
+    list-style: none !important;
+    list-style-type: none !important;
+    margin: 0 !important;
+    padding-inline-start: 0 !important;
+    text-indent: 0 !important;
     background: repeating-linear-gradient(
         90deg,
         rgba(15, 23, 42, 0.78) 0,
@@ -3949,6 +3954,14 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     min-height: 3.8rem;
     padding: 1.3rem 0.35rem 0.35rem;
     position: relative;
+}
+
+.turn-of-the-century ul.totc-v2-encounter-panel__bar li,
+.turn-of-the-century ul.totc-v2-encounter-panel__history-bar li {
+    list-style: none !important;
+    list-style-type: none !important;
+    margin: 0 !important;
+    background-image: none !important;
 }
 
 .turn-of-the-century .totc-v2-encounter-panel__tick {
