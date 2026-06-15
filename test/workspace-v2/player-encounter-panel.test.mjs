@@ -108,9 +108,7 @@ describe("player encounter panel", () => {
 
         assert.match(html, /class="totc-v2-encounter-panel"/);
         assert.match(html, /data-combat-id="combat-1" data-combatant-id="combatant-1"/);
-        assert.match(html, /type="search"[^>]*data-action="encounter-add-action"/);
-        assert.match(html, /data-action="encounter-add-selected-action"[^>]*disabled[^>]*>Add<\/button>/);
-        assert.match(html, /<datalist id="totc-encounter-actions-combatant-1">/);
+        assert.match(html, /class="totc-v2-encounter-panel__segment is-empty"[^>]*data-action="encounter-edit-plan-slot"/);
         assert.match(html, /data-action="encounter-plan-segment"[\s\S]*draggable="true"/);
         assert.match(html, /data-action="encounter-resize-action"[\s\S]*data-action-index="0"/);
         assert.match(html, /data-action="encounter-remove-action"[\s\S]*data-action-index="1"/);
@@ -135,22 +133,25 @@ describe("player encounter panel", () => {
         assert.match(html, /data-action="encounter-clear-plan" disabled>Clear Plan<\/button>/);
     });
 
-    it("keeps the action search focusable for browsing when actions are available", () => {
+    it("renders available actions in the popup modal filtered by remaining AP", () => {
         const model = buildPlayerEncounterPanelModel({
             actor: actorFixture(),
-            planner: {
-                ...plannerFixture(),
-                canEditPlan: false
-            },
-            combat: null
+            planner: plannerFixture(),
+            combat: null,
+            activePlanEditSlot: {
+                index: 2,
+                startTick: 6,
+                remainingAp: 1
+            }
         });
 
         const html = renderPlayerEncounterPanel(model, { escapeHTML });
 
-        assert.match(html, /data-action="encounter-add-action"[^>]*data-can-edit-plan="false"/);
-        assert.doesNotMatch(html, /data-action="encounter-add-action"[^>]*disabled/);
-        assert.match(html, /<option value="Move"/);
-        assert.match(html, /<option value="Strike"/);
+        assert.match(html, /class="totc-v2-encounter-popup-overlay"/);
+        assert.match(html, /class="totc-v2-encounter-popup"/);
+        assert.match(html, /Add Action \(Tick 6, Max 1 AP\)/);
+        assert.match(html, /data-action="encounter-select-popup-action"[^>]*data-action-id="move"/);
+        assert.doesNotMatch(html, /data-action="encounter-select-popup-action"[^>]*data-action-id="strike"/);
     });
 
     it("keeps encounter planning out of actor sheets and the combat tracker", () => {
@@ -169,15 +170,11 @@ describe("player encounter panel", () => {
 
     it("wires player encounter actions through per-action combat APIs", () => {
         assert.match(workspaceRootSource, /#wirePlayerEncounterPanelHandlers/);
-        assert.match(workspaceRootSource, /encounter-add-action/);
-        assert.match(workspaceRootSource, /encounter-add-selected-action/);
-        assert.match(workspaceRootSource, /syncEncounterAddButtonState/);
-        assert.match(workspaceRootSource, /hasSelectedAction\s*=\s*Boolean\(this\.#findEncounterActionOptionWithSearch\(input\)\)/);
-        assert.match(workspaceRootSource, /addEncounterActionFromInput/);
-        assert.match(workspaceRootSource, /addCombatantAction/);
+        assert.match(workspaceRootSource, /encounter-edit-plan-slot/);
+        assert.match(workspaceRootSource, /encounter-select-popup-action/);
+        assert.match(workspaceRootSource, /encounter-close-popup/);
         assert.match(workspaceRootSource, /setCombatantPlan/);
         assert.match(workspaceRootSource, /setCombatantActionApCost/);
-        assert.match(workspaceRootSource, /if \(input\?\.dataset\?\.canEditPlan !== "true"\) return;/);
         assert.doesNotMatch(workspaceRootSource, /rollEncounter/);
         assert.doesNotMatch(workspaceRootSource, /rollAllMissing/);
         assert.doesNotMatch(workspaceRootSource, /player-execute-encounter-action/);
@@ -202,6 +199,6 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /selectionSource: String\(encounterPlannerSelection\?\.source \?\? ""\)/);
         assert.match(workspaceRootSource, /#getEncounterCombat\(element = null\)/);
         assert.match(workspaceRootSource, /closest\?\.\("\.totc-v2-encounter-panel"\)\?\.dataset\?\.combatId/);
-        assert.match(workspaceRootSource, /const combat = this\.\#getEncounterCombat\(input\)/);
+        assert.match(workspaceRootSource, /const combat = this\.\#getEncounterCombat\((el|button|input)\)/);
     });
 });

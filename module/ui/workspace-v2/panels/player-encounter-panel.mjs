@@ -113,7 +113,7 @@ function historyRowsFromTimeline({ planner = null, combat = null } = {}) {
     }];
 }
 
-export function buildPlayerEncounterPanelModel({ actor = null, planner = null, combat = null } = {}) {
+export function buildPlayerEncounterPanelModel({ actor = null, planner = null, combat = null, activePlanEditSlot = null } = {}) {
     console.group("[TOTC-DEBUG] buildPlayerEncounterPanelModel");
     console.log("Actor:", actor);
     console.log("Planner:", planner);
@@ -164,7 +164,8 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
         availableActions,
         plannedActions,
         hasPlannedActions: plannedActions.length > 0,
-        historyRows: historyRowsFromTimeline({ planner, combat })
+        historyRows: historyRowsFromTimeline({ planner, combat }),
+        activePlanEditSlot
     };
 }
 
@@ -194,23 +195,50 @@ function actionDataAttributes(action, escapeHTML) {
 
 function renderPlanBar(model, escapeHTML) {
     const planned = model.plannedActions ?? [];
-    return `
-    <div class="totc-v2-encounter-panel__bar" data-action="encounter-plan-bar" data-combatant-id="${escapeHTML(model.combatantId)}" data-ap-budget="${escapeHTML(String(model.apBudget))}" style="--totc-ap-budget:${model.apBudget};">
-        ${renderTicks(model.apBudget)}
-        ${planned.map((action) => `
+    let currentTick = 1;
+    const segmentsMarkup = planned.map((action) => {
+        const startTick = currentTick;
+        action.startTick = startTick;
+        currentTick += action.span;
+        const clickableAttrs = model.canEditPlan
+            ? `data-start-tick="${startTick}" style="grid-column:${startTick} / span ${action.span}; cursor:pointer;"`
+            : `style="grid-column:${startTick} / span ${action.span};"`;
+
+        return `
             <article class="totc-v2-encounter-panel__segment${action.variableAp ? " is-variable" : ""}"
                 draggable="${model.canEditPlan ? "true" : "false"}"
                 data-action="encounter-plan-segment"
-                data-action-index="${escapeHTML(String(action.index))}"
-                style="grid-column:span ${action.span};"
+                ${clickableAttrs}
                 ${actionDataAttributes(action, escapeHTML)}
                 title="${escapeHTML(action.label)} (${escapeHTML(action.apLabel)})">
                 <span>${escapeHTML(action.label)}</span>
                 <small>${escapeHTML(action.apLabel)}</small>
                 ${model.canEditPlan ? `<button type="button" data-action="encounter-remove-action" data-action-index="${escapeHTML(String(action.index))}" title="Remove ${escapeHTML(action.label)}" aria-label="Remove ${escapeHTML(action.label)}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>` : ""}
                 ${model.canEditPlan && action.variableAp ? `<span class="totc-v2-encounter-panel__resize" data-action="encounter-resize-action" data-action-index="${escapeHTML(String(action.index))}" title="Resize action duration" aria-hidden="true"></span>` : ""}
-            </article>`).join("")}
-        ${planned.length ? "" : `<div class="totc-v2-encounter-panel__empty-bar">No planned actions</div>`}
+            </article>`;
+    }).join("");
+
+    let placeholdersMarkup = "";
+    if (model.canEditPlan) {
+        for (let tick = currentTick; tick <= model.apBudget; tick++) {
+            placeholdersMarkup += `
+            <div class="totc-v2-encounter-panel__segment is-empty"
+                style="grid-column:${tick}; cursor:pointer;"
+                data-action="encounter-edit-plan-slot"
+                data-action-index="${escapeHTML(String(planned.length))}"
+                data-start-tick="${tick}"
+                title="Click to add action starting at AP ${tick}">
+                <span>+ Add</span>
+            </div>`;
+        }
+    }
+
+    return `
+    <div class="totc-v2-encounter-panel__bar" data-action="encounter-plan-bar" data-combatant-id="${escapeHTML(model.combatantId)}" data-ap-budget="${escapeHTML(String(model.apBudget))}" style="--totc-ap-budget:${model.apBudget};">
+        ${renderTicks(model.apBudget)}
+        ${segmentsMarkup}
+        ${placeholdersMarkup}
+        ${planned.length || model.canEditPlan ? "" : `<div class="totc-v2-encounter-panel__empty-bar">No planned actions</div>`}
     </div>`;
 }
 
@@ -232,6 +260,43 @@ function renderHistoryRows(model, escapeHTML) {
         </article>`).join("");
 }
 
+function renderPlanEditPopup(model, escapeHTML) {
+    const slot = model.activePlanEditSlot;
+    if (!slot) return "";
+
+    const remainingAp = slot.remainingAp;
+    const actions = (model.availableActions ?? []).filter((action) => action.apMin <= remainingAp);
+
+    const itemsMarkup = actions.map((action) => `
+        <button type="button" class="totc-v2-encounter-popup__item"
+            data-action="encounter-select-popup-action"
+            ${actionDataAttributes(action, escapeHTML)}
+            data-action-index="${escapeHTML(String(slot.index))}">
+            ${action.img ? `<img src="${escapeHTML(action.img)}" alt="">` : `<span class="totc-v2-encounter-popup__item-fallback"><i class="fa-solid fa-bolt" aria-hidden="true"></i></span>`}
+            <div class="totc-v2-encounter-popup__item-info">
+                <span class="totc-v2-encounter-popup__item-label">${escapeHTML(action.label)}</span>
+                ${action.description ? `<span class="totc-v2-encounter-popup__item-desc">${escapeHTML(action.description)}</span>` : ""}
+            </div>
+            <span class="totc-v2-encounter-popup__item-ap">${escapeHTML(action.apLabel)}</span>
+        </button>
+    `).join("");
+
+    return `
+    <div class="totc-v2-encounter-popup-overlay">
+        <div class="totc-v2-encounter-popup">
+            <header class="totc-v2-encounter-popup__header">
+                <h4>Add Action (Tick ${escapeHTML(String(slot.startTick))}, Max ${escapeHTML(String(remainingAp))} AP)</h4>
+                <button type="button" class="totc-v2-encounter-popup__close" data-action="encounter-close-popup" aria-label="Close dialog">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </header>
+            <div class="totc-v2-encounter-popup__list">
+                ${itemsMarkup || `<div class="totc-v2-encounter-popup__empty">No available actions fit in the remaining budget.</div>`}
+            </div>
+        </div>
+    </div>`;
+}
+
 export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
     if (!model.status) {
         return `
@@ -241,9 +306,6 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
     }
 
     const status = model.status;
-    const actionOptions = (model.availableActions ?? []).map((action) => `
-        <option value="${escapeHTML(action.label)}" ${actionDataAttributes(action, escapeHTML)}>${escapeHTML(action.apLabel)}</option>`).join("");
-    const canBrowseActions = (model.availableActions ?? []).length > 0;
 
     return `
     <section class="totc-v2-encounter-panel" data-combat-id="${escapeHTML(model.combatId)}" data-combatant-id="${escapeHTML(model.combatantId)}">
@@ -266,21 +328,12 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
                 <h3>Round Planning</h3>
                 <span>${escapeHTML(String(model.remainingAp))} AP remaining${model.planningTimeDisplay ? ` · ${escapeHTML(model.planningTimeDisplay)}` : ""}</span>
             </header>
-            <label class="totc-v2-encounter-panel__picker">
-                <span>Available action</span>
-                <div class="totc-v2-encounter-panel__picker-row">
-                    <input type="search" list="totc-encounter-actions-${escapeHTML(model.combatantId)}" data-action="encounter-add-action" data-can-edit-plan="${model.canEditPlan ? "true" : "false"}" placeholder="Search actions" ${canBrowseActions ? "" : "disabled"}>
-                    <button type="button" data-action="encounter-add-selected-action" data-can-edit-plan="${model.canEditPlan ? "true" : "false"}" disabled>Add</button>
-                </div>
-                <datalist id="totc-encounter-actions-${escapeHTML(model.combatantId)}">
-                    ${actionOptions}
-                </datalist>
-            </label>
             ${renderPlanBar(model, escapeHTML)}
             <footer class="totc-v2-encounter-panel__actions">
                 <button type="button" data-action="encounter-clear-plan" ${model.canEditPlan && model.hasPlannedActions ? "" : "disabled"}>Clear Plan</button>
                 <button type="button" data-action="encounter-toggle-ready" data-ready="${model.ready ? "true" : "false"}" aria-pressed="${model.ready ? "true" : "false"}" ${model.canCommit ? "" : "disabled"}>Ready</button>
             </footer>
+            ${model.activePlanEditSlot ? renderPlanEditPopup(model, escapeHTML) : ""}
         </section>
 
         <section class="totc-v2-encounter-panel__history">

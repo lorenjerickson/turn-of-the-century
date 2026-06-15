@@ -779,6 +779,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.ghostIntent = null;
         this.activeDesignLensPanelIds = new Set();
         this.selectedTokenIds = new Set();
+        this._activePlanEditSlot = null;
         this._lastEncounterPlannerDebugSnapshot = "";
         this.designCommandPaletteOpen = false;
         this.designCommandPaletteQuery = "";
@@ -1345,7 +1346,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const playerEncounterPanel = buildPlayerEncounterPanelModel({
             actor: selectedEncounterActor,
             planner: playerEncounterPlanner,
-            combat
+            combat,
+            activePlanEditSlot: this._activePlanEditSlot
         });
         this.#debugEncounterPlannerSelection({
             playerActorId: String(selectedPlayerActor?.id ?? ""),
@@ -1646,6 +1648,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const selectedActorId = String(select.value ?? "");
                 const pinnedSelection = this._encounterPlannerSelection;
                 this._encounterPlannerSelection = null;
+                this._activePlanEditSlot = null;
                 this._lastEncounterPlannerDebugSnapshot = "";
                 totcLogger.debug("[encounter-planner] player actor selection changed", {
                     selectedActorId,
@@ -3041,45 +3044,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #wirePlayerEncounterPanelHandlers() {
-        const syncEncounterAddButtonState = (input) => {
-            const picker = input?.closest?.(".totc-v2-encounter-panel__picker");
-            const button = picker?.querySelector?.("[data-action='encounter-add-selected-action']");
-            if (!button) return;
-            const canEditPlan = input?.dataset?.canEditPlan === "true";
-            const hasSelectedAction = Boolean(this.#findEncounterActionOptionWithSearch(input));
-            button.disabled = !(canEditPlan && hasSelectedAction);
-        };
-
-        const addEncounterActionFromInput = async (input, { allowSearch = false } = {}) => {
-            if (input?.dataset?.canEditPlan !== "true") return;
-            const option = allowSearch
-                ? this.#findEncounterActionOptionWithSearch(input)
-                : this.#findEncounterActionOption(input);
-            if (!option) return;
-            const combatantId = this.#getEncounterPanelCombatantId(input);
-            const combat = this.#getEncounterCombat(input);
-            if (!combatantId || !combat?.addCombatantAction) return;
-            const actionData = this.#readEncounterActionData(option);
-            if (!actionData) return;
-
-            const previousPlan = combat.getCombatantPlan?.(combatantId) ?? [];
-            const previousRemainingAp = Number(combat.getCombatantRemainingAp?.(combatantId) ?? 0);
-            await combat.addCombatantAction(combatantId, actionData);
-            if (actionData.type === "movement") {
-                this.#beginEncounterMovementInteraction({
-                    combat,
-                    combatantId,
-                    actionIndex: previousPlan.length,
-                    maxAp: previousRemainingAp
-                });
-            } else {
-                this._encounterMovementInteraction = null;
-            }
-
-            input.value = "";
-            this.render({ force: false });
-        };
-
         this.element?.addEventListener("click", (event) => {
             if (!this._encounterMovementInteraction) return;
             if (event.target?.closest?.("[data-action='encounter-move-square']")) return;
@@ -3089,35 +3053,74 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             void this.#cancelEncounterMovementInteraction();
         }, { capture: true });
 
-        this.element?.querySelectorAll("[data-action='encounter-add-action']")?.forEach((input) => {
-            syncEncounterAddButtonState(input);
-
-            input.addEventListener("input", () => {
-                syncEncounterAddButtonState(input);
-            });
-
-            input.addEventListener("keydown", async (event) => {
-                if (event.key !== "Enter") return;
+        this.element?.querySelectorAll("[data-action='encounter-plan-segment'], [data-action='encounter-edit-plan-slot']")?.forEach((el) => {
+            el.addEventListener("click", (event) => {
+                if (event.target?.closest?.("[data-action='encounter-remove-action'], [data-action='encounter-resize-action']")) return;
                 event.preventDefault();
                 event.stopPropagation();
-                await addEncounterActionFromInput(input, { allowSearch: true });
-            });
+                
+                const combatantId = this.#getEncounterPanelCombatantId(el);
+                const combat = this.#getEncounterCombat(el);
+                if (!combatantId || !combat) return;
 
-            input.addEventListener("change", async (event) => {
-                syncEncounterAddButtonState(input);
-                await addEncounterActionFromInput(input);
+                const startTick = Number(el.dataset.startTick ?? 1);
+                const actionIndex = Number(el.dataset.actionIndex ?? 0);
+                const apBudget = Number(combat.apBudget ?? 6);
+                const remainingAp = apBudget - startTick + 1;
+
+                this._activePlanEditSlot = {
+                    index: actionIndex,
+                    startTick,
+                    remainingAp
+                };
+                this.render({ force: false });
             });
         });
 
-        this.element?.querySelectorAll("[data-action='encounter-add-selected-action']")?.forEach((button) => {
+        this.element?.querySelectorAll("[data-action='encounter-close-popup']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this._activePlanEditSlot = null;
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-select-popup-action']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                const input = button.closest(".totc-v2-encounter-panel__picker")?.querySelector("[data-action='encounter-add-action']");
-                if (!input) return;
-                await addEncounterActionFromInput(input, { allowSearch: true });
+
+                const combatantId = this.#getEncounterPanelCombatantId(button);
+                const combat = this.#getEncounterCombat(button);
+                if (!combatantId || !combat?.setCombatantPlan) return;
+
+                const actionData = this.#readEncounterActionData(button);
+                if (!actionData) return;
+
+                const actionIndex = Number(button.dataset.actionIndex);
+                if (Number.isNaN(actionIndex)) return;
+
+                const currentPlan = combat.getCombatantPlan?.(combatantId) ?? [];
+                const nextPlan = [...currentPlan.slice(0, actionIndex), actionData];
+                await combat.setCombatantPlan(combatantId, nextPlan);
+
+                if (actionData.type === "movement") {
+                    this.#beginEncounterMovementInteraction({
+                        combat,
+                        combatantId,
+                        actionIndex,
+                        maxAp: this._activePlanEditSlot?.remainingAp ?? (Number(combat.apBudget ?? 6) - 1)
+                    });
+                } else {
+                    this._encounterMovementInteraction = null;
+                }
+
+                this._activePlanEditSlot = null;
+                this.render({ force: false });
             });
         });
+
 
         this.element?.querySelectorAll("[data-action='encounter-remove-action']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {

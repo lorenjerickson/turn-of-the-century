@@ -287,8 +287,8 @@ describe("WorkspacePanelHost", () => {
         });
 
         assert.match(html, /totc-v2-encounter-panel/);
-        assert.match(html, /data-action="encounter-add-action"/);
-        assert.match(html, /totc-encounter-actions-combatant-1/);
+        assert.match(html, /data-action="encounter-edit-plan-slot"/);
+        assert.match(html, /data-action="encounter-plan-bar"/);
     });
 
     it("renders the GM encounter manager panel", () => {
