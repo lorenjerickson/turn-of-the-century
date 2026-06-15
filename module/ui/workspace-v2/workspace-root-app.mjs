@@ -2751,9 +2751,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             ?? null;
     }
 
+    #getTokenCombatant(token = null) {
+        return token?.combatant ?? token?.object?.combatant ?? null;
+    }
+
     #getEncounterCombatantForToken(combat = null, token = null) {
         if (!combat || !token) return null;
-        const tokenCombatant = token.combatant;
+        const tokenCombatant = this.#getTokenCombatant(token);
         if (tokenCombatant && (tokenCombatant.combat === combat || tokenCombatant.parent === combat || tokenCombatant.combat?.id === combat.id || tokenCombatant.parent?.id === combat.id)) {
             return tokenCombatant;
         }
@@ -2766,7 +2770,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #getEncounterCombatForToken(token = null) {
-        const tokenCombatant = token?.combatant;
+        const tokenCombatant = this.#getTokenCombatant(token);
         const tokenCombat = tokenCombatant?.combat ?? tokenCombatant?.parent;
         if (tokenCombat) {
             return tokenCombat;
@@ -2818,7 +2822,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #resolveTokenActor(token = null) {
-        return token?.actor ?? game.actors?.get?.(token?.actorId ?? token?.document?.actorId) ?? null;
+        return token?.actor ?? token?.object?.actor ?? game.actors?.get?.(token?.actorId ?? token?.document?.actorId) ?? null;
     }
 
     #getSelectedEncounterToken(scene = null) {

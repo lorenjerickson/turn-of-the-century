@@ -32,6 +32,10 @@ function getCombatantById(combat = null, combatantId = "") {
         ?? null;
 }
 
+function getTokenCombatant(tokenDocument = null) {
+    return tokenDocument?.combatant ?? tokenDocument?.object?.combatant ?? null;
+}
+
 function pickPreferredCombatant(combatants = []) {
     if (!combatants.length) return null;
     if (combatants.length === 1) return combatants[0];
@@ -147,8 +151,8 @@ function findCombatantForActor(combat, actor, tokenDocument = null) {
 }
 
 function resolveEncounterCombatForActor(actor, tokenDocument = null) {
-    const tokenCombatant = tokenDocument?.combatant;
-    const tokenCombat = tokenCombatant?.combat;
+    const tokenCombatant = getTokenCombatant(tokenDocument);
+    const tokenCombat = tokenCombatant?.combat ?? tokenCombatant?.parent;
     if (tokenCombat?.initializeEncounterRound && tokenCombatant) {
         return { combat: tokenCombat, combatant: tokenCombatant };
     }

@@ -118,4 +118,40 @@ describe("encounter planner context", () => {
         assert.equal(planner.combatantCount, 1);
         assert.deepEqual(planner.availableActions.map((action) => action.id), ["move"]);
     });
+
+    it("resolves a token document whose live token object owns the combatant", async () => {
+        const { buildEncounterPlanner } = await loadPlannerContext();
+        const actor = actorFixture("actor-ada", "Ada Price");
+        const combatant = { id: "combatant-ada", actor, actorId: actor.id, tokenId: "token-ada" };
+        const combat = {
+            id: "combat-1",
+            name: "Rookery Ambush",
+            phase: "planning",
+            round: 1,
+            apBudget: 6,
+            planningRemainingSeconds: 42,
+            combatants: {
+                contents: [combatant],
+                get: (id) => id === combatant.id ? combatant : null
+            },
+            encounterState: { initialized: true },
+            initializeEncounterRound: () => {},
+            getCombatantState: () => ({ ready: false, spentAp: 0, plan: [] }),
+            getCombatantPlan: () => [],
+            getCombatantRemainingAp: () => 6,
+            getAvailableActionsForCombatant: () => [{ id: "move", actionId: "move", type: "movement", label: "Move", apCost: 1 }],
+            getTargetOptionsForCombatant: () => []
+        };
+        combatant.combat = combat;
+
+        const planner = buildEncounterPlanner(actor, {
+            id: "token-ada",
+            actor,
+            object: { id: "token-ada", actor, combatant }
+        });
+
+        assert.equal(planner.combatantId, "combatant-ada");
+        assert.equal(planner.canEditPlan, true);
+        assert.deepEqual(planner.availableActions.map((action) => action.id), ["move"]);
+    });
 });

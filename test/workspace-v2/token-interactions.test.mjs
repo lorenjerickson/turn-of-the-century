@@ -47,6 +47,8 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /if \(!\(game\.user\?\.isGM \|\| tActor\?\.isOwner\)\) continue;/);
         assert.match(workspaceRootSource, /#showEncounterPanelForToken\(\{ combat = null, scene = null, token = null, actor = null \}/);
         assert.match(workspaceRootSource, /#canPlanEncounterToken\(\{ combat = null, token = null, actor = null \}/);
+        assert.match(workspaceRootSource, /#getTokenCombatant\(token = null\)/);
+        assert.match(workspaceRootSource, /token\?\.combatant \?\? token\?\.object\?\.combatant/);
         assert.match(workspaceRootSource, /game\.user\?\.isGM \|\| actor\?\.isOwner/);
         assert.match(workspaceRootSource, /combat\?\.encounterState\?\.initialized \?\? combat\?\.encounter\?\.state\?\.initialized/);
         assert.match(workspaceRootSource, /#getEncounterCombatForToken\(token = null\)/);
