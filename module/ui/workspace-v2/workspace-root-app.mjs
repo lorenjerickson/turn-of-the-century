@@ -780,7 +780,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.activeDesignLensPanelIds = new Set();
         this.selectedTokenIds = new Set();
         this._activePlanEditSlot = null;
-        this._playerEncounterHandlersWired = false;
+        this._wiredElement = null;
         this._lastEncounterPlannerDebugSnapshot = "";
         this.designCommandPaletteOpen = false;
         this.designCommandPaletteQuery = "";
@@ -3045,13 +3045,20 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #wirePlayerEncounterPanelHandlers() {
-        if (this._playerEncounterHandlersWired) return;
-        this._playerEncounterHandlersWired = true;
+        console.log("[TOTC-DEBUG] #wirePlayerEncounterPanelHandlers called. this.element:", this.element, "wiredElement:", this._wiredElement);
+        if (this._wiredElement === this.element) {
+            console.log("[TOTC-DEBUG] Already wired for this element, skipping.");
+            return;
+        }
+        this._wiredElement = this.element;
+        console.log("[TOTC-DEBUG] Wiring handlers to this.element");
 
         // Click interaction capture guard for cancelling movement
         this.element?.addEventListener("click", (event) => {
+            console.log("[TOTC-DEBUG] Capture click:", event.target);
             if (!this._encounterMovementInteraction) return;
             if (event.target?.closest?.("[data-action='encounter-move-square']")) return;
+            console.log("[TOTC-DEBUG] Cancelling movement interaction via capture click");
             event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation?.();
@@ -3060,15 +3067,21 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         // Delegated clicks for panel actions
         this.element?.addEventListener("click", async (event) => {
+            console.log("[TOTC-DEBUG] Bubble click on target:", event.target);
             // Click plan segments or empty slots to open action popup
             const el = event.target?.closest?.("[data-action='encounter-plan-segment'], [data-action='encounter-edit-plan-slot']");
+            console.log("[TOTC-DEBUG] closest segment/slot:", el);
             if (el) {
-                if (event.target?.closest?.("[data-action='encounter-remove-action'], [data-action='encounter-resize-action']")) return;
+                if (event.target?.closest?.("[data-action='encounter-remove-action'], [data-action='encounter-resize-action']")) {
+                    console.log("[TOTC-DEBUG] Clicked on remove/resize button inside slot, ignoring slot click");
+                    return;
+                }
                 event.preventDefault();
                 event.stopPropagation();
 
                 const combatantId = this.#getEncounterPanelCombatantId(el);
                 const combat = this.#getEncounterCombat(el);
+                console.log("[TOTC-DEBUG] Slot click info - combatantId:", combatantId, "combat:", combat);
                 if (!combatantId || !combat) return;
 
                 const startTick = Number(el.dataset.startTick ?? 1);
@@ -3076,6 +3089,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const apBudget = Number(combat.apBudget ?? 6);
                 const remainingAp = apBudget - startTick + 1;
 
+                console.log("[TOTC-DEBUG] Opening popup at actionIndex:", actionIndex, "startTick:", startTick, "remainingAp:", remainingAp);
                 this._activePlanEditSlot = {
                     index: actionIndex,
                     startTick,
@@ -3088,6 +3102,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             // Close popup
             const buttonClose = event.target?.closest?.("[data-action='encounter-close-popup']");
             if (buttonClose) {
+                console.log("[TOTC-DEBUG] Clicked close popup");
                 event.preventDefault();
                 event.stopPropagation();
                 this._activePlanEditSlot = null;
@@ -3098,6 +3113,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             // Select popup action
             const button = event.target?.closest?.("[data-action='encounter-select-popup-action']");
             if (button) {
+                console.log("[TOTC-DEBUG] Clicked popup action button:", button);
                 event.preventDefault();
                 event.stopPropagation();
 
@@ -3106,6 +3122,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (!combatantId || !combat?.setCombatantPlan) return;
 
                 const actionData = this.#readEncounterActionData(button);
+                console.log("[TOTC-DEBUG] Selected action data:", actionData);
                 if (!actionData) return;
 
                 const actionIndex = Number(button.dataset.actionIndex);
@@ -3113,6 +3130,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 const currentPlan = combat.getCombatantPlan?.(combatantId) ?? [];
                 const nextPlan = [...currentPlan.slice(0, actionIndex), actionData];
+                console.log("[TOTC-DEBUG] Saving next plan:", nextPlan);
                 await combat.setCombatantPlan(combatantId, nextPlan);
 
                 if (actionData.type === "movement") {
@@ -3134,6 +3152,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             // Remove action button on plan segments
             const buttonRemove = event.target?.closest?.("[data-action='encounter-remove-action']");
             if (buttonRemove) {
+                console.log("[TOTC-DEBUG] Clicked remove action");
                 event.preventDefault();
                 event.stopPropagation();
                 const combatantId = this.#getEncounterPanelCombatantId(buttonRemove);
@@ -3148,6 +3167,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             // Clear plan
             const buttonClear = event.target?.closest?.("[data-action='encounter-clear-plan']");
             if (buttonClear) {
+                console.log("[TOTC-DEBUG] Clicked clear plan");
                 event.preventDefault();
                 event.stopPropagation();
                 const combatantId = this.#getEncounterPanelCombatantId(buttonClear);
@@ -3161,6 +3181,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             // Toggle ready state
             const buttonReady = event.target?.closest?.("[data-action='encounter-toggle-ready']");
             if (buttonReady) {
+                console.log("[TOTC-DEBUG] Clicked ready toggle");
                 event.preventDefault();
                 event.stopPropagation();
                 const combatantId = this.#getEncounterPanelCombatantId(buttonReady);
