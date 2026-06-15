@@ -4139,6 +4139,17 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     text-align: left;
 }
 
+.turn-of-the-century .totc-v2-encounter-panel__segment[data-start-tick],
+.turn-of-the-century .totc-v2-encounter-panel__segment.is-empty {
+    cursor: pointer;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__segment[data-start-tick]:hover {
+    background: rgba(37, 99, 235, 0.36);
+    border-color: rgba(147, 197, 253, 0.8);
+    box-shadow: 0 0 4px rgba(147, 197, 253, 0.3);
+}
+
 .turn-of-the-century .totc-v2-encounter-panel__segment span,
 .turn-of-the-century .totc-v2-encounter-panel__history-segment {
     overflow: hidden;

@@ -780,6 +780,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.activeDesignLensPanelIds = new Set();
         this.selectedTokenIds = new Set();
         this._activePlanEditSlot = null;
+        this._playerEncounterHandlersWired = false;
         this._lastEncounterPlannerDebugSnapshot = "";
         this.designCommandPaletteOpen = false;
         this.designCommandPaletteQuery = "";
@@ -3044,6 +3045,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #wirePlayerEncounterPanelHandlers() {
+        if (this._playerEncounterHandlersWired) return;
+        this._playerEncounterHandlersWired = true;
+
+        // Click interaction capture guard for cancelling movement
         this.element?.addEventListener("click", (event) => {
             if (!this._encounterMovementInteraction) return;
             if (event.target?.closest?.("[data-action='encounter-move-square']")) return;
@@ -3053,12 +3058,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             void this.#cancelEncounterMovementInteraction();
         }, { capture: true });
 
-        this.element?.querySelectorAll("[data-action='encounter-plan-segment'], [data-action='encounter-edit-plan-slot']")?.forEach((el) => {
-            el.addEventListener("click", (event) => {
+        // Delegated clicks for panel actions
+        this.element?.addEventListener("click", async (event) => {
+            // Click plan segments or empty slots to open action popup
+            const el = event.target?.closest?.("[data-action='encounter-plan-segment'], [data-action='encounter-edit-plan-slot']");
+            if (el) {
                 if (event.target?.closest?.("[data-action='encounter-remove-action'], [data-action='encounter-resize-action']")) return;
                 event.preventDefault();
                 event.stopPropagation();
-                
+
                 const combatantId = this.#getEncounterPanelCombatantId(el);
                 const combat = this.#getEncounterCombat(el);
                 if (!combatantId || !combat) return;
@@ -3074,20 +3082,22 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     remainingAp
                 };
                 this.render({ force: false });
-            });
-        });
+                return;
+            }
 
-        this.element?.querySelectorAll("[data-action='encounter-close-popup']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
+            // Close popup
+            const buttonClose = event.target?.closest?.("[data-action='encounter-close-popup']");
+            if (buttonClose) {
                 event.preventDefault();
                 event.stopPropagation();
                 this._activePlanEditSlot = null;
                 this.render({ force: false });
-            });
-        });
+                return;
+            }
 
-        this.element?.querySelectorAll("[data-action='encounter-select-popup-action']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+            // Select popup action
+            const button = event.target?.closest?.("[data-action='encounter-select-popup-action']");
+            if (button) {
                 event.preventDefault();
                 event.stopPropagation();
 
@@ -3118,58 +3128,71 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
                 this._activePlanEditSlot = null;
                 this.render({ force: false });
-            });
-        });
+                return;
+            }
 
-
-        this.element?.querySelectorAll("[data-action='encounter-remove-action']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+            // Remove action button on plan segments
+            const buttonRemove = event.target?.closest?.("[data-action='encounter-remove-action']");
+            if (buttonRemove) {
                 event.preventDefault();
                 event.stopPropagation();
-                const combatantId = this.#getEncounterPanelCombatantId(button);
-                const actionIndex = Number(button.dataset.actionIndex);
-                const combat = this.#getEncounterCombat(button);
+                const combatantId = this.#getEncounterPanelCombatantId(buttonRemove);
+                const actionIndex = Number(buttonRemove.dataset.actionIndex);
+                const combat = this.#getEncounterCombat(buttonRemove);
                 if (!combatantId || Number.isNaN(actionIndex) || !combat?.removeCombatantAction) return;
                 await combat.removeCombatantAction(combatantId, actionIndex);
                 this.render({ force: false });
-            });
-        });
+                return;
+            }
 
-        this.element?.querySelectorAll("[data-action='encounter-clear-plan']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+            // Clear plan
+            const buttonClear = event.target?.closest?.("[data-action='encounter-clear-plan']");
+            if (buttonClear) {
                 event.preventDefault();
                 event.stopPropagation();
-                const combatantId = this.#getEncounterPanelCombatantId(button);
-                const combat = this.#getEncounterCombat(button);
+                const combatantId = this.#getEncounterPanelCombatantId(buttonClear);
+                const combat = this.#getEncounterCombat(buttonClear);
                 if (!combatantId || !combat?.clearCombatantPlan) return;
                 await combat.clearCombatantPlan(combatantId);
                 this.render({ force: false });
-            });
-        });
+                return;
+            }
 
-        this.element?.querySelectorAll("[data-action='encounter-toggle-ready']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+            // Toggle ready state
+            const buttonReady = event.target?.closest?.("[data-action='encounter-toggle-ready']");
+            if (buttonReady) {
                 event.preventDefault();
                 event.stopPropagation();
-                const combatantId = this.#getEncounterPanelCombatantId(button);
-                const combat = this.#getEncounterCombat(button);
+                const combatantId = this.#getEncounterPanelCombatantId(buttonReady);
+                const combat = this.#getEncounterCombat(buttonReady);
                 if (!combatantId || !combat?.setCombatantReady) return;
-                await combat.setCombatantReady(combatantId, button.dataset.ready !== "true");
+                await combat.setCombatantReady(combatantId, buttonReady.dataset.ready !== "true");
                 this.render({ force: false });
-            });
+                return;
+            }
         });
 
-        this.element?.querySelectorAll("[data-action='encounter-plan-segment']")?.forEach((segment) => {
-            segment.addEventListener("dragstart", (event) => {
-                if (!event.dataTransfer) return;
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.setData("application/x-totc-encounter-action-index", String(segment.dataset.actionIndex ?? ""));
-            });
-            segment.addEventListener("dragover", (event) => {
+        // Delegated drag and drop events
+        this.element?.addEventListener("dragstart", (event) => {
+            const segment = event.target?.closest?.("[data-action='encounter-plan-segment']");
+            if (!segment) return;
+            if (!event.dataTransfer) return;
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("application/x-totc-encounter-action-index", String(segment.dataset.actionIndex ?? ""));
+        });
+
+        this.element?.addEventListener("dragover", (event) => {
+            const segment = event.target?.closest?.("[data-action='encounter-plan-segment']");
+            const bar = event.target?.closest?.("[data-action='encounter-plan-bar']");
+            if (segment || bar) {
                 event.preventDefault();
                 if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-            });
-            segment.addEventListener("drop", async (event) => {
+            }
+        });
+
+        this.element?.addEventListener("drop", async (event) => {
+            const segment = event.target?.closest?.("[data-action='encounter-plan-segment']");
+            if (segment) {
                 event.preventDefault();
                 event.stopPropagation();
                 const combatantId = this.#getEncounterPanelCombatantId(segment);
@@ -3177,15 +3200,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const fromIndex = Number(event.dataTransfer?.getData("application/x-totc-encounter-action-index"));
                 const toIndex = Number(segment.dataset.actionIndex);
                 await this.#moveEncounterAction(combat, combatantId, fromIndex, toIndex);
-            });
-        });
+                return;
+            }
 
-        this.element?.querySelectorAll("[data-action='encounter-plan-bar']")?.forEach((bar) => {
-            bar.addEventListener("dragover", (event) => {
-                event.preventDefault();
-                if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-            });
-            bar.addEventListener("drop", async (event) => {
+            const bar = event.target?.closest?.("[data-action='encounter-plan-bar']");
+            if (bar) {
                 event.preventDefault();
                 event.stopPropagation();
                 if (event.target?.closest?.("[data-action='encounter-plan-segment']")) return;
@@ -3194,52 +3213,55 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const combat = this.#getEncounterCombat(bar);
                 const planLength = combat?.getCombatantPlan?.(combatantId)?.length ?? 0;
                 await this.#moveEncounterAction(combat, combatantId, fromIndex, planLength);
-            });
+                return;
+            }
         });
 
-        this.element?.querySelectorAll("[data-action='encounter-resize-action']")?.forEach((handle) => {
-            handle.addEventListener("pointerdown", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const segment = handle.closest("[data-action='encounter-plan-segment']");
-                const bar = handle.closest("[data-action='encounter-plan-bar']");
-                const combatantId = this.#getEncounterPanelCombatantId(handle);
-                const actionIndex = Number(handle.dataset.actionIndex);
-                const combat = this.#getEncounterCombat(handle);
-                const plan = combat?.getCombatantPlan?.(combatantId) ?? [];
-                const action = plan[actionIndex];
-                if (!segment || !bar || !combatantId || !combat?.setCombatantActionApCost || !action) return;
+        // Delegated resize pointers
+        this.element?.addEventListener("pointerdown", (event) => {
+            const handle = event.target?.closest?.("[data-action='encounter-resize-action']");
+            if (!handle) return;
 
-                const apBudget = Math.max(1, Number(bar.dataset.apBudget ?? 1));
-                const rect = bar.getBoundingClientRect();
-                const cellWidth = rect.width / apBudget;
-                const priorAp = plan.slice(0, actionIndex).reduce((sum, entry) => sum + Math.max(1, Number(entry.apCost ?? 1)), 0);
-                const apMin = Math.max(1, Number(action.apMin ?? action.apCost ?? 1));
-                const apMax = Math.max(apMin, Number(action.apMax ?? action.apCost ?? apMin));
-                const remainingAfter = plan.slice(actionIndex + 1).reduce((sum, entry) => sum + Math.max(1, Number(entry.apCost ?? 1)), 0);
-                const maxByBudget = Math.max(apMin, apBudget - priorAp - remainingAfter);
-                const upper = Math.min(apMax, maxByBudget);
-                let nextCost = Math.max(apMin, Math.min(upper, Number(action.apCost ?? apMin)));
+            event.preventDefault();
+            event.stopPropagation();
+            const segment = handle.closest("[data-action='encounter-plan-segment']");
+            const bar = handle.closest("[data-action='encounter-plan-bar']");
+            const combatantId = this.#getEncounterPanelCombatantId(handle);
+            const actionIndex = Number(handle.dataset.actionIndex);
+            const combat = this.#getEncounterCombat(handle);
+            const plan = combat?.getCombatantPlan?.(combatantId) ?? [];
+            const action = plan[actionIndex];
+            if (!segment || !bar || !combatantId || !combat?.setCombatantActionApCost || !action) return;
 
-                const onPointerMove = (moveEvent) => {
-                    const relativeX = Math.max(0, Math.min(rect.width, moveEvent.clientX - rect.left));
-                    const endBoundary = Math.round(relativeX / cellWidth);
-                    nextCost = Math.max(apMin, Math.min(upper, endBoundary - priorAp));
-                    segment.style.gridColumn = `span ${nextCost}`;
-                    const detail = segment.querySelector("small");
-                    if (detail) detail.textContent = `${nextCost} AP`;
-                };
+            const apBudget = Math.max(1, Number(bar.dataset.apBudget ?? 1));
+            const rect = bar.getBoundingClientRect();
+            const cellWidth = rect.width / apBudget;
+            const priorAp = plan.slice(0, actionIndex).reduce((sum, entry) => sum + Math.max(1, Number(entry.apCost ?? 1)), 0);
+            const apMin = Math.max(1, Number(action.apMin ?? action.apCost ?? 1));
+            const apMax = Math.max(apMin, Number(action.apMax ?? action.apCost ?? apMin));
+            const remainingAfter = plan.slice(actionIndex + 1).reduce((sum, entry) => sum + Math.max(1, Number(entry.apCost ?? 1)), 0);
+            const maxByBudget = Math.max(apMin, apBudget - priorAp - remainingAfter);
+            const upper = Math.min(apMax, maxByBudget);
+            let nextCost = Math.max(apMin, Math.min(upper, Number(action.apCost ?? apMin)));
 
-                const onPointerUp = async () => {
-                    document.removeEventListener("pointermove", onPointerMove);
-                    document.removeEventListener("pointerup", onPointerUp);
-                    await combat.setCombatantActionApCost(combatantId, actionIndex, nextCost);
-                    this.render({ force: false });
-                };
+            const onPointerMove = (moveEvent) => {
+                const relativeX = Math.max(0, Math.min(rect.width, moveEvent.clientX - rect.left));
+                const endBoundary = Math.round(relativeX / cellWidth);
+                nextCost = Math.max(apMin, Math.min(upper, endBoundary - priorAp));
+                segment.style.gridColumn = `span ${nextCost}`;
+                const detail = segment.querySelector("small");
+                if (detail) detail.textContent = `${nextCost} AP`;
+            };
 
-                document.addEventListener("pointermove", onPointerMove);
-                document.addEventListener("pointerup", onPointerUp);
-            });
+            const onPointerUp = async () => {
+                document.removeEventListener("pointermove", onPointerMove);
+                document.removeEventListener("pointerup", onPointerUp);
+                await combat.setCombatantActionApCost(combatantId, actionIndex, nextCost);
+                this.render({ force: false });
+            };
+
+            document.addEventListener("pointermove", onPointerMove);
+            document.addEventListener("pointerup", onPointerUp);
         });
     }
 
