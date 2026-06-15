@@ -2663,6 +2663,23 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return Array.from(input.list.options).find((option) => String(option.value ?? "").trim() === value) ?? null;
     }
 
+    #findEncounterActionOptionWithSearch(input = null) {
+        const value = String(input?.value ?? "").trim().toLowerCase();
+        if (!value || !input?.list?.options) return null;
+        const options = Array.from(input.list.options);
+
+        const exact = options.find((opt) => String(opt.value ?? "").trim().toLowerCase() === value);
+        if (exact) return exact;
+
+        const prefix = options.find((opt) => String(opt.value ?? "").trim().toLowerCase().startsWith(value));
+        if (prefix) return prefix;
+
+        const contains = options.find((opt) => String(opt.value ?? "").trim().toLowerCase().includes(value));
+        if (contains) return contains;
+
+        return null;
+    }
+
     #getEncounterPanelCombatantId(element = null) {
         return String(element?.closest?.(".totc-v2-encounter-panel")?.dataset?.combatantId ?? "").trim();
     }
@@ -3017,6 +3034,36 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }, { capture: true });
 
         this.element?.querySelectorAll("[data-action='encounter-add-action']")?.forEach((input) => {
+            input.addEventListener("keydown", async (event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (input.dataset.canEditPlan !== "true") return;
+                const option = this.#findEncounterActionOptionWithSearch(input);
+                if (!option) return;
+                const combatantId = this.#getEncounterPanelCombatantId(input);
+                const combat = this.#getEncounterCombat(input);
+                if (!combatantId || !combat?.addCombatantAction) return;
+                const actionData = this.#readEncounterActionData(option);
+                if (!actionData) return;
+                const previousPlan = combat.getCombatantPlan?.(combatantId) ?? [];
+                const previousRemainingAp = Number(combat.getCombatantRemainingAp?.(combatantId) ?? 0);
+                await combat.addCombatantAction(combatantId, actionData);
+                if (actionData.type === "movement") {
+                    this.#beginEncounterMovementInteraction({
+                        combat,
+                        combatantId,
+                        actionIndex: previousPlan.length,
+                        maxAp: previousRemainingAp
+                    });
+                } else {
+                    this._encounterMovementInteraction = null;
+                }
+                input.value = "";
+                this.render({ force: false });
+            });
+
             input.addEventListener("change", async (event) => {
                 if (input.dataset.canEditPlan !== "true") return;
                 const option = this.#findEncounterActionOption(input);
