@@ -1423,7 +1423,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }),
             actorEditorPanel: buildActorEditorPanelModel({
                 actor: selectedActor,
-                state: actorWorkspaceState.editorState
+                state: actorWorkspaceState.editorState,
+                users: game.users,
+                isGM: Boolean(game.user?.isGM)
             }),
             compendiumLoadingState: this.compendiumCacheController.loadingFailureMessage,
             mediaBrowserPanel: buildMediaBrowserPanelModel({
@@ -3024,6 +3026,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #wirePlayerEncounterPanelHandlers() {
+        const syncEncounterAddButtonState = (input) => {
+            const picker = input?.closest?.(".totc-v2-encounter-panel__picker");
+            const button = picker?.querySelector?.("[data-action='encounter-add-selected-action']");
+            if (!button) return;
+            const canEditPlan = input?.dataset?.canEditPlan === "true";
+            const hasSelectedAction = Boolean(this.#findEncounterActionOption(input));
+            button.disabled = !(canEditPlan && hasSelectedAction);
+        };
+
         const addEncounterActionFromInput = async (input, { allowSearch = false } = {}) => {
             if (input?.dataset?.canEditPlan !== "true") return;
             const option = allowSearch
@@ -3064,6 +3075,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }, { capture: true });
 
         this.element?.querySelectorAll("[data-action='encounter-add-action']")?.forEach((input) => {
+            syncEncounterAddButtonState(input);
+
+            input.addEventListener("input", () => {
+                syncEncounterAddButtonState(input);
+            });
+
             input.addEventListener("keydown", async (event) => {
                 if (event.key !== "Enter") return;
                 event.preventDefault();
@@ -3072,6 +3089,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
 
             input.addEventListener("change", async (event) => {
+                syncEncounterAddButtonState(input);
                 await addEncounterActionFromInput(input);
             });
         });

@@ -67,10 +67,17 @@ describe("ActorWorkspaceController", () => {
 
     it("saves actor forms through injected form normalization", async () => {
         const originalFormData = globalThis.FormData;
+        const originalGame = globalThis.game;
+        const originalConst = globalThis.CONST;
         let updatedData = null;
         const actor = {
             id: "a",
             type: "hero",
+            ownership: {
+                gm: 3,
+                playerA: 3,
+                playerB: 0
+            },
             async update(data) {
                 updatedData = data;
             }
@@ -86,18 +93,44 @@ describe("ActorWorkspaceController", () => {
         };
 
         try {
+            globalThis.CONST = {
+                DOCUMENT_OWNERSHIP_LEVELS: {
+                    NONE: 0,
+                    OWNER: 3
+                }
+            };
+            globalThis.game = {
+                user: { isGM: true },
+                users: {
+                    contents: [
+                        { id: "gm", isGM: true },
+                        { id: "playerA", isGM: false },
+                        { id: "playerB", isGM: false }
+                    ]
+                }
+            };
+
             const controller = new ActorWorkspaceController({
                 getActorById: () => actor,
                 buildActorUpdateDataFromFormData: () => ({ name: "Saved Ada" })
             });
             controller.openDetails("a");
-            await controller.saveActorForm({ actorId: "a" });
+            await controller.saveActorForm({ actorId: "a", __ownerUserId: "playerB" });
 
-            assert.deepEqual(updatedData, { name: "Saved Ada" });
+            assert.deepEqual(updatedData, {
+                name: "Saved Ada",
+                ownership: {
+                    gm: 3,
+                    playerA: 0,
+                    playerB: 3
+                }
+            });
             assert.equal(controller.state.editorState.status, "Actor saved.");
             assert.equal(controller.state.editorState.dirty, false);
         } finally {
             globalThis.FormData = originalFormData;
+            globalThis.game = originalGame;
+            globalThis.CONST = originalConst;
         }
     });
 });

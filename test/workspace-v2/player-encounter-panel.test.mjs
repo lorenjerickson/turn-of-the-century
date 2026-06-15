@@ -109,7 +109,7 @@ describe("player encounter panel", () => {
         assert.match(html, /class="totc-v2-encounter-panel"/);
         assert.match(html, /data-combat-id="combat-1" data-combatant-id="combatant-1"/);
         assert.match(html, /type="search"[^>]*data-action="encounter-add-action"/);
-        assert.match(html, /data-action="encounter-add-selected-action"[^>]*>Add<\/button>/);
+        assert.match(html, /data-action="encounter-add-selected-action"[^>]*disabled[^>]*>Add<\/button>/);
         assert.match(html, /<datalist id="totc-encounter-actions-combatant-1">/);
         assert.match(html, /data-action="encounter-plan-segment"[\s\S]*draggable="true"/);
         assert.match(html, /data-action="encounter-resize-action"[\s\S]*data-action-index="0"/);
@@ -171,6 +171,7 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /#wirePlayerEncounterPanelHandlers/);
         assert.match(workspaceRootSource, /encounter-add-action/);
         assert.match(workspaceRootSource, /encounter-add-selected-action/);
+        assert.match(workspaceRootSource, /syncEncounterAddButtonState/);
         assert.match(workspaceRootSource, /addEncounterActionFromInput/);
         assert.match(workspaceRootSource, /addCombatantAction/);
         assert.match(workspaceRootSource, /setCombatantPlan/);

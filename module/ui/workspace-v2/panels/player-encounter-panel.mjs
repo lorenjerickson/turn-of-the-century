@@ -270,7 +270,7 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
                 <span>Available action</span>
                 <div class="totc-v2-encounter-panel__picker-row">
                     <input type="search" list="totc-encounter-actions-${escapeHTML(model.combatantId)}" data-action="encounter-add-action" data-can-edit-plan="${model.canEditPlan ? "true" : "false"}" placeholder="Search actions" ${canBrowseActions ? "" : "disabled"}>
-                    <button type="button" data-action="encounter-add-selected-action" ${model.canEditPlan && canBrowseActions ? "" : "disabled"}>Add</button>
+                    <button type="button" data-action="encounter-add-selected-action" data-can-edit-plan="${model.canEditPlan ? "true" : "false"}" disabled>Add</button>
                 </div>
                 <datalist id="totc-encounter-actions-${escapeHTML(model.combatantId)}">
                     ${actionOptions}

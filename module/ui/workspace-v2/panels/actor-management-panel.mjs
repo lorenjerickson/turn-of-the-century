@@ -370,11 +370,14 @@ export function parseActorListDragPayload(value) {
 
 export function buildActorEditorPanelModel({
     actor = null,
-    state = {}
+    state = {},
+    users = [],
+    isGM = false
 } = {}) {
     const mode = state.mode === "create" ? "create" : actor ? "edit" : "empty";
     const actorType = normalizeActorType(state.actorType ?? actor?.type);
     const staged = state.formData && typeof state.formData === "object" ? state.formData : {};
+    const ownerOptions = buildActorOwnerOptions({ actor, users, staged, isGM });
 
     return {
         mode,
@@ -390,9 +393,39 @@ export function buildActorEditorPanelModel({
         status: String(state.status ?? ""),
         error: String(state.error ?? ""),
         additionalPrompt: String(state.additionalPrompt ?? ""),
+        canAssignOwner: Boolean(actor && isGM),
+        ownerOptions,
         fields: actor ? buildEditableActorFields(actor, staged, actorType) : [],
         equipment: actor ? buildEquipmentViewModel(actor, staged) : null
     };
+}
+
+function userId(user) {
+    return String(user?.id ?? user?._id ?? "").trim();
+}
+
+function buildActorOwnerOptions({ actor = null, users = [], staged = {}, isGM = false } = {}) {
+    if (!actor || !isGM) return [];
+
+    const ownerLevel = Number(globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OWNER ?? 3);
+    const actorOwnership = actor?.ownership ?? {};
+    const userEntries = getCollectionEntries(users)
+        .filter((user) => !user?.isGM)
+        .map((user) => ({ id: userId(user), name: String(user?.name ?? "") }))
+        .filter((user) => user.id)
+        .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
+
+    const stagedOwnerId = String(staged.__ownerUserId ?? "").trim();
+    const currentOwnerId = stagedOwnerId || userEntries.find((user) => Number(actorOwnership[user.id] ?? 0) >= ownerLevel)?.id || "";
+
+    return [
+        { value: "", label: "None", selected: currentOwnerId === "" },
+        ...userEntries.map((user) => ({
+            value: user.id,
+            label: user.name || user.id,
+            selected: user.id === currentOwnerId
+        }))
+    ];
 }
 
 export function buildEditableActorFields(actor, staged = {}, actorType = normalizeActorType(actor?.type)) {
@@ -452,7 +485,7 @@ export function buildActorUpdateDataFromFormData(formData) {
     const updateData = {};
     const equipmentSelections = new Map();
     for (const [path, rawValue] of formData.entries()) {
-        if (!path || path === "actorId") continue;
+        if (!path || path === "actorId" || String(path).startsWith("__")) continue;
         if (isEquipmentItemIdPath(path)) {
             collectEquipmentSlotSelection(equipmentSelections, path, rawValue);
             continue;
@@ -652,6 +685,13 @@ export function renderActorEditorPanel(model = {}, { escapeHTML = (value) => Str
         ${model.status ? `<div class="totc-v2-actor-editor__status">${escapeHTML(model.status)}</div>` : ""}
         <form class="totc-v2-actor-editor__form" data-action="actor-editor-save-form">
             <input type="hidden" name="actorId" value="${escapeHTML(model.actorId)}">
+            ${model.canAssignOwner ? `
+            <label class="totc-v2-actor-editor__field">
+                <span>Owner</span>
+                <select name="__ownerUserId" data-action="actor-editor-field" data-actor-field="__ownerUserId">
+                    ${(model.ownerOptions ?? []).map((option) => `<option value="${escapeHTML(option.value)}" ${option.selected ? "selected" : ""}>${escapeHTML(option.label)}</option>`).join("")}
+                </select>
+            </label>` : ""}
             <div class="totc-v2-actor-editor__sections">
                 ${sectionEntries.map(([title, fields], index) => `${renderFieldSection(title, fields, escapeHTML)}${index === 0 ? renderEquipmentSection(model.equipment, escapeHTML) : ""}`).join("")}
             </div>

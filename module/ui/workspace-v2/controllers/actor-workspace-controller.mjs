@@ -10,6 +10,10 @@ export const DEFAULT_ACTOR_EDITOR_STATE = Object.freeze({
     error: ""
 });
 
+function userId(user) {
+    return String(user?.id ?? user?._id ?? "").trim();
+}
+
 export class ActorWorkspaceController {
     constructor({
         getActorById = () => null,
@@ -187,6 +191,24 @@ export class ActorWorkspaceController {
 
         try {
             const updateData = this.buildActorUpdateDataFromFormData(formData);
+            if (game.user?.isGM) {
+                const ownerUserId = String(formData.get("__ownerUserId") ?? "").trim();
+                const ownership = { ...(actor?.ownership ?? {}) };
+                const ownershipLevels = globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS ?? {};
+                const ownerLevel = Number(ownershipLevels.OWNER ?? 3);
+                const noneLevel = Number(ownershipLevels.NONE ?? 0);
+                const users = Array.from(globalThis.game?.users?.contents ?? globalThis.game?.users ?? []);
+
+                for (const user of users) {
+                    const id = userId(user);
+                    if (!id || user?.isGM) continue;
+                    const hasOwnerLevel = Number(ownership[id] ?? noneLevel) >= ownerLevel;
+                    if (id === ownerUserId) ownership[id] = ownerLevel;
+                    else if (hasOwnerLevel) ownership[id] = noneLevel;
+                }
+
+                updateData.ownership = ownership;
+            }
             await actor.update(updateData);
             this.editorState = {
                 ...this.editorState,
@@ -259,7 +281,7 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-editor-field']")?.forEach((input) => {
-            input.addEventListener("input", () => {
+            const onFieldChange = () => {
                 this.updateEditorField(input.dataset.actorField ?? input.name, input.value);
                 const abilityModifier = input.closest(".totc-v2-actor-editor__ability")?.querySelector(".totc-v2-actor-editor__ability-modifier");
                 if (abilityModifier) {
@@ -268,7 +290,10 @@ export class ActorWorkspaceController {
                     abilityModifier.textContent = modifier >= 0 ? `+${modifier}` : String(modifier);
                 }
                 input.closest("form")?.querySelector("[data-action='actor-editor-save']")?.removeAttribute("disabled");
-            });
+            };
+
+            input.addEventListener("input", onFieldChange);
+            input.addEventListener("change", onFieldChange);
         });
 
         root?.querySelectorAll("[data-action='actor-editor-generate']")?.forEach((button) => {
