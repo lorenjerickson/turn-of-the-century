@@ -25,7 +25,7 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /this\.selectedTokenIds = new Set\(\)/);
         assert.match(workspaceRootSource, /getSelectedTokenIds: \(\) => this\.selectedTokenIds/);
         assert.match(workspaceRootSource, /const pinnedEncounterSceneId = String\(this\._encounterPlannerSelection\?\.sceneId \?\? ""\)\.trim\(\)/);
-        assert.match(workspaceRootSource, /const canSyncTokenSelectionFromCanvas = !pinnedEncounterSceneId \|\| !canvasSceneId \|\| pinnedEncounterSceneId === canvasSceneId/);
+        assert.match(workspaceRootSource, /const canSyncTokenSelectionFromCanvas = isCanvasSceneMatch && \(!pinnedEncounterSceneId \|\| !canvasSceneId \|\| pinnedEncounterSceneId === canvasSceneId\)/);
         assert.match(workspaceRootSource, /if \(canSyncTokenSelectionFromCanvas && \(controlledTokens\.length > 0 \|\| this\.selectedTokenIds\.size > 0\)\)/);
 
         // Assert double-clicking opens the editor without bypassing selection-driven details

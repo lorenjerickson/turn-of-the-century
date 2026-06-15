@@ -1232,7 +1232,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const controlledTokens = canvas?.tokens?.controlled ?? [];
         const pinnedEncounterSceneId = String(this._encounterPlannerSelection?.sceneId ?? "").trim();
         const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
-        const canSyncTokenSelectionFromCanvas = !pinnedEncounterSceneId || !canvasSceneId || pinnedEncounterSceneId === canvasSceneId;
+        const isCanvasSceneMatch = canvas?.ready && canvasSceneId && canvasSceneId === String(scene?.id ?? scene?._id ?? "").trim();
+        const canSyncTokenSelectionFromCanvas = isCanvasSceneMatch && (!pinnedEncounterSceneId || !canvasSceneId || pinnedEncounterSceneId === canvasSceneId);
         if (canSyncTokenSelectionFromCanvas && (controlledTokens.length > 0 || this.selectedTokenIds.size > 0)) {
             const controlledIds = new Set(controlledTokens.map((t) => t.id).filter(Boolean));
             let mismatch = controlledIds.size !== this.selectedTokenIds.size;
@@ -3806,8 +3807,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return await this.stateStore?.setUserScopedStatePatch?.(PLAYER_PANEL_STATE_KEY, patch, normalizePlayerPanelState);
     }
 
-    #syncSelectionToCanvas() {
-        if (!canvas?.tokens) return;
+    #syncSelectionToCanvas(scene = null) {
+        if (!canvas?.ready || !canvas?.tokens) return;
+        const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
+        const targetSceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        if (targetSceneId && canvasSceneId !== targetSceneId) return;
         const currentControlledIds = new Set(canvas.tokens.controlled.map(t => t.id).filter(Boolean));
 
         for (const token of canvas.tokens.controlled) {
@@ -4381,7 +4385,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                                 });
                             }
                         }
-                        this.#syncSelectionToCanvas();
+                        this.#syncSelectionToCanvas(scene);
                         this.render({ force: false });
                     };
 
@@ -4477,7 +4481,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                             }
                         }
 
-                        this.#syncSelectionToCanvas();
+                        this.#syncSelectionToCanvas(scene);
                         this.render({ force: false });
                     };
 
@@ -5142,7 +5146,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.#cancelWallAddSequence({ notify: false });
                 this.selectedTokenIds.clear();
                 viewport.querySelectorAll("[data-action='map-token']").forEach((token) => token.classList.remove("is-selected"));
-                this.#syncSelectionToCanvas();
+                this.#syncSelectionToCanvas(scene);
 
                 boxEl = document.createElement("div");
                 boxEl.className = "totc-v2-map-viewport__selection-box";
