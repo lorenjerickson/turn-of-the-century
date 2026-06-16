@@ -1,3 +1,5 @@
+import { withUnlockedCompendiumPack } from "./compendium-locking.mjs";
+
 function toArray(value) {
     return Array.isArray(value) ? value : [];
 }
@@ -162,16 +164,11 @@ export async function migrateTotcEncounterActions({ dryRun = false, notify = tru
     if (includeCompendiums) {
         const packs = (game.packs?.filter((pack) => pack.documentName === "Item" && pack.metadata.packageType === "system") ?? []);
         for (const pack of packs) {
-            const wasLocked = pack.locked;
-            if (wasLocked && !dryRun) await pack.configure({ locked: false });
-
-            try {
+            await withUnlockedCompendiumPack(pack, async () => {
                 const docs = await pack.getDocuments();
                 const filtered = docs.filter((item) => ["weapon", "consumable", "equipment", "item", "skill", "talent"].includes(item.type));
                 await migrateCollectionItems(filtered, report, pack.collection, { dryRun });
-            } finally {
-                if (wasLocked && !dryRun) await pack.configure({ locked: true });
-            }
+            }, { dryRun });
         }
     }
 

@@ -1,4 +1,5 @@
 import { TOTC_SAMPLE_COMPENDIUMS } from "../sample-content.mjs";
+import { withUnlockedCompendiumPack } from "./compendium-locking.mjs";
 
 const STARTER_ACTOR_PACK_NAMES = [
     TOTC_SAMPLE_COMPENDIUMS.monsters,
@@ -125,13 +126,9 @@ export async function migrateTotcStarterActorAvatars({
         const pack = game.packs?.get?.(packId);
         if (!pack || pack.documentName !== "Actor") continue;
 
-        const wasLocked = Boolean(pack.locked);
-        if (wasLocked && !dryRun) await pack.configure({ locked: false });
-        try {
+        await withUnlockedCompendiumPack(pack, async () => {
             await migratePackActors(pack, report, { dryRun, overwrite });
-        } finally {
-            if (wasLocked && !dryRun) await pack.configure({ locked: true });
-        }
+        }, { dryRun });
     }
 
     if (notify) {

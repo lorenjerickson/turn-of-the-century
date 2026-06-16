@@ -1,3 +1,5 @@
+import { withUnlockedCompendiumPack } from "./compendium-locking.mjs";
+
 const LEGACY_STARTER_PROFESSION_MAP = {
     inspector: "Urban Detective",
     constable: "Railway Marshal",
@@ -129,15 +131,10 @@ export async function migrateTotcActorProfessions({ dryRun = false, notify = tru
     if (includeCompendiums) {
         const packs = (game.packs?.filter((pack) => pack.documentName === "Actor" && pack.metadata.packageType === "system") ?? []);
         for (const pack of packs) {
-            const wasLocked = pack.locked;
-            if (wasLocked && !dryRun) await pack.configure({ locked: false });
-
-            try {
+            await withUnlockedCompendiumPack(pack, async () => {
                 const docs = await pack.getDocuments();
                 await migrateActorCollection(docs, report, pack.collection, availableByKey, fallbackProfession, { dryRun });
-            } finally {
-                if (wasLocked && !dryRun) await pack.configure({ locked: true });
-            }
+            }, { dryRun });
         }
     }
 

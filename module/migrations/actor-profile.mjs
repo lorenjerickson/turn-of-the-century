@@ -1,3 +1,5 @@
+import { withUnlockedCompendiumPack } from "./compendium-locking.mjs";
+
 const HTML_TAG_PATTERN = /<[^>]*>/g;
 const WHITESPACE_PATTERN = /\s+/g;
 
@@ -143,10 +145,7 @@ export async function migrateTotcActorProfiles({
         const packs = (game.packs?.filter((pack) => pack.documentName === "Actor" && pack.metadata.packageType === "system") ?? []);
 
         for (const pack of packs) {
-            const wasLocked = pack.locked;
-            if (wasLocked && !dryRun) await pack.configure({ locked: false });
-
-            try {
+            await withUnlockedCompendiumPack(pack, async () => {
                 const documents = await pack.getDocuments();
                 for (const actor of documents) {
                     report.compendiumActorsScanned += 1;
@@ -159,9 +158,7 @@ export async function migrateTotcActorProfiles({
                         report.compendiumActorsUpdated += 1;
                     }
                 }
-            } finally {
-                if (wasLocked && !dryRun) await pack.configure({ locked: true });
-            }
+            }, { dryRun });
         }
     }
 

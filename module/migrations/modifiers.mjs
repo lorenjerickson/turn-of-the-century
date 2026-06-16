@@ -1,3 +1,5 @@
+import { withUnlockedCompendiumPack } from "./compendium-locking.mjs";
+
 const MODIFIER_ITEM_TYPES = new Set(["armor", "consumable", "effect", "ethnicity", "equipment", "item", "weapon"]);
 
 function asObject(value) {
@@ -95,16 +97,11 @@ export async function migrateTotcModifiers({ dryRun = false, notify = true, incl
     if (includeCompendiums) {
         const packs = (game.packs?.filter((pack) => pack.documentName === "Item" && pack.metadata.packageType === "system") ?? []);
         for (const pack of packs) {
-            const wasLocked = pack.locked;
-            if (wasLocked && !dryRun) await pack.configure({ locked: false });
-
-            try {
+            await withUnlockedCompendiumPack(pack, async () => {
                 const docs = await pack.getDocuments();
                 const filtered = docs.filter((item) => MODIFIER_ITEM_TYPES.has(item.type));
                 await migrateCollectionItems(filtered, report, pack.collection, { dryRun });
-            } finally {
-                if (wasLocked && !dryRun) await pack.configure({ locked: true });
-            }
+            }, { dryRun });
         }
     }
 

@@ -1,3 +1,5 @@
+import { withUnlockedCompendiumPack } from "./compendium-locking.mjs";
+
 function toNumber(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
@@ -85,10 +87,7 @@ export async function migrateTotcActorEconomy({ dryRun = false, notify = true, i
     if (includeCompendiums) {
         const packs = (game.packs?.filter((pack) => pack.documentName === "Actor" && pack.metadata.packageType === "system") ?? []);
         for (const pack of packs) {
-            const wasLocked = pack.locked;
-            if (wasLocked && !dryRun) await pack.configure({ locked: false });
-
-            try {
+            await withUnlockedCompendiumPack(pack, async () => {
                 const docs = await pack.getDocuments();
                 for (const actor of docs) {
                     report.actorsScanned += 1;
@@ -98,9 +97,7 @@ export async function migrateTotcActorEconomy({ dryRun = false, notify = true, i
                     report.actorsUpdated += 1;
                     report.changedDocuments.push({ source: pack.collection, ...result });
                 }
-            } finally {
-                if (wasLocked && !dryRun) await pack.configure({ locked: true });
-            }
+            }, { dryRun });
         }
     }
 
