@@ -5,4 +5,5 @@ export * from "./migrations/encounter-actions.mjs";
 export * from "./migrations/equipment-slots.mjs";
 export * from "./migrations/modifiers.mjs";
 export * from "./migrations/starter-compendiums.mjs";
+export * from "./migrations/starter-actor-avatars.mjs";
 export * from "./migrations/runner.mjs";

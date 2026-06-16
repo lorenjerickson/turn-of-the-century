@@ -72,6 +72,7 @@ export class WorkspacePanelHost {
         getSceneGridOverlayState = () => null,
         getSceneWallOverlayState = () => null,
         getEncounterMovementOverlayState = () => null,
+        getEncounterTargetOverlayState = () => null,
         getMapPanelToolbarState = () => ({}),
         renderMarketPanel = () => "",
         renderPlayerPanel = () => "",
@@ -89,6 +90,7 @@ export class WorkspacePanelHost {
         this.getSceneGridOverlayState = getSceneGridOverlayState;
         this.getSceneWallOverlayState = getSceneWallOverlayState;
         this.getEncounterMovementOverlayState = getEncounterMovementOverlayState;
+        this.getEncounterTargetOverlayState = getEncounterTargetOverlayState;
         this.getMapPanelToolbarState = getMapPanelToolbarState;
         this.renderMarketPanel = renderMarketPanel;
         this.renderPlayerPanel = renderPlayerPanel;
@@ -270,11 +272,12 @@ export class WorkspacePanelHost {
         const sceneGridOverlayState = this.getSceneGridOverlayState(mapScene);
         const sceneWallOverlayState = this.getSceneWallOverlayState(mapScene);
         const encounterMovementOverlayState = this.getEncounterMovementOverlayState(mapScene);
+        const encounterTargetOverlayState = this.getEncounterTargetOverlayState(mapScene);
         const sceneGridOverlayActive = Boolean(!calActive && sceneGridOverlayState);
         const wallOverlayActive = Boolean(sceneWallOverlayState?.segments?.length);
         const gridOverlayActive = calActive || sceneGridOverlayActive || wallOverlayActive;
         const calDialog = renderGridCalibrationDialog(calModel, { escapeHTML: (v) => this.escapeHTML(v) });
-        const tokenMarkup = this.#renderMapTokenLayer(mapScene);
+        const tokenMarkup = this.#renderMapTokenLayer(mapScene, encounterTargetOverlayState);
 
         const imageMarkup = mapSrc
             ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true"
@@ -287,6 +290,7 @@ export class WorkspacePanelHost {
                 <img class="totc-v2-map-panel__image" src="${this.escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false" data-action="map-image">
                 ${tokenMarkup}
                 ${this.#renderEncounterMovementOverlay(encounterMovementOverlayState)}
+                ${this.#renderEncounterTargetOverlay(encounterTargetOverlayState)}
                 ${gridOverlayActive ? `<svg class="totc-v2-map-panel__grid-overlay" data-grid-overlay="true" aria-hidden="true"></svg>` : ""}
                 <div class="totc-v2-map-panel__actor-drop-preview" data-actor-drop-preview="true" aria-hidden="true"></div>
             </div>`
@@ -421,10 +425,13 @@ export class WorkspacePanelHost {
         </nav>`;
     }
 
-    #renderMapTokenLayer(scene = null) {
+    #renderMapTokenLayer(scene = null, targetOverlay = null) {
         const cell = positiveNumber(scene?.grid?.size, 100);
         const tokens = collectionContents(scene?.tokens).filter(Boolean);
         const selectedTokenIds = this.getSelectedTokenIds();
+        const targetTokenIds = new Set(targetOverlay?.targetTokenIds ?? []);
+        const sourceTokenId = String(targetOverlay?.sourceTokenId ?? "").trim();
+        const targetingActive = Boolean(targetOverlay?.active);
         const tokenMarkup = tokens.map((token) => {
             const x = tokenPosition(token, "x");
             const y = tokenPosition(token, "y");
@@ -435,10 +442,17 @@ export class WorkspacePanelHost {
             const tokenId = String(token?.id ?? token?._id ?? token?.document?.id ?? token?._id ?? "").trim();
             const actorId = String(token?.actor?.id ?? token?.actor?._id ?? token?.actorId ?? "").trim();
             const isSelected = selectedTokenIds.has(tokenId) ? " is-selected" : "";
+            const targetClass = targetingActive
+                ? targetTokenIds.has(tokenId)
+                    ? " is-targetable"
+                    : tokenId === sourceTokenId
+                        ? " is-source"
+                        : " is-out-of-range"
+                : "";
             const style = `left:${this.escapeHTML(x)}px;top:${this.escapeHTML(y)}px;width:${this.escapeHTML(width)}px;height:${this.escapeHTML(height)}px`;
             return src
-                ? `<img class="totc-v2-map-panel__token${isSelected}" src="${this.escapeHTML(src)}" alt="${this.escapeHTML(name)}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token" draggable="false">`
-                : `<span class="totc-v2-map-panel__token totc-v2-map-panel__token--fallback${isSelected}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token">${this.escapeHTML(name.slice(0, 1).toUpperCase() || "?")}</span>`;
+                ? `<img class="totc-v2-map-panel__token${isSelected}${targetClass}" src="${this.escapeHTML(src)}" alt="${this.escapeHTML(name)}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token" draggable="false">`
+                : `<span class="totc-v2-map-panel__token totc-v2-map-panel__token--fallback${isSelected}${targetClass}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token">${this.escapeHTML(name.slice(0, 1).toUpperCase() || "?")}</span>`;
         }).join("");
         return `<div class="totc-v2-map-panel__token-layer" data-map-token-layer="true" aria-label="Scene tokens">${tokenMarkup}</div>`;
     }
@@ -457,6 +471,17 @@ export class WorkspacePanelHost {
             return `<button type="button" class="${classes}" style="${style}" data-action="encounter-move-square" data-row="${this.escapeHTML(cell.row)}" data-col="${this.escapeHTML(cell.col)}" data-required-ap="${this.escapeHTML(cell.requiredAp)}" title="${title}" aria-label="${title}"></button>`;
         }).join("");
         return `<div class="totc-v2-map-panel__movement-overlay" data-encounter-movement-overlay="true" aria-label="Reachable movement squares">${cells}</div>`;
+    }
+
+    #renderEncounterTargetOverlay(model = null) {
+        if (!model?.active) return "";
+        const diameter = Math.max(0, Number(model.radiusPixels ?? 0) * 2);
+        const radius = Math.max(0, Number(model.radiusPixels ?? 0));
+        const left = Number(model.origin?.x ?? 0) - radius;
+        const top = Number(model.origin?.y ?? 0) - radius;
+        const style = `left:${this.escapeHTML(left)}px;top:${this.escapeHTML(top)}px;width:${this.escapeHTML(diameter)}px;height:${this.escapeHTML(diameter)}px`;
+        const label = `Select ${this.escapeHTML(String(model.rangeType ?? "attack"))} target (${this.escapeHTML(String(model.rangeFeet ?? 0))} ft)`;
+        return `<div class="totc-v2-map-panel__targeting-overlay" data-encounter-targeting-overlay="true" aria-label="${label}"><div class="totc-v2-map-panel__targeting-ring" style="${style}"></div><div class="totc-v2-map-panel__targeting-label">${label}</div></div>`;
     }
 
     #renderCompendiumPanel(context = {}) {

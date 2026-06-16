@@ -674,7 +674,6 @@ export class TurnOfTheCenturyEncounter {
     getAvailableActionsForCombatant(combatantId) {
         const combatant = getCombatantFromId(this.#combat, combatantId);
         if (!combatant?.actor) return [];
-
         return getEnabledActionsForActor(combatant.actor, {
             apBudget: this.apBudget,
             movementFeetPerAp: Number(getMovementFeetPerAp() || 10)

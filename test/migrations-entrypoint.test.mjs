@@ -16,6 +16,13 @@ describe("migration entrypoint wiring", () => {
         assert.equal(source.includes("seedMissingActors: migrateSeedMissingWorldActors"), true);
     });
 
+    it("wires the starter actor avatars migration", () => {
+        const source = readFileSync(new URL("../turn-of-the-century.mjs", import.meta.url), "utf8");
+
+        assert.equal(source.includes("migrateTotcStarterActorAvatars"), true);
+        assert.equal(source.includes("migrateStarterActorAvatars: migrateTotcStarterActorAvatars"), true);
+    });
+
     it("does not restore the legacy repeated startup seeding flag", () => {
         const source = readFileSync(new URL("../turn-of-the-century.mjs", import.meta.url), "utf8");
 

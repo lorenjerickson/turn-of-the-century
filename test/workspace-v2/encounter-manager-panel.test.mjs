@@ -105,13 +105,14 @@ describe("encounter manager panel", () => {
         assert.equal(model.lastNarrative, "Briggs hunkers down.");
     });
 
-    it("renders collapsible actor summaries, AP tick markers, narrative, and lifecycle controls", () => {
+    it("renders stacked actor plan rows with compact status labels, narrative, and lifecycle controls", () => {
         const html = renderEncounterManagerPanel(buildEncounterManagerPanelModel({ combat: combatFixture() }), { escapeHTML });
 
         assert.match(html, /class="totc-v2-encounter-manager"/);
         assert.match(html, /Round 4/);
-        assert.match(html, /<details class="totc-v2-encounter-manager__actor" open>/);
-        assert.match(html, /totc-v2-encounter-manager__actors-current-line/);
+        assert.match(html, /<h3>Action Plans<\/h3>/);
+        assert.match(html, /class="totc-v2-encounter-manager__actor-plan"/);
+        assert.match(html, /class="totc-v2-encounter-manager__actor-ready is-resolved">Resolved<\/span>/);
         assert.match(html, /--totc-current-tick:3/);
         assert.match(html, /data-action="encounter-manager-start-round"/);
         assert.doesNotMatch(html, /turn-order roll/i);

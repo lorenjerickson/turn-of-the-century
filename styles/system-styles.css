@@ -3090,6 +3090,21 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     box-shadow: 0 0 10px #fbbf24, 0 0.18rem 0.45rem rgba(15, 23, 42, 0.5);
 }
 
+.turn-of-the-century .totc-v2-map-panel__token.is-targetable {
+    box-shadow: 0 0 10px rgba(74, 222, 128, 0.75), 0 0.18rem 0.45rem rgba(15, 23, 42, 0.5);
+    outline: 2px solid rgba(74, 222, 128, 0.9);
+    outline-offset: 1px;
+}
+
+.turn-of-the-century .totc-v2-map-panel__token.is-out-of-range {
+    opacity: 0.45;
+}
+
+.turn-of-the-century .totc-v2-map-panel__token.is-source {
+    outline: 2px solid rgba(125, 211, 252, 0.92);
+    outline-offset: 1px;
+}
+
 .turn-of-the-century .totc-v2-map-panel__movement-overlay {
     left: 0;
     pointer-events: none;
@@ -3097,6 +3112,36 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     top: 0;
     transform-origin: 0 0;
     z-index: 3;
+}
+
+.turn-of-the-century .totc-v2-map-panel__targeting-overlay {
+    inset: 0;
+    pointer-events: none;
+    position: absolute;
+    z-index: 3;
+}
+
+.turn-of-the-century .totc-v2-map-panel__targeting-ring {
+    background: radial-gradient(circle at center, rgba(248, 250, 252, 0.02) 0%, rgba(56, 189, 248, 0.08) 65%, rgba(56, 189, 248, 0.14) 100%);
+    border: 2px solid rgba(125, 211, 252, 0.9);
+    border-radius: 999px;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.45), 0 0 24px rgba(56, 189, 248, 0.25);
+    box-sizing: border-box;
+    position: absolute;
+}
+
+.turn-of-the-century .totc-v2-map-panel__targeting-label {
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(125, 211, 252, 0.78);
+    border-radius: 4px;
+    color: #e0f2fe;
+    font-size: 0.68rem;
+    font-weight: 700;
+    left: 0.45rem;
+    letter-spacing: 0.02em;
+    padding: 0.16rem 0.4rem;
+    position: absolute;
+    top: 0.45rem;
 }
 
 .turn-of-the-century .totc-v2-map-panel__movement-cell {
@@ -4344,12 +4389,14 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
 }
 
 .turn-of-the-century .totc-v2-encounter-manager {
+    align-content: start;
     color: #cbd5e1;
     display: grid;
     gap: 0.55rem;
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto auto;
     height: 100%;
     min-height: 0;
+    overflow: auto;
 }
 
 .turn-of-the-century .totc-v2-encounter-manager__header,
@@ -4421,83 +4468,38 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
 }
 
 .turn-of-the-century .totc-v2-encounter-manager__actors {
+    align-content: start;
     display: grid;
     gap: 0.4rem;
-    min-height: 0;
-    overflow: auto;
-    padding-right: 0.35rem;
+    grid-template-columns: 1fr;
+    overflow: visible;
     position: relative;
 }
 
-.turn-of-the-century .totc-v2-encounter-manager__actors-current-line {
-    background: rgba(251, 191, 36, 0.28);
-    bottom: 0.55rem;
-    left: calc((100% / var(--totc-ap-budget)) * (var(--totc-current-tick) - 0.5));
-    pointer-events: none;
-    position: absolute;
-    top: 0.55rem;
-    width: 2px;
-    z-index: 1;
+.turn-of-the-century .totc-v2-encounter-manager__actors > h3 {
+    margin: 0;
 }
 
-.turn-of-the-century .totc-v2-encounter-manager__actor {
+.turn-of-the-century .totc-v2-encounter-manager__actor-plan {
     background: rgba(2, 6, 23, 0.32);
     border: 1px solid rgba(148, 163, 184, 0.16);
     border-radius: 5px;
-    overflow: hidden;
-    position: relative;
-    z-index: 2;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__actor summary {
-    align-items: center;
-    cursor: pointer;
     display: grid;
-    gap: 0.4rem;
-    grid-template-columns: 32px minmax(0, 1fr) auto auto;
-    list-style: none;
-    min-width: 0;
-    padding: 0.42rem;
+    gap: 0.3rem;
+    padding: 0.35rem;
 }
 
-.turn-of-the-century .totc-v2-encounter-manager__actor summary::-webkit-details-marker {
-    display: none;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__actor summary::after {
-    color: #64748b;
-    content: "v";
-    font-size: 0.68rem;
-    grid-column: 2;
-    justify-self: end;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__actor:not([open]) summary::after {
-    content: ">";
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__actor summary img,
-.turn-of-the-century .totc-v2-encounter-manager__portrait-fallback {
-    border: 1px solid rgba(148, 163, 184, 0.3);
-    border-radius: 4px;
-    height: 32px;
-    object-fit: cover;
-    width: 32px;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__portrait-fallback {
+.turn-of-the-century .totc-v2-encounter-manager__actor-plan-label {
     align-items: center;
-    background: rgba(59, 130, 246, 0.16);
-    color: #dbeafe;
     display: flex;
-    font-size: 0.8rem;
-    font-weight: 800;
-    justify-content: center;
+    gap: 0.4rem;
+    justify-content: space-between;
+    min-width: 0;
 }
 
 .turn-of-the-century .totc-v2-encounter-manager__actor-name {
     color: #e2e8f0;
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 800;
     min-width: 0;
     overflow: hidden;
@@ -4505,50 +4507,31 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     white-space: nowrap;
 }
 
-.turn-of-the-century .totc-v2-encounter-manager__actor-status,
 .turn-of-the-century .totc-v2-encounter-manager__actor-ready {
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    border-radius: 999px;
     color: #94a3b8;
-    font-size: 0.68rem;
+    font-size: 0.62rem;
     font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 0.08rem 0.38rem;
+    text-transform: uppercase;
     white-space: nowrap;
 }
 
-.turn-of-the-century .totc-v2-encounter-manager__actor-ready {
+.turn-of-the-century .totc-v2-encounter-manager__actor-ready.is-planning {
+    border-color: rgba(147, 197, 253, 0.45);
     color: #bfdbfe;
 }
 
-.turn-of-the-century .totc-v2-encounter-manager__actor-body {
-    display: grid;
-    gap: 0.45rem;
-    padding: 0 0.42rem 0.48rem;
+.turn-of-the-century .totc-v2-encounter-manager__actor-ready.is-ready {
+    border-color: rgba(134, 239, 172, 0.5);
+    color: #bbf7d0;
 }
 
-.turn-of-the-century .totc-v2-encounter-manager__actor-body dl {
-    display: grid;
-    gap: 0.3rem;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin: 0;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__actor-body dl div {
-    min-width: 0;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__actor-body dt {
-    color: #64748b;
-    font-size: 0.58rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__actor-body dd {
-    color: #cbd5e1;
-    font-size: 0.7rem;
-    margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.turn-of-the-century .totc-v2-encounter-manager__actor-ready.is-resolved {
+    border-color: rgba(196, 181, 253, 0.5);
+    color: #ddd6fe;
 }
 
 .turn-of-the-century .totc-v2-encounter-manager__plan {

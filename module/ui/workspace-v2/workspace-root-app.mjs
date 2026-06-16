@@ -142,6 +142,9 @@ import {
     buildEncounterMovementOverlayModel,
     findEncounterMovementOverlayCellAtPoint
 } from "./encounter-movement-overlay.mjs";
+import {
+    buildEncounterTargetingOverlayModel
+} from "./encounter-targeting-overlay.mjs";
 
 const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
 
@@ -874,6 +877,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getSceneGridOverlayState: (scene) => this.#getSceneGridOverlayState(scene),
             getSceneWallOverlayState: (scene) => this.#getSceneDetectedWallOverlayState(scene),
             getEncounterMovementOverlayState: (scene) => this.#getEncounterMovementOverlayState(scene),
+            getEncounterTargetOverlayState: (scene) => this.#getEncounterTargetOverlayState(scene),
             getMapPanelToolbarState: (panel) => this.#getMapPanelToolbarState(panel),
             renderMarketPanel: (marketPanel) => this.#renderMarketPanel(marketPanel),
             renderPlayerPanel: (playerPanel, dieRollRequestPanel) => this.#renderPlayerPanel(playerPanel, dieRollRequestPanel),
@@ -917,6 +921,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._mapPanelToolbarStates = new Map();
         this._encounterPlannerSelection = null;
         this._encounterMovementInteraction = null;
+        this._encounterTargetingInteraction = null;
         this._selectedWallIdsByScene = new Map();
         this._joinableWallIdsByScene = new Map();
         this._wallAddSequence = null;
@@ -1650,6 +1655,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const pinnedSelection = this._encounterPlannerSelection;
                 this._encounterPlannerSelection = null;
                 this._activePlanEditSlot = null;
+                this._encounterTargetingInteraction = null;
                 this._lastEncounterPlannerDebugSnapshot = "";
                 totcLogger.debug("[encounter-planner] player actor selection changed", {
                     selectedActorId,
@@ -2670,6 +2676,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             apMax,
             variableAp: element.dataset.variableAp === "true",
             requiresToHit: element.dataset.requiresToHit === "true",
+            rangeType: String(element.dataset.rangeType ?? "melee").trim().toLowerCase(),
             toHitBonus: Number(element.dataset.toHitBonus ?? 0),
             movementFeet: Number(element.dataset.movementFeet ?? 0),
             movementFeetPerAp: Number(element.dataset.movementFeetPerAp ?? 0),
@@ -3003,6 +3010,42 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             maxAp: Math.max(1, Math.floor(Number(maxAp) || 1)),
             feetPerAp: 10
         };
+        this._encounterTargetingInteraction = null;
+    }
+
+    #resolveEncounterActionRangeFeet(action = null, actor = null) {
+        const rangeType = String(action?.rangeType ?? "melee").toLowerCase();
+        const item = action?.itemId ? actor?.items?.get?.(action.itemId) : null;
+        const normal = Number(item?.system?.physical?.range?.normal ?? (rangeType === "melee" ? 5 : 30));
+        const long = Number(item?.system?.physical?.range?.long ?? Math.max(normal, 60));
+
+        if (rangeType === "long") return Math.max(5, long || normal || 60);
+        if (rangeType === "normal") return Math.max(5, normal || 30);
+        return 5;
+    }
+
+    #beginEncounterTargetingInteraction({ combat = null, combatantId = "", actionIndex = -1, action = null } = {}) {
+        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
+        const token = this.#getEncounterMovementToken({ combat, combatantId, scene });
+        const combatant = this.#getEncounterCombatant(combat, combatantId);
+        const rangeFeet = this.#resolveEncounterActionRangeFeet(action, combatant?.actor ?? null);
+        const rangeType = String(action?.rangeType ?? "melee").toLowerCase();
+
+        if (!scene || !token || !combat || Number(actionIndex) < 0 || !Number.isFinite(rangeFeet) || rangeFeet <= 0) {
+            this._encounterTargetingInteraction = null;
+            return;
+        }
+
+        this._encounterTargetingInteraction = {
+            combatId: String(combat?.id ?? ""),
+            combatantId: String(combatantId ?? ""),
+            actionIndex: Number(actionIndex),
+            sceneId: String(scene?.id ?? scene?._id ?? ""),
+            tokenId: String(token?.id ?? token?._id ?? token?.document?.id ?? ""),
+            rangeFeet: Math.max(1, Math.round(rangeFeet)),
+            rangeType
+        };
+        this._encounterMovementInteraction = null;
     }
 
     #getEncounterMovementOverlayState(scene = null) {
@@ -3019,6 +3062,35 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             feetPerAp: interaction.feetPerAp || 10,
             feetPerSquare: Number(scene.grid?.distance ?? 5) || 5,
             gridSize: Number(scene.grid?.size ?? 100) || 100
+        });
+    }
+
+    #getEncounterTargetOverlayState(scene = null) {
+        const interaction = this._encounterTargetingInteraction;
+        if (!interaction || !scene) return null;
+        const sceneId = String(scene.id ?? scene._id ?? "").trim();
+        if (sceneId && interaction.sceneId && sceneId !== interaction.sceneId) return null;
+
+        const combat = this.#getEncounterCombatById(interaction.combatId) ?? this.#getEncounterCombat();
+        if (!combat) return null;
+
+        const sourceToken = this.#collectionGet(scene.tokens, interaction.tokenId);
+        if (!sourceToken) return null;
+
+        const targetTokens = this.#collectionContents(scene.tokens).filter((token) => {
+            const tokenId = String(token?.id ?? token?._id ?? token?.document?.id ?? "").trim();
+            if (!tokenId || tokenId === interaction.tokenId) return false;
+            const targetCombatant = this.#getEncounterCombatantForToken(combat, token);
+            if (!targetCombatant?.id) return false;
+            return String(targetCombatant.id) !== String(interaction.combatantId);
+        });
+
+        return buildEncounterTargetingOverlayModel({
+            scene,
+            sourceToken,
+            targetTokens,
+            maxRangeFeet: interaction.rangeFeet,
+            rangeType: interaction.rangeType
         });
     }
 
@@ -3047,6 +3119,43 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.render({ force: false });
     }
 
+    async #finishEncounterTargetingInteraction(tokenId = "") {
+        const interaction = this._encounterTargetingInteraction;
+        if (!interaction) return;
+
+        const combat = this.#getEncounterCombatById(interaction.combatId) ?? this.#getEncounterCombat();
+        const scene = game.scenes?.get?.(interaction.sceneId) ?? canvas?.scene ?? game.scenes?.viewed ?? null;
+        const token = this.#collectionGet(scene?.tokens, tokenId);
+        const targetCombatant = token ? this.#getEncounterCombatantForToken(combat, token) : null;
+        if (!combat || !targetCombatant?.id || String(targetCombatant.id) === String(interaction.combatantId)) {
+            await this.#cancelEncounterTargetingInteraction();
+            return;
+        }
+
+        const plan = [...(combat.getCombatantPlan?.(interaction.combatantId) ?? [])];
+        const index = Number(interaction.actionIndex);
+        const entry = plan[index];
+        if (!entry || !entry.requiresToHit || !combat.setCombatantPlan) {
+            await this.#cancelEncounterTargetingInteraction();
+            return;
+        }
+
+        plan[index] = {
+            ...entry,
+            targetId: targetCombatant.id
+        };
+
+        this._encounterTargetingInteraction = null;
+        await combat.setCombatantPlan(interaction.combatantId, plan);
+        this.render({ force: false });
+    }
+
+    async #cancelEncounterTargetingInteraction() {
+        if (!this._encounterTargetingInteraction) return;
+        this._encounterTargetingInteraction = null;
+        this.render({ force: false });
+    }
+
     #wirePlayerEncounterPanelHandlers() {
         console.log("[TOTC-DEBUG] #wirePlayerEncounterPanelHandlers called. this.element:", this.element, "wiredElement:", this._wiredElement);
         if (this._wiredElement === this.element) {
@@ -3056,7 +3165,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._wiredElement = this.element;
         console.log("[TOTC-DEBUG] Wiring handlers to this.element");
 
-        // Click interaction capture guard for cancelling movement
+        // Click interaction capture guard for cancelling movement/targeting
         this.element?.addEventListener("click", (event) => {
             console.log("[TOTC-DEBUG] Capture click:", event.target);
             if (!this._encounterMovementInteraction) return;
@@ -3066,6 +3175,20 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             event.stopPropagation();
             event.stopImmediatePropagation?.();
             void this.#cancelEncounterMovementInteraction();
+        }, { capture: true });
+
+        this.element?.addEventListener("click", (event) => {
+            if (!this._encounterTargetingInteraction) return;
+            const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
+            const overlay = this.#getEncounterTargetOverlayState(scene);
+            const tokenEl = event.target?.closest?.("[data-action='map-token']");
+            const tokenId = String(tokenEl?.dataset?.tokenId ?? "").trim();
+            const valid = tokenId && (overlay?.targetTokenIds ?? []).includes(tokenId);
+            if (valid) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation?.();
+            void this.#cancelEncounterTargetingInteraction();
         }, { capture: true });
 
         // Delegated clicks for panel actions
@@ -3170,8 +3293,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                         actionIndex,
                         maxAp: this._activePlanEditSlot?.remainingAp ?? (Number(combat.apBudget ?? 6) - 1)
                     });
+                } else if (actionData.requiresToHit && ["melee", "normal", "long"].includes(String(actionData.rangeType ?? "").toLowerCase())) {
+                    this.#beginEncounterTargetingInteraction({
+                        combat,
+                        combatantId,
+                        actionIndex,
+                        action: actionData
+                    });
                 } else {
                     this._encounterMovementInteraction = null;
+                    this._encounterTargetingInteraction = null;
                 }
 
                 this._activePlanEditSlot = null;
@@ -3189,6 +3320,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const actionIndex = Number(buttonRemove.dataset.actionIndex);
                 const combat = this.#getEncounterCombat(buttonRemove);
                 if (!combatantId || Number.isNaN(actionIndex) || !combat?.removeCombatantAction) return;
+                if (this._encounterTargetingInteraction && String(this._encounterTargetingInteraction.combatantId) === String(combatantId)) {
+                    this._encounterTargetingInteraction = null;
+                }
                 await combat.removeCombatantAction(combatantId, actionIndex);
                 this.render({ force: false });
                 return;
@@ -3203,6 +3337,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const combatantId = this.#getEncounterPanelCombatantId(buttonClear);
                 const combat = this.#getEncounterCombat(buttonClear);
                 if (!combatantId || !combat?.clearCombatantPlan) return;
+                if (this._encounterTargetingInteraction && String(this._encounterTargetingInteraction.combatantId) === String(combatantId)) {
+                    this._encounterTargetingInteraction = null;
+                }
                 await combat.clearCombatantPlan(combatantId);
                 this.render({ force: false });
                 return;
@@ -3217,6 +3354,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const combatantId = this.#getEncounterPanelCombatantId(buttonReady);
                 const combat = this.#getEncounterCombat(buttonReady);
                 if (!combatantId || !combat?.setCombatantReady) return;
+                if (this._encounterTargetingInteraction && String(this._encounterTargetingInteraction.combatantId) === String(combatantId)) {
+                    this._encounterTargetingInteraction = null;
+                }
                 await combat.setCombatantReady(combatantId, buttonReady.dataset.ready !== "true");
                 this.render({ force: false });
                 return;
@@ -4343,6 +4483,22 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     return;
                 }
 
+                if (this._encounterTargetingInteraction) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const scene = game.scenes?.get(viewport.dataset.sceneId) ?? canvas?.scene ?? game.scenes?.viewed ?? null;
+                    const overlayModel = this.#getEncounterTargetOverlayState(scene);
+                    const tokenEl = event.target.closest("[data-action='map-token']");
+                    const tokenId = String(tokenEl?.dataset?.tokenId ?? "").trim();
+                    const canTarget = tokenId && (overlayModel?.targetTokenIds ?? []).includes(tokenId);
+                    if (canTarget) {
+                        void this.#finishEncounterTargetingInteraction(tokenId);
+                    } else {
+                        void this.#cancelEncounterTargetingInteraction();
+                    }
+                    return;
+                }
+
                 if (viewport.classList.contains("is-calibrating")) return;
 
                 const tokenEl = event.target.closest("[data-action='map-token']");
@@ -5034,6 +5190,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     async #onWallEditKeyDown(event) {
+        if (event.key === "Escape" && this._encounterTargetingInteraction) {
+            event.preventDefault();
+            await this.#cancelEncounterTargetingInteraction();
+            return;
+        }
+
         if (event.key === "Escape" && this._wallAddSequence) {
             event.preventDefault();
             this.#cancelWallAddSequence();

@@ -148,24 +148,22 @@ function renderPlanBar(actor, currentTick, escapeHTML) {
         </div>`;
 }
 
-function renderActorSummary(actor, currentTick, escapeHTML) {
-    const conditions = actor.conditions.length ? actor.conditions.join(", ") : "None";
+function encounterStatusLabel(actor, phase = "") {
+    if (phase === "roundComplete") return "Resolved";
+    return actor.ready ? "Ready" : "Planning";
+}
+
+function renderActorPlan(actor, currentTick, phase, escapeHTML) {
+    const status = encounterStatusLabel(actor, phase);
+    const statusClass = status.toLowerCase();
     return `
-        <details class="totc-v2-encounter-manager__actor" open>
-            <summary>
-                ${actor.img ? `<img src="${escapeHTML(actor.img)}" alt="">` : `<span class="totc-v2-encounter-manager__portrait-fallback">${escapeHTML(actor.name.slice(0, 1).toUpperCase())}</span>`}
+        <article class="totc-v2-encounter-manager__actor-plan">
+            <header class="totc-v2-encounter-manager__actor-plan-label">
                 <span class="totc-v2-encounter-manager__actor-name">${escapeHTML(actor.name)}</span>
-                <span class="totc-v2-encounter-manager__actor-status">${escapeHTML(String(actor.health.value))}/${escapeHTML(String(actor.health.max))} HP</span>
-                <span class="totc-v2-encounter-manager__actor-ready">${actor.ready ? "Ready" : "Planning"}</span>
-            </summary>
-            <div class="totc-v2-encounter-manager__actor-body">
-                <dl>
-                    <div><dt>Health</dt><dd>${escapeHTML(String(actor.health.value))}/${escapeHTML(String(actor.health.max))}</dd></div>
-                    <div><dt>Conditions</dt><dd>${escapeHTML(conditions)}</dd></div>
-                </dl>
-                ${renderPlanBar(actor, currentTick, escapeHTML)}
-            </div>
-        </details>`;
+                <span class="totc-v2-encounter-manager__actor-ready is-${escapeHTML(statusClass)}">${escapeHTML(status)}</span>
+            </header>
+            ${renderPlanBar(actor, currentTick, escapeHTML)}
+        </article>`;
 }
 
 export function renderEncounterManagerPanel(model = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
@@ -194,9 +192,9 @@ export function renderEncounterManagerPanel(model = {}, { escapeHTML = (value) =
         </div>
 
         <section class="totc-v2-encounter-manager__actors" style="--totc-ap-budget:${model.apBudget};--totc-current-tick:${model.currentTick};">
-            <span class="totc-v2-encounter-manager__actors-current-line" aria-hidden="true"></span>
+            <h3>Action Plans</h3>
             ${model.actors.length
-                ? model.actors.map((actor) => renderActorSummary(actor, model.currentTick, escapeHTML)).join("")
+                ? model.actors.map((actor) => renderActorPlan(actor, model.currentTick, model.phase, escapeHTML)).join("")
                 : `<p class="totc-v2-encounter-manager__empty">No actors in this encounter.</p>`}
         </section>
 

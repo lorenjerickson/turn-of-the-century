@@ -1,4 +1,4 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 12;
+export const TOTC_WORLD_SCHEMA_VERSION = 13;
 
 import { migrateTotcItems } from "./items.mjs";
 
@@ -12,6 +12,7 @@ export async function runTotcMigrations({
     migrateModifiers,
     migrateStarterCompendiums,
     seedMissingActors,
+    migrateStarterActorAvatars,
     notify = true
 } = {}) {
     if (!game?.ready) throw new Error("Game is not ready yet.");
@@ -38,6 +39,9 @@ export async function runTotcMigrations({
     }
     if (typeof seedMissingActors !== "function") {
         throw new Error("runTotcMigrations requires a seedMissingActors function.");
+    }
+    if (typeof migrateStarterActorAvatars !== "function") {
+        throw new Error("runTotcMigrations requires a migrateStarterActorAvatars function.");
     }
 
     let appliedVersion = Number(currentVersion) || 0;
@@ -188,6 +192,21 @@ export async function runTotcMigrations({
         appliedVersion = 12;
     }
 
+    // v13: assign deterministic DiceBear avatars to starter actor compendium entries
+    if (appliedVersion < 13) {
+        const report = await migrateStarterActorAvatars({
+            dryRun: false,
+            notify: false,
+            overwrite: false
+        });
+        appliedSteps.push({
+            version: 13,
+            key: "starter-actor-avatars",
+            report
+        });
+        appliedVersion = 13;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -222,6 +241,10 @@ export async function runTotcMigrations({
 
                 if (step.key === "seed-missing-actors") {
                     return `${step.key}: ${step.report.createdActors} actors seeded`;
+                }
+
+                if (step.key === "starter-actor-avatars") {
+                    return `${step.key}: ${step.report.updated} avatars updated`;
                 }
 
                 return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;

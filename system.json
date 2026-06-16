@@ -2,7 +2,7 @@
   "id": "turn-of-the-century",
   "title": "Turn of the Century",
   "description": "A pulp horror roleplaying game set in the turn of the 19th century.",
-  "version": "0.0.165",
+  "version": "0.1.56",
   "compatibility": {
     "minimum": 14,
     "verified": 14
@@ -15,12 +15,8 @@
       "discord": "GrouchyReaper"
     }
   ],
-  "esmodules": [
-    "turn-of-the-century.mjs"
-  ],
-  "styles": [
-    "styles/system-styles.css"
-  ],
+  "esmodules": ["turn-of-the-century.mjs"],
+  "styles": ["styles/system-styles.css"],
   "packs": [
     {
       "name": "monsters",
@@ -173,46 +169,27 @@
   "documentTypes": {
     "Actor": {
       "hero": {
-        "htmlFields": [
-          "biography",
-          "notes"
-        ]
+        "htmlFields": ["biography", "notes"]
       },
       "villain": {
-        "htmlFields": [
-          "biography",
-          "notes"
-        ]
+        "htmlFields": ["biography", "notes"]
       },
       "pawn": {
-        "htmlFields": [
-          "biography",
-          "notes"
-        ]
+        "htmlFields": ["biography", "notes"]
       }
     },
     "Item": {
       "armor": {
-        "htmlFields": [
-          "description",
-          "prerequisites.notes"
-        ]
+        "htmlFields": ["description", "prerequisites.notes"]
       },
       "consumable": {
-        "htmlFields": [
-          "description"
-        ]
+        "htmlFields": ["description"]
       },
       "effect": {
-        "htmlFields": [
-          "description",
-          "source.notes"
-        ]
+        "htmlFields": ["description", "source.notes"]
       },
       "equipment": {
-        "htmlFields": [
-          "description"
-        ]
+        "htmlFields": ["description"]
       },
       "ethnicity": {
         "htmlFields": [
@@ -222,29 +199,18 @@
         ]
       },
       "item": {
-        "htmlFields": [
-          "description"
-        ]
+        "htmlFields": ["description"]
       },
       "profession": {
-        "htmlFields": [
-          "description",
-          "advancementNotes"
-        ]
+        "htmlFields": ["description", "advancementNotes"]
       },
       "skill": {},
       "talent": {},
       "quirk": {
-        "htmlFields": [
-          "description",
-          "notes"
-        ]
+        "htmlFields": ["description", "notes"]
       },
       "weapon": {
-        "htmlFields": [
-          "description",
-          "prerequisites.notes"
-        ]
+        "htmlFields": ["description", "prerequisites.notes"]
       },
       "campaign": {
         "htmlFields": [
@@ -256,23 +222,13 @@
         ]
       },
       "scenario": {
-        "htmlFields": [
-          "description",
-          "historicalNotes",
-          "resolutionCriteria"
-        ]
+        "htmlFields": ["description", "historicalNotes", "resolutionCriteria"]
       },
       "encounter-design": {
-        "htmlFields": [
-          "description",
-          "hazards"
-        ]
+        "htmlFields": ["description", "hazards"]
       },
       "location": {
-        "htmlFields": [
-          "description",
-          "notes"
-        ]
+        "htmlFields": ["description", "notes"]
       }
     }
   },

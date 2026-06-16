@@ -53,12 +53,12 @@ function plannerFixture() {
         canCommit: true,
         ready: false,
         availableActions: [
-            { id: "move", actionId: "move", type: "movement", label: "Move", apCost: 1, apMin: 1, apMax: 4, variableAp: true, movementFeetPerAp: 10 },
-            { id: "strike", actionId: "strike", type: "attack", label: "Strike", apCost: 2, apMin: 2, apMax: 2, requiresToHit: true, toHitBonus: 5 }
+            { id: "move", actionId: "move", type: "movement", label: "Move", apCost: 1, apMin: 1, apMax: 4, variableAp: true, movementFeetPerAp: 10, rangeType: "melee" },
+            { id: "strike", actionId: "strike", type: "attack", label: "Strike", apCost: 2, apMin: 2, apMax: 2, requiresToHit: true, toHitBonus: 5, rangeType: "normal" }
         ],
         queue: [
-            { id: "move", actionId: "move", type: "movement", label: "Move", apCost: 2, apMin: 1, apMax: 4, variableAp: true, movementFeetPerAp: 10 },
-            { id: "strike", actionId: "strike", type: "attack", label: "Strike", apCost: 1, apMin: 1, apMax: 1 }
+            { id: "move", actionId: "move", type: "movement", label: "Move", apCost: 2, apMin: 1, apMax: 4, variableAp: true, movementFeetPerAp: 10, rangeType: "melee" },
+            { id: "strike", actionId: "strike", type: "attack", label: "Strike", apCost: 1, apMin: 1, apMax: 1, rangeType: "normal" }
         ]
     };
 }
@@ -150,7 +150,7 @@ describe("player encounter panel", () => {
         assert.match(html, /class="totc-v2-encounter-popup-overlay"/);
         assert.match(html, /class="totc-v2-encounter-popup"/);
         assert.match(html, /Add Action \(Tick 6, Max 1 AP\)/);
-        assert.match(html, /data-action="encounter-select-popup-action"[^>]*data-action-id="move"/);
+        assert.match(html, /data-action="encounter-select-popup-action"[^>]*data-action-id="move"[^>]*data-range-type="melee"/);
         assert.doesNotMatch(html, /data-action="encounter-select-popup-action"[^>]*data-action-id="strike"/);
     });
 
@@ -175,6 +175,10 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /encounter-close-popup/);
         assert.match(workspaceRootSource, /setCombatantPlan/);
         assert.match(workspaceRootSource, /setCombatantActionApCost/);
+        assert.match(workspaceRootSource, /_encounterTargetingInteraction/);
+        assert.match(workspaceRootSource, /#beginEncounterTargetingInteraction/);
+        assert.match(workspaceRootSource, /#finishEncounterTargetingInteraction/);
+        assert.match(workspaceRootSource, /#cancelEncounterTargetingInteraction/);
         assert.doesNotMatch(workspaceRootSource, /rollEncounter/);
         assert.doesNotMatch(workspaceRootSource, /rollAllMissing/);
         assert.doesNotMatch(workspaceRootSource, /player-execute-encounter-action/);

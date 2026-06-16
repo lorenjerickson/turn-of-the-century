@@ -124,6 +124,48 @@ describe("WorkspacePanelHost", () => {
         assert.match(html, /class="totc-v2-map-panel__movement-cell is-origin"/);
     });
 
+    it("renders encounter targeting overlay and marks targetable tokens", () => {
+        const host = new WorkspacePanelHost({
+            escapeHTML,
+            isMapPanel: () => true,
+            getMapPanelScene: () => ({
+                id: "scene-1",
+                name: "Rookery Yard",
+                mapSrc: "yard.webp",
+                width: 1200,
+                height: 800,
+                shiftX: 0,
+                shiftY: 0,
+                grid: { type: 1, size: 100, distance: 5 },
+                tokens: {
+                    contents: [
+                        { id: "source", name: "Ada", x: 200, y: 200, width: 1, height: 1, texture: { src: "tokens/ada.webp" } },
+                        { id: "target", name: "Briggs", x: 400, y: 200, width: 1, height: 1, texture: { src: "tokens/briggs.webp" } },
+                        { id: "far", name: "Far", x: 1200, y: 200, width: 1, height: 1, texture: { src: "tokens/far.webp" } }
+                    ]
+                }
+            }),
+            getEncounterTargetOverlayState: () => ({
+                active: true,
+                sourceTokenId: "source",
+                targetTokenIds: ["target"],
+                rangeType: "normal",
+                rangeFeet: 30,
+                radiusPixels: 600,
+                origin: { x: 250, y: 250 }
+            }),
+            gridCalibrationState: () => ({ active: false })
+        });
+
+        const html = host.renderPanelBodyContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
+
+        assert.match(html, /data-encounter-targeting-overlay="true"/);
+        assert.match(html, /class="totc-v2-map-panel__targeting-ring"/);
+        assert.match(html, /Select normal target \(30 ft\)/);
+        assert.match(html, /data-token-id="target"[\s\S]*class="totc-v2-map-panel__token is-targetable"|class="totc-v2-map-panel__token is-targetable"[\s\S]*data-token-id="target"/);
+        assert.match(html, /data-token-id="source"[\s\S]*is-source|is-source[\s\S]*data-token-id="source"/);
+    });
+
     it("renders split and join wall commands in the primary map toolbar", () => {
         const host = new WorkspacePanelHost({
             escapeHTML,
@@ -326,6 +368,7 @@ describe("WorkspacePanelHost", () => {
 
         assert.match(html, /totc-v2-encounter-manager/);
         assert.match(html, /data-action="encounter-manager-resolve-round"/);
-        assert.match(html, /totc-v2-encounter-manager__actors-current-line/);
+        assert.match(html, /<h3>Action Plans<\/h3>/);
+        assert.match(html, /totc-v2-encounter-manager__actor-plan/);
     });
 });
