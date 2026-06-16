@@ -2892,7 +2892,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #buildEncounterPlannerSelectionForToken({ combat = null, token = null, actor = null, source = "" } = {}) {
-        const selectedCombat = combat ?? this.#getEncounterCombatForToken(token) ?? this.#getEncounterCombat();
+        // Prefer the token-resolved encounter combat so player planning remains interactive
+        // when the viewed/active combat differs from the token's combat.
+        const tokenCombat = this.#getEncounterCombatForToken(token);
+        const selectedCombat = tokenCombat ?? combat ?? this.#getEncounterCombat();
         const combatant = selectedCombat ? this.#getEncounterCombatantForToken(selectedCombat, token) : null;
         const resolvedActor = actor ?? combatant?.actor ?? this.#resolveTokenActor(token);
         if (!this.#canViewEncounterToken({ token, actor: resolvedActor, combatant })) return null;

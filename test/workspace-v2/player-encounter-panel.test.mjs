@@ -200,5 +200,7 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /#getEncounterCombat\(element = null\)/);
         assert.match(workspaceRootSource, /closest\?\.\("\.totc-v2-encounter-panel"\)\?\.dataset\?\.combatId/);
         assert.match(workspaceRootSource, /const combat = this\.\#getEncounterCombat\((el|button|input)\)/);
+        assert.match(workspaceRootSource, /const tokenCombat = this\.\#getEncounterCombatForToken\(token\)/);
+        assert.match(workspaceRootSource, /const selectedCombat = tokenCombat \?\? combat \?\? this\.\#getEncounterCombat\(\)/);
     });
 });
