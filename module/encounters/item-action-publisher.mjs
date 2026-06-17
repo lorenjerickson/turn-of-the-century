@@ -12,6 +12,7 @@
  * read-and-filter pass over existing document data.
  */
 
+import { getBaseActionCatalog } from "./action-catalog.mjs";
 import { evaluateRequirements } from "./action-template.mjs";
 
 // ---------------------------------------------------------------------------
@@ -29,42 +30,44 @@ import { evaluateRequirements } from "./action-template.mjs";
  * @returns {object[]}
  */
 export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = 10 } = {}) {
-    return [
-        {
-            id: "move",
-            actionId: "move",
-            type: "movement",
-            label: "Move",
-            description: null,
-            apCost: 1,
-            apMin: 1,
-            apMax: apBudget,
-            variableAp: true,
-            movementFeetPerAp,
-            movementFeet: movementFeetPerAp,
-            requiresToHit: false,
-            toHitBonus: 0,
-            requirements: [],
-            itemId: null
-        },
-        {
-            id: "defend",
-            actionId: "defend",
-            type: "defense",
-            label: "Defend",
-            description: null,
-            apCost: 1,
-            apMin: 1,
-            apMax: apBudget,
-            variableAp: true,
-            movementFeetPerAp: 0,
-            movementFeet: 0,
-            requiresToHit: false,
-            toHitBonus: 0,
-            requirements: [],
-            itemId: null
-        }
-    ];
+    const actionCatalog = getBaseActionCatalog();
+    const baseOrder = ["move", "hunkDown", "dodge", "overwatch"];
+
+    return baseOrder
+        .map((id) => actionCatalog[id])
+        .filter(Boolean)
+        .map((variant) => {
+            const apMin = Number(variant.apMin ?? variant.apCost ?? 1);
+            const apMax = Boolean(variant.variableAp)
+                ? Math.max(apMin, Number(apBudget))
+                : Math.max(apMin, Number(variant.apMax ?? variant.apCost ?? apMin));
+            const movePerAp = variant.id === "move"
+                ? Number(movementFeetPerAp)
+                : Number(variant.movementFeetPerAp ?? 0);
+
+            return {
+                id: variant.id,
+                actionId: variant.id,
+                type: variant.type,
+                label: variant.label,
+                description: null,
+                apCost: Number(variant.apCost ?? apMin),
+                apMin,
+                apMax,
+                variableAp: Boolean(variant.variableAp),
+                movementFeetPerAp: movePerAp,
+                movementFeet: movePerAp,
+                requiresToHit: Boolean(variant.requiresToHit),
+                toHitBonus: Number(variant.toHitBonus ?? 0),
+                autoResolve: Boolean(variant.autoResolve),
+                interruptible: Boolean(variant.interruptible ?? true),
+                isReaction: Boolean(variant.isReaction),
+                reactionTriggerType: String(variant.reactionTriggerType ?? ""),
+                rangeType: String(variant.rangeType ?? ""),
+                requirements: [],
+                itemId: null
+            };
+        });
 }
 
 // ---------------------------------------------------------------------------
@@ -101,6 +104,11 @@ export function getEnabledActionsForItem(item) {
             movementFeet: 0,
             requiresToHit: Boolean(variant.requiresToHit),
             toHitBonus: Number(variant.toHitBonus ?? 0),
+            autoResolve: Boolean(variant.autoResolve),
+            interruptible: Boolean(variant.interruptible ?? true),
+            isReaction: Boolean(variant.isReaction),
+            reactionTriggerType: String(variant.reactionTriggerType ?? ""),
+            rangeType: String(variant.rangeType ?? ""),
             requirements: variant.requirements ?? [],
             itemId: item.id
         }));

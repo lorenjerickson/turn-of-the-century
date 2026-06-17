@@ -432,6 +432,18 @@ export class WorkspacePanelHost {
         const targetTokenIds = new Set(targetOverlay?.targetTokenIds ?? []);
         const sourceTokenId = String(targetOverlay?.sourceTokenId ?? "").trim();
         const targetingActive = Boolean(targetOverlay?.active);
+        const encounterCombat = globalThis.ui?.combat?.viewed ?? globalThis.game?.combat ?? globalThis.game?.combats?.active ?? null;
+        const encounterState = encounterCombat?.encounterState ?? encounterCombat?.encounter?.state ?? {};
+        const currentTick = Number(encounterState?.resolution?.currentTick ?? encounterState?.currentEvaluationTick ?? 0);
+        const perCombatant = encounterState?.perCombatant ?? {};
+        const timeline = Array.isArray(encounterState?.timeline) ? encounterState.timeline : [];
+
+        const combatantByTokenId = new Map();
+        for (const combatant of collectionContents(encounterCombat?.combatants)) {
+            const combatTokenId = String(combatant?.tokenId ?? combatant?.token?.id ?? "").trim();
+            if (combatTokenId) combatantByTokenId.set(combatTokenId, combatant);
+        }
+
         const tokenMarkup = tokens.map((token) => {
             const x = tokenPosition(token, "x");
             const y = tokenPosition(token, "y");
@@ -449,10 +461,22 @@ export class WorkspacePanelHost {
                         ? " is-source"
                         : " is-out-of-range"
                 : "";
+            const combatant = combatantByTokenId.get(tokenId) ?? null;
+            const combatantId = String(combatant?.id ?? "").trim();
+            const combatantState = combatantId ? perCombatant?.[combatantId] : null;
+            const readyClass = combatantState?.ready ? " is-ready" : "";
+            const healthValue = combatant?.actor?.system?.resources?.health?.value ?? token?.actor?.system?.resources?.health?.value;
+            const healthKnown = Number.isFinite(Number(healthValue));
+            const health = Number(healthValue);
+            const incapacitatedClass = healthKnown && health <= 0 ? " is-incapacitated" : "";
+            const actingNow = combatantId
+                ? timeline.some((entry) => String(entry?.combatantId ?? "") === combatantId && Number(entry?.tick ?? entry?.slot ?? 0) === currentTick)
+                : false;
+            const actingClass = actingNow ? " is-acting" : "";
             const style = `left:${this.escapeHTML(x)}px;top:${this.escapeHTML(y)}px;width:${this.escapeHTML(width)}px;height:${this.escapeHTML(height)}px`;
             return src
-                ? `<img class="totc-v2-map-panel__token${isSelected}${targetClass}" src="${this.escapeHTML(src)}" alt="${this.escapeHTML(name)}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token" draggable="false">`
-                : `<span class="totc-v2-map-panel__token totc-v2-map-panel__token--fallback${isSelected}${targetClass}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token">${this.escapeHTML(name.slice(0, 1).toUpperCase() || "?")}</span>`;
+                ? `<img class="totc-v2-map-panel__token${isSelected}${targetClass}${readyClass}${actingClass}${incapacitatedClass}" src="${this.escapeHTML(src)}" alt="${this.escapeHTML(name)}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token" draggable="false">`
+                : `<span class="totc-v2-map-panel__token totc-v2-map-panel__token--fallback${isSelected}${targetClass}${readyClass}${actingClass}${incapacitatedClass}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token">${this.escapeHTML(name.slice(0, 1).toUpperCase() || "?")}</span>`;
         }).join("");
         return `<div class="totc-v2-map-panel__token-layer" data-map-token-layer="true" aria-label="Scene tokens">${tokenMarkup}</div>`;
     }

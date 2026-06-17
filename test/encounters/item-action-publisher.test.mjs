@@ -24,7 +24,9 @@ class MockSchemaField  { constructor(f) { this.fields = f; } }
 // within a single test run).
 if (!globalThis.foundry) {
     globalThis.foundry = {
-        utils: {},
+        utils: {
+            deepClone: (value) => structuredClone(value)
+        },
         data: {
             fields: {
                 StringField:  MockStringField,
@@ -128,11 +130,13 @@ function emptyRevolver() {
 // ---------------------------------------------------------------------------
 
 describe("buildUniversalActions", () => {
-    it("returns move and defend actions", () => {
+    it("returns move, hunker down, dodge, and overwatch actions", () => {
         const actions = buildUniversalActions();
         const ids = actions.map((a) => a.id);
         assert.ok(ids.includes("move"),   "missing move");
-        assert.ok(ids.includes("defend"), "missing defend");
+        assert.ok(ids.includes("hunkDown"), "missing hunkDown");
+        assert.ok(ids.includes("dodge"), "missing dodge");
+        assert.ok(ids.includes("overwatch"), "missing overwatch");
     });
 
     it("both actions have variableAp = true", () => {
@@ -152,10 +156,9 @@ describe("buildUniversalActions", () => {
         assert.equal(move.movementFeet, 15);
     });
 
-    it("defend action has movementFeet = 0", () => {
+    it("non-movement universal actions have movementFeet = 0", () => {
         const actions = buildUniversalActions();
-        const defend = actions.find((a) => a.id === "defend");
-        assert.equal(defend.movementFeet, 0);
+        assert.equal(actions.filter((a) => a.id !== "move").every((a) => a.movementFeet === 0), true);
     });
 
     it("both actions have itemId = null", () => {
@@ -168,6 +171,16 @@ describe("buildUniversalActions", () => {
         assert.ok(actions.every((a) => a.apMax === 6));
         const move = actions.find((a) => a.id === "move");
         assert.equal(move.movementFeetPerAp, 10);
+    });
+
+    it("includes reaction metadata for dodge and overwatch", () => {
+        const actions = buildUniversalActions();
+        const dodge = actions.find((a) => a.id === "dodge");
+        const overwatch = actions.find((a) => a.id === "overwatch");
+        assert.equal(dodge.isReaction, true);
+        assert.equal(dodge.reactionTriggerType, "incomingAttack");
+        assert.equal(overwatch.isReaction, true);
+        assert.equal(overwatch.reactionTriggerType, "overwatch");
     });
 });
 
@@ -266,19 +279,21 @@ describe("getEnabledActionsForActor", () => {
     it("returns only universal actions when actor has no items", () => {
         const actor = mockActor([]);
         const actions = getEnabledActionsForActor(actor);
-        assert.equal(actions.length, 2);
+        assert.equal(actions.length, 4);
         assert.ok(actions.some((a) => a.id === "move"));
-        assert.ok(actions.some((a) => a.id === "defend"));
+        assert.ok(actions.some((a) => a.id === "hunkDown"));
+        assert.ok(actions.some((a) => a.id === "dodge"));
+        assert.ok(actions.some((a) => a.id === "overwatch"));
     });
 
     it("returns universal actions when actor.items.contents is missing", () => {
         const actions = getEnabledActionsForActor({});
-        assert.equal(actions.length, 2);
+        assert.equal(actions.length, 4);
     });
 
     it("returns universal actions when actor is null/undefined", () => {
-        assert.equal(getEnabledActionsForActor(null).length,      2);
-        assert.equal(getEnabledActionsForActor(undefined).length, 2);
+        assert.equal(getEnabledActionsForActor(null).length,      4);
+        assert.equal(getEnabledActionsForActor(undefined).length, 4);
     });
 
     it("prepends universal actions before item actions", () => {
@@ -288,7 +303,7 @@ describe("getEnabledActionsForActor", () => {
         const actor = mockActor([item]);
         const actions = getEnabledActionsForActor(actor);
         assert.equal(actions[0].id, "move");
-        assert.equal(actions[1].id, "defend");
+        assert.equal(actions[1].id, "hunkDown");
     });
 
     it("aggregates enabled actions from multiple items", () => {
@@ -302,7 +317,7 @@ describe("getEnabledActionsForActor", () => {
 
         const ids = actions.map((a) => a.actionId ?? a.id);
         assert.ok(ids.includes("move"),       "missing move");
-        assert.ok(ids.includes("defend"),     "missing defend");
+        assert.ok(ids.includes("hunkDown"),   "missing hunkDown");
         assert.ok(ids.includes("meleeStrike"),"missing meleeStrike");
         assert.ok(ids.includes("quickShot"),  "missing quickShot");
         assert.ok(ids.includes("aimedShot"),  "missing aimedShot");

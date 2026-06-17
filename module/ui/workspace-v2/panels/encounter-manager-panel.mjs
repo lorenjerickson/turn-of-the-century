@@ -77,6 +77,15 @@ function latestSlotNarrative(timeline = [], slot = 0) {
         .join(" ");
 }
 
+function tickNarrativeFromResolution(resolution = {}, tick = 0) {
+    const rows = toArray(resolution?.tickNarratives);
+    const match = rows.find((row) => toNumber(row?.tick, 0) === toNumber(tick, 0)) ?? null;
+    if (!match) return "";
+    const summary = String(match.summary ?? "").trim();
+    if (summary) return summary;
+    return toArray(match.lines).map((line) => String(line ?? "").trim()).filter(Boolean).join(" ");
+}
+
 function buildCombatantSummary(combatant, state, timeline, apBudget) {
     const id = String(combatant?.id ?? "");
     const actor = combatant?.actor ?? null;
@@ -103,11 +112,18 @@ function buildCombatantSummary(combatant, state, timeline, apBudget) {
 
 export function buildEncounterManagerPanelModel({ combat = null } = {}) {
     const state = combat?.encounterState ?? combat?.encounter?.state ?? {};
+    const resolution = state?.resolution ?? {};
     const initialized = Boolean(state?.initialized);
     const apBudget = Math.max(1, toNumber(state?.apBudget ?? combat?.apBudget, 6));
     const timeline = toArray(state?.timeline);
     const latestSlot = latestTimelineSlot(timeline);
-    const currentTick = Math.max(1, Math.min(apBudget, toNumber(state?.currentEvaluationTick ?? state?.evaluationTick, latestSlot || 1)));
+    const currentTick = Math.max(0, Math.min(apBudget, toNumber(resolution?.currentTick ?? state?.currentEvaluationTick ?? state?.evaluationTick, latestSlot || 0)));
+    const totalTicks = Math.max(1, toNumber(resolution?.totalTicks, apBudget));
+    const progressPercent = Math.max(0, Math.min(100, Math.round((currentTick / totalTicks) * 100)));
+    const tickNarrative = tickNarrativeFromResolution(resolution, currentTick)
+        || latestSlotNarrative(timeline, currentTick)
+        || latestSlotNarrative(timeline, latestSlot);
+    const canStep = Boolean(combat?.stepEncounterResolution) && toArray(resolution?.snapshots).length > 0;
 
     return {
         active: Boolean(combat),
@@ -118,11 +134,16 @@ export function buildEncounterManagerPanelModel({ combat = null } = {}) {
         phase: String(combat?.phase ?? state?.phase ?? "planning"),
         apBudget,
         currentTick,
+        totalTicks,
+        progressPercent,
+        resolutionStatus: String(resolution?.status ?? "idle"),
         canStartRound: Boolean(combat?.initializeEncounterRound),
         canResolveRound: Boolean(combat?.resolveEncounterRound),
         canSetPhase: Boolean(combat?.setEncounterPhase),
+        canStepPrevious: canStep && currentTick > 0,
+        canStepNext: canStep && currentTick < totalTicks,
         actors: combatantContents(combat?.combatants).map((combatant) => buildCombatantSummary(combatant, state, timeline, apBudget)),
-        lastNarrative: latestSlotNarrative(timeline, latestSlot),
+        lastNarrative: tickNarrative,
         lastEvaluatedTick: latestSlot || null
     };
 }
@@ -179,16 +200,23 @@ export function renderEncounterManagerPanel(model = {}, { escapeHTML = (value) =
         <header class="totc-v2-encounter-manager__header">
             <div>
                 <h3>${escapeHTML(model.name)}</h3>
-                <p>Round ${escapeHTML(String(model.round))} · ${escapeHTML(model.phase)} · AP ${escapeHTML(String(model.currentTick))}</p>
+                <p>Round ${escapeHTML(String(model.round))} · ${escapeHTML(model.phase)} · AP ${escapeHTML(String(model.currentTick))}/${escapeHTML(String(model.totalTicks))}</p>
             </div>
             <span>${escapeHTML(String(model.actors.length))} actors</span>
         </header>
 
+        <div class="totc-v2-encounter-manager__progress" aria-label="Round resolution progress">
+            <span class="totc-v2-encounter-manager__progress-fill" style="width:${escapeHTML(String(model.progressPercent))}%;"></span>
+            <span class="totc-v2-encounter-manager__progress-label">${escapeHTML(String(model.progressPercent))}% · ${escapeHTML(model.resolutionStatus || "idle")}</span>
+        </div>
+
         <div class="totc-v2-encounter-manager__controls">
-            <button type="button" data-action="encounter-manager-start-round" ${model.canStartRound ? "" : "disabled"}>New Round</button>
+            <button type="button" data-action="encounter-manager-start-round" ${model.canStartRound ? "" : "disabled"}>Next Round</button>
             <button type="button" data-action="encounter-manager-set-phase" data-phase="locked" ${model.canSetPhase && model.phase === "planning" ? "" : "disabled"}>Lock Plans</button>
             <button type="button" data-action="encounter-manager-set-phase" data-phase="planning" ${model.canSetPhase && model.phase !== "planning" ? "" : "disabled"}>Reopen Planning</button>
             <button type="button" data-action="encounter-manager-resolve-round" ${model.canResolveRound ? "" : "disabled"}>Resolve Round</button>
+            <button type="button" data-action="encounter-manager-step-tick" data-direction="-1" ${model.canStepPrevious ? "" : "disabled"}>Previous Tick</button>
+            <button type="button" data-action="encounter-manager-step-tick" data-direction="1" ${model.canStepNext ? "" : "disabled"}>Next Tick</button>
         </div>
 
         <section class="totc-v2-encounter-manager__actors" style="--totc-ap-budget:${model.apBudget};--totc-current-tick:${model.currentTick};">
@@ -199,7 +227,7 @@ export function renderEncounterManagerPanel(model = {}, { escapeHTML = (value) =
         </section>
 
         <section class="totc-v2-encounter-manager__narrative">
-            <h3>Last Evaluated AP${model.lastEvaluatedTick ? ` ${escapeHTML(String(model.lastEvaluatedTick))}` : ""}</h3>
+            <h3>Tick Narrative${model.currentTick ? ` AP ${escapeHTML(String(model.currentTick))}` : ""}</h3>
             <p>${model.lastNarrative ? escapeHTML(model.lastNarrative) : "No AP slot has been evaluated yet."}</p>
         </section>
     </section>`;

@@ -118,6 +118,9 @@ describe("encounter manager panel", () => {
         assert.doesNotMatch(html, /turn-order roll/i);
         assert.match(html, /data-action="encounter-manager-set-phase" data-phase="locked"/);
         assert.match(html, /data-action="encounter-manager-resolve-round"/);
+        assert.match(html, /class="totc-v2-encounter-manager__progress"/);
+        assert.match(html, /data-action="encounter-manager-step-tick" data-direction="-1"/);
+        assert.match(html, /data-action="encounter-manager-step-tick" data-direction="1"/);
         assert.match(html, /Briggs hunkers down\./);
     });
 
@@ -128,5 +131,7 @@ describe("encounter manager panel", () => {
         assert.match(workspaceRootSource, /restorePanel\(panelDef, \{ preferredDockId: panelDef\.defaultDock \?\? "leftDock" \}\)/);
         assert.match(workspaceRootSource, /#wireEncounterManagerPanelHandlers/);
         assert.match(workspaceRootSource, /resolveEncounterRound/);
+        assert.match(workspaceRootSource, /encounter-manager-step-tick/);
+        assert.match(workspaceRootSource, /stepEncounterResolution/);
     });
 });
