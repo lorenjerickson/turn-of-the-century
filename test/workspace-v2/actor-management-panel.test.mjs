@@ -156,7 +156,7 @@ describe("Actor management panel", () => {
         assert.match(html, /<button type="submit"[^>]*disabled/);
     });
 
-    it("renders a GM-only player assignment section when the current user is GM", () => {
+    it("renders a GM-only player assignment row with label and dropdown", () => {
         const originalConst = globalThis.CONST;
         globalThis.CONST = {
             DOCUMENT_OWNERSHIP_LEVELS: {
@@ -189,9 +189,11 @@ describe("Actor management panel", () => {
             });
             const html = renderActorEditorPanel(model, { escapeHTML });
 
-            assert.match(html, /totc-v2-actor-editor__section--player-assignment/);
-            assert.match(html, /<legend>Player Assignment<\/legend>/);
-            assert.match(html, /Assigned Player/);
+            assert.match(html, /totc-v2-actor-editor__assignment-row/);
+            assert.match(html, /totc-v2-actor-editor__assignment-label/);
+            assert.match(html, /for="totc-v2-actor-editor-owner"/);
+            assert.match(html, /id="totc-v2-actor-editor-owner"/);
+            assert.match(html, /data-action="actor-editor-owner-assignment"/);
             assert.match(html, /name="__ownerUserId"/);
             assert.match(html, /<option value="u-player" selected>Player One<\/option>/);
             assert.match(html, /<option value=""\s*>None<\/option>/);
@@ -199,6 +201,12 @@ describe("Actor management panel", () => {
         } finally {
             globalThis.CONST = originalConst;
         }
+    });
+
+    it("styles player assignment as a left-label, right-dropdown row", () => {
+        assert.match(styles, /\.totc-v2-actor-editor__assignment-row\s*\{[\s\S]*grid-template-columns:\s*minmax\(8rem, auto\) minmax\(0, 1fr\);/);
+        assert.match(styles, /\.totc-v2-actor-editor__assignment-label\s*\{[\s\S]*text-transform:\s*uppercase;/);
+        assert.match(styles, /\.totc-v2-actor-editor__assignment-row select\s*\{[\s\S]*width:\s*100%;/);
     });
 
     it("renders actor details abilities as score boxes with derived modifiers", () => {

@@ -206,4 +206,40 @@ describe("ActorWorkspaceController", () => {
             globalThis.CONST = originalConst;
         }
     });
+
+    it("saves owner assignment immediately when the dropdown changes", async () => {
+        const listeners = new Map();
+        const savedForms = [];
+        const form = { actorId: "a", __ownerUserId: "playerB" };
+        const ownerSelect = {
+            closest: (selector) => selector === "form" ? form : null,
+            addEventListener: (type, handler) => listeners.set(type, handler)
+        };
+        const root = {
+            querySelectorAll: (selector) => {
+                if (selector === "[data-action='actor-editor-field']") return [];
+                if (selector === "[data-action='actor-editor-owner-assignment']") return [ownerSelect];
+                return [];
+            }
+        };
+
+        const controller = new ActorWorkspaceController();
+        controller.saveActorForm = async (targetForm) => {
+            savedForms.push(targetForm);
+        };
+
+        controller.wireHandlers(root);
+        const onChange = listeners.get("change");
+        assert.equal(typeof onChange, "function");
+
+        let propagationStopped = false;
+        await onChange({
+            stopPropagation: () => {
+                propagationStopped = true;
+            }
+        });
+
+        assert.equal(propagationStopped, true);
+        assert.deepEqual(savedForms, [form]);
+    });
 });

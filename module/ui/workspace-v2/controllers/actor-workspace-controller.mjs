@@ -297,6 +297,15 @@ export class ActorWorkspaceController {
             input.addEventListener("change", onFieldChange);
         });
 
+        root?.querySelectorAll("[data-action='actor-editor-owner-assignment']")?.forEach((select) => {
+            select.addEventListener("change", async (event) => {
+                event.stopPropagation();
+                const form = select.closest("form");
+                if (!form) return;
+                await this.saveActorForm(form);
+            });
+        });
+
         root?.querySelectorAll("[data-action='actor-editor-generate']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
