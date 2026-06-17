@@ -822,7 +822,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             generate: (prompt, options) => LLMService.generate(prompt, options),
             buildGeneratedActorDocumentData,
             buildActorUpdateDataFromFormData,
-            openActorEditor: () => this.#openActorEditorBelowList(),
+            openActorEditor: () => this.#openActorEditorPanel(),
             render: () => this.render({ force: false }),
             logger: console
         });
@@ -3984,6 +3984,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #syncActorDetailsToTokenSelection(scene = canvas?.scene ?? null) {
         if (this.actorWorkspaceController.state.editorState.mode === "create") return;
+        if (!this.selectedTokenIds.size) return;
         const actor = this.#resolveActorFromSelectedSceneTokens(scene);
         if (actor?.id) {
             this.actorWorkspaceController.openDetails(actor.id);
@@ -6001,38 +6002,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }
     }
 
-    async #openActorEditorBelowList() {
+    async #openActorEditorPanel() {
         const panelDef = this.panelRegistry.get("actor-editor");
         if (!panelDef) return;
 
-        const dockTarget = this.#findPanelDockLocation("actors");
-        let nextLayout;
-        if (dockTarget?.dockId && dockTarget?.stackId) {
-            nextLayout = this.layoutEngine.applyDropIntent(panelDef, {
-                kind: "local",
-                dockId: dockTarget.dockId,
-                stackId: dockTarget.stackId,
-                zone: "local-bottom"
-            });
-        } else {
-            nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "leftDock" });
-        }
+        const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
 
         await this.stateStore?.setUserLayout?.(nextLayout);
         this.render({ force: false });
-    }
-
-    #findPanelDockLocation(panelId) {
-        const layout = this.layoutEngine.getLayout();
-        for (const dockId of WORKSPACE_V2_DOCK_IDS) {
-            const dock = layout?.root?.[dockId];
-            for (const stack of dock?.stacks ?? []) {
-                if ((stack?.panels ?? []).some((panel) => panel.id === panelId)) {
-                    return { dockId, stackId: stack.id };
-                }
-            }
-        }
-        return null;
     }
 
     async _openScenePropertiesPanel() {
