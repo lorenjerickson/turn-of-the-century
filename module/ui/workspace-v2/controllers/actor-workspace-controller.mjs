@@ -258,11 +258,12 @@ export class ActorWorkspaceController {
             });
         });
 
-        root?.querySelectorAll("[data-action='actor-list-open-details']")?.forEach((button) => {
-            button.addEventListener("dblclick", async (event) => {
+        root?.querySelectorAll("[data-actor-list-draggable='true']")?.forEach((entry) => {
+            entry.addEventListener("dblclick", async (event) => {
+                if (event.target?.closest?.("[data-action='actor-list-toggle-selected']")) return;
                 event.preventDefault();
                 event.stopPropagation();
-                if (!this.openDetails(button.dataset.actorId)) return;
+                if (!this.openDetails(entry.dataset.actorId)) return;
                 await this.openActorEditor();
             });
         });

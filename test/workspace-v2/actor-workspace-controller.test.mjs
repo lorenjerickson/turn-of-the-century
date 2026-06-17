@@ -4,6 +4,79 @@ import { describe, it } from "node:test";
 import { ActorWorkspaceController } from "../../module/ui/workspace-v2/controllers/actor-workspace-controller.mjs";
 
 describe("ActorWorkspaceController", () => {
+    it("loads actor details for the double-clicked actor list entry", async () => {
+        let opened = 0;
+        const actors = new Map([
+            ["a", { id: "a", type: "hero" }],
+            ["b", { id: "b", type: "pawn" }]
+        ]);
+        const listeners = new Map();
+        const entry = {
+            dataset: { actorId: "b" },
+            addEventListener: (type, handler) => listeners.set(type, handler)
+        };
+        const root = {
+            querySelectorAll: (selector) => selector === "[data-actor-list-draggable='true']" ? [entry] : []
+        };
+
+        const controller = new ActorWorkspaceController({
+            getActorById: (id) => actors.get(id),
+            openActorEditor: async () => {
+                opened += 1;
+            }
+        });
+
+        controller.wireHandlers(root);
+        const onDoubleClick = listeners.get("dblclick");
+        assert.equal(typeof onDoubleClick, "function");
+
+        await onDoubleClick({
+            target: { closest: () => null },
+            preventDefault: () => {},
+            stopPropagation: () => {}
+        });
+
+        assert.equal(controller.state.editorState.mode, "edit");
+        assert.equal(controller.state.editorState.actorId, "b");
+        assert.equal(controller.state.editorState.actorType, "pawn");
+        assert.equal(opened, 1);
+    });
+
+    it("ignores actor row double-clicks that originate from the selection checkbox", async () => {
+        let opened = 0;
+        const listeners = new Map();
+        const entry = {
+            dataset: { actorId: "a" },
+            addEventListener: (type, handler) => listeners.set(type, handler)
+        };
+        const root = {
+            querySelectorAll: (selector) => selector === "[data-actor-list-draggable='true']" ? [entry] : []
+        };
+
+        const controller = new ActorWorkspaceController({
+            getActorById: (id) => ({ id, type: "hero" }),
+            openActorEditor: async () => {
+                opened += 1;
+            }
+        });
+
+        controller.wireHandlers(root);
+        const onDoubleClick = listeners.get("dblclick");
+
+        await onDoubleClick({
+            target: { closest: (selector) => selector === "[data-action='actor-list-toggle-selected']" ? {} : null },
+            preventDefault: () => {
+                throw new Error("Should not prevent default for checkbox-origin double-click.");
+            },
+            stopPropagation: () => {
+                throw new Error("Should not stop propagation for checkbox-origin double-click.");
+            }
+        });
+
+        assert.equal(opened, 0);
+        assert.equal(controller.state.editorState.actorId, "");
+    });
+
     it("owns actor list filter, selection, and editor state transitions", async () => {
         let opened = 0;
         const actors = new Map([["a", { id: "a", type: "hero" }]]);
