@@ -686,12 +686,15 @@ export function renderActorEditorPanel(model = {}, { escapeHTML = (value) => Str
         <form class="totc-v2-actor-editor__form" data-action="actor-editor-save-form">
             <input type="hidden" name="actorId" value="${escapeHTML(model.actorId)}">
             ${model.canAssignOwner ? `
-            <label class="totc-v2-actor-editor__field">
-                <span>Owner</span>
-                <select name="__ownerUserId" data-action="actor-editor-field" data-actor-field="__ownerUserId">
-                    ${(model.ownerOptions ?? []).map((option) => `<option value="${escapeHTML(option.value)}" ${option.selected ? "selected" : ""}>${escapeHTML(option.label)}</option>`).join("")}
-                </select>
-            </label>` : ""}
+            <fieldset class="totc-v2-actor-editor__section totc-v2-actor-editor__section--player-assignment">
+                <legend>Player Assignment</legend>
+                <label class="totc-v2-actor-editor__field">
+                    <span>Assigned Player</span>
+                    <select name="__ownerUserId" data-action="actor-editor-field" data-actor-field="__ownerUserId">
+                        ${(model.ownerOptions ?? []).map((option) => `<option value="${escapeHTML(option.value)}" ${option.selected ? "selected" : ""}>${escapeHTML(option.label)}</option>`).join("")}
+                    </select>
+                </label>
+            </fieldset>` : ""}
             <div class="totc-v2-actor-editor__sections">
                 ${sectionEntries.map(([title, fields], index) => `${renderFieldSection(title, fields, escapeHTML)}${index === 0 ? renderEquipmentSection(model.equipment, escapeHTML) : ""}`).join("")}
             </div>

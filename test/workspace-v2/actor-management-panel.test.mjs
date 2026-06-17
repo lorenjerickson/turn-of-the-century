@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
     buildActorListDragPayload,
@@ -15,7 +16,7 @@ import {
 } from "../../module/ui/workspace-v2/panels/actor-management-panel.mjs";
 
 const escapeHTML = (value) => String(value ?? "").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-const rootDir = new URL("../..", import.meta.url).pathname;
+const rootDir = fileURLToPath(new URL("../..", import.meta.url));
 const styles = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
 describe("Actor management panel", () => {
@@ -155,7 +156,7 @@ describe("Actor management panel", () => {
         assert.match(html, /<button type="submit"[^>]*disabled/);
     });
 
-    it("renders a GM-only owner selector when the current user is GM", () => {
+    it("renders a GM-only player assignment section when the current user is GM", () => {
         const originalConst = globalThis.CONST;
         globalThis.CONST = {
             DOCUMENT_OWNERSHIP_LEVELS: {
@@ -188,6 +189,9 @@ describe("Actor management panel", () => {
             });
             const html = renderActorEditorPanel(model, { escapeHTML });
 
+            assert.match(html, /totc-v2-actor-editor__section--player-assignment/);
+            assert.match(html, /<legend>Player Assignment<\/legend>/);
+            assert.match(html, /Assigned Player/);
             assert.match(html, /name="__ownerUserId"/);
             assert.match(html, /<option value="u-player" selected>Player One<\/option>/);
             assert.match(html, /<option value=""\s*>None<\/option>/);
