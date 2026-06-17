@@ -149,14 +149,15 @@ describe("Actor management panel", () => {
         const html = renderActorEditorPanel(model, { escapeHTML });
 
         assert.match(html, /data-action="actor-editor-save-form"/);
-        assert.doesNotMatch(html, /name="__ownerUserId"/);
+        assert.match(html, /name="__ownerUserId"/);
+        assert.match(html, /id="totc-v2-actor-editor-owner"[^>]*disabled/);
         assert.match(html, /name="system.profile.role"/);
         assert.match(html, /Investigator/);
         assert.match(html, /totc-v2-actor-editor__section-fields/);
         assert.match(html, /<button type="submit"[^>]*disabled/);
     });
 
-    it("renders a GM-only player assignment row with label and dropdown", () => {
+    it("renders a player assignment row with label and dropdown", () => {
         const originalConst = globalThis.CONST;
         globalThis.CONST = {
             DOCUMENT_OWNERSHIP_LEVELS: {
@@ -198,6 +199,48 @@ describe("Actor management panel", () => {
             assert.match(html, /<option value="u-player" selected>Player One<\/option>/);
             assert.match(html, /<option value=""\s*>None<\/option>/);
             assert.doesNotMatch(html, /Gamemaster/);
+            assert.doesNotMatch(html, /id="totc-v2-actor-editor-owner"[^>]*disabled/);
+        } finally {
+            globalThis.CONST = originalConst;
+        }
+    });
+
+    it("disables player assignment dropdown for non-GMs", () => {
+        const originalConst = globalThis.CONST;
+        globalThis.CONST = {
+            DOCUMENT_OWNERSHIP_LEVELS: {
+                OWNER: 3
+            }
+        };
+
+        try {
+            const actor = {
+                id: "a",
+                name: "Ada Finch",
+                type: "hero",
+                ownership: {
+                    "u-player": 3
+                },
+                system: {
+                    abilities: { str: { value: 10 }, dex: { value: 10 }, con: { value: 10 }, int: { value: 10 }, wis: { value: 10 }, cha: { value: 10 }, san: { value: 10 } }
+                }
+            };
+
+            const model = buildActorEditorPanelModel({
+                actor,
+                state: { mode: "edit" },
+                users: [
+                    { id: "u-gm", name: "Gamemaster", isGM: true },
+                    { id: "u-player", name: "Player One", isGM: false },
+                    { id: "u-player-2", name: "Player Two", isGM: false }
+                ],
+                isGM: false
+            });
+            const html = renderActorEditorPanel(model, { escapeHTML });
+
+            assert.match(html, /totc-v2-actor-editor__assignment-row/);
+            assert.match(html, /id="totc-v2-actor-editor-owner"[^>]*disabled/);
+            assert.match(html, /<option value="u-player" selected>Player One<\/option>/);
         } finally {
             globalThis.CONST = originalConst;
         }

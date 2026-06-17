@@ -287,15 +287,22 @@ describe("WorkspacePanelHost", () => {
         assert.match(html, /totc-v2-panel-placeholder/);
     });
 
-    it("keeps GM-only actor panels access-gated", () => {
+    it("keeps actor list GM-gated while allowing actor details for players", () => {
         const host = new WorkspacePanelHost({
             escapeHTML,
             isGM: () => false
         });
 
-        const html = host.renderPanelBodyContent({ id: "actors", title: "Actors" }, { gm: { isGM: false } });
+        const actorsHtml = host.renderPanelBodyContent({ id: "actors", title: "Actors" }, { gm: { isGM: false } });
+        const actorEditorHtml = host.renderPanelBodyContent({ id: "actor-editor", title: "Actor Details" }, {
+            gm: { isGM: false },
+            actorEditorPanel: {
+                mode: "empty"
+            }
+        });
 
-        assert.match(html, /only available to the active Gamemaster/);
+        assert.match(actorsHtml, /only available to the active Gamemaster/);
+        assert.match(actorEditorHtml, /Select an actor or create a new one/);
     });
 
     it("renders the player encounter panel for the encounter workspace panel", () => {

@@ -1934,6 +1934,12 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     margin: 0;
 }
 
+.turn-of-the-century .totc-v2-campaign-view__header-actions {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.32rem;
+}
+
 .turn-of-the-century .totc-v2-campaign-view__new-campaign,
 .turn-of-the-century .totc-v2-campaign-view__icon-action {
     align-items: center;

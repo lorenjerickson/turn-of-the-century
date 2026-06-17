@@ -171,7 +171,10 @@ describe("Campaign view panel", () => {
         });
         const html = renderCampaignViewPanel(model, { escapeHTML });
 
-        assert.match(html, /data-action="campaign-view-create-root"/);
+        assert.match(html, /data-action="campaign-view-create-root"[^>]*title="Add Campaign"/);
+        assert.match(html, /data-action="campaign-view-generate-root"[^>]*title="Generate Campaign"/);
+        assert.match(html, /data-action="campaign-view-create-root"[\s\S]*fa-solid fa-plus/);
+        assert.match(html, /data-action="campaign-view-generate-root"[\s\S]*fa-solid fa-wand-magic-sparkles/);
         assert.match(html, /data-action="campaign-view-create-child" data-parent-id="campaign-a" data-child-type="scenario"/);
         assert.match(html, /data-action="campaign-view-generate-child" data-parent-id="campaign-a" data-child-type="scenario"/);
         assert.match(html, /data-action="campaign-view-create-child" data-parent-id="scenario-a" data-child-type="encounter-design"/);

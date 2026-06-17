@@ -75,7 +75,6 @@ export class WorkspacePanelHost {
         getEncounterTargetOverlayState = () => null,
         getMapPanelToolbarState = () => ({}),
         renderMarketPanel = () => "",
-        renderPlayerPanel = () => "",
         renderGamemasterPanel = () => "",
         getSelectedTokenIds = () => new Set()
     } = {}) {
@@ -93,7 +92,6 @@ export class WorkspacePanelHost {
         this.getEncounterTargetOverlayState = getEncounterTargetOverlayState;
         this.getMapPanelToolbarState = getMapPanelToolbarState;
         this.renderMarketPanel = renderMarketPanel;
-        this.renderPlayerPanel = renderPlayerPanel;
         this.renderGamemasterPanel = renderGamemasterPanel;
         this.getSelectedTokenIds = getSelectedTokenIds;
     }
@@ -152,9 +150,6 @@ export class WorkspacePanelHost {
         }
 
         if (panel.id === "actor-editor") {
-            if (!context.gm?.isGM) {
-                return `<section class="totc-v2-actor-editor"><p class="totc-v2-actor-editor__empty">This panel is only available to the active Gamemaster.</p></section>`;
-            }
             return renderActorEditorPanel(context.actorEditorPanel ?? {}, {
                 escapeHTML: (value) => this.escapeHTML(value)
             });
@@ -224,10 +219,6 @@ export class WorkspacePanelHost {
             return renderDiceRollFeedPanel(context.diceRollFeedPanel ?? {}, {
                 escapeHTML: (value) => this.escapeHTML(value)
             });
-        }
-
-        if (panel.id === "player") {
-            return this.renderPlayerPanel(context.playerPanel ?? {}, context.dieRollRequestPanel);
         }
 
         if (panel.id === "encounter") {

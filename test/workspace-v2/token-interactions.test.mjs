@@ -55,14 +55,7 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /game\.user\?\.isGM \|\| actor\?\.isOwner/);
         assert.match(workspaceRootSource, /combat\?\.encounterState\?\.initialized \?\? combat\?\.encounter\?\.state\?\.initialized/);
         assert.match(workspaceRootSource, /#getEncounterCombatForToken\(token = null\)/);
-        assert.match(workspaceRootSource, /totcLogger\.debug\("\[encounter-planner\] token click"/);
-        assert.match(workspaceRootSource, /planningAvailable: this\.\#isEncounterPlanningAvailable\(combat\)/);
         assert.match(workspaceRootSource, /#canViewEncounterToken\(\{ token = null, actor = null, combatant = null \}/);
-        assert.match(workspaceRootSource, /canView,/);
-        assert.match(workspaceRootSource, /canPlan,[\s\S]*combatantRefs:/);
-        assert.match(workspaceRootSource, /combatantCount: this\.\#collectionContents\(combat\?\.combatants\)\.length/);
-        assert.match(workspaceRootSource, /turnCount: this\.\#collectionContents\(combat\?\.turns\)\.length/);
-        assert.match(workspaceRootSource, /getCombatantReferenceDiagnostics\(this\.\#getEncounterCombatants\(combat, actor\)\)\.slice\(0, 12\)/);
         assert.match(workspaceRootSource, /#getEncounterCombatants\(combat = null, actor = null\)/);
         assert.match(workspaceRootSource, /\.\.\.this\.\#collectionContents\(combat\?\.turns\)/);
         assert.match(workspaceRootSource, /findCombatantForToken\(\{[\s\S]*combatants: this\.\#getEncounterCombatants\(combat, actor\),[\s\S]*actor/);
@@ -70,9 +63,6 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /await this\.\#showEncounterPanelForToken\(\{[\s\S]*combat: this\.\#getEncounterCombatForToken\(tokenDoc\) \?\? this\.\#getEncounterCombat\(\),[\s\S]*token: tokenDoc,[\s\S]*actor[\s\S]*\}\)/);
         assert.match(workspaceRootSource, /this\._encounterPlannerSelection = \{[\s\S]*sceneId:[\s\S]*tokenId:[\s\S]*actorId:[\s\S]*combat,[\s\S]*scene,[\s\S]*token,[\s\S]*actor/);
         assert.match(workspaceRootSource, /source: "pinned"/);
-        assert.match(workspaceRootSource, /#debugEncounterPlannerSelection\(details = \{\}\)/);
-        assert.match(workspaceRootSource, /totcLogger\.debug\("\[encounter-planner\] selection resolved", details\)/);
-        assert.match(workspaceRootSource, /this\._lastEncounterPlannerDebugSnapshot = snapshot/);
         assert.match(workspaceRootSource, /#resolveActorFromSelectedSceneTokens\(scene = canvas\?\.scene \?\? null\)/);
         assert.match(workspaceRootSource, /if \(this\.selectedTokenIds\.size !== 1\) return null;/);
         assert.match(workspaceRootSource, /if \(game\.user\?\.isGM \|\| actor\.isOwner\) return actor;/);
@@ -147,13 +137,11 @@ describe("workspace token interactions", () => {
         assert.match(styles, /\.totc-v2-map-toolbar__btn:hover\s*\{[\s\S]*background:\s*rgba\(59,\s*130,\s*246,\s*0\.3\);[\s\S]*border-color:\s*rgba\(191,\s*219,\s*254,\s*0\.7\);/);
     });
 
-    it("clears pinned encounter planner token selection when the player actor changes", () => {
-        assert.match(workspaceRootSource, /data-action='player-select-actor'/);
-        assert.match(workspaceRootSource, /const pinnedSelection = this\._encounterPlannerSelection;/);
-        assert.match(workspaceRootSource, /this\._encounterPlannerSelection = null;/);
-        assert.match(workspaceRootSource, /this\._lastEncounterPlannerDebugSnapshot = "";/);
-        assert.match(workspaceRootSource, /totcLogger\.debug\("\[encounter-planner\] player actor selection changed"/);
-        assert.match(workspaceRootSource, /clearedPinnedCombatantId: String\(pinnedSelection\?\.combatantId \?\? ""\)/);
-        assert.match(workspaceRootSource, /await this\.\#setPlayerPanelStatePatch\(\{ selectedActorId \}\)/);
+    it("removes obsolete player panel actor-selection handlers", () => {
+        assert.doesNotMatch(workspaceRootSource, /data-action='player-select-actor'/);
+        assert.doesNotMatch(workspaceRootSource, /\[data-action='player-toggle-section'\]/);
+        assert.doesNotMatch(workspaceRootSource, /\[data-action='player-open-sheet'\]/);
+        assert.doesNotMatch(workspaceRootSource, /\[data-action='player-center-token'\]/);
+        assert.doesNotMatch(workspaceRootSource, /\#setPlayerPanelStatePatch\(/);
     });
 });

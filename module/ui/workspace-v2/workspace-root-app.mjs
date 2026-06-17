@@ -147,27 +147,6 @@ import {
 } from "./encounter-targeting-overlay.mjs";
 
 const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
-
-function stripHtml(value) {
-    return String(value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function briefItemDescription(value, maxLength = 96) {
-    const description = stripHtml(value);
-    if (description.length <= maxLength) return description;
-    return `${description.slice(0, maxLength - 1).trim()}...`;
-}
-
-function buildWorkspaceItemSummary(item = {}) {
-    const system = item?.system?.toObject?.() ?? item?.system ?? {};
-    return {
-        id: String(item?.id ?? item?._id ?? ""),
-        name: String(item?.name ?? "Unnamed Item"),
-        type: String(item?.type ?? "item"),
-        img: String(item?.img ?? system.artwork?.image ?? "").trim() || DEFAULT_ITEM_ICON,
-        description: briefItemDescription(system.description ?? item?.description ?? "")
-    };
-}
 import {
     buildScenePropertiesPanelModel,
 } from "./panels/scene-properties-panel.mjs";
@@ -235,12 +214,10 @@ import {
 } from "./panels/gm-assistant-panel.mjs";
 import { LLMService } from "../../services/llm-service.mjs";
 import {
-    buildEncounterPlanner,
     buildEncounterPlannerForCombatant
 } from "../../encounters/planner-context.mjs";
 import {
-    findCombatantForToken,
-    getCombatantReferenceDiagnostics
+    findCombatantForToken
 } from "../../encounters/combatant-token-matching.mjs";
 import {
     requireActorDocumentClass,
@@ -272,7 +249,6 @@ const COLLAPSED_LEFT_RIGHT_DOCK_WIDTH = 42;
 const TEXT_INPUT_DEBOUNCE_MS = 300;
 const GM_PANEL_STATE_KEY = "gmPanelState";
 const MARKET_PANEL_STATE_KEY = "marketPanelState";
-const PLAYER_PANEL_STATE_KEY = "playerPanelState";
 const MARKET_SCENE_FLAG_KEY = "workspaceV2Market";
 
 const GM_PANEL_DEFAULT_STATE = Object.freeze({
@@ -280,11 +256,6 @@ const GM_PANEL_DEFAULT_STATE = Object.freeze({
     actionSearchQuery: "",
     allActionsExpanded: false,
     contextDebug: false
-});
-
-const PLAYER_PANEL_DEFAULT_STATE = Object.freeze({
-    selectedActorId: "",
-    collapsedSectionIds: []
 });
 
 const GM_ACTION_MODELS = Object.freeze([
@@ -489,17 +460,6 @@ function normalizeGamemasterPanelState(value = {}) {
     };
 }
 
-function normalizePlayerPanelState(value = {}) {
-    const collapsedSectionIds = Array.isArray(value?.collapsedSectionIds)
-        ? [...new Set(value.collapsedSectionIds.map((entry) => String(entry ?? "").trim()).filter(Boolean))]
-        : [...PLAYER_PANEL_DEFAULT_STATE.collapsedSectionIds];
-
-    return {
-        selectedActorId: String(value?.selectedActorId ?? PLAYER_PANEL_DEFAULT_STATE.selectedActorId),
-        collapsedSectionIds
-    };
-}
-
 function buildGamemasterContextSnapshot({ scene = null, combat = null, controlledTokens = [] } = {}) {
     return {
         isGM: Boolean(game.user?.isGM),
@@ -581,161 +541,6 @@ function buildGamemasterPanelModel({ snapshot, panelState }) {
                 value: groups.map((group) => `${group.title}: ${group.priorityScore}`).join(" | ") || "None"
             }
         ]
-    };
-}
-
-function buildPlayerPanelModel({ actor = null, combat = null, panelState = {}, actorOptions = [], highlightedSectionIds = [] } = {}) {
-    const system = actor?.system?.toObject?.() ?? foundry.utils.deepClone(actor?.system ?? {});
-    const collapsedSectionIds = new Set(panelState?.collapsedSectionIds ?? []);
-    const highlightedIds = new Set(highlightedSectionIds ?? []);
-
-    const equipmentSlots = system.inventory?.equipment ?? {};
-    const equippedIds = new Set(Object.values(equipmentSlots).flatMap((slot) => Array.isArray(slot?.itemIds) ? slot.itemIds : []).filter(Boolean));
-    const allItems = Array.isArray(actor?.items?.contents) ? actor.items.contents : [];
-    const actorItems = allItems.map((item) => ({
-        ...buildWorkspaceItemSummary(item),
-        quantity: Math.max(0, Math.floor(Number(item.system?.physical?.quantity ?? 1))),
-        value: Math.max(0, Number(item.system?.value?.price ?? 0)),
-        slot: String(item.system?.slot ?? ""),
-        category: String(item.system?.category ?? "")
-    }));
-
-    const equippedBySlot = Object.entries(equipmentSlots)
-        .filter(([, slot]) => Boolean(slot))
-        .map(([slotKey, slot]) => ({
-            key: slotKey,
-            label: String(slot?.label ?? slotKey),
-            items: (Array.isArray(slot?.itemIds) ? slot.itemIds : [])
-                .map((itemId) => allItems.find((item) => item.id === itemId))
-                .filter(Boolean)
-                .map((item) => buildWorkspaceItemSummary(item))
-        }));
-
-    const inventoryItems = actorItems
-        .filter((item) => !equippedIds.has(item.id))
-        .sort((left, right) => String(left.name).localeCompare(String(right.name), undefined, { sensitivity: "base" }));
-    const effects = Array.isArray(actor?.effects?.contents) ? actor.effects.contents : [];
-    const activeEffects = effects
-        .map((effect) => ({
-            id: effect.id,
-            name: effect.name,
-            disabled: Boolean(effect.disabled),
-            duration: effect.duration ?? null,
-            label: effect.disabled ? "Inactive" : "Active"
-        }))
-        .sort((left, right) => String(left.name).localeCompare(String(right.name), undefined, { sensitivity: "base" }));
-
-    const planner = actor ? buildEncounterPlanner(actor, actor?.getActiveTokens?.()?.[0] ?? actor?.token ?? null) : null;
-    const quickActions = [];
-    if (actor) {
-        quickActions.push({ id: "open-sheet", label: "Open Actor Sheet", type: "sheet" });
-        if (actor?.token || actor?.getActiveTokens?.()?.length) {
-            quickActions.push({ id: "center-token", label: "Center on Token", type: "camera" });
-        }
-    }
-
-    const statusSection = {
-        id: "status",
-        title: "Status",
-        priority: combat ? 100 : 80,
-        visible: Boolean(actor),
-        collapsed: collapsedSectionIds.has("status"),
-        highlighted: highlightedIds.has("status"),
-        summary: actor ? `${String(actor.type ?? "Actor")} · ${activeEffects.length} effect${activeEffects.length === 1 ? "" : "s"}` : "No actor selected",
-        rows: actor ? [
-            { label: "Health", value: `${Number(system.resources?.health?.value ?? 0)} / ${Number(system.resources?.health?.max ?? 0)}` },
-            { label: "Grit", value: `${Number(system.resources?.grit?.value ?? 0)} / ${Number(system.resources?.grit?.max ?? 0)}` },
-            { label: "Armor Class", value: String(system.defenses?.armorClass ?? 0) },
-            { label: "Level", value: String(system.progression?.level ?? 0) },
-            { label: "Passive Perception", value: String(system.senses?.passivePerception ?? 0) }
-        ] : []
-    };
-
-    const resourcesSection = {
-        id: "resources",
-        title: "Resources",
-        priority: combat ? 90 : 70,
-        visible: Boolean(actor),
-        collapsed: collapsedSectionIds.has("resources"),
-        highlighted: highlightedIds.has("resources"),
-        summary: actor ? "Current pools and limits" : "No actor selected",
-        rows: actor ? [
-            { label: "Health", value: `${Number(system.resources?.health?.value ?? 0)} / ${Number(system.resources?.health?.max ?? 0)}` },
-            { label: "Grit", value: `${Number(system.resources?.grit?.value ?? 0)} / ${Number(system.resources?.grit?.max ?? 0)}` },
-            { label: "Encumbrance", value: `${Number(system.inventory?.pack?.encumbrance ?? 0)} / ${Number(system.inventory?.pack?.capacity ?? 0)}` },
-            { label: "Wallet", value: `${Number(system.economy?.wallet?.gbp ?? 0)} GBP` }
-        ] : []
-    };
-
-    const actionsSection = {
-        id: "actions",
-        title: "Actions",
-        priority: 55,
-        visible: Boolean(actor),
-        collapsed: collapsedSectionIds.has("actions"),
-        highlighted: highlightedIds.has("actions"),
-        summary: `${quickActions.length} quick action${quickActions.length === 1 ? "" : "s"}`,
-        actions: quickActions
-    };
-
-    const effectsSection = {
-        id: "effects",
-        title: "Effects",
-        priority: activeEffects.length ? 60 : 20,
-        visible: activeEffects.length > 0,
-        collapsed: collapsedSectionIds.has("effects"),
-        highlighted: highlightedIds.has("effects"),
-        summary: `${activeEffects.length} active effect${activeEffects.length === 1 ? "" : "s"}`,
-        effects: activeEffects
-    };
-
-    const inventorySection = {
-        id: "inventory",
-        title: "Inventory",
-        priority: inventoryItems.length ? 50 : 10,
-        visible: inventoryItems.length > 0,
-        collapsed: collapsedSectionIds.has("inventory"),
-        highlighted: highlightedIds.has("inventory"),
-        summary: `${inventoryItems.length} carried item${inventoryItems.length === 1 ? "" : "s"}`,
-        items: inventoryItems
-    };
-
-    const equipmentSection = {
-        id: "equipment",
-        title: "Equipment",
-        priority: equippedBySlot.some((slot) => slot.items.length) ? 52 : 12,
-        visible: equippedBySlot.some((slot) => slot.items.length),
-        collapsed: collapsedSectionIds.has("equipment"),
-        highlighted: highlightedIds.has("equipment"),
-        summary: "Currently equipped items only",
-        slots: equippedBySlot.filter((slot) => slot.items.length)
-    };
-
-    const promptSection = {
-        id: "prompts",
-        title: "Prompts",
-        priority: 40,
-        visible: Boolean(actor),
-        collapsed: collapsedSectionIds.has("prompts"),
-        highlighted: highlightedIds.has("prompts"),
-        summary: "Open the Encounter panel for combat planning.",
-        prompts: ["Use the Encounter panel to plan actions during combat."]
-    };
-
-    const sections = [statusSection, resourcesSection, actionsSection, effectsSection, inventorySection, equipmentSection, promptSection]
-        .filter((section) => section.visible)
-        .sort((left, right) => right.priority - left.priority || String(left.title).localeCompare(String(right.title), undefined, { sensitivity: "base" }));
-
-    return {
-        actorId: actor?.id ?? null,
-        actorName: actor?.name ?? "No actor selected",
-        actorType: actor?.type ?? null,
-        actorImage: actor?.img ?? "",
-        actorOptions,
-        sections,
-        hasActor: Boolean(actor),
-        hasCombat: Boolean(planner),
-        selectedActorId: String(panelState?.selectedActorId ?? "")
     };
 }
 
@@ -879,7 +684,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getEncounterTargetOverlayState: (scene) => this.#getEncounterTargetOverlayState(scene),
             getMapPanelToolbarState: (panel) => this.#getMapPanelToolbarState(panel),
             renderMarketPanel: (marketPanel) => this.#renderMarketPanel(marketPanel),
-            renderPlayerPanel: (playerPanel, dieRollRequestPanel) => this.#renderPlayerPanel(playerPanel, dieRollRequestPanel),
             renderGamemasterPanel: (gmPanel, gmSnapshot, dieRollRequestPanel) => this.#renderGamemasterPanel(gmPanel, gmSnapshot, dieRollRequestPanel),
             getSelectedTokenIds: () => this.selectedTokenIds
         });
@@ -984,11 +788,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.render({ force: false });
             }
         };
-        this._playerRefreshHandler = () => {
-            if (this.rendered) {
-                this.render({ force: false });
-            }
-        };
         this._actorRefreshHandler = () => {
             if (this.rendered) {
                 this.render({ force: false });
@@ -1037,15 +836,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             { event: "updateCombat", handler: this._gamemasterRefreshHandler },
             { event: "controlToken", handler: this._gamemasterRefreshHandler },
             { event: "pauseGame", handler: this._gamemasterRefreshHandler }
-        ]);
-        this.hooksController.registerFamily("player", [
-            { event: "updateActor", handler: this._playerRefreshHandler },
-            { event: "createActor", handler: this._playerRefreshHandler },
-            { event: "deleteActor", handler: this._playerRefreshHandler },
-            { event: "createActiveEffect", handler: this._playerRefreshHandler },
-            { event: "updateActiveEffect", handler: this._playerRefreshHandler },
-            { event: "deleteActiveEffect", handler: this._playerRefreshHandler },
-            { event: "controlToken", handler: this._playerRefreshHandler }
         ]);
         this.hooksController.registerFamily("designIssues", [
             { event: "updateScene", handler: this._designIssuesRefreshHandler },
@@ -1297,25 +1087,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             panelState: marketPanelState,
             compendiumItems
         });
-        const playerPanelState = this.#getPlayerPanelState();
-        const playerActors = this.#getPlayerPanelActors(controlledTokens);
-        const selectedPlayerActor = this.#resolvePlayerPanelActor({ playerActors, playerPanelState });
-        const playerActorOptions = playerActors.map((actorOption) => ({
-            id: actorOption.id,
-            name: actorOption.name,
-            selected: actorOption.id === selectedPlayerActor?.id
-        }));
-        if (selectedPlayerActor?.id && selectedPlayerActor.id !== playerPanelState.selectedActorId) {
-            await this.#setPlayerPanelStatePatch({ selectedActorId: selectedPlayerActor.id });
-        }
-        // Player panel highlight tracking
-        const playerPanel = buildPlayerPanelModel({
-            actor: selectedPlayerActor,
-            combat,
-            panelState: playerPanelState,
-            actorOptions: playerActorOptions,
-            highlightedSectionIds: []
-        });
         const encounterPlannerSelection = this.#resolveEncounterPlannerSelection({
             combat,
             scene
@@ -1337,15 +1108,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             combat,
             activePlanEditSlot: this._activePlanEditSlot
         });
-        const playerVisibleSectionIds = playerPanel.sections.map((section) => section.id);
-        const playerHighlightedSectionIds = this.#trackPanelSectionHighlights("player", playerVisibleSectionIds);
-        const highlightedPlayerPanel = {
-            ...playerPanel,
-            sections: playerPanel.sections.map((section) => ({
-                ...section,
-                highlighted: playerHighlightedSectionIds.includes(section.id)
-            }))
-        };
 
         // GM panel highlight tracking (groups)
         const gmVisibleGroupIds = gmPanel.groups?.map((g) => g.id) ?? [];
@@ -1443,7 +1205,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             gm: gmSnapshot,
             gmPanel: highlightedGmPanel,
             marketPanel,
-            playerPanel: highlightedPlayerPanel,
             playerEncounterPanel,
             designIssuesPanel,
             scenePropertiesPanel: buildScenePropertiesPanelModel({
@@ -1611,17 +1372,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.sceneActorDropController.wireActorListDragHandlers(this.element);
 
-        this.element?.querySelectorAll("[data-action='player-select-actor']")?.forEach((select) => {
-            select.addEventListener("change", async () => {
-                const selectedActorId = String(select.value ?? "");
-                this._encounterPlannerSelection = null;
-                this._activePlanEditSlot = null;
-                this._encounterTargetingInteraction = null;
-                await this.#setPlayerPanelStatePatch({ selectedActorId });
-                this.render({ force: false });
-            });
-        });
-
         this.#wirePlayerEncounterPanelHandlers();
         this.#wireEncounterManagerPanelHandlers();
 
@@ -1702,46 +1452,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.preventDefault();
                 event.stopPropagation();
                 await this.#confirmMediaBrowserSelection();
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='player-toggle-section']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const sectionId = String(button.dataset.sectionId ?? "").trim();
-                if (!sectionId) return;
-
-                const current = this.#getPlayerPanelState();
-                const collapsed = new Set(current.collapsedSectionIds ?? []);
-                if (collapsed.has(sectionId)) collapsed.delete(sectionId);
-                else collapsed.add(sectionId);
-                await this.#setPlayerPanelStatePatch({ collapsedSectionIds: [...collapsed] });
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='player-open-sheet']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const actorId = String(button.dataset.actorId ?? "").trim();
-                const actor = actorId ? game.actors?.get?.(actorId) : null;
-                if (!actor) return;
-                renderFoundryApplication(actor?.sheet, { force: true });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='player-center-token']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const actorId = String(button.dataset.actorId ?? "").trim();
-                const actor = actorId ? game.actors?.get?.(actorId) : null;
-                if (!actor) return;
-                const token = actor?.getActiveTokens?.()?.[0] ?? actor?.token ?? null;
-                if (!token) return;
-                await canvas?.animatePan?.({ x: token.center?.x ?? token.x, y: token.center?.y ?? token.y, scale: canvas.stage?.scale?.x ?? 1 });
             });
         });
 
@@ -2041,6 +1751,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.preventDefault();
                 event.stopPropagation();
                 await this.#createCampaignViewItem({ type: "campaign" });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='campaign-view-generate-root']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#prepareCampaignViewGeneration({ type: "campaign" });
             });
         });
 
@@ -2540,79 +2258,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     #renderPanelBodyContent(panel, context = {}) {
         return this.panelHost.renderPanelBodyContent(panel, context);
-    }
-
-    #renderPlayerPanel(playerPanel = {}, dieRollRequestPanel = {}) {
-        const actorOptionsMarkup = (playerPanel.actorOptions ?? []).map((actor) => `
-            <option value="${this.#escapeHTML(actor.id)}" ${actor.selected ? "selected" : ""}>${this.#escapeHTML(actor.name)}</option>`).join("");
-        const rollPromptMarkup = this.#renderPlayerRollPrompt(dieRollRequestPanel);
-
-        if (!playerPanel.hasActor) {
-            return `
-            <section class="totc-v2-player-panel">
-                <article class="totc-v2-player-panel__state">
-                    <h3>Player Panel</h3>
-                    <p>Select or control an actor to populate the panel.</p>
-                    <label class="totc-v2-player-panel__selector">
-                        <span>Actor</span>
-                        <select data-action="player-select-actor">
-                            ${actorOptionsMarkup || `<option value="">No eligible actor</option>`}
-                        </select>
-                    </label>
-                </article>
-                ${rollPromptMarkup}
-            </section>`;
-        }
-
-        // Prepare section bodies for shared renderer
-        const sectionsWithBody = (playerPanel.sections ?? []).map((section) => ({
-            ...section,
-            body: this.#renderPlayerSectionBody(section, playerPanel)
-        }));
-        const sectionsMarkup = this.#renderCollapsibleSections(sectionsWithBody, {
-            panelId: "player",
-            toggleAction: "player-toggle-section",
-            sectionClass: "totc-v2-player-panel__section",
-            headerClass: "totc-v2-player-panel__section-header",
-            bodyClass: "totc-v2-player-panel__section-body",
-            sectionType: "section"
-        });
-
-        return `
-        <section class="totc-v2-player-panel">
-            <article class="totc-v2-player-panel__state">
-                <div class="totc-v2-player-panel__identity">
-                    <div class="totc-v2-player-panel__portrait">
-                        ${playerPanel.actorImage ? `<img src="${this.#escapeHTML(playerPanel.actorImage)}" alt="${this.#escapeHTML(playerPanel.actorName)}">` : `<span>${this.#escapeHTML(String(playerPanel.actorName ?? "?").slice(0, 1).toUpperCase())}</span>`}
-                    </div>
-                    <div>
-                        <h3>${this.#escapeHTML(playerPanel.actorName ?? "Actor")}</h3>
-                        <p>${this.#escapeHTML(String(playerPanel.actorType ?? "Actor").toUpperCase())}</p>
-                    </div>
-                </div>
-                <label class="totc-v2-player-panel__selector">
-                    <span>Actor</span>
-                    <select data-action="player-select-actor">
-                        ${actorOptionsMarkup}
-                    </select>
-                </label>
-            </article>
-            <section class="totc-v2-player-panel__sections">
-                ${sectionsMarkup || `<div class="totc-v2-player-panel__empty">No actor sections are available yet.</div>`}
-            </section>
-            ${rollPromptMarkup}
-        </section>`;
-    }
-
-    #renderPlayerRollPrompt(dieRollRequestPanel = {}) {
-        if (dieRollRequestPanel?.isGM || !dieRollRequestPanel?.requests?.length) return "";
-
-        return `
-        <article class="totc-v2-player-panel__roll-prompt">
-            ${renderDieRollRequestPanel(dieRollRequestPanel, {
-                escapeHTML: (value) => this.#escapeHTML(value)
-            })}
-        </article>`;
     }
 
     #readEncounterActionData(element = null) {
@@ -3386,102 +3031,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
 
 
-    #renderPlayerSectionBody(section, playerPanel = {}) {
-        if (section.id === "status" || section.id === "resources") {
-            return `
-            <dl class="totc-v2-player-panel__kv-grid">
-                ${(section.rows ?? []).map((row) => `
-                    <div class="totc-v2-player-panel__kv-row">
-                        <dt>${this.#escapeHTML(row.label)}</dt>
-                        <dd>${this.#escapeHTML(row.value)}</dd>
-                    </div>`).join("")}
-            </dl>`;
-        }
-
-        if (section.id === "actions") {
-            return `
-            <div class="totc-v2-player-panel__action-grid">
-                ${(section.actions ?? []).map((action) => {
-                    const actionType = action.type === "camera" ? "player-center-token" : "player-open-sheet";
-                    return `
-                    <button type="button" class="totc-v2-player-panel__action" data-action="${actionType}" data-actor-id="${this.#escapeHTML(playerPanel.actorId ?? "")}" data-player-action-id="${this.#escapeHTML(action.id)}" data-player-action-type="${this.#escapeHTML(action.type ?? "")}">
-                        ${action.img ? `<img src="${this.#escapeHTML(action.img)}" alt="">` : ""}
-                        <span>${this.#escapeHTML(action.label)}</span>
-                        ${action.detail ? `<small>${this.#escapeHTML(action.detail)}</small>` : ""}
-                    </button>`;
-                }).join("")}
-            </div>`;
-        }
-
-        if (section.id === "effects") {
-            return `
-            <ul class="totc-v2-player-panel__list">
-                ${(section.effects ?? []).map((effect) => `
-                    <li class="totc-v2-player-panel__list-item">
-                        <strong>${this.#escapeHTML(effect.name)}</strong>
-                        <span>${this.#escapeHTML(effect.label)}</span>
-                    </li>`).join("")}
-            </ul>`;
-        }
-
-        if (section.id === "inventory") {
-            return `
-            <ul class="totc-v2-player-panel__list">
-                ${(section.items ?? []).map((item) => `
-                    <li class="totc-v2-player-panel__list-item totc-v2-player-panel__item-row">
-                        <img class="totc-v2-player-panel__item-img" src="${this.#escapeHTML(item.img || DEFAULT_ITEM_ICON)}" alt="">
-                        <span class="totc-v2-player-panel__item-main">
-                            <strong>${this.#escapeHTML(item.name)}</strong>
-                            <span>${this.#escapeHTML(item.type)}${item.quantity > 1 ? ` x ${item.quantity}` : ""}</span>
-                            ${item.description ? `<small>${this.#escapeHTML(item.description)}</small>` : ""}
-                        </span>
-                    </li>`).join("")}
-            </ul>`;
-        }
-
-        if (section.id === "equipment") {
-            return `
-            <div class="totc-v2-player-panel__equipment">
-                ${(section.slots ?? []).map((slot) => `
-                    <article class="totc-v2-player-panel__equipment-slot">
-                        <h4>${this.#escapeHTML(slot.label)}</h4>
-                        <ul class="totc-v2-player-panel__list">
-                            ${(slot.items ?? []).map((item) => `
-                                <li class="totc-v2-player-panel__list-item totc-v2-player-panel__item-row">
-                                    <img class="totc-v2-player-panel__item-img" src="${this.#escapeHTML(item.img || DEFAULT_ITEM_ICON)}" alt="">
-                                    <span class="totc-v2-player-panel__item-main">
-                                        <strong>${this.#escapeHTML(item.name)}</strong>
-                                        <span>${this.#escapeHTML(item.type)}</span>
-                                        ${item.description ? `<small>${this.#escapeHTML(item.description)}</small>` : ""}
-                                    </span>
-                                </li>`).join("")}
-                        </ul>
-                    </article>`).join("")}
-            </div>`;
-        }
-
-        if (section.id === "encounter") {
-            const planner = section.planner ?? {};
-            return `
-            <div class="totc-v2-player-panel__encounter">
-                <dl class="totc-v2-player-panel__kv-grid">
-                    <div class="totc-v2-player-panel__kv-row"><dt>Phase</dt><dd>${this.#escapeHTML(planner.phase ?? "planning")}</dd></div>
-                    <div class="totc-v2-player-panel__kv-row"><dt>Remaining AP</dt><dd>${this.#escapeHTML(String(planner.remainingAp ?? 0))}</dd></div>
-                    <div class="totc-v2-player-panel__kv-row"><dt>Ready</dt><dd>${planner.ready ? "Yes" : "No"}</dd></div>
-                </dl>
-            </div>`;
-        }
-
-        if (section.id === "prompts") {
-            return `
-            <ul class="totc-v2-player-panel__prompt-list">
-                ${(section.prompts ?? []).map((prompt) => `<li>${this.#escapeHTML(prompt)}</li>`).join("")}
-            </ul>`;
-        }
-
-        return `<div class="totc-v2-player-panel__empty">No content available.</div>`;
-    }
-
     #getSceneMapSource(scene) {
         return this.sceneWorkspaceController.getSceneMapSource(scene);
     }
@@ -3637,9 +3186,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const safeType = String(type ?? "").trim();
         const safeParentId = String(parentId ?? "").trim();
         const parent = this.#getItemDocumentById(safeParentId);
+        const isCampaign = safeType === "campaign";
         const isScenario = safeType === "scenario";
         const isEncounter = safeType === "encounter-design";
-        if (!isScenario && !isEncounter) return;
+        if (!isCampaign && !isScenario && !isEncounter) return;
 
         this._gmAssistantState = {
             ...this._gmAssistantState,
@@ -3650,7 +3200,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             parentLocationId: "",
             result: null,
             error: null,
-            prompt: isScenario
+            prompt: isCampaign
+                ? "Generate a campaign for Turn of the Century."
+                : isScenario
                 ? `Generate a scenario for the campaign "${parent?.name ?? "Untitled Campaign"}".`
                 : `Generate an encounter for the scenario "${parent?.name ?? "Untitled Scenario"}".`
         };
@@ -3891,10 +3443,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.hooksController.bindFamily("compendium");
     }
 
-    #bindPlayerHooks() {
-        this.hooksController.bindFamily("player");
-    }
-
     #unbindSceneHooks() {
         this.hooksController.unbindFamily("scene");
     }
@@ -3920,10 +3468,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.hooksController.unbindFamily("designIssues");
     }
 
-    #unbindPlayerHooks() {
-        this.hooksController.unbindFamily("player");
-    }
-
     #getGamemasterPanelState() {
         return this.stateStore?.getUserScopedState?.(GM_PANEL_STATE_KEY, normalizeGamemasterPanelState)
             ?? normalizeGamemasterPanelState();
@@ -3934,21 +3478,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             ?? normalizeMarketPanelState();
     }
 
-    #getPlayerPanelState() {
-        return this.stateStore?.getUserScopedState?.(PLAYER_PANEL_STATE_KEY, normalizePlayerPanelState)
-            ?? normalizePlayerPanelState();
-    }
-
     async #setGamemasterPanelStatePatch(patch = {}) {
         return await this.stateStore?.setUserScopedStatePatch?.(GM_PANEL_STATE_KEY, patch, normalizeGamemasterPanelState);
     }
 
     async #setMarketPanelStatePatch(patch = {}) {
         return await this.stateStore?.setUserScopedStatePatch?.(MARKET_PANEL_STATE_KEY, patch, normalizeMarketPanelState);
-    }
-
-    async #setPlayerPanelStatePatch(patch = {}) {
-        return await this.stateStore?.setUserScopedStatePatch?.(PLAYER_PANEL_STATE_KEY, patch, normalizePlayerPanelState);
     }
 
     #syncSelectionToCanvas(scene = null) {
@@ -3991,42 +3526,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         } else {
             this.actorWorkspaceController.clearDetails();
         }
-    }
-
-    #getPlayerPanelActors(controlledTokens = []) {
-        const tokenActors = (controlledTokens ?? []).map((token) => token?.actor).filter((actor, index, list) => actor && list.findIndex((entry) => entry?.id === actor.id) === index);
-        const ownedActors = (game.actors?.contents ?? []).filter((actor) => actor?.isOwner);
-        const candidates = [
-            ...tokenActors,
-            game.user?.character ?? null,
-            ...ownedActors
-        ].filter(Boolean);
-
-        const uniqueActors = [];
-        const seenIds = new Set();
-        for (const actor of candidates) {
-            if (seenIds.has(actor.id)) continue;
-            seenIds.add(actor.id);
-            uniqueActors.push(actor);
-        }
-
-        return uniqueActors.sort((left, right) => String(left.name ?? "").localeCompare(String(right.name ?? ""), undefined, { sensitivity: "base" }));
-    }
-
-    #resolvePlayerPanelActor({ playerActors = [], playerPanelState = {} } = {}) {
-        const selectedActorId = String(playerPanelState?.selectedActorId ?? "").trim();
-        if (selectedActorId) {
-            const selectedActor = playerActors.find((actor) => actor.id === selectedActorId);
-            if (selectedActor) return selectedActor;
-        }
-
-        const preferredActor = game.user?.character ?? null;
-        if (preferredActor) {
-            const matched = playerActors.find((actor) => actor.id === preferredActor.id);
-            if (matched) return matched;
-        }
-
-        return playerActors[0] ?? null;
     }
 
     #renderGamemasterPanel(gmPanel = {}, gmSnapshot = {}, dieRollRequestPanel = {}) {

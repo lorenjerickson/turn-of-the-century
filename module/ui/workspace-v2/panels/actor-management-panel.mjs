@@ -393,7 +393,8 @@ export function buildActorEditorPanelModel({
         status: String(state.status ?? ""),
         error: String(state.error ?? ""),
         additionalPrompt: String(state.additionalPrompt ?? ""),
-        canAssignOwner: Boolean(actor && isGM),
+        canAssignOwner: Boolean(actor),
+        ownerAssignmentDisabled: !isGM,
         ownerOptions,
         fields: actor ? buildEditableActorFields(actor, staged, actorType) : [],
         equipment: actor ? buildEquipmentViewModel(actor, staged) : null
@@ -405,7 +406,7 @@ function userId(user) {
 }
 
 function buildActorOwnerOptions({ actor = null, users = [], staged = {}, isGM = false } = {}) {
-    if (!actor || !isGM) return [];
+    if (!actor) return [];
 
     const ownerLevel = Number(globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OWNER ?? 3);
     const actorOwnership = actor?.ownership ?? {};
@@ -688,7 +689,7 @@ export function renderActorEditorPanel(model = {}, { escapeHTML = (value) => Str
             ${model.canAssignOwner ? `
             <div class="totc-v2-actor-editor__assignment-row">
                 <label class="totc-v2-actor-editor__assignment-label" for="totc-v2-actor-editor-owner">Assigned Player</label>
-                <select id="totc-v2-actor-editor-owner" name="__ownerUserId" data-action="actor-editor-owner-assignment" data-actor-field="__ownerUserId">
+                <select id="totc-v2-actor-editor-owner" name="__ownerUserId" data-action="actor-editor-owner-assignment" data-actor-field="__ownerUserId" ${model.ownerAssignmentDisabled ? "disabled" : ""}>
                     ${(model.ownerOptions ?? []).map((option) => `<option value="${escapeHTML(option.value)}" ${option.selected ? "selected" : ""}>${escapeHTML(option.label)}</option>`).join("")}
                 </select>
             </div>` : ""}

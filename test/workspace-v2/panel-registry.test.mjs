@@ -14,11 +14,19 @@ describe("WorkspacePanelRegistry", () => {
 
     it("looks up panels by id without exposing internal state", () => {
         const registry = new WorkspacePanelRegistry();
-        const panel = registry.get("player");
+        const panel = registry.get("encounter");
         panel.defaultDock = "leftDock";
 
-        assert.equal(registry.get("player").defaultDock, "rightDock");
+        assert.equal(registry.get("encounter").defaultDock, "rightDock");
         assert.equal(registry.get("missing"), null);
+    });
+
+    it("does not register the removed player panel", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.equal(registry.get("player"), null);
+        assert.equal(registry.getAvailability({ isGM: false }).some((panel) => panel.id === "player"), false);
+        assert.equal(registry.getAvailability({ isGM: true }).some((panel) => panel.id === "player"), false);
     });
 
     it("filters GM-only panels from non-GM availability", () => {
@@ -123,9 +131,14 @@ describe("WorkspacePanelRegistry", () => {
             id: "actor-editor",
             title: "Actor Details",
             defaultDock: "rightDock",
-            roleAccess: { gmOnly: true },
-            contextTags: ["gm", "actor", "design"]
+            contextTags: ["actor", "design"]
         });
+    });
+
+    it("keeps actor details available to players", () => {
+        const registry = new WorkspacePanelRegistry();
+
+        assert.equal(registry.getAvailability({ isGM: false }).some((panel) => panel.id === "actor-editor"), true);
     });
 
     it("registers the GM campaign view for the left dock", () => {

@@ -450,10 +450,14 @@ export function renderCampaignViewPanel(model = {}, { escapeHTML }) {
     <section class="totc-v2-campaign-view">
         <header class="totc-v2-campaign-view__header">
             <h3>${escapeHTML(model.title ?? "Campaign View")}</h3>
-            <button type="button" class="totc-v2-campaign-view__new-campaign" data-action="campaign-view-create-root">
-                <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                <span>Campaign</span>
-            </button>
+            <div class="totc-v2-campaign-view__header-actions">
+                <button type="button" class="totc-v2-campaign-view__icon-action" data-action="campaign-view-create-root" title="Add Campaign" aria-label="Add Campaign">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="totc-v2-campaign-view__icon-action" data-action="campaign-view-generate-root" title="Generate Campaign" aria-label="Generate Campaign">
+                    <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                </button>
+            </div>
         </header>
         <div class="totc-v2-campaign-view__body">
             <nav class="totc-v2-campaign-view__tree" aria-label="Campaign hierarchy">
