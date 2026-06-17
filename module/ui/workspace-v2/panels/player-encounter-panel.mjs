@@ -88,64 +88,61 @@ function planSegmentModel(action = {}, index = 0) {
 
 function historyRowsFromTimeline({ planner = null, combat = null } = {}) {
     const combatantId = String(planner?.combatantId ?? "").trim();
-    const timeline = toArray(combat?.encounterState?.timeline ?? combat?.encounter?.state?.timeline)
-        .filter((entry) => !combatantId || String(entry?.combatantId ?? "") === combatantId);
-    if (!timeline.length) return [];
+    const encounterState = combat?.encounterState ?? combat?.encounter?.state ?? {};
+    const roundHistory = toArray(encounterState?.roundHistory);
 
-    const round = toNumber(combat?.encounterState?.round ?? combat?.round, toNumber(planner?.round, 1));
-    const segments = timeline.map((entry, index) => {
-        const action = entry?.action ?? {};
-        const apStart = Math.max(1, toNumber(action.apStart ?? entry.slot, 1));
-        const apEnd = Math.max(apStart, toNumber(action.apEnd ?? entry.slot, apStart));
+    const toRow = (timeline = [], rowRound = 0, suffix = "") => {
+        const filtered = toArray(timeline).filter((entry) => !combatantId || String(entry?.combatantId ?? "") === combatantId);
+        if (!filtered.length) return null;
+
+        const segments = filtered.map((entry, index) => {
+            const action = entry?.action ?? {};
+            const apStart = Math.max(1, toNumber(action.apStart ?? entry.slot ?? entry.tick, 1));
+            const apEnd = Math.max(apStart, toNumber(action.apEnd ?? entry.slot ?? entry.tick, apStart));
+            return {
+                id: `${String(action.id ?? "action")}-${suffix}-${index}`,
+                label: String(action.label ?? entry?.outcome?.result ?? "Action"),
+                result: String(entry?.outcome?.result ?? ""),
+                start: apStart,
+                span: Math.max(1, apEnd - apStart + 1)
+            };
+        });
+
         return {
-            id: `${String(action.id ?? "action")}-${index}`,
-            label: String(action.label ?? entry?.outcome?.result ?? "Action"),
-            result: String(entry?.outcome?.result ?? ""),
-            start: apStart,
-            span: Math.max(1, apEnd - apStart + 1)
+            id: `round-${rowRound}${suffix ? `-${suffix}` : ""}`,
+            label: `Round ${rowRound}`,
+            apBudget: Math.max(toNumber(planner?.apBudget, 6), ...segments.map((segment) => segment.start + segment.span - 1)),
+            segments
         };
-    });
+    };
 
-    return [{
-        id: `round-${round}`,
-        label: `Round ${round}`,
-        apBudget: Math.max(toNumber(planner?.apBudget, 6), ...segments.map((segment) => segment.start + segment.span - 1)),
-        segments
-    }];
+    const rows = roundHistory
+        .map((entry, index) => toRow(entry?.timeline, toNumber(entry?.round, index + 1), `history-${index}`))
+        .filter(Boolean);
+
+    const liveRound = toNumber(encounterState?.round ?? combat?.round, toNumber(planner?.round, 1));
+    const liveRow = toRow(encounterState?.timeline, liveRound, "live");
+    if (liveRow) rows.push(liveRow);
+
+    return rows.reverse();
 }
 
 export function buildPlayerEncounterPanelModel({ actor = null, planner = null, combat = null, activePlanEditSlot = null } = {}) {
-    console.group("[TOTC-DEBUG] buildPlayerEncounterPanelModel");
-    console.log("Actor:", actor);
-    console.log("Planner:", planner);
-    console.log("Combat:", combat);
-    if (planner) {
-        console.log("Raw Planner Available Actions:", planner.availableActions);
-    } else {
-        console.warn("Planner is null! availableActions will default to empty.");
-    }
     const status = actorStatusModel(actor);
     const apBudget = Math.max(1, toNumber(planner?.apBudget ?? combat?.apBudget, 6));
-    
+
     const rawActions = toArray(planner?.availableActions);
     const mappedActions = rawActions.map(actionOptionModel);
-    console.log("Mapped Actions (before ID filtering):", mappedActions);
 
     const availableActions = mappedActions
-        .filter((action) => {
-            const hasId = Boolean(action.id);
-            if (!hasId) {
-                console.warn("Action filtered out because it has no ID:", action);
-            }
-            return hasId;
-        })
+        .filter((action) => Boolean(action.id))
         .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: "base" }));
-        
-    console.log("Final Filtered/Sorted Available Actions:", availableActions);
-    console.log("canBrowseActions will be:", availableActions.length > 0);
-    console.groupEnd();
 
     const plannedActions = toArray(planner?.queue).map(planSegmentModel);
+    const encounterState = combat?.encounterState ?? combat?.encounter?.state ?? {};
+    const resolution = encounterState?.resolution ?? {};
+    const currentTick = Math.max(0, Math.min(apBudget, toNumber(resolution?.currentTick ?? encounterState?.currentEvaluationTick ?? 0, 0)));
+    const progressPercent = Math.max(0, Math.min(100, Math.round((currentTick / apBudget) * 100)));
 
     return {
         actorId: status?.id ?? "",
@@ -162,6 +159,9 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
         canEditPlan: Boolean(planner?.canEditPlan),
         canCommit: Boolean(planner?.canCommit),
         ready: Boolean(planner?.ready),
+        currentTick,
+        progressPercent,
+        resolutionStatus: String(resolution?.status ?? "idle"),
         availableActions,
         plannedActions,
         hasPlannedActions: plannedActions.length > 0,
@@ -236,8 +236,9 @@ function renderPlanBar(model, escapeHTML) {
     }
 
     return `
-    <ul class="totc-v2-encounter-panel__bar" data-action="encounter-plan-bar" data-combatant-id="${escapeHTML(model.combatantId)}" data-ap-budget="${escapeHTML(String(model.apBudget))}" style="--totc-ap-budget:${model.apBudget};">
+    <ul class="totc-v2-encounter-panel__bar" data-action="encounter-plan-bar" data-combatant-id="${escapeHTML(model.combatantId)}" data-ap-budget="${escapeHTML(String(model.apBudget))}" style="--totc-ap-budget:${model.apBudget};--totc-current-tick:${Math.max(1, model.currentTick || 1)};">
         ${renderTicks(model.apBudget)}
+        <li class="totc-v2-encounter-panel__current-line" aria-hidden="true"></li>
         ${segmentsMarkup}
         ${placeholdersMarkup}
         ${planned.length || model.canEditPlan ? "" : `<li class="totc-v2-encounter-panel__empty-bar">No planned actions</li>`}
@@ -330,6 +331,10 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
                 <h3>Round Planning</h3>
                 <span>${escapeHTML(String(model.remainingAp))} AP remaining${model.planningTimeDisplay ? ` · ${escapeHTML(model.planningTimeDisplay)}` : ""}</span>
             </header>
+            <div class="totc-v2-encounter-panel__progress" aria-label="Round progress">
+                <span class="totc-v2-encounter-panel__progress-fill" style="width:${escapeHTML(String(model.progressPercent ?? 0))}%;"></span>
+                <span class="totc-v2-encounter-panel__progress-label">AP ${escapeHTML(String(model.currentTick ?? 0))}/${escapeHTML(String(model.apBudget))} · ${escapeHTML(model.resolutionStatus ?? "idle")}</span>
+            </div>
             ${renderPlanBar(model, escapeHTML)}
             <footer class="totc-v2-encounter-panel__actions">
                 <button type="button" data-action="encounter-clear-plan" ${model.canEditPlan && model.hasPlannedActions ? "" : "disabled"}>Clear Plan</button>
@@ -339,7 +344,7 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
         </section>
 
         <section class="totc-v2-encounter-panel__history">
-            <h3>Previous Round</h3>
+            <h3>Round History</h3>
             ${renderHistoryRows(model, escapeHTML)}
         </section>
     </section>`;

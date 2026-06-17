@@ -10,7 +10,6 @@ import {
 import { getEnabledActionsForActor } from "../encounters/item-action-publisher.mjs";
 
 const BaseCombatDocument = foundry.documents?.Combat ?? Combat;
-const ChatMessageDocument = foundry.documents?.ChatMessage ?? ChatMessage;
 
 const ENCOUNTER_FLAG_SCOPE = "turn-of-the-century";
 const ENCOUNTER_FLAG_KEY = "encounter";
@@ -26,7 +25,7 @@ const ENCOUNTER_FLAG_KEY = "encounter";
  * @property {string} PLANNING_STARTED     - Fired when planning opens (phase becomes "planning").
  * @property {string} PLANNING_ENDED       - Fired when planning closes (phase leaves "planning").
  * @property {string} ROUND_STARTED        - Fired at the beginning of a new round, after state is initialized.
- * @property {string} ROUND_RESOLVED       - Fired after the AP timeline has been resolved and chat published.
+ * @property {string} ROUND_RESOLVED       - Fired after the AP timeline has been resolved and encounter state updated.
  * @property {string} COMBATANT_READY_CHANGED - Fired when a combatant commits or un-commits their plan.
  * @property {string} PLAN_UPDATED         - Fired after a combatant's action plan is written.
  */
@@ -74,19 +73,6 @@ function clampActionCost(value) {
     const cost = Number(value);
     if (!Number.isFinite(cost)) return 1;
     return Math.max(1, Math.floor(cost));
-}
-
-function getWhisperRecipientsForGm() {
-    return ChatMessageDocument.getWhisperRecipients("GM").map((user) => user.id);
-}
-
-function createNarrationMessage(round, tick, line) {
-    const replayStyle = game.settings?.get("turn-of-the-century", "encounterReplayNarrationStyle") ?? "detailed";
-    if (replayStyle === "concise") {
-        return `AP ${tick}: ${line}`;
-    }
-
-    return `Round ${round}, AP ${tick}: ${line}`;
 }
 
 function wait(ms = 0) {
@@ -886,10 +872,22 @@ export class TurnOfTheCenturyEncounter {
 
         const currentState = this.state;
         const priorPhase = currentState.phase;
+        const reopeningPlanning = phase === "planning" && priorPhase !== "planning";
+        const perCombatant = reopeningPlanning
+            ? Object.fromEntries(Object.entries(currentState.perCombatant ?? {}).map(([combatantId, combatantState]) => [
+                combatantId,
+                {
+                    ...combatantState,
+                    ready: false,
+                    committedAt: 0
+                }
+            ]))
+            : currentState.perCombatant;
 
         await this.#setState({
             ...currentState,
             phase,
+            perCombatant,
             planningStartedAt: phase === "planning" && !currentState.planningStartedAt
                 ? Date.now()
                 : phase === "planning"
@@ -1170,6 +1168,35 @@ export class TurnOfTheCenturyEncounter {
             const nextHealth = Math.max(0, baseHealth - Math.max(0, toNumber(entry?.totalAmount, 0)));
             await actor.update({ "system.resources.health.value": nextHealth });
         }
+    }
+
+    #buildSimultaneousDamageEntriesFromTimeline({ timeline = [], tick = 0 } = {}) {
+        const damageByTarget = new Map();
+
+        for (const entry of toArray(timeline)) {
+            if (toNumber(entry?.tick, 0) !== toNumber(tick, 0)) continue;
+            if (String(entry?.outcome?.result ?? "") === "interrupted") continue;
+
+            const targetCombatantId = String(entry?.outcome?.pendingDamage?.targetCombatantId ?? "").trim();
+            const amount = Math.max(0, toNumber(entry?.outcome?.pendingDamage?.amount, 0));
+            if (!targetCombatantId || amount <= 0) continue;
+
+            const current = damageByTarget.get(targetCombatantId) ?? {
+                targetCombatantId,
+                totalAmount: 0,
+                contributors: []
+            };
+
+            current.totalAmount += amount;
+            current.contributors.push({
+                sourceCombatantId: String(entry?.combatantId ?? "").trim(),
+                amount
+            });
+
+            damageByTarget.set(targetCombatantId, current);
+        }
+
+        return [...damageByTarget.values()];
     }
 
     #resolveSameSquareConflicts({ evaluationSnapshot = null, movementEffects = [] } = {}) {
@@ -1587,10 +1614,10 @@ export class TurnOfTheCenturyEncounter {
     }
 
     /**
-     * Run the full AP-tick resolution loop for the current round. Iterates over
-     * all AP ticks in initiative order, executes each combatant's planned actions,
-     * applies damage, builds a timeline, publishes GM-only narration to chat, and
-     * emits {@link TOTC_ENCOUNTER_EVENTS.ROUND_RESOLVED}. GM only.
+    * Run the full AP-tick resolution loop for the current round. Iterates over
+    * all AP ticks in initiative order, executes each combatant's planned actions,
+    * applies damage, builds a timeline, stores tick narration in encounter state,
+    * and emits {@link TOTC_ENCOUNTER_EVENTS.ROUND_RESOLVED}. GM only.
      *
      * Reconciliation model:
      *
@@ -1873,8 +1900,38 @@ export class TurnOfTheCenturyEncounter {
                 await this.#applyConsumeActionEffect(effect);
             }
 
+            const preDamageBoundaryState = await this.#captureResolutionSnapshot({
+                tick,
+                perCombatant,
+                timeline,
+                tickNarratives
+            });
+
+            for (let idx = 0; idx < timeline.length; idx += 1) {
+                const entry = timeline[idx];
+                if (toNumber(entry?.tick, 0) !== tick) continue;
+                if (["prone", "interrupted"].includes(String(entry?.outcome?.result ?? "")) || !entry?.action) continue;
+
+                const boundary = this.#validateCompletionBoundary({
+                    timelineEntry: entry,
+                    projectedState: preDamageBoundaryState,
+                    proneCombatantIds: collisionResolution.proneCombatantIds
+                });
+
+                if (!boundary.valid) {
+                    const reason = boundary.violations?.join("; ") ?? "completion boundary not satisfied";
+                    this.#markTimelineEntryInterrupted({
+                        timeline,
+                        timelineIndex: idx,
+                        combatantName: entry?.combatantName ?? "Combatant",
+                        actionLabel: entry?.action?.label ?? "the action",
+                        reason
+                    });
+                }
+            }
+
             await this.#applySimultaneousDamageEntries({
-                damageEntries: reconcilePlan.damageEntries,
+                damageEntries: this.#buildSimultaneousDamageEntriesFromTimeline({ timeline, tick }),
                 evaluationSnapshot
             });
 
@@ -1888,7 +1945,7 @@ export class TurnOfTheCenturyEncounter {
             for (let idx = 0; idx < timeline.length; idx += 1) {
                 const entry = timeline[idx];
                 if (toNumber(entry?.tick, 0) !== tick) continue;
-                if (entry?.outcome?.result === "prone" || !entry?.action) continue;
+                if (["prone", "interrupted"].includes(String(entry?.outcome?.result ?? "")) || !entry?.action) continue;
 
                 const boundary = this.#validateCompletionBoundary({
                     timelineEntry: entry,
@@ -2281,38 +2338,7 @@ export class TurnOfTheCenturyEncounter {
     }
 
     async #publishRoundReplay(timeline) {
-        if (!timeline.length) return;
-
-        const round = this.#combat.round || this.state.round || 1;
-        const gmLines = timeline.map((entry) => createNarrationMessage(round, entry.tick, entry.outcome.detail));
-        const summaryText = game.i18n.format("TOTC.Encounter.RoundSummary", {
-            round,
-            actionCount: timeline.length
-        });
-
-        await ChatMessage.create({
-            content: summaryText,
-            flags: {
-                "turn-of-the-century": {
-                    type: "encounter-round-summary",
-                    round,
-                    timeline
-                }
-            }
-        });
-
-        await ChatMessage.create({
-            content: gmLines.map((line) => `<p class="totc-encounter-replay-line">${line}</p>`).join(""),
-            whisper: getWhisperRecipientsForGm(),
-            flags: {
-                "turn-of-the-century": {
-                    type: "encounter-round-narration",
-                    gmOnly: true,
-                    round,
-                    timeline
-                }
-            }
-        });
+        void timeline;
     }
 }
 

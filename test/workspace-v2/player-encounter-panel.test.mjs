@@ -72,6 +72,18 @@ describe("player encounter panel", () => {
                 apBudget: 6,
                 encounterState: {
                     round: 2,
+                    resolution: {
+                        currentTick: 2,
+                        status: "running"
+                    },
+                    roundHistory: [
+                        {
+                            round: 1,
+                            timeline: [
+                                { combatantId: "combatant-1", slot: 1, action: { id: "watch", label: "Watch", apStart: 1, apEnd: 1 }, outcome: { result: "ready" } }
+                            ]
+                        }
+                    ],
                     timeline: [
                         { combatantId: "combatant-1", slot: 1, action: { id: "move", label: "Move", apStart: 1, apEnd: 2 }, outcome: { result: "advanced" } },
                         { combatantId: "combatant-2", slot: 3, action: { id: "watch", label: "Watch", apStart: 3, apEnd: 3 } }
@@ -86,9 +98,11 @@ describe("player encounter panel", () => {
         assert.deepEqual(model.status.effects.map((effect) => effect.name), ["Bleeding"]);
         assert.equal(model.availableActions.length, 2);
         assert.equal(model.plannedActions[0].span, 2);
-        assert.equal(model.historyRows.length, 1);
+        assert.equal(model.currentTick, 2);
+        assert.equal(model.historyRows.length, 2);
         assert.equal(model.historyRows[0].segments[0].label, "Move");
         assert.equal(model.historyRows[0].segments[0].span, 2);
+        assert.equal(model.historyRows[1].segments[0].label, "Watch");
     });
 
     it("renders searchable actions, draggable plan segments, resize handles, and history bars", () => {
@@ -114,6 +128,8 @@ describe("player encounter panel", () => {
         assert.match(html, /data-action="encounter-remove-action"[\s\S]*data-action-index="1"/);
         assert.match(html, /data-action="encounter-clear-plan"[\s\S]*>Clear Plan<\/button>/);
         assert.match(html, /data-action="encounter-toggle-ready"[\s\S]*aria-pressed="false"[\s\S]*>Ready<\/button>/);
+        assert.match(html, /class="totc-v2-encounter-panel__progress"/);
+        assert.match(html, /class="totc-v2-encounter-panel__current-line"/);
         assert.match(html, /class="totc-v2-encounter-panel__history-bar"/);
         assert.match(html, /Strike/);
     });
@@ -200,7 +216,6 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /combatantId: encounterPlannerSelection\.combatant\.id/);
         assert.match(workspaceRootSource, /actor: selectedEncounterActor,[\s\S]*planner: playerEncounterPlanner/);
         assert.match(workspaceRootSource, /#getSelectedEncounterToken\(scene = null\)/);
-        assert.match(workspaceRootSource, /selectionSource: String\(encounterPlannerSelection\?\.source \?\? ""\)/);
         assert.match(workspaceRootSource, /#getEncounterCombat\(element = null\)/);
         assert.match(workspaceRootSource, /closest\?\.\("\.totc-v2-encounter-panel"\)\?\.dataset\?\.combatId/);
         assert.match(workspaceRootSource, /const combat = this\.\#getEncounterCombat\((el|button|input)\)/);
