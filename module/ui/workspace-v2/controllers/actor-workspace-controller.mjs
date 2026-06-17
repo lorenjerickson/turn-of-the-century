@@ -10,8 +10,93 @@ export const DEFAULT_ACTOR_EDITOR_STATE = Object.freeze({
     error: ""
 });
 
+const COMPENDIUM_ITEM_DRAG_MIME = "application/x-totc-compendium-item";
+const TEXT_PLAIN_MIME = "text/plain";
+const EQUIPMENT_SLOT_KEYS = Object.freeze(["head", "neck", "torso", "hands", "legs", "feet", "belt"]);
+const EQUIPMENT_SLOT_CONFIG = Object.freeze({
+    head: { capacity: 1, allowedTypes: ["armor", "equipment"] },
+    neck: { capacity: 1, allowedTypes: ["armor", "equipment"] },
+    torso: { capacity: 2, allowedTypes: ["armor", "equipment", "item"] },
+    hands: { capacity: 2, allowedTypes: ["armor", "weapon", "tool", "equipment"] },
+    legs: { capacity: 1, allowedTypes: ["armor", "equipment"] },
+    feet: { capacity: 1, allowedTypes: ["armor", "equipment"] },
+    belt: { capacity: 4, allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"] }
+});
+const BELT_QUALITY_CAPACITY = Object.freeze({
+    poor: 2,
+    standard: 4,
+    fine: 5,
+    exceptional: 6,
+    masterwork: 7,
+    experimental: 8
+});
+
 function userId(user) {
     return String(user?.id ?? user?._id ?? "").trim();
+}
+
+function itemSystem(item) {
+    return item?.system?.toObject?.() ?? item?.system ?? {};
+}
+
+function isToolItem(item) {
+    const system = itemSystem(item);
+    return (item?.type === "equipment" || item?.type === "item") && system.category === "tool";
+}
+
+function getSlotCapacity(slotKey, slot) {
+    if (slotKey === "belt") {
+        return BELT_QUALITY_CAPACITY[slot?.quality] ?? Math.max(1, Number(slot?.capacity ?? EQUIPMENT_SLOT_CONFIG.belt.capacity));
+    }
+    return Math.max(1, Number(slot?.capacity ?? EQUIPMENT_SLOT_CONFIG[slotKey]?.capacity ?? 1));
+}
+
+function isSlotCompatible(item, slotKey, slot) {
+    const allowedTypes = new Set(Array.isArray(slot?.allowedTypes) ? slot.allowedTypes : []);
+    const system = itemSystem(item);
+    if (system.slot !== slotKey) return false;
+    if (item?.type === "armor") return allowedTypes.has("armor");
+    if (allowedTypes.has(item?.type)) return true;
+    return allowedTypes.has("tool") && isToolItem(item);
+}
+
+function findEmptyEquipmentSlot(actor, item) {
+    const equipment = actor?.system?.inventory?.equipment ?? {};
+    for (const slotKey of EQUIPMENT_SLOT_KEYS) {
+        const fallback = EQUIPMENT_SLOT_CONFIG[slotKey] ?? { capacity: 1, allowedTypes: [] };
+        const slot = {
+            ...fallback,
+            ...(equipment?.[slotKey] ?? {})
+        };
+        if (!isSlotCompatible(item, slotKey, slot)) continue;
+        const itemIds = Array.isArray(slot.itemIds) ? slot.itemIds : [];
+        if (itemIds.length < getSlotCapacity(slotKey, slot)) {
+            return { slotKey, index: itemIds.length, itemIds };
+        }
+    }
+    return null;
+}
+
+function parseDropPayload(dataTransfer) {
+    const compendiumData = String(dataTransfer?.getData?.(COMPENDIUM_ITEM_DRAG_MIME) ?? "").trim();
+    if (compendiumData) {
+        try {
+            const payload = JSON.parse(compendiumData);
+            if (payload?.type === "Item" && (payload?.uuid || payload?.data)) return payload;
+        } catch {
+            // Ignore invalid mime payload and fall back to text/plain parsing.
+        }
+    }
+
+    const text = String(dataTransfer?.getData?.(TEXT_PLAIN_MIME) ?? "").trim();
+    if (!text) return null;
+    try {
+        const payload = JSON.parse(text);
+        if (payload?.type === "Item" && (payload?.uuid || payload?.data)) return payload;
+    } catch {
+        return null;
+    }
+    return null;
 }
 
 export class ActorWorkspaceController {
@@ -21,6 +106,7 @@ export class ActorWorkspaceController {
         generate = async () => null,
         buildGeneratedActorDocumentData = (data) => data,
         buildActorUpdateDataFromFormData = () => ({}),
+        fromUuid = async (uuid) => globalThis.fromUuid?.(uuid),
         openActorEditor = async () => {},
         render = () => {},
         logger = console
@@ -30,6 +116,7 @@ export class ActorWorkspaceController {
         this.generate = generate;
         this.buildGeneratedActorDocumentData = buildGeneratedActorDocumentData;
         this.buildActorUpdateDataFromFormData = buildActorUpdateDataFromFormData;
+        this.fromUuid = fromUuid;
         this.openActorEditor = openActorEditor;
         this.render = render;
         this.logger = logger;
@@ -37,6 +124,43 @@ export class ActorWorkspaceController {
         this.typeFilter = "all";
         this.selectedActorIds = new Set();
         this.editorState = { ...DEFAULT_ACTOR_EDITOR_STATE };
+    }
+
+    async importItemToActor(actor, payload) {
+        if (!actor?.createEmbeddedDocuments) {
+            throw new Error("Actor item import is not available.");
+        }
+
+        let itemData = null;
+        if (payload?.uuid) {
+            const source = await this.fromUuid?.(payload.uuid);
+            if (source?.toObject) itemData = source.toObject();
+            else if (source && typeof source === "object") itemData = source;
+        } else if (payload?.data && typeof payload.data === "object") {
+            itemData = payload.data;
+        }
+
+        if (!itemData) {
+            throw new Error("Could not resolve dropped item.");
+        }
+
+        const clonedItemData = { ...itemData };
+        delete clonedItemData._id;
+        const createdItems = await actor.createEmbeddedDocuments("Item", [clonedItemData]);
+        const createdItem = createdItems?.[0] ?? null;
+        if (!createdItem?.id) throw new Error("Dropped item could not be created on actor.");
+
+        const slot = findEmptyEquipmentSlot(actor, createdItem);
+        if (!slot) {
+            return { createdItem, equipped: false };
+        }
+
+        const nextItemIds = [...slot.itemIds];
+        nextItemIds[slot.index] = createdItem.id;
+        await actor.update({
+            [`system.inventory.equipment.${slot.slotKey}.itemIds`]: nextItemIds
+        });
+        return { createdItem, equipped: true, slotKey: slot.slotKey };
     }
 
     get state() {
@@ -319,6 +443,93 @@ export class ActorWorkspaceController {
                 event.preventDefault();
                 event.stopPropagation();
                 await this.saveActorForm(form);
+            });
+
+            form.addEventListener("dragover", (event) => {
+                const payload = parseDropPayload(event.dataTransfer);
+                if (!payload) return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+                form.classList?.add("is-item-drop-target");
+            });
+
+            form.addEventListener("dragleave", (event) => {
+                const relatedTarget = event.relatedTarget;
+                if (typeof Node !== "undefined" && relatedTarget instanceof Node && form.contains(relatedTarget)) return;
+                form.classList?.remove("is-item-drop-target");
+            });
+
+            form.addEventListener("drop", async (event) => {
+                const payload = parseDropPayload(event.dataTransfer);
+                form.classList?.remove("is-item-drop-target");
+                if (!payload) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const actorId = String(form.querySelector("[name='actorId']")?.value ?? this.editorState.actorId ?? "").trim();
+                const actor = actorId ? this.getActorById(actorId) : null;
+                if (!actor) {
+                    this.editorState = {
+                        ...this.editorState,
+                        status: "",
+                        error: "Actor save is not available."
+                    };
+                    this.render();
+                    return;
+                }
+
+                if (!actor.isOwner && !game.user?.isGM) {
+                    this.editorState = {
+                        ...this.editorState,
+                        status: "",
+                        error: "You do not have permission to add items to this actor."
+                    };
+                    this.render();
+                    return;
+                }
+
+                try {
+                    const { createdItem, equipped } = await this.importItemToActor(actor, payload);
+                    this.editorState = {
+                        ...this.editorState,
+                        mode: "edit",
+                        actorId,
+                        actorType: actor.type ?? this.editorState.actorType,
+                        formData: {},
+                        dirty: false,
+                        status: equipped
+                            ? `Added ${createdItem.name ?? "item"} and equipped it.`
+                            : `Added ${createdItem.name ?? "item"} to inventory.`,
+                        error: ""
+                    };
+                } catch (error) {
+                    this.logger?.warn?.("[turn-of-the-century] Failed to drop item onto actor editor", error);
+                    this.editorState = {
+                        ...this.editorState,
+                        status: "",
+                        error: error?.message ?? "Item drop failed."
+                    };
+                }
+
+                this.render();
+            });
+        });
+
+        root?.querySelectorAll("[data-compendium-item-draggable='true']")?.forEach((entry) => {
+            entry.addEventListener("dragstart", (event) => {
+                const uuid = String(entry.dataset.entryUuid ?? "").trim();
+                if (!uuid || !event.dataTransfer) return;
+                const payload = JSON.stringify({ type: "Item", uuid });
+                event.dataTransfer.effectAllowed = "copy";
+                event.dataTransfer.setData(COMPENDIUM_ITEM_DRAG_MIME, payload);
+                event.dataTransfer.setData(TEXT_PLAIN_MIME, payload);
+                entry.classList?.add("is-dragging");
+            });
+
+            entry.addEventListener("dragend", () => {
+                entry.classList?.remove("is-dragging");
             });
         });
     }

@@ -9,6 +9,10 @@ const sceneActorDropControllerSource = readFileSync(
     join(rootDir, "module/ui/workspace-v2/controllers/scene-actor-drop-controller.mjs"),
     "utf8"
 );
+const actorWorkspaceControllerSource = readFileSync(
+    join(rootDir, "module/ui/workspace-v2/controllers/actor-workspace-controller.mjs"),
+    "utf8"
+);
 const workspacePanelHostSource = readFileSync(
     join(rootDir, "module/ui/workspace-v2/controllers/workspace-panel-host.mjs"),
     "utf8"
@@ -60,5 +64,17 @@ describe("workspace actor drag and drop", () => {
         assert.match(styles, /\.totc-v2-map-panel__actor-drop-square\s*\{[\s\S]*position:\s*absolute;/);
         assert.match(styles, /\.totc-v2-actor-drag-image\s*\{[\s\S]*display:\s*grid;/);
         assert.match(styles, /\.totc-v2-actor-drag-image img,[\s\S]*\.totc-v2-actor-drag-image span\s*\{[\s\S]*height:\s*2\.5rem;[\s\S]*width:\s*2\.5rem;/);
+    });
+
+    it("supports compendium item drags onto actor editor forms", () => {
+        assert.match(workspacePanelHostSource, /data-compendium-item-draggable="true"/);
+        assert.match(workspacePanelHostSource, /draggable="true"[\s\S]*data-entry-uuid=/);
+        assert.match(actorWorkspaceControllerSource, /const COMPENDIUM_ITEM_DRAG_MIME = "application\/x-totc-compendium-item";/);
+        assert.match(actorWorkspaceControllerSource, /event\.dataTransfer\.setData\(COMPENDIUM_ITEM_DRAG_MIME, payload\)/);
+        assert.match(actorWorkspaceControllerSource, /event\.dataTransfer\.setData\(TEXT_PLAIN_MIME, payload\)/);
+        assert.match(actorWorkspaceControllerSource, /form\.addEventListener\("drop", async \(event\) => \{/);
+        assert.match(actorWorkspaceControllerSource, /await this\.importItemToActor\(actor, payload\)/);
+        assert.match(styles, /\.totc-v2-compendium-panel__entry\.is-dragging\s*\{[\s\S]*opacity:\s*0\.6;/);
+        assert.match(styles, /\.totc-v2-actor-editor__form\.is-item-drop-target\s*\{[\s\S]*border-color:\s*rgba\(251, 191, 36, 0\.5\);/);
     });
 });

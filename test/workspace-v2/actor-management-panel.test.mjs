@@ -232,7 +232,7 @@ describe("Actor management panel", () => {
 
         assert.match(html, /totc-v2-actor-editor__section--abilities/);
         assert.match(html, /totc-v2-actor-editor__ability-scores/);
-        assert.ok(html.indexOf("totc-v2-actor-editor__section--abilities") < html.indexOf("<legend>Identity</legend>"));
+        assert.ok(html.indexOf("<legend>Identity</legend>") < html.indexOf("totc-v2-actor-editor__section--abilities"));
         assert.match(html, /<span class="totc-v2-actor-editor__ability-label">STR<\/span>/);
         assert.match(html, /<strong class="totc-v2-actor-editor__ability-modifier">-1<\/strong>/);
         assert.match(html, /<strong class="totc-v2-actor-editor__ability-modifier">\+2<\/strong>/);

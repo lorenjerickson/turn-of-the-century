@@ -242,4 +242,174 @@ describe("ActorWorkspaceController", () => {
         assert.equal(propagationStopped, true);
         assert.deepEqual(savedForms, [form]);
     });
+
+    it("drops compendium items onto actor editor and auto-equips compatible slots", async () => {
+        const originalGame = globalThis.game;
+        const dataTransferStore = new Map();
+        const listeners = new Map();
+        const formListeners = new Map();
+        let createdPayload = null;
+        let actorUpdate = null;
+
+        const compendiumEntry = {
+            dataset: { entryUuid: "Compendium.turn-of-the-century.items.test-weapon" },
+            classList: { add: () => {}, remove: () => {} },
+            addEventListener: (type, handler) => listeners.set(type, handler)
+        };
+        const form = {
+            querySelector: (selector) => selector === "[name='actorId']" ? { value: "actor-1" } : null,
+            classList: { add: () => {}, remove: () => {} },
+            contains: () => false,
+            addEventListener: (type, handler) => formListeners.set(type, handler)
+        };
+        const root = {
+            querySelectorAll: (selector) => {
+                if (selector === "[data-compendium-item-draggable='true']") return [compendiumEntry];
+                if (selector === "[data-action='actor-editor-save-form']") return [form];
+                return [];
+            }
+        };
+
+        const actor = {
+            id: "actor-1",
+            type: "hero",
+            isOwner: true,
+            system: {
+                inventory: {
+                    equipment: {
+                        head: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
+                        neck: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
+                        torso: { itemIds: [], allowedTypes: ["armor", "equipment", "item"], capacity: 2 },
+                        hands: { itemIds: [], allowedTypes: ["armor", "weapon", "tool", "equipment"], capacity: 2 },
+                        legs: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
+                        feet: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
+                        belt: { itemIds: [], allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"], capacity: 4, quality: "standard" }
+                    }
+                }
+            },
+            async createEmbeddedDocuments(type, payload) {
+                createdPayload = { type, payload };
+                return [{ id: "item-1", name: "Test Knife", type: "weapon", system: { slot: "hands" } }];
+            },
+            async update(patch) {
+                actorUpdate = patch;
+            }
+        };
+
+        try {
+            globalThis.game = { user: { isGM: false } };
+            const controller = new ActorWorkspaceController({
+                getActorById: () => actor,
+                fromUuid: async () => ({
+                    name: "Test Knife",
+                    type: "weapon",
+                    system: { slot: "hands" },
+                    toObject() {
+                        return { name: "Test Knife", type: "weapon", system: { slot: "hands" } };
+                    }
+                })
+            });
+
+            controller.wireHandlers(root);
+
+            const onDragStart = listeners.get("dragstart");
+            assert.equal(typeof onDragStart, "function");
+            onDragStart({
+                dataTransfer: {
+                    setData: (type, value) => dataTransferStore.set(type, value),
+                    effectAllowed: ""
+                }
+            });
+
+            const onDrop = formListeners.get("drop");
+            assert.equal(typeof onDrop, "function");
+            await onDrop({
+                dataTransfer: {
+                    getData: (type) => dataTransferStore.get(type) ?? "",
+                    dropEffect: "none"
+                },
+                preventDefault: () => {},
+                stopPropagation: () => {}
+            });
+
+            assert.deepEqual(createdPayload, {
+                type: "Item",
+                payload: [{ name: "Test Knife", type: "weapon", system: { slot: "hands" } }]
+            });
+            assert.deepEqual(actorUpdate, {
+                "system.inventory.equipment.hands.itemIds": ["item-1"]
+            });
+            assert.equal(controller.state.editorState.status, "Added Test Knife and equipped it.");
+        } finally {
+            globalThis.game = originalGame;
+        }
+    });
+
+    it("adds dropped items without equipping when no compatible slot is free", async () => {
+        const originalGame = globalThis.game;
+        const formListeners = new Map();
+        let actorUpdateCalls = 0;
+
+        const form = {
+            querySelector: (selector) => selector === "[name='actorId']" ? { value: "actor-1" } : null,
+            classList: { add: () => {}, remove: () => {} },
+            contains: () => false,
+            addEventListener: (type, handler) => formListeners.set(type, handler)
+        };
+        const root = {
+            querySelectorAll: (selector) => selector === "[data-action='actor-editor-save-form']" ? [form] : []
+        };
+
+        const actor = {
+            id: "actor-1",
+            type: "hero",
+            isOwner: true,
+            system: {
+                inventory: {
+                    equipment: {
+                        head: { itemIds: ["existing-head-item"], allowedTypes: ["armor", "equipment"], capacity: 1 },
+                        neck: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
+                        torso: { itemIds: [], allowedTypes: ["armor", "equipment", "item"], capacity: 2 },
+                        hands: { itemIds: ["existing-item-1", "existing-item-2"], allowedTypes: ["armor", "weapon", "tool", "equipment"], capacity: 2 },
+                        legs: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
+                        feet: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
+                        belt: { itemIds: ["belt-1", "belt-2", "belt-3", "belt-4"], allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"], capacity: 4, quality: "standard" }
+                    }
+                }
+            },
+            async createEmbeddedDocuments() {
+                return [{ id: "item-2", name: "Heavy Rifle", type: "weapon", system: { slot: "hands" } }];
+            },
+            async update() {
+                actorUpdateCalls += 1;
+            }
+        };
+
+        try {
+            globalThis.game = { user: { isGM: false } };
+            const controller = new ActorWorkspaceController({
+                getActorById: () => actor,
+                fromUuid: async () => ({
+                    toObject: () => ({ name: "Heavy Rifle", type: "weapon", system: { slot: "hands" } })
+                })
+            });
+
+            controller.wireHandlers(root);
+            const onDrop = formListeners.get("drop");
+
+            await onDrop({
+                dataTransfer: {
+                    getData: () => JSON.stringify({ type: "Item", uuid: "Compendium.x.y" }),
+                    dropEffect: "none"
+                },
+                preventDefault: () => {},
+                stopPropagation: () => {}
+            });
+
+            assert.equal(actorUpdateCalls, 0);
+            assert.equal(controller.state.editorState.status, "Added Heavy Rifle to inventory.");
+        } finally {
+            globalThis.game = originalGame;
+        }
+    });
 });

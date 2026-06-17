@@ -540,7 +540,7 @@ export class WorkspacePanelHost {
             </div>
             <div class="totc-v2-compendium-panel__list" role="list">
                 ${entries.length ? entries.map((entry) => `
-                    <article class="totc-v2-compendium-panel__entry" role="listitem" data-entry-uuid="${this.escapeHTML(entry.uuid ?? "")}">
+                    <article class="totc-v2-compendium-panel__entry" role="listitem" draggable="true" data-compendium-item-draggable="true" data-entry-uuid="${this.escapeHTML(entry.uuid ?? "")}">
                         <img class="totc-v2-compendium-panel__entry-img" src="${this.escapeHTML(entry.img || "icons/svg/item-bag.svg")}" alt="">
                         <div class="totc-v2-compendium-panel__entry-main">
                             <div class="totc-v2-compendium-panel__entry-name">${this.escapeHTML(entry.name)}</div>

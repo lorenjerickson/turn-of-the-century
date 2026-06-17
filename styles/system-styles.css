@@ -3605,10 +3605,14 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
 }
 
 .turn-of-the-century .totc-v2-compendium-panel__entry {
-    cursor: default;
+    cursor: grab;
     display: grid;
     gap: 0.45rem;
     grid-template-columns: 2.2rem minmax(0, 1fr);
+}
+
+.turn-of-the-century .totc-v2-compendium-panel__entry.is-dragging {
+    opacity: 0.6;
 }
 
 .turn-of-the-century .totc-v2-compendium-panel__entry-img {
@@ -5113,6 +5117,11 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
 
 .turn-of-the-century .totc-v2-actor-editor__form {
     grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__form.is-item-drop-target {
+    border-color: rgba(251, 191, 36, 0.5);
+    box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.25);
 }
 
 .turn-of-the-century .totc-v2-actor-editor__assignment-row {

@@ -670,8 +670,8 @@ export function renderActorEditorPanel(model = {}, { escapeHTML = (value) => Str
         sections.get(field.section).push(field);
     }
     const sectionEntries = Array.from(sections.entries()).sort(([left], [right]) => {
-        if (left === "Abilities") return -1;
-        if (right === "Abilities") return 1;
+        if (left === "Identity") return -1;
+        if (right === "Identity") return 1;
         return 0;
     });
 
