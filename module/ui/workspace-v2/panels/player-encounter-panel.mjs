@@ -65,8 +65,10 @@ function actionOptionModel(action = {}) {
         apMax,
         variableAp: Boolean(action.variableAp && apMax > apMin),
         requiresToHit: Boolean(action.requiresToHit),
+        requiresTarget: Boolean(action.requiresTarget),
         rangeType: String(action.rangeType ?? "melee"),
         toHitBonus: toNumber(action.toHitBonus, 0),
+        targetingRangeFeet: toNumber(action.targetingRangeFeet, 0),
         movementFeet: toNumber(action.movementFeet, 0),
         movementFeetPerAp: toNumber(action.movementFeetPerAp, 0),
         itemId: action.itemId ? String(action.itemId) : "",
@@ -130,6 +132,9 @@ function historyRowsFromTimeline({ planner = null, combat = null } = {}) {
 export function buildPlayerEncounterPanelModel({ actor = null, planner = null, combat = null, activePlanEditSlot = null } = {}) {
     const status = actorStatusModel(actor);
     const apBudget = Math.max(1, toNumber(planner?.apBudget ?? combat?.apBudget, 6));
+    const combatId = String(planner?.combatId ?? combat?.id ?? "");
+    const combatantId = String(planner?.combatantId ?? "");
+    const activeEncounter = Boolean(combatId && combatantId);
 
     const rawActions = toArray(planner?.availableActions);
     const mappedActions = rawActions.map(actionOptionModel);
@@ -146,8 +151,9 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
 
     return {
         actorId: status?.id ?? "",
-        combatId: String(planner?.combatId ?? combat?.id ?? ""),
-        combatantId: String(planner?.combatantId ?? ""),
+        combatId,
+        combatantId,
+        activeEncounter,
         encounterName: String(planner?.encounterName ?? combat?.name ?? "Encounter"),
         phase: String(planner?.phase ?? combat?.phase ?? "planning"),
         round: toNumber(planner?.round ?? combat?.round, 1),
@@ -186,8 +192,10 @@ function actionDataAttributes(action, escapeHTML) {
         ["ap-max", action.apMax],
         ["variable-ap", action.variableAp ? "true" : "false"],
         ["requires-to-hit", action.requiresToHit ? "true" : "false"],
+        ["requires-target", action.requiresTarget ? "true" : "false"],
         ["range-type", action.rangeType],
         ["to-hit-bonus", action.toHitBonus],
+        ["targeting-range-feet", action.targetingRangeFeet],
         ["movement-feet", action.movementFeet],
         ["movement-feet-per-ap", action.movementFeetPerAp],
         ["item-id", action.itemId],
@@ -305,6 +313,13 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
         return `
         <section class="totc-v2-encounter-panel">
             <div class="totc-v2-encounter-panel__empty">Select or control an actor to plan an encounter turn.</div>
+        </section>`;
+    }
+
+    if (!model.activeEncounter) {
+        return `
+        <section class="totc-v2-encounter-panel is-empty">
+            <div class="totc-v2-encounter-panel__empty">No active encounter.</div>
         </section>`;
     }
 

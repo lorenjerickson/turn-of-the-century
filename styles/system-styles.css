@@ -3831,6 +3831,13 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     overflow: auto;
 }
 
+.turn-of-the-century .totc-v2-encounter-panel.is-empty {
+    align-content: center;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    overflow: hidden;
+}
+
 .turn-of-the-century .totc-v2-encounter-panel__status,
 .turn-of-the-century .totc-v2-encounter-panel__planner,
 .turn-of-the-century .totc-v2-encounter-panel__history {
@@ -4406,6 +4413,13 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     color: #94a3b8;
 }
 
+.turn-of-the-century .totc-v2-encounter-panel.is-empty .totc-v2-encounter-panel__empty {
+    justify-content: center;
+    max-width: 28rem;
+    min-height: clamp(8rem, 40vh, 14rem);
+    text-align: center;
+}
+
 .turn-of-the-century .totc-v2-encounter-panel__history {
     display: grid;
     gap: 0.45rem;
@@ -4470,6 +4484,13 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     overflow: auto;
 }
 
+.turn-of-the-century .totc-v2-encounter-manager.is-empty {
+    align-content: center;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    overflow: hidden;
+}
+
 .turn-of-the-century .totc-v2-encounter-manager__header,
 .turn-of-the-century .totc-v2-encounter-manager__controls,
 .turn-of-the-century .totc-v2-encounter-manager__actors,
@@ -4506,6 +4527,16 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
     font-size: 0.74rem;
     line-height: 1.35;
     margin: 0;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager.is-empty .totc-v2-encounter-manager__empty {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    max-width: 28rem;
+    min-height: clamp(8rem, 40vh, 14rem);
+    text-align: center;
+    width: 100%;
 }
 
 .turn-of-the-century .totc-v2-encounter-manager__controls {
@@ -4638,16 +4669,20 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-grid-cal__btn--primary:h
 }
 
 .turn-of-the-century .totc-v2-encounter-manager__current-line {
-    background: rgba(251, 191, 36, 0.95);
-    bottom: 0.18rem;
-    box-shadow: 0 0 8px rgba(251, 191, 36, 0.35);
+    background: transparent;
+    border: 1px solid rgba(251, 191, 36, 0.95);
+    border-radius: 0.3rem;
+    box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.18), 0 0 10px rgba(251, 191, 36, 0.16);
+    bottom: 0.08rem;
     grid-column: var(--totc-current-tick);
     grid-row: 1;
     justify-self: center;
     pointer-events: none;
     position: relative;
-    top: -0.82rem;
-    width: 2px;
+    top: -0.88rem;
+    width: calc(100% - 0.2rem);
+    min-width: 1.5rem;
+    min-height: 1.55rem;
     z-index: 4;
 }
 

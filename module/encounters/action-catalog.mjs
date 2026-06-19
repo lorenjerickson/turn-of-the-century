@@ -30,6 +30,83 @@ export const TOTC_ACTION_CATALOG = {
         cpiPerFeet: 0,
         autoResolve: false,
         interruptible: true,
+        requiresTarget: false,
+        isReaction: false,
+        reactionTriggerType: ""
+    },
+
+    /**
+     * Pursue: movement that continuously follows a selected target combatant.
+     * Each AP increment re-evaluates the target's current position and advances
+     * toward it.
+     */
+    pursue: {
+        id: "pursue",
+        label: "Pursue",
+        type: "movement",
+        apCost: 1,
+        apMin: 1,
+        apMax: 6,
+        variableAp: true,
+        movementFeetPerAp: 10,
+        requiresToHit: false,
+        toHitBonus: 0,
+        completionPhaseIncrement: 0,
+        cpiPerFeet: 0,
+        autoResolve: false,
+        interruptible: true,
+        requiresTarget: true,
+        targetingRangeFeet: 10000,
+        isReaction: false,
+        reactionTriggerType: ""
+    },
+
+    /**
+     * Follow: movement that mirrors a selected target combatant while trying to
+     * preserve the current separation.
+     */
+    follow: {
+        id: "follow",
+        label: "Follow",
+        type: "movement",
+        apCost: 1,
+        apMin: 1,
+        apMax: 6,
+        variableAp: true,
+        movementFeetPerAp: 10,
+        requiresToHit: false,
+        toHitBonus: 0,
+        completionPhaseIncrement: 0,
+        cpiPerFeet: 0,
+        autoResolve: false,
+        interruptible: true,
+        requiresTarget: true,
+        targetingRangeFeet: 10000,
+        isReaction: false,
+        reactionTriggerType: ""
+    },
+
+    /**
+     * Avoid: movement that continuously increases distance from a selected
+     * target combatant.
+     */
+    avoid: {
+        id: "avoid",
+        label: "Avoid",
+        type: "movement",
+        apCost: 1,
+        apMin: 1,
+        apMax: 6,
+        variableAp: true,
+        movementFeetPerAp: 10,
+        requiresToHit: false,
+        toHitBonus: 0,
+        completionPhaseIncrement: 0,
+        cpiPerFeet: 0,
+        autoResolve: false,
+        interruptible: true,
+        requiresTarget: true,
+        targetingRangeFeet: 10000,
         isReaction: false,
         reactionTriggerType: ""
     },
@@ -54,6 +131,7 @@ export const TOTC_ACTION_CATALOG = {
         cpiPerFeet: 0,
         autoResolve: false,
         interruptible: false,
+        requiresTarget: false,
         isReaction: false,
         reactionTriggerType: "",
         // To-hit penalty applied to ranged attackers whose shot lands during this window
@@ -81,6 +159,7 @@ export const TOTC_ACTION_CATALOG = {
         cpiPerFeet: 0,
         autoResolve: false,
         interruptible: false,
+        requiresTarget: false,
         isReaction: true,
         reactionTriggerType: "incomingAttack"
     },
@@ -106,6 +185,7 @@ export const TOTC_ACTION_CATALOG = {
         cpiPerFeet: 0,
         autoResolve: false,
         interruptible: false,
+        requiresTarget: false,
         isReaction: true,
         reactionTriggerType: "overwatch",
         // Applied when the overwatch trigger fires at melee range

@@ -27,49 +27,17 @@
       }
     },
     "actions": {
-      "defaultActionId": "sendSignal",
+      "defaultActionId": "useItem",
       "variants": [
         {
-          "id": "sendSignal",
-          "label": "Send Signal",
+          "id": "useItem",
+          "label": "Use Item",
           "type": "utility",
           "apCost": 1,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "rangeType": "long",
-          "targetSelf": false,
-          "targetAlly": false,
-          "requiresAdjacency": false,
-          "conditions": [],
-          "notes": "<p>Flash a signal to a distant observer using reflected light. Communication only \u2014 no attack roll required.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "blindingFlash",
-          "label": "Blinding Flash",
-          "type": "attack",
-          "apCost": 2,
-          "requiresToHit": true,
-          "toHitBonus": 0,
-          "rangeType": "normal",
-          "targetSelf": false,
-          "targetAlly": false,
-          "requiresAdjacency": false,
-          "conditions": [
-            "blinded"
-          ],
-          "notes": "<p>Angle the mirror to reflect direct sunlight into a target's eyes. On hit: blinded until end of next tick. Requires daylight or a strong artificial light source.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
+          "notes": ""
         }
       ]
     },

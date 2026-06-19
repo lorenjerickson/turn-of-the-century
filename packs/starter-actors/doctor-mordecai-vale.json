@@ -399,7 +399,8 @@
               "apCost": 2,
               "requiresToHit": true,
               "toHitBonus": 0,
-              "notes": ""
+              "recapFormat": "{{Owner.name}} jabs with {{Item.name}} and {{action.hitResult}}.",
+              "notes": "Unstable electrical strike."
             }
           ]
         },
@@ -623,6 +624,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -860,6 +862,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -925,6 +928,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -985,6 +989,7 @@
               "apCost": 2,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} drinks {{Item.name}}.",
               "notes": "Retrieve from belt and consume under pressure."
             }
           ]
@@ -1076,6 +1081,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]

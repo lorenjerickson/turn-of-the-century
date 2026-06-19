@@ -218,6 +218,7 @@ function createBaseItemLikeSystem() {
                     apCost: 1,
                     requiresToHit: false,
                     toHitBonus: 0,
+                    recapFormat: "{{Owner.name}} uses {{Item.name}}.",
                     notes: ""
                 }
             ]
@@ -1043,6 +1044,7 @@ const WEAPON_CONFIGS = [
                         apCost: 2,
                         requiresToHit: true,
                         toHitBonus: -2,
+                        recapFormat: "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
                         notes: "Fast draw and fire with reduced accuracy."
                     },
                     {
@@ -1052,6 +1054,7 @@ const WEAPON_CONFIGS = [
                         apCost: 3,
                         requiresToHit: true,
                         toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} carefully sights {{Target.name}} with {{Item.name}} and {{action.hitResult}}.",
                         notes: "Deliberate shot with full accuracy."
                     }
                 ]
@@ -1074,6 +1077,21 @@ const WEAPON_CONFIGS = [
             classification: "simpleMelee",
             damage: { formula: "1d6", type: "bludgeoning" },
             handedness: "oneHanded",
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} strikes with {{Item.name}} and {{action.hitResult}}.",
+                        notes: "Close-range restraint blow."
+                    }
+                ]
+            },
             physical: { weight: 1.5, bulk: 0, range: { normal: 5, long: 5 } },
             properties: { tags: ["baton", "police"], concealable: true }
         }
@@ -1089,6 +1107,21 @@ const WEAPON_CONFIGS = [
             damage: { formula: "1d10", type: "ballistic" },
             handedness: "twoHanded",
             ammunition: { required: true, type: "carbine-round", capacity: 5, loaded: 5, consumedPerAttack: 1 },
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+                        notes: "Controlled longarm shot."
+                    }
+                ]
+            },
             prerequisites: {
                 abilityMinimums: { ...ABILITY_MINIMUMS_NONE, dex: 11 },
                 requiredProficiencies: [{ type: "firearm", key: "", label: "Longarm Training" }]
@@ -1107,6 +1140,21 @@ const WEAPON_CONFIGS = [
             quality: "exceptional",
             damage: { formula: "1d4", type: "piercing" },
             handedness: "oneHanded",
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} slips {{Item.name}} into the opening and {{action.hitResult}}.",
+                        notes: "Precise close-quarters cut."
+                    }
+                ]
+            },
             physical: { weight: 0.8, bulk: 0, range: { normal: 5, long: 20 } },
             properties: { tags: ["blade", "thrown"], concealable: true }
         }
@@ -1120,6 +1168,21 @@ const WEAPON_CONFIGS = [
             classification: "martialMelee",
             damage: { formula: "1d8", type: "piercing", versatileFormula: "1d10" },
             handedness: "versatile",
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} thrusts {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+                        notes: "Measured spear thrust."
+                    }
+                ]
+            },
             prerequisites: { abilityMinimums: { ...ABILITY_MINIMUMS_NONE, str: 10 } },
             physical: { weight: 4, bulk: 2, range: { normal: 10, long: 30 } },
             properties: { tags: ["polearm", "thrown"] }
@@ -1136,6 +1199,21 @@ const WEAPON_CONFIGS = [
             rarity: "rare",
             damage: { formula: "1d6", type: "electric" },
             handedness: "oneHanded",
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} jabs with {{Item.name}} and {{action.hitResult}}.",
+                        notes: "Unstable electrical strike."
+                    }
+                ]
+            },
             prerequisites: {
                 requiredProficiencies: [{ type: "special", key: "galvanic", label: "Galvanic Handling" }],
                 notes: html("Misuse risks self-injury and panic in close quarters.")
@@ -1154,6 +1232,21 @@ const WEAPON_CONFIGS = [
             quality: "poor",
             damage: { formula: "1d6", type: "slashing" },
             handedness: "oneHanded",
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} hacks with {{Item.name}} and {{action.hitResult}}.",
+                        notes: "Rough industrial swing."
+                    }
+                ]
+            },
             physical: { weight: 2.2, bulk: 1, range: { normal: 5, long: 5 } },
             properties: { tags: ["improvised", "industrial"], noisy: false }
         }
@@ -1167,6 +1260,21 @@ const WEAPON_CONFIGS = [
             classification: "explosive",
             damage: { formula: "1d8", type: "explosive" },
             handedness: "thrown",
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} throws {{Item.name}} toward {{Target.name}} and {{action.hitResult}}.",
+                        notes: "Thrown pyrotechnic burst."
+                    }
+                ]
+            },
             ammunition: { required: false, type: "", capacity: 0, loaded: 0, consumedPerAttack: 0 },
             physical: { weight: 1, bulk: 0, range: { normal: 20, long: 60 } },
             properties: { tags: ["thrown", "pyrotechnic"], noisy: true }
@@ -1179,6 +1287,21 @@ const WEAPON_CONFIGS = [
             commonName: "Foundry Hammer",
             classification: "martialMelee",
             damage: { formula: "1d8", type: "bludgeoning" },
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} swings {{Item.name}} and {{action.hitResult}}.",
+                        notes: "Heavy hammer blow."
+                    }
+                ]
+            },
             physical: { weight: 5, bulk: 2, range: { normal: 5, long: 5 } },
             properties: { tags: ["hammer", "industrial"] }
         }
@@ -1191,6 +1314,21 @@ const WEAPON_CONFIGS = [
             classification: "firearm",
             damage: { formula: "1d10", type: "ballistic" },
             handedness: "twoHanded",
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} blasts {{Target.name}} with {{Item.name}} and {{action.hitResult}}.",
+                        notes: "Close-range scatter shot."
+                    }
+                ]
+            },
             ammunition: { required: true, type: "shot-shell", capacity: 2, loaded: 2, consumedPerAttack: 1 },
             physical: { weight: 6.5, bulk: 2, range: { normal: 30, long: 90 } },
             properties: { tags: ["shotgun"], noisy: true }
@@ -1204,6 +1342,21 @@ const WEAPON_CONFIGS = [
             classification: "martialMelee",
             damage: { formula: "1d8", type: "piercing" },
             handedness: "twoHanded",
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} drives {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+                        notes: "Hooked polearm strike."
+                    }
+                ]
+            },
             physical: { weight: 5.5, bulk: 2, range: { normal: 10, long: 20 } },
             properties: { tags: ["hook", "polearm"] }
         }
@@ -1215,6 +1368,21 @@ const WEAPON_CONFIGS = [
             commonName: "Derringer",
             classification: "firearm",
             damage: { formula: "1d6", type: "ballistic" },
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} snaps off a shot with {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+                        notes: "Very short-range concealed shot."
+                    }
+                ]
+            },
             ammunition: { required: true, type: "pistol-round", capacity: 2, loaded: 2, consumedPerAttack: 1 },
             physical: { weight: 1.2, bulk: 0, range: { normal: 20, long: 60 } },
             properties: { tags: ["sidearm", "concealed"], concealable: true, noisy: true }
@@ -1228,6 +1396,21 @@ const WEAPON_CONFIGS = [
             classification: "improvised",
             damage: { formula: "1d4", type: "slashing" },
             handedness: "oneHanded",
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} tightens {{Item.name}} on {{Target.name}} and {{action.hitResult}}.",
+                        notes: "Silent close-quarters attack."
+                    }
+                ]
+            },
             physical: { weight: 0.3, bulk: 0, range: { normal: 5, long: 5 } },
             properties: { tags: ["silent", "wire"], concealable: true }
         }
@@ -1251,6 +1434,7 @@ const WEAPON_CONFIGS = [
                         apCost: 3,
                         requiresToHit: true,
                         toHitBonus: -1,
+                        recapFormat: "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
                         notes: "Single discharge; imposes Blinded on target if fired within 10 feet."
                     }
                 ]
@@ -1280,6 +1464,7 @@ const WEAPON_CONFIGS = [
                         apCost: 2,
                         requiresToHit: true,
                         toHitBonus: 1,
+                        recapFormat: "{{Owner.name}} strikes carefully with {{Item.name}} and {{action.hitResult}}.",
                         notes: "Advantage on attacks against unaware or restrained targets."
                     }
                 ]
@@ -1298,6 +1483,21 @@ const WEAPON_CONFIGS = [
             classification: "simpleMelee",
             damage: { formula: "1d6", type: "bludgeoning" },
             handedness: "oneHanded",
+            actions: {
+                defaultActionId: "weaponAttack",
+                variants: [
+                    {
+                        id: "weaponAttack",
+                        label: "Attack",
+                        type: "attack",
+                        apCost: 2,
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} brings down {{Item.name}} and {{action.hitResult}}.",
+                        notes: "Brutal hammer strike."
+                    }
+                ]
+            },
             physical: { weight: 3, bulk: 0, range: { normal: 5, long: 5 } },
             properties: { tags: ["industrial", "improvised"] }
         }
@@ -1469,6 +1669,7 @@ const CONSUMABLE_CONFIGS = [
                         apCost: 2,
                         requiresToHit: false,
                         toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} drinks {{Item.name}}.",
                         notes: "Retrieve from belt and consume under pressure."
                     }
                 ]

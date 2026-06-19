@@ -402,7 +402,8 @@
               "apCost": 2,
               "requiresToHit": true,
               "toHitBonus": 0,
-              "notes": ""
+              "recapFormat": "{{Owner.name}} brings down {{Item.name}} and {{action.hitResult}}.",
+              "notes": "Brutal hammer strike."
             }
           ]
         },
@@ -534,6 +535,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -610,6 +612,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -674,6 +677,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -750,6 +754,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -901,6 +906,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -966,6 +972,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -1031,6 +1038,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -1096,6 +1104,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]

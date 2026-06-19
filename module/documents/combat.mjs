@@ -69,6 +69,15 @@ function toArray(value) {
     return Array.isArray(value) ? value : [];
 }
 
+function collectionContents(collection) {
+    if (!collection) return [];
+    if (Array.isArray(collection)) return collection;
+    if (Array.isArray(collection.contents)) return collection.contents;
+    if (typeof collection.values === "function") return Array.from(collection.values());
+    if (typeof collection[Symbol.iterator] === "function") return Array.from(collection);
+    return [];
+}
+
 function clampActionCost(value) {
     const cost = Number(value);
     if (!Number.isFinite(cost)) return 1;
@@ -92,6 +101,24 @@ function getCombatantFromId(combat, combatantId) {
 function toNumber(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
+}
+
+function resolvePropertyPath(source, path) {
+    if (!path) return undefined;
+    if (typeof foundry?.utils?.getProperty === "function") {
+        return foundry.utils.getProperty(source, path);
+    }
+    return String(path).split(".").reduce((current, key) => current?.[key], source);
+}
+
+function formatRecapTemplate(template, context = {}) {
+    const rawTemplate = String(template ?? "").trim();
+    if (!rawTemplate) return "";
+
+    return rawTemplate.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_match, expression) => {
+        const value = resolvePropertyPath(context, String(expression).trim());
+        return value === null || value === undefined ? "" : String(value);
+    });
 }
 
 function hasInitiativeValue(value) {
@@ -518,24 +545,11 @@ export class TurnOfTheCenturyEncounter {
     /**
      * If all combatants have committed their plans, or the planning time limit
      * has expired, automatically calls {@link resolveEncounterRound}.
-     * Only executes when the current user is the GM.
-     *
-     * @returns {Promise<boolean>} `true` if resolution was triggered, `false` otherwise.
+     * @returns {Promise<boolean>} `true` if resolution was started, otherwise `false`.
      */
+
     async maybeAutoFinalizePlanning() {
-        if (this.hasInitiativeGateActive) return false;
-        if (this.phase !== "planning") return false;
-
-        const combatants = this.#combat.combatants?.contents ?? [];
-        if (!combatants.length) return false;
-
-        const allCommitted = combatants.every((combatant) => Boolean(this.getCombatantState(combatant.id)?.ready));
-        const expired = this.isPlanningExpired;
-        if (!allCommitted && !expired) return false;
-        if (!game.user?.isGM) return false;
-
-        await this.resolveEncounterRound();
-        return true;
+        return false;
     }
 
     /**
@@ -718,6 +732,31 @@ export class TurnOfTheCenturyEncounter {
             }));
     }
 
+    async syncSceneCombatants({ tokenDocuments = null } = {}) {
+        const scene = this.#combat.scene ?? canvas?.scene ?? null;
+        const sceneId = String(scene?.id ?? this.#combat.sceneId ?? "").trim();
+        if (!sceneId) return [];
+
+        const tokens = tokenDocuments
+            ? toArray(tokenDocuments)
+            : toArray(scene?.tokens?.contents ?? scene?.tokens ?? []);
+        const existingByTokenId = new Set((this.#combat.combatants?.contents ?? [])
+            .map((combatant) => String(combatant?.tokenId ?? "").trim())
+            .filter(Boolean));
+        const docs = tokens
+            .filter((token) => token && String(token.actorId ?? token.actor?.id ?? "").trim())
+            .map((token) => ({
+                tokenId: String(token.id ?? token._id ?? "").trim(),
+                actorId: String(token.actorId ?? token.actor?.id ?? "").trim(),
+                sceneId,
+                hidden: Boolean(token.hidden)
+            }))
+            .filter((doc) => doc.tokenId && !existingByTokenId.has(doc.tokenId));
+
+        if (!docs.length) return [];
+        return await this.#combat.createEmbeddedDocuments("Combatant", docs);
+    }
+
     /**
      * Initialize a new encounter round. Clears all combatant plans, resets
      * initiative values, writes fresh state to the combat flag, and emits
@@ -736,6 +775,10 @@ export class TurnOfTheCenturyEncounter {
         if (!TOTC_ENCOUNTER_PHASES.includes(phase)) phase = "planning";
 
         const previousState = this.state;
+
+        // Ensure every tokenized actor currently on the combat scene is represented
+        // before encounter state is rebuilt for the new round.
+        await this.syncSceneCombatants();
 
         await this.#resetInitiativeForEncounter();
 
@@ -773,6 +816,13 @@ export class TurnOfTheCenturyEncounter {
         }
 
         return state;
+    }
+
+    async beginEncounterResolution() {
+        this.#requireGm("begin encounter resolution");
+        this.#requireInitiativeReady();
+        await this.#beginEncounterResolution({ persistInitialState: true });
+        return this.state.resolution ?? null;
     }
 
     async #resetInitiativeForEncounter() {
@@ -930,7 +980,7 @@ export class TurnOfTheCenturyEncounter {
         return null;
     }
 
-    async #captureResolutionSnapshot({ tick = 0, perCombatant = {}, timeline = [], tickNarratives = [] } = {}) {
+    async #captureResolutionSnapshot({ tick = 0, perCombatant = {}, timeline = [], tickNarratives = [], tokenPositionOverrides = null } = {}) {
         const actorHealth = {};
         const actorResources = {};
         const actorItemSystems = {};
@@ -953,7 +1003,7 @@ export class TurnOfTheCenturyEncounter {
             const token = this.#getCombatantTokenDocument(combatant);
             const tokenId = String(token?.id ?? token?._id ?? "").trim();
             if (tokenId) {
-                tokenPositions[tokenId] = {
+                tokenPositions[tokenId] = tokenPositionOverrides?.[tokenId] ?? {
                     x: toNumber(token.x, 0),
                     y: toNumber(token.y, 0)
                 };
@@ -1023,7 +1073,7 @@ export class TurnOfTheCenturyEncounter {
         await Promise.all([...actorUpdates, ...tokenUpdates]);
     }
 
-    #planMovementForCombatant({ combatant = null, action = null, tokenPositions = null } = {}) {
+    #planMovementForCombatant({ combatant = null, action = null, tokenPositions = null, tickEffects = [] } = {}) {
         if (!combatant || !action) return null;
         if (String(action.type ?? "") !== "movement") return null;
 
@@ -1038,8 +1088,65 @@ export class TurnOfTheCenturyEncounter {
             y: toNumber(token.y, 0)
         };
 
-        const targetX = toNumber(action.movementTargetX, toNumber(currentPosition.x, 0));
-        const targetY = toNumber(action.movementTargetY, toNumber(currentPosition.y, 0));
+        let targetX = toNumber(action.movementTargetX, toNumber(currentPosition.x, 0));
+        let targetY = toNumber(action.movementTargetY, toNumber(currentPosition.y, 0));
+
+        const movementMode = String(action.id ?? action.actionId ?? "").toLowerCase();
+        if (movementMode === "pursue" || movementMode === "avoid" || movementMode === "follow") {
+            const targetCombatant = this.#resolveDeclaredTarget(combatant.id, action.targetId);
+            const targetToken = this.#getCombatantTokenDocument(targetCombatant);
+            if (!targetCombatant || !targetToken) {
+                return null;
+            }
+
+            const targetTokenId = String(targetToken.id ?? targetToken._id ?? "").trim();
+            const targetPosition = targetTokenId
+                ? tokenPositions?.[targetTokenId] ?? {
+                    x: toNumber(targetToken.x, 0),
+                    y: toNumber(targetToken.y, 0)
+                }
+                : {
+                    x: toNumber(targetToken.x, 0),
+                    y: toNumber(targetToken.y, 0)
+                };
+
+            if (movementMode === "pursue") {
+                targetX = toNumber(targetPosition.x, targetX);
+                targetY = toNumber(targetPosition.y, targetY);
+            } else if (movementMode === "follow") {
+                const mirroredTargetPosition = toArray(tickEffects)
+                    .filter((effect) => String(effect?.type ?? "") === "movement")
+                    .find((effect) => String(effect?.combatantId ?? "") === String(targetCombatant.id ?? ""));
+
+                const targetPosForMirror = mirroredTargetPosition
+                    ? { x: toNumber(mirroredTargetPosition.x, targetPosition.x), y: toNumber(mirroredTargetPosition.y, targetPosition.y) }
+                    : targetPosition;
+
+                if (!Number.isFinite(action._followOffsetX) || !Number.isFinite(action._followOffsetY)) {
+                    action._followOffsetX = toNumber(currentPosition.x, 0) - toNumber(targetPosition.x, 0);
+                    action._followOffsetY = toNumber(currentPosition.y, 0) - toNumber(targetPosition.y, 0);
+                }
+
+                targetX = toNumber(targetPosForMirror.x, targetX) + toNumber(action._followOffsetX, 0);
+                targetY = toNumber(targetPosForMirror.y, targetY) + toNumber(action._followOffsetY, 0);
+            } else {
+                const dx = toNumber(currentPosition.x, 0) - toNumber(targetPosition.x, 0);
+                const dy = toNumber(currentPosition.y, 0) - toNumber(targetPosition.y, 0);
+                const distance = Math.hypot(dx, dy);
+                if (distance <= Number.EPSILON) return null;
+
+                const gridSize = Number(token?.parent?.grid?.size ?? targetToken?.parent?.grid?.size ?? canvas?.scene?.grid?.size ?? 100) || 100;
+                const feetPerSquare = Number(token?.parent?.grid?.distance ?? targetToken?.parent?.grid?.distance ?? canvas?.scene?.grid?.distance ?? 5) || 5;
+                const stepFeet = Math.max(1, toNumber(action.movementFeetPerAp, getMovementFeetPerAp() || 10));
+                const stepPixels = (stepFeet / feetPerSquare) * gridSize;
+                const ux = dx / distance;
+                const uy = dy / distance;
+
+                targetX = toNumber(currentPosition.x, 0) + (ux * stepPixels);
+                targetY = toNumber(currentPosition.y, 0) + (uy * stepPixels);
+            }
+        }
+
         const cost = Math.max(1, clampActionCost(action.apCost ?? 1));
         const currentProgress = Math.max(1, Math.min(cost, clampActionCost(action._runtimeProgress ?? 1)));
         const remainingSteps = Math.max(0, cost - currentProgress);
@@ -1055,23 +1162,6 @@ export class TurnOfTheCenturyEncounter {
             x: nextX,
             y: nextY
         };
-    }
-
-    async #applyMovementEffect(effect = null) {
-        if (!effect || typeof effect !== "object") return;
-        const tokenId = String(effect.tokenId ?? "").trim();
-        if (!tokenId) return;
-
-        const token = canvas?.scene?.tokens?.get?.(tokenId)
-            ?? [...(game.scenes?.contents ?? [])]
-                .map((scene) => scene?.tokens?.get?.(tokenId))
-                .find(Boolean)
-            ?? null;
-        if (!token) return;
-
-        const nextX = toNumber(effect.x, toNumber(token.x, 0));
-        const nextY = toNumber(effect.y, toNumber(token.y, 0));
-        await token.update({ x: nextX, y: nextY });
     }
 
     async #applyConsumeActionEffect(effect = null) {
@@ -1563,13 +1653,526 @@ export class TurnOfTheCenturyEncounter {
     #buildTickNarrative(timelineEntries = [], tick = 0) {
         const filtered = toArray(timelineEntries).filter((entry) => toNumber(entry?.tick, 0) === toNumber(tick, 0));
         const lines = filtered
-            .map((entry) => String(entry?.outcome?.detail ?? "").trim())
+            .map((entry) => this.#describeTickNarrativeEntry(entry))
             .filter(Boolean);
         return {
             tick: Number(tick) || 0,
             lines,
             summary: lines.join(" ")
         };
+    }
+
+    #describeTickNarrativeEntry(entry = null) {
+        const combatantName = String(entry?.combatantName ?? "Combatant").trim() || "Combatant";
+        const action = entry?.action ?? {};
+        const outcome = entry?.outcome ?? {};
+        const result = String(outcome?.result ?? "").trim();
+        const actionType = String(action?.type ?? "").trim().toLowerCase();
+        const actionId = String(action?.id ?? action?.actionId ?? "").trim().toLowerCase();
+        const targetCombatant = this.#resolveDeclaredTarget(String(entry?.combatantId ?? ""), action?.targetId);
+        const item = this.#getNarrativeItem(entry);
+
+        const recapText = formatRecapTemplate(action?.recapFormat, {
+            Owner: { id: String(entry?.combatantId ?? ""), name: combatantName },
+            Item: item,
+            Target: targetCombatant ? { id: targetCombatant.id, name: targetCombatant.name } : { id: "", name: "the target" },
+            action: {
+                ...action,
+                hitResult: this.#describeHitResult(result)
+            },
+            outcome: {
+                ...outcome,
+                result
+            }
+        });
+
+        if (recapText) {
+            return recapText;
+        }
+
+        if (actionType === "movement" || result === "movementStep") {
+            const movementFeet = Math.max(1, toNumber(action?.movementFeet || action?.movementFeetPerAp || getMovementFeetPerAp() || 10, 10));
+            return `${combatantName} moved ${movementFeet} feet.`;
+        }
+
+        if (actionType === "attack" || action?.requiresToHit) {
+            const fallbackWeaponName = String(action?.label ?? "weapon").trim() || "weapon";
+            const weaponName = this.#getNarrativeWeaponName(entry) ?? fallbackWeaponName;
+            const targetCandidate = outcome?.targetName ?? targetCombatant?.name ?? "the target";
+            const targetName = String(targetCandidate).trim() || "the target";
+            const hits = ["hit", "criticalhit"].includes(result.toLowerCase());
+            const misses = ["miss", "criticalfailure", "interrupted", "outofrange", "reacted", "failed"].includes(result.toLowerCase());
+            if (hits) return `${combatantName} fires ${weaponName} at ${targetName} and hits.`;
+            if (misses) return `${combatantName} fires ${weaponName} at ${targetName} and misses.`;
+            return `${combatantName} fires ${weaponName} at ${targetName}.`;
+        }
+
+        if (actionType === "consumable") {
+            return `${combatantName} uses ${String(action?.label ?? "an item").trim() || "an item"}.`;
+        }
+
+        if (actionId === "pursue" || actionId === "follow" || actionId === "avoid") {
+            const movementFeet = Math.max(1, toNumber(action?.movementFeet || action?.movementFeetPerAp || getMovementFeetPerAp() || 10, 10));
+            return `${combatantName} moved ${movementFeet} feet.`;
+        }
+
+        return String(outcome?.detail ?? "").trim();
+    }
+
+    #describeHitResult(result = "") {
+        switch (String(result ?? "").trim().toLowerCase()) {
+            case "hit":
+            case "criticalhit":
+                return "hits";
+            case "miss":
+            case "criticalfailure":
+                return "misses";
+            case "interrupted":
+                return "is interrupted";
+            case "outofrange":
+                return "is out of range";
+            case "reacted":
+                return "is countered";
+            case "failed":
+                return "fails";
+            default:
+                return String(result ?? "").trim();
+        }
+    }
+
+    #getNarrativeItem(entry = null) {
+        const combatant = this.#combat.combatants?.get(String(entry?.combatantId ?? "").trim()) ?? null;
+        const action = entry?.action ?? {};
+        const itemId = String(action?.itemId ?? "").trim();
+        if (!combatant?.actor || !itemId) {
+            return {
+                id: "",
+                name: String(action?.label ?? "item").trim() || "item"
+            };
+        }
+
+        const item = combatant.actor.items?.get?.(itemId) ?? null;
+        return {
+            id: itemId,
+            name: String(item?.name ?? item?.label ?? action?.label ?? itemId).trim() || itemId
+        };
+    }
+
+    #getNarrativeWeaponName(entry = null) {
+        const combatant = this.#combat.combatants?.get(String(entry?.combatantId ?? "").trim()) ?? null;
+        const action = entry?.action ?? {};
+        const itemId = String(action?.itemId ?? "").trim();
+        if (!combatant?.actor || !itemId) return null;
+
+        const item = combatant.actor.items?.get?.(itemId) ?? null;
+        return String(item?.name ?? item?.label ?? action?.label ?? itemId).trim() || null;
+    }
+    
+    async #beginEncounterResolution({ persistInitialState = true } = {}) {
+        const initialState = this.state;
+        const perCombatant = foundry.utils.deepClone(initialState.perCombatant ?? {});
+        const timeline = [];
+        const tickNarratives = [];
+        const snapshots = [await this.#captureResolutionSnapshot({
+            tick: 0,
+            perCombatant,
+            timeline,
+            tickNarratives
+        })];
+        const orderedCombatants = sortByInitiativeDescending(this.#combat.combatants?.contents ?? []);
+        const totalTicks = this.apBudget;
+        const result = {
+            initialState,
+            perCombatant,
+            timeline,
+            tickNarratives,
+            snapshots,
+            reactionRuntime: {
+                consumedKeys: new Set()
+            },
+            orderedCombatants,
+            totalTicks
+        };
+
+        if (persistInitialState) {
+            await this.#setState({
+                ...this.state,
+                phase: "resolving",
+                timeline,
+                perCombatant,
+                currentEvaluationTick: 0,
+                resolution: {
+                    status: "paused",
+                    currentTick: 0,
+                    totalTicks,
+                    snapshots,
+                    tickNarratives,
+                    reactionConsumedKeys: []
+                }
+            });
+        }
+
+        return result;
+    }
+
+    async #evaluateResolutionTick({
+        tick = 0,
+        perCombatant = {},
+        timeline = [],
+        tickNarratives = [],
+        reactionRuntime = null,
+        orderedCombatants = []
+    } = {}) {
+        const evaluationSnapshot = await this.#captureResolutionSnapshot({
+            tick,
+            perCombatant,
+            timeline,
+            tickNarratives
+        });
+        const tickEffects = [];
+        const movementFeetPerAp = Number(getMovementFeetPerAp() || 10);
+
+        for (const combatant of orderedCombatants) {
+            const state = perCombatant[combatant.id];
+            if (!state || state.remainingAp <= 0) continue;
+
+            if (this.#isCombatantIncapacitated(combatant, { actorHealth: evaluationSnapshot.actorHealth })) {
+                state.remainingAp = Math.max(0, state.remainingAp - 1);
+                state.spentAp += 1;
+                const interrupted = state.progress > 0;
+                timeline.push({
+                    tick,
+                    combatantId: combatant.id,
+                    combatantName: combatant.name,
+                    action: state.plan?.[state.pointer] ?? null,
+                    outcome: {
+                        result: interrupted ? "interrupted" : "incapacitated",
+                        detail: interrupted
+                            ? `${combatant.name} is interrupted by incapacitation before completing their action.`
+                            : `${combatant.name} is incapacitated and cannot act.`
+                    }
+                });
+                state.progress = 0;
+                if (interrupted) state.pointer += 1;
+                continue;
+            }
+
+            const action = state.plan?.[state.pointer];
+            if (!action) {
+                state.remainingAp = Math.max(0, state.remainingAp - 1);
+                state.spentAp += 1;
+                timeline.push({
+                    tick,
+                    combatantId: combatant.id,
+                    combatantName: combatant.name,
+                    action: null,
+                    outcome: {
+                        result: "forfeit",
+                        detail: `${combatant.name} forfeits 1 AP with no planned action.`
+                    }
+                });
+                continue;
+            }
+
+            state.remainingAp = Math.max(0, state.remainingAp - 1);
+            state.spentAp += 1;
+            state.progress += 1;
+            action._runtimeProgress = state.progress;
+            const isReactionWindow = Boolean(action.isReaction);
+
+            if (action.type === "movement") {
+                if (action.requiresTarget && !action.targetId) {
+                    timeline.push({
+                        tick,
+                        combatantId: combatant.id,
+                        combatantName: combatant.name,
+                        action,
+                        outcome: {
+                            result: "failed",
+                            detail: `${combatant.name} cannot complete ${action.label}; no target was selected.`
+                        }
+                    });
+                    state.pointer += 1;
+                    state.progress = 0;
+                    delete action._runtimeProgress;
+                    continue;
+                }
+
+                const movementEffect = this.#planMovementForCombatant({
+                    combatant,
+                    action,
+                    tokenPositions: evaluationSnapshot.tokenPositions,
+                    tickEffects
+                });
+
+                const targetCombatant = action.targetId
+                    ? this.#resolveDeclaredTarget(combatant.id, action.targetId)
+                    : null;
+                if (movementEffect) {
+                    tickEffects.push({
+                        type: "movement",
+                        combatantId: combatant.id,
+                        ...movementEffect
+                    });
+                }
+
+                const stepFeet = Number(action.movementFeetPerAp || movementFeetPerAp || 10);
+                const movementMode = String(action.id ?? action.actionId ?? "").toLowerCase();
+                const targetSuffix = targetCombatant?.name ? ` ${targetCombatant.name}` : "their target";
+                const movementDetail = movementMode === "pursue"
+                    ? `${combatant.name} pursues${targetSuffix} (${stepFeet} ft).`
+                    : movementMode === "follow"
+                        ? `${combatant.name} follows${targetSuffix} (${stepFeet} ft).`
+                        : movementMode === "avoid"
+                            ? `${combatant.name} avoids${targetSuffix} (${stepFeet} ft).`
+                            : `${combatant.name} moves ${stepFeet} ft.`;
+                timeline.push({
+                    tick,
+                    combatantId: combatant.id,
+                    combatantName: combatant.name,
+                    action,
+                    outcome: {
+                        result: "movementStep",
+                        detail: movementDetail
+                    }
+                });
+
+                const tokenPositionsForReaction = {
+                    ...(evaluationSnapshot.tokenPositions ?? {})
+                };
+                if (movementEffect?.tokenId) {
+                    tokenPositionsForReaction[movementEffect.tokenId] = {
+                        x: movementEffect.x,
+                        y: movementEffect.y
+                    };
+                }
+
+                const overwatchResolution = await this.#resolveOverwatchReactions({
+                    mover: combatant,
+                    tick,
+                    perCombatant,
+                    reactionRuntime,
+                    orderedCombatants,
+                    evaluationSnapshot,
+                    tokenPositions: tokenPositionsForReaction
+                });
+                if (overwatchResolution.entries.length) {
+                    timeline.push(...overwatchResolution.entries);
+                }
+                if (overwatchResolution.effects.length) {
+                    tickEffects.push(...overwatchResolution.effects);
+                }
+            } else if (state.progress < action.apCost) {
+                timeline.push({
+                    tick,
+                    combatantId: combatant.id,
+                    combatantName: combatant.name,
+                    action,
+                    outcome: {
+                        result: isReactionWindow ? "reactionReady" : "progress",
+                        detail: isReactionWindow
+                            ? `${combatant.name} holds ${action.label} (${state.progress}/${action.apCost} AP).`
+                            : `${combatant.name} continues ${action.label} (${state.progress}/${action.apCost} AP).`
+                    }
+                });
+            }
+
+            if (state.progress < action.apCost) continue;
+
+            if (action.type !== "movement") {
+                let outcome;
+                if (action.isReaction) {
+                    const window = this.#getCombatantActionWindowForTick(state, tick);
+                    const reactionKey = `${combatant.id}:${toNumber(window?.actionIndex, -1)}:${toNumber(window?.startTick, 0)}`;
+                    const alreadyTriggered = reactionRuntime.consumedKeys.has(reactionKey);
+                    if (alreadyTriggered) {
+                        outcome = {
+                            result: "reactionResolved",
+                            detail: `${combatant.name} already spent ${action.label} on a prior trigger this round.`
+                        };
+                    }
+                }
+
+                if (!outcome) {
+                    outcome = await this.#resolveAction(combatant, action, {
+                        tick,
+                        perCombatant,
+                        reactionRuntime,
+                        evaluationSnapshot,
+                        applyEffects: false
+                    });
+                }
+
+                const pendingDamage = outcome?.pendingDamage;
+                if (pendingDamage?.targetCombatantId && toNumber(pendingDamage?.amount, 0) > 0) {
+                    tickEffects.push({
+                        type: "damage",
+                        sourceCombatantId: combatant.id,
+                        targetCombatantId: pendingDamage.targetCombatantId,
+                        amount: toNumber(pendingDamage.amount, 0)
+                    });
+                }
+
+                timeline.push({
+                    tick,
+                    combatantId: combatant.id,
+                    combatantName: combatant.name,
+                    action,
+                    outcome
+                });
+                const timelineIndex = timeline.length - 1;
+
+                if (action.itemId && !action.isReaction && outcome?.result !== "failed") {
+                    tickEffects.push({
+                        type: "consumeAction",
+                        combatantId: combatant.id,
+                        itemId: action.itemId,
+                        actionId: action.actionId,
+                        cancelIfProne: action.type === "consumable",
+                        timelineIndex,
+                        actionLabel: action.label,
+                        combatantName: combatant.name
+                    });
+                }
+            }
+
+            state.pointer += 1;
+            state.progress = 0;
+            delete action._runtimeProgress;
+            delete action._followOffsetX;
+            delete action._followOffsetY;
+        }
+
+        const reconcilePlan = this.#buildTickReconcilePlan({ tickEffects, orderedCombatants });
+
+        const projectedTokenPositions = {};
+        for (const effect of reconcilePlan.movementEffects) {
+            if (effect?.tokenId && Number.isFinite(effect.x) && Number.isFinite(effect.y)) {
+                projectedTokenPositions[effect.tokenId] = { x: effect.x, y: effect.y };
+            }
+        }
+
+        const collisionResolution = this.#resolveSameSquareConflicts({
+            evaluationSnapshot,
+            movementEffects: reconcilePlan.movementEffects
+        });
+        for (const conflict of collisionResolution.conflicts) {
+            const names = conflict
+                .map((combatantId) => this.#combat.combatants?.get(combatantId)?.name)
+                .filter(Boolean);
+            for (const combatantId of conflict) {
+                const combatant = this.#combat.combatants?.get(combatantId) ?? null;
+                if (!combatant) continue;
+                const others = names.filter((name) => name !== combatant.name).join(", ");
+                timeline.push({
+                    tick,
+                    combatantId,
+                    combatantName: combatant.name,
+                    action: null,
+                    outcome: {
+                        result: "prone",
+                        detail: `${combatant.name} is knocked prone after ending the tick in the same space as ${others || "another combatant"}.`
+                    }
+                });
+            }
+        }
+
+        for (const effect of reconcilePlan.consumeEffects) {
+            const requiresStableStance = Boolean(effect?.cancelIfProne);
+            const combatantId = String(effect?.combatantId ?? "").trim();
+            const interruptedByProne = requiresStableStance && collisionResolution.proneCombatantIds.has(combatantId);
+            if (interruptedByProne) {
+                this.#markTimelineEntryInterrupted({
+                    timeline,
+                    timelineIndex: effect?.timelineIndex,
+                    combatantName: effect?.combatantName ?? this.#combat.combatants?.get(combatantId)?.name ?? "Combatant",
+                    actionLabel: effect?.actionLabel ?? "the action",
+                    reason: "they are knocked prone during reconciliation"
+                });
+                continue;
+            }
+
+            await this.#applyConsumeActionEffect(effect);
+        }
+
+        const preDamageBoundaryState = await this.#captureResolutionSnapshot({
+            tick,
+            perCombatant,
+            timeline,
+            tickNarratives,
+            tokenPositionOverrides: projectedTokenPositions
+        });
+
+        for (let idx = 0; idx < timeline.length; idx += 1) {
+            const entry = timeline[idx];
+            if (toNumber(entry?.tick, 0) !== tick) continue;
+            if (["prone", "interrupted"].includes(String(entry?.outcome?.result ?? "")) || !entry?.action) continue;
+
+            const boundary = this.#validateCompletionBoundary({
+                timelineEntry: entry,
+                projectedState: preDamageBoundaryState,
+                proneCombatantIds: collisionResolution.proneCombatantIds
+            });
+
+            if (!boundary.valid) {
+                const reason = boundary.violations?.join("; ") ?? "completion boundary not satisfied";
+                this.#markTimelineEntryInterrupted({
+                    timeline,
+                    timelineIndex: idx,
+                    combatantName: entry?.combatantName ?? "Combatant",
+                    actionLabel: entry?.action?.label ?? "the action",
+                    reason
+                });
+            }
+        }
+
+        await this.#applySimultaneousDamageEntries({
+            damageEntries: this.#buildSimultaneousDamageEntriesFromTimeline({ timeline, tick }),
+            evaluationSnapshot
+        });
+
+        const projectedEndState = await this.#captureResolutionSnapshot({
+            tick,
+            perCombatant,
+            timeline,
+            tickNarratives,
+            tokenPositionOverrides: projectedTokenPositions
+        });
+
+        for (let idx = 0; idx < timeline.length; idx += 1) {
+            const entry = timeline[idx];
+            if (toNumber(entry?.tick, 0) !== tick) continue;
+            if (["prone", "interrupted"].includes(String(entry?.outcome?.result ?? "")) || !entry?.action) continue;
+
+            const boundary = this.#validateCompletionBoundary({
+                timelineEntry: entry,
+                projectedState: projectedEndState,
+                proneCombatantIds: collisionResolution.proneCombatantIds
+            });
+
+            if (!boundary.valid) {
+                const reason = boundary.violations?.join("; ") ?? "completion boundary not satisfied";
+                this.#markTimelineEntryInterrupted({
+                    timeline,
+                    timelineIndex: idx,
+                    combatantName: entry?.combatantName ?? "Combatant",
+                    actionLabel: entry?.action?.label ?? "the action",
+                    reason
+                });
+            }
+        }
+
+        const narrative = this.#buildTickNarrative(timeline, tick);
+        tickNarratives.push(narrative);
+        const snapshot = await this.#captureResolutionSnapshot({
+            tick,
+            perCombatant,
+            timeline,
+            tickNarratives,
+            tokenPositionOverrides: projectedTokenPositions
+        });
+
+        return { snapshot, narrative };
     }
 
     async stepEncounterResolution(direction = 1) {
@@ -1586,15 +2189,93 @@ export class TurnOfTheCenturyEncounter {
         const nextTick = Math.max(0, Math.min(totalTicks, currentTick + delta));
         if (nextTick === currentTick) return snapshots[nextTick] ?? null;
 
-        const snapshot = snapshots[nextTick] ?? null;
+        if (delta < 0) {
+            const snapshot = snapshots[nextTick] ?? null;
+            if (!snapshot) return null;
+
+            await this.#applyResolutionSnapshot(snapshot);
+
+            const nextPhase = "resolving";
+            await this.#setState({
+                ...currentState,
+                phase: nextPhase,
+                timeline: foundry.utils.deepClone(toArray(snapshot.timeline)),
+                perCombatant: foundry.utils.deepClone(snapshot.perCombatant ?? currentState.perCombatant ?? {}),
+                currentEvaluationTick: nextTick,
+                resolution: {
+                    ...resolution,
+                    currentTick: nextTick,
+                    status: "paused"
+                }
+            });
+
+            this.emit(TOTC_ENCOUNTER_EVENTS.PHASE_CHANGED, {
+                phase: nextPhase,
+                previousPhase: currentState.phase
+            });
+
+            return snapshot;
+        }
+
+        let snapshot = snapshots[nextTick] ?? null;
+        if (!snapshot && nextTick > currentTick) {
+            const orderedCombatants = sortByInitiativeDescending(this.#combat.combatants?.contents ?? []);
+            const perCombatant = foundry.utils.deepClone(currentState.perCombatant ?? {});
+            const timeline = foundry.utils.deepClone(toArray(resolution.timeline ?? currentState.timeline));
+            const tickNarratives = foundry.utils.deepClone(toArray(resolution.tickNarratives ?? []));
+            const reactionRuntime = { consumedKeys: new Set() };
+            const result = await this.#evaluateResolutionTick({
+                tick: nextTick,
+                perCombatant,
+                timeline,
+                tickNarratives,
+                reactionRuntime,
+                orderedCombatants
+            });
+            snapshot = result.snapshot;
+            snapshots[nextTick] = snapshot;
+            tickNarratives[nextTick - 1] = result.narrative;
+
+                        await this.#applyResolutionSnapshot(snapshot);
+
+            const nextPhase = nextTick >= totalTicks ? "roundComplete" : "resolving";
+            await this.#setState({
+                ...currentState,
+                phase: nextPhase,
+                timeline: foundry.utils.deepClone(toArray(snapshot.timeline)),
+                perCombatant: foundry.utils.deepClone(snapshot.perCombatant ?? currentState.perCombatant ?? {}),
+                currentEvaluationTick: nextTick,
+                resolution: {
+                    ...resolution,
+                    currentTick: nextTick,
+                    status: nextTick >= totalTicks ? "complete" : "paused",
+                    snapshots: foundry.utils.deepClone(snapshots),
+                    tickNarratives: foundry.utils.deepClone(tickNarratives)
+                }
+            });
+
+            this.emit(TOTC_ENCOUNTER_EVENTS.PHASE_CHANGED, {
+                phase: nextPhase,
+                previousPhase: currentState.phase
+            });
+
+            if (nextPhase === "roundComplete") {
+                this.emit(TOTC_ENCOUNTER_EVENTS.ROUND_RESOLVED, {
+                    round: this.#combat.round || this.state.round || 1,
+                    timeline: snapshot.timeline ?? []
+                });
+            }
+
+            return snapshot;
+        }
+
         if (!snapshot) return null;
 
         await this.#applyResolutionSnapshot(snapshot);
 
-        const nextPhase = nextTick >= totalTicks ? "roundComplete" : "resolving";
         await this.#setState({
             ...currentState,
-            phase: nextPhase,
+            phase: "resolving",
             timeline: foundry.utils.deepClone(toArray(snapshot.timeline)),
             perCombatant: foundry.utils.deepClone(snapshot.perCombatant ?? currentState.perCombatant ?? {}),
             currentEvaluationTick: nextTick,
@@ -1606,7 +2287,7 @@ export class TurnOfTheCenturyEncounter {
         });
 
         this.emit(TOTC_ENCOUNTER_EVENTS.PHASE_CHANGED, {
-            phase: nextPhase,
+            phase: "resolving",
             previousPhase: currentState.phase
         });
 
@@ -1638,357 +2319,42 @@ export class TurnOfTheCenturyEncounter {
      *
      * @returns {Promise<object[]>} The completed timeline — one entry per AP tick per combatant.
      */
-    async resolveEncounterRound({ tickDelayMs = 650 } = {}) {
+    async resolveEncounterRound({ tickDelayMs = 1000 } = {}) {
         this.#requireGm("resolve encounter rounds");
         this.#requireInitiativeReady();
 
-        const initialState = this.state;
-        const perCombatant = foundry.utils.deepClone(initialState.perCombatant ?? {});
-        const timeline = [];
-        const tickNarratives = [];
-        const snapshots = [];
-        const reactionRuntime = {
-            consumedKeys: new Set()
-        };
-        const totalTicks = this.apBudget;
+        const result = await this.#beginEncounterResolution({ persistInitialState: false });
+        if (!result?.snapshots?.length) return [];
 
-        await this.setEncounterPhase("locked");
-        await this.setEncounterPhase("resolving");
-
-        snapshots.push(await this.#captureResolutionSnapshot({
-            tick: 0,
-            perCombatant,
-            timeline,
-            tickNarratives
-        }));
-
-        const orderedCombatants = sortByInitiativeDescending(this.#combat.combatants?.contents ?? []);
-        const movementFeetPerAp = Number(getMovementFeetPerAp() || 10);
+        let lastSnapshot = null;
         for (let tick = 1; tick <= this.apBudget; tick += 1) {
-            const evaluationSnapshot = await this.#captureResolutionSnapshot({
+            lastSnapshot = (await this.#evaluateResolutionTick({
                 tick,
-                perCombatant,
-                timeline,
-                tickNarratives
-            });
-            const tickEffects = [];
-
-            for (const combatant of orderedCombatants) {
-                const state = perCombatant[combatant.id];
-                if (!state || state.remainingAp <= 0) continue;
-
-                if (this.#isCombatantIncapacitated(combatant, { actorHealth: evaluationSnapshot.actorHealth })) {
-                    state.remainingAp = Math.max(0, state.remainingAp - 1);
-                    state.spentAp += 1;
-                    const interrupted = state.progress > 0;
-                    timeline.push({
-                        tick,
-                        combatantId: combatant.id,
-                        combatantName: combatant.name,
-                        action: state.plan?.[state.pointer] ?? null,
-                        outcome: {
-                            result: interrupted ? "interrupted" : "incapacitated",
-                            detail: interrupted
-                                ? `${combatant.name} is interrupted by incapacitation before completing their action.`
-                                : `${combatant.name} is incapacitated and cannot act.`
-                        }
-                    });
-                    state.progress = 0;
-                    if (interrupted) state.pointer += 1;
-                    continue;
-                }
-
-                const action = state.plan?.[state.pointer];
-                if (!action) {
-                    state.remainingAp = Math.max(0, state.remainingAp - 1);
-                    state.spentAp += 1;
-                    timeline.push({
-                        tick,
-                        combatantId: combatant.id,
-                        combatantName: combatant.name,
-                        action: null,
-                        outcome: {
-                            result: "forfeit",
-                            detail: `${combatant.name} forfeits 1 AP with no planned action.`
-                        }
-                    });
-                    continue;
-                }
-
-                state.remainingAp = Math.max(0, state.remainingAp - 1);
-                state.spentAp += 1;
-                state.progress += 1;
-                action._runtimeProgress = state.progress;
-                const isReactionWindow = Boolean(action.isReaction);
-
-                if (action.type === "movement") {
-                    const movementEffect = this.#planMovementForCombatant({
-                        combatant,
-                        action,
-                        tokenPositions: evaluationSnapshot.tokenPositions
-                    });
-                    if (movementEffect) {
-                        tickEffects.push({
-                            type: "movement",
-                            combatantId: combatant.id,
-                            ...movementEffect
-                        });
-                    }
-
-                    const stepFeet = Number(action.movementFeetPerAp || movementFeetPerAp || 10);
-                    timeline.push({
-                        tick,
-                        combatantId: combatant.id,
-                        combatantName: combatant.name,
-                        action,
-                        outcome: {
-                            result: "movementStep",
-                            detail: `${combatant.name} moves ${stepFeet} ft.`
-                        }
-                    });
-
-                    const tokenPositionsForReaction = {
-                        ...(evaluationSnapshot.tokenPositions ?? {})
-                    };
-                    if (movementEffect?.tokenId) {
-                        tokenPositionsForReaction[movementEffect.tokenId] = {
-                            x: movementEffect.x,
-                            y: movementEffect.y
-                        };
-                    }
-
-                    const overwatchResolution = await this.#resolveOverwatchReactions({
-                        mover: combatant,
-                        tick,
-                        perCombatant,
-                        reactionRuntime,
-                        orderedCombatants,
-                        evaluationSnapshot,
-                        tokenPositions: tokenPositionsForReaction
-                    });
-                    if (overwatchResolution.entries.length) {
-                        timeline.push(...overwatchResolution.entries);
-                    }
-                    if (overwatchResolution.effects.length) {
-                        tickEffects.push(...overwatchResolution.effects);
-                    }
-                } else if (state.progress < action.apCost) {
-                    timeline.push({
-                        tick,
-                        combatantId: combatant.id,
-                        combatantName: combatant.name,
-                        action,
-                        outcome: {
-                            result: isReactionWindow ? "reactionReady" : "progress",
-                            detail: isReactionWindow
-                                ? `${combatant.name} holds ${action.label} (${state.progress}/${action.apCost} AP).`
-                                : `${combatant.name} continues ${action.label} (${state.progress}/${action.apCost} AP).`
-                        }
-                    });
-                }
-
-                if (state.progress < action.apCost) continue;
-
-                if (action.type !== "movement") {
-                    let outcome;
-                    if (action.isReaction) {
-                        const window = this.#getCombatantActionWindowForTick(state, tick);
-                        const reactionKey = `${combatant.id}:${toNumber(window?.actionIndex, -1)}:${toNumber(window?.startTick, 0)}`;
-                        const alreadyTriggered = reactionRuntime.consumedKeys.has(reactionKey);
-                        if (alreadyTriggered) {
-                            outcome = {
-                                result: "reactionResolved",
-                                detail: `${combatant.name} already spent ${action.label} on a prior trigger this round.`
-                            };
-                        }
-                    }
-
-                    if (!outcome) {
-                        outcome = await this.#resolveAction(combatant, action, {
-                            tick,
-                            perCombatant,
-                            reactionRuntime,
-                            evaluationSnapshot,
-                            applyEffects: false
-                        });
-                    }
-
-                    const pendingDamage = outcome?.pendingDamage;
-                    if (pendingDamage?.targetCombatantId && toNumber(pendingDamage?.amount, 0) > 0) {
-                        tickEffects.push({
-                            type: "damage",
-                            sourceCombatantId: combatant.id,
-                            targetCombatantId: pendingDamage.targetCombatantId,
-                            amount: toNumber(pendingDamage.amount, 0)
-                        });
-                    }
-
-                    timeline.push({
-                        tick,
-                        combatantId: combatant.id,
-                        combatantName: combatant.name,
-                        action,
-                        outcome
-                    });
-                    const timelineIndex = timeline.length - 1;
-
-                    if (action.itemId && !action.isReaction && outcome?.result !== "failed") {
-                        tickEffects.push({
-                            type: "consumeAction",
-                            combatantId: combatant.id,
-                            itemId: action.itemId,
-                            actionId: action.actionId,
-                            cancelIfProne: action.type === "consumable",
-                            timelineIndex,
-                            actionLabel: action.label,
-                            combatantName: combatant.name
-                        });
-                    }
-                }
-
-                state.pointer += 1;
-                state.progress = 0;
-                delete action._runtimeProgress;
-            }
-
-            const reconcilePlan = this.#buildTickReconcilePlan({ tickEffects, orderedCombatants });
-
-            for (const effect of reconcilePlan.movementEffects) {
-                await this.#applyMovementEffect(effect);
-            }
-
-            const collisionResolution = this.#resolveSameSquareConflicts({
-                evaluationSnapshot,
-                movementEffects: reconcilePlan.movementEffects
-            });
-            for (const conflict of collisionResolution.conflicts) {
-                const names = conflict
-                    .map((combatantId) => this.#combat.combatants?.get(combatantId)?.name)
-                    .filter(Boolean);
-                for (const combatantId of conflict) {
-                    const combatant = this.#combat.combatants?.get(combatantId) ?? null;
-                    if (!combatant) continue;
-                    const others = names.filter((name) => name !== combatant.name).join(", ");
-                    timeline.push({
-                        tick,
-                        combatantId,
-                        combatantName: combatant.name,
-                        action: null,
-                        outcome: {
-                            result: "prone",
-                            detail: `${combatant.name} is knocked prone after ending the tick in the same space as ${others || "another combatant"}.`
-                        }
-                    });
-                }
-            }
-
-            for (const effect of reconcilePlan.consumeEffects) {
-                const requiresStableStance = Boolean(effect?.cancelIfProne);
-                const combatantId = String(effect?.combatantId ?? "").trim();
-                const interruptedByProne = requiresStableStance && collisionResolution.proneCombatantIds.has(combatantId);
-                if (interruptedByProne) {
-                    this.#markTimelineEntryInterrupted({
-                        timeline,
-                        timelineIndex: effect?.timelineIndex,
-                        combatantName: effect?.combatantName ?? this.#combat.combatants?.get(combatantId)?.name ?? "Combatant",
-                        actionLabel: effect?.actionLabel ?? "the action",
-                        reason: "they are knocked prone during reconciliation"
-                    });
-                    continue;
-                }
-
-                await this.#applyConsumeActionEffect(effect);
-            }
-
-            const preDamageBoundaryState = await this.#captureResolutionSnapshot({
-                tick,
-                perCombatant,
-                timeline,
-                tickNarratives
-            });
-
-            for (let idx = 0; idx < timeline.length; idx += 1) {
-                const entry = timeline[idx];
-                if (toNumber(entry?.tick, 0) !== tick) continue;
-                if (["prone", "interrupted"].includes(String(entry?.outcome?.result ?? "")) || !entry?.action) continue;
-
-                const boundary = this.#validateCompletionBoundary({
-                    timelineEntry: entry,
-                    projectedState: preDamageBoundaryState,
-                    proneCombatantIds: collisionResolution.proneCombatantIds
-                });
-
-                if (!boundary.valid) {
-                    const reason = boundary.violations?.join("; ") ?? "completion boundary not satisfied";
-                    this.#markTimelineEntryInterrupted({
-                        timeline,
-                        timelineIndex: idx,
-                        combatantName: entry?.combatantName ?? "Combatant",
-                        actionLabel: entry?.action?.label ?? "the action",
-                        reason
-                    });
-                }
-            }
-
-            await this.#applySimultaneousDamageEntries({
-                damageEntries: this.#buildSimultaneousDamageEntriesFromTimeline({ timeline, tick }),
-                evaluationSnapshot
-            });
-
-            const projectedEndState = await this.#captureResolutionSnapshot({
-                tick,
-                perCombatant,
-                timeline,
-                tickNarratives
-            });
-
-            for (let idx = 0; idx < timeline.length; idx += 1) {
-                const entry = timeline[idx];
-                if (toNumber(entry?.tick, 0) !== tick) continue;
-                if (["prone", "interrupted"].includes(String(entry?.outcome?.result ?? "")) || !entry?.action) continue;
-
-                const boundary = this.#validateCompletionBoundary({
-                    timelineEntry: entry,
-                    projectedState: projectedEndState,
-                    proneCombatantIds: collisionResolution.proneCombatantIds
-                });
-
-                if (!boundary.valid) {
-                    const reason = boundary.violations?.join("; ") ?? "completion boundary not satisfied";
-                    this.#markTimelineEntryInterrupted({
-                        timeline,
-                        timelineIndex: idx,
-                        combatantName: entry?.combatantName ?? "Combatant",
-                        actionLabel: entry?.action?.label ?? "the action",
-                        reason
-                    });
-                }
-            }
-
-            tickNarratives.push(this.#buildTickNarrative(timeline, tick));
-            snapshots.push(await this.#captureResolutionSnapshot({
-                tick,
-                perCombatant,
-                timeline,
-                tickNarratives
-            }));
+                perCombatant: result.perCombatant,
+                timeline: result.timeline,
+                tickNarratives: result.tickNarratives,
+                reactionRuntime: result.reactionRuntime,
+                orderedCombatants: result.orderedCombatants
+            })).snapshot;
+            result.snapshots.push(lastSnapshot);
+            await this.#applyResolutionSnapshot(lastSnapshot);
 
             await this.#setState({
                 ...this.state,
-                phase: "resolving",
-                timeline: foundry.utils.deepClone(timeline),
-                perCombatant: foundry.utils.deepClone(perCombatant),
+                phase: tick >= result.totalTicks ? "roundComplete" : "resolving",
+                timeline: foundry.utils.deepClone(result.timeline),
+                perCombatant: foundry.utils.deepClone(result.perCombatant),
                 currentEvaluationTick: tick,
                 resolution: {
-                    status: tick < totalTicks ? "running" : "complete",
+                    status: tick < result.totalTicks ? "running" : "complete",
                     currentTick: tick,
-                    totalTicks,
-                    snapshots: foundry.utils.deepClone(snapshots),
-                    tickNarratives: foundry.utils.deepClone(tickNarratives)
+                    totalTicks: result.totalTicks,
+                    snapshots: foundry.utils.deepClone(result.snapshots),
+                    tickNarratives: foundry.utils.deepClone(result.tickNarratives)
                 }
             });
 
-            if (tick < totalTicks) {
+            if (tick < result.totalTicks) {
                 await wait(tickDelayMs);
             }
         }
@@ -1999,25 +2365,25 @@ export class TurnOfTheCenturyEncounter {
             {
                 round,
                 resolvedAt: Date.now(),
-                timeline: foundry.utils.deepClone(timeline),
-                tickNarratives: foundry.utils.deepClone(tickNarratives)
+                timeline: foundry.utils.deepClone(result.timeline),
+                tickNarratives: foundry.utils.deepClone(result.tickNarratives)
             }
         ];
 
         await this.#setState({
             ...this.state,
             phase: "roundComplete",
-            timeline,
+            timeline: result.timeline,
             planningStartedAt: 0,
-            perCombatant,
-            currentEvaluationTick: totalTicks,
+            perCombatant: result.perCombatant,
+            currentEvaluationTick: result.totalTicks,
             roundHistory: nextHistory,
             resolution: {
                 status: "complete",
-                currentTick: totalTicks,
-                totalTicks,
-                snapshots,
-                tickNarratives
+                currentTick: result.totalTicks,
+                totalTicks: result.totalTicks,
+                snapshots: result.snapshots,
+                tickNarratives: result.tickNarratives
             }
         });
 
@@ -2027,11 +2393,11 @@ export class TurnOfTheCenturyEncounter {
         });
         this.emit(TOTC_ENCOUNTER_EVENTS.ROUND_RESOLVED, {
             round,
-            timeline
+            timeline: result.timeline
         });
 
-        await this.#publishRoundReplay(timeline);
-        return timeline;
+        await this.#publishRoundReplay(result.timeline);
+        return result.timeline;
     }
 
     async #resolveAction(
@@ -2436,6 +2802,10 @@ export class TurnOfTheCenturyCombat extends BaseCombatDocument {
         return this.encounter.maybeAutoFinalizePlanning();
     }
 
+    async syncSceneCombatants(options = {}) {
+        return this.encounter.syncSceneCombatants(options);
+    }
+
     async setCombatantReady(combatantId, ready) {
         return this.encounter.setCombatantReady(combatantId, ready);
     }
@@ -2482,6 +2852,10 @@ export class TurnOfTheCenturyCombat extends BaseCombatDocument {
 
     async setEncounterPhase(phase) {
         return this.encounter.setEncounterPhase(phase);
+    }
+
+    async beginEncounterResolution(options = {}) {
+        return this.encounter.beginEncounterResolution(options);
     }
 
     async resolveEncounterRound() {

@@ -32,13 +32,8 @@
           "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": 1,
-          "notes": "Advantage on attacks against unaware or restrained targets.",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "recapFormat": "{{Owner.name}} strikes carefully with {{Item.name}} and {{action.hitResult}}.",
+          "notes": "Advantage on attacks against unaware or restrained targets."
         }
       ]
     },

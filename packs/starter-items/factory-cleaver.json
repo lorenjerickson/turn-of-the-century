@@ -32,13 +32,8 @@
           "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "notes": "",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "recapFormat": "{{Owner.name}} hacks with {{Item.name}} and {{action.hitResult}}.",
+          "notes": "Rough industrial swing."
         }
       ]
     },

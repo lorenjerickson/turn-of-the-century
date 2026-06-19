@@ -27,49 +27,17 @@
       }
     },
     "actions": {
-      "defaultActionId": "throwFlask",
+      "defaultActionId": "useItem",
       "variants": [
         {
-          "id": "throwFlask",
-          "label": "Throw Flask",
-          "type": "attack",
-          "apCost": 2,
-          "requiresToHit": true,
-          "toHitBonus": 0,
-          "rangeType": "normal",
-          "targetSelf": false,
-          "targetAlly": false,
-          "requiresAdjacency": false,
-          "conditions": [
-            "burning"
-          ],
-          "notes": "<p>Hurl the uncorked flask at a target up to 20ft. Oil splashes across them on hit. Requires an ignition source already present (lit torch, flame, spark) to trigger the burning condition; otherwise deals no damage but soaks the target in oil.</p>",
-          "completionPhaseIncrement": 1,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "pourAndIgnite",
-          "label": "Pour and Ignite",
+          "id": "useItem",
+          "label": "Use Item",
           "type": "utility",
-          "apCost": 3,
+          "apCost": 1,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "rangeType": "melee",
-          "targetSelf": false,
-          "targetAlly": false,
-          "requiresAdjacency": true,
-          "conditions": [],
-          "notes": "<p>Pour oil across a surface or object and apply flame. Creates a burning hazard in a 5ft area. Requires an ignition source. Non-attack utility \u2014 affects terrain rather than a specific combatant.</p>",
-          "completionPhaseIncrement": 1,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
+          "notes": ""
         }
       ]
     },

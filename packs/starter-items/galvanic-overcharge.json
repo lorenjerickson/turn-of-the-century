@@ -22,6 +22,17 @@
     },
     "impacts": [
       {
+        "label": "Heightened Guard",
+        "targetType": "defense",
+        "target": "armorClass",
+        "path": "",
+        "operation": "add",
+        "value": 1,
+        "formula": "",
+        "condition": "",
+        "notes": "<p>Defensive posture improves briefly.</p>"
+      },
+      {
         "label": "Muscle Tremor",
         "targetType": "skill",
         "target": "sleightOfHand",

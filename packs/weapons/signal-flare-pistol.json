@@ -23,55 +23,17 @@
     },
     "handedness": "oneHanded",
     "actions": {
-      "defaultActionId": "aimedShot",
+      "defaultActionId": "flareShot",
       "variants": [
         {
-          "id": "quickShot",
-          "label": "Quick Shot",
-          "type": "attack",
-          "apCost": 2,
-          "requiresToHit": true,
-          "toHitBonus": -2,
-          "requirements": [
-            {
-              "field": "system.ammunition.loaded",
-              "op": "gt",
-              "value": 0,
-              "fieldRef": ""
-            }
-          ]
-        },
-        {
-          "id": "aimedShot",
-          "label": "Aim and Fire",
+          "id": "flareShot",
+          "label": "Fire Signal",
           "type": "attack",
           "apCost": 3,
           "requiresToHit": true,
-          "toHitBonus": 0,
-          "requirements": [
-            {
-              "field": "system.ammunition.loaded",
-              "op": "gt",
-              "value": 0,
-              "fieldRef": ""
-            }
-          ]
-        },
-        {
-          "id": "reload",
-          "label": "Reload",
-          "type": "utility",
-          "apCost": 2,
-          "requiresToHit": false,
-          "toHitBonus": 0,
-          "requirements": [
-            {
-              "field": "system.ammunition.loaded",
-              "op": "lt",
-              "value": 0,
-              "fieldRef": "system.ammunition.capacity"
-            }
-          ]
+          "toHitBonus": -1,
+          "recapFormat": "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+          "notes": "Single discharge; imposes Blinded on target if fired within 10 feet."
         }
       ]
     },
@@ -112,12 +74,7 @@
       "concealable": true,
       "noisy": true,
       "experimental": false
-    },
-    "traits": [
-      "firearm",
-      "projectileAmmo",
-      "singleHanded"
-    ]
+    }
   },
   "flags": {}
 }

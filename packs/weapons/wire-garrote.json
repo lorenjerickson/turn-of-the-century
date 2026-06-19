@@ -23,16 +23,17 @@
     },
     "handedness": "oneHanded",
     "actions": {
-      "defaultActionId": "meleeStrike",
+      "defaultActionId": "weaponAttack",
       "variants": [
         {
-          "id": "meleeStrike",
-          "label": "Strike",
+          "id": "weaponAttack",
+          "label": "Attack",
           "type": "attack",
-          "apCost": 1,
+          "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "requirements": []
+          "recapFormat": "{{Owner.name}} tightens {{Item.name}} on {{Target.name}} and {{action.hitResult}}.",
+          "notes": "Silent close-quarters attack."
         }
       ]
     },
@@ -72,11 +73,7 @@
       "concealable": true,
       "noisy": false,
       "experimental": false
-    },
-    "traits": [
-      "meleeWeapon",
-      "singleHanded"
-    ]
+    }
   },
   "flags": {}
 }

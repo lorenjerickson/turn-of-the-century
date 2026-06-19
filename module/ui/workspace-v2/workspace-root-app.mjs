@@ -2275,8 +2275,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             apMax,
             variableAp: element.dataset.variableAp === "true",
             requiresToHit: element.dataset.requiresToHit === "true",
+            requiresTarget: element.dataset.requiresTarget === "true",
             rangeType: String(element.dataset.rangeType ?? "melee").trim().toLowerCase(),
             toHitBonus: Number(element.dataset.toHitBonus ?? 0),
+            targetingRangeFeet: Number(element.dataset.targetingRangeFeet ?? 0),
             movementFeet: Number(element.dataset.movementFeet ?? 0),
             movementFeetPerAp: Number(element.dataset.movementFeetPerAp ?? 0),
             itemId: String(element.dataset.itemId ?? "").trim() || null,
@@ -2353,8 +2355,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.preventDefault();
                 event.stopPropagation();
                 const combat = this.#getEncounterCombat();
-                if (!combat?.resolveEncounterRound) return;
-                await combat.resolveEncounterRound();
+                if (!combat?.beginEncounterResolution) return;
+                await combat.beginEncounterResolution();
                 this.render({ force: false });
             });
         });
@@ -2601,6 +2603,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #resolveEncounterActionRangeFeet(action = null, actor = null) {
+        const explicitRangeFeet = Number(action?.targetingRangeFeet ?? 0);
+        if (Number.isFinite(explicitRangeFeet) && explicitRangeFeet > 0) {
+            return explicitRangeFeet;
+        }
+
         const rangeType = String(action?.rangeType ?? "melee").toLowerCase();
         const item = action?.itemId ? actor?.items?.get?.(action.itemId) : null;
         const normal = Number(item?.system?.physical?.range?.normal ?? (rangeType === "melee" ? 5 : 30));
@@ -2751,7 +2758,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const plan = [...(combat.getCombatantPlan?.(interaction.combatantId) ?? [])];
         const index = Number(interaction.actionIndex);
         const entry = plan[index];
-        if (!entry || !entry.requiresToHit || !combat.setCombatantPlan) {
+        if (!entry || (!entry.requiresToHit && !entry.requiresTarget) || !combat.setCombatantPlan) {
             await this.#cancelEncounterTargetingInteraction();
             return;
         }
@@ -2862,7 +2869,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const nextPlan = [...currentPlan.slice(0, actionIndex), actionData];
                 await combat.setCombatantPlan(combatantId, nextPlan);
 
-                if (actionData.type === "movement") {
+                if (actionData.requiresTarget) {
+                    this.#beginEncounterTargetingInteraction({
+                        combat,
+                        combatantId,
+                        actionIndex,
+                        action: actionData
+                    });
+                } else if (actionData.type === "movement") {
                     this.#beginEncounterMovementInteraction({
                         combat,
                         combatantId,

@@ -401,7 +401,8 @@
               "apCost": 2,
               "requiresToHit": true,
               "toHitBonus": 0,
-              "notes": ""
+              "recapFormat": "{{Owner.name}} hacks with {{Item.name}} and {{action.hitResult}}.",
+              "notes": "Rough industrial swing."
             }
           ]
         },
@@ -619,6 +620,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -684,6 +686,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -749,6 +752,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -814,6 +818,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -976,6 +981,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -1041,6 +1047,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -1106,6 +1113,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]

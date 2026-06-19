@@ -55,6 +55,7 @@ function createActionVariantField() {
         apCost: new NumberField({ required: true, integer: true, min: 1, initial: 2 }),
         requiresToHit: new BooleanField({ required: true, initial: true }),
         toHitBonus: new NumberField({ required: true, integer: true, initial: 0 }),
+        recapFormat: new StringField({ required: true, blank: true, initial: "" }),
         // Which range band this action uses: "melee" | "normal" | "long"
         rangeType: new StringField({ required: true, blank: false, initial: "melee" }),
         // Condition IDs applied on a successful hit (e.g. "stunned", "staggered", "prone")

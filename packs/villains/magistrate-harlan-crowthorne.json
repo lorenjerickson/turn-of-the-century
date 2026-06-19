@@ -398,6 +398,7 @@
               "apCost": 2,
               "requiresToHit": true,
               "toHitBonus": -2,
+              "recapFormat": "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
               "notes": "Fast draw and fire with reduced accuracy."
             },
             {
@@ -407,6 +408,7 @@
               "apCost": 3,
               "requiresToHit": true,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} carefully sights {{Target.name}} with {{Item.name}} and {{action.hitResult}}.",
               "notes": "Deliberate shot with full accuracy."
             }
           ]
@@ -545,6 +547,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -610,6 +613,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -750,6 +754,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -815,6 +820,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -880,6 +886,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]

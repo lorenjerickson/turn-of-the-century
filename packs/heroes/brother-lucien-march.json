@@ -400,6 +400,7 @@
               "apCost": 2,
               "requiresToHit": true,
               "toHitBonus": 1,
+              "recapFormat": "{{Owner.name}} strikes carefully with {{Item.name}} and {{action.hitResult}}.",
               "notes": "Advantage on attacks against unaware or restrained targets."
             }
           ]
@@ -532,6 +533,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -780,6 +782,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -920,6 +923,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]

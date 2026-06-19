@@ -22,23 +22,17 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "drinkSelf",
+      "defaultActionId": "consumeBeltElixir",
       "variants": [
         {
           "id": "consumeBeltElixir",
-          "label": "Consume",
+          "label": "Consume Belt Elixir",
           "type": "consumable",
-          "apCost": 1,
+          "apCost": 2,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "requirements": [
-            {
-              "field": "system.quantity.value",
-              "op": "gt",
-              "value": 0,
-              "fieldRef": ""
-            }
-          ]
+          "recapFormat": "{{Owner.name}} drinks {{Item.name}}.",
+          "notes": "Retrieve from belt and consume under pressure."
         }
       ]
     },
@@ -88,10 +82,7 @@
       "addictive": false,
       "experimental": true,
       "restricted": false
-    },
-    "traits": [
-      "beltConsumable"
-    ]
+    }
   },
   "flags": {}
 }

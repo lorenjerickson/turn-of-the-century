@@ -31,7 +31,7 @@ import { evaluateRequirements } from "./action-template.mjs";
  */
 export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = 10 } = {}) {
     const actionCatalog = getBaseActionCatalog();
-    const baseOrder = ["move", "hunkDown", "dodge", "overwatch"];
+    const baseOrder = ["move", "pursue", "follow", "avoid", "hunkDown", "dodge", "overwatch"];
 
     return baseOrder
         .map((id) => actionCatalog[id])
@@ -58,7 +58,10 @@ export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = 10 } =
                 movementFeetPerAp: movePerAp,
                 movementFeet: movePerAp,
                 requiresToHit: Boolean(variant.requiresToHit),
+                requiresTarget: Boolean(variant.requiresTarget),
                 toHitBonus: Number(variant.toHitBonus ?? 0),
+                recapFormat: String(variant.recapFormat ?? ""),
+                targetingRangeFeet: Number(variant.targetingRangeFeet ?? 0),
                 autoResolve: Boolean(variant.autoResolve),
                 interruptible: Boolean(variant.interruptible ?? true),
                 isReaction: Boolean(variant.isReaction),
@@ -103,7 +106,10 @@ export function getEnabledActionsForItem(item) {
             movementFeetPerAp: 0,
             movementFeet: 0,
             requiresToHit: Boolean(variant.requiresToHit),
+            requiresTarget: Boolean(variant.requiresTarget),
             toHitBonus: Number(variant.toHitBonus ?? 0),
+            recapFormat: String(variant.recapFormat ?? ""),
+            targetingRangeFeet: Number(variant.targetingRangeFeet ?? 0),
             autoResolve: Boolean(variant.autoResolve),
             interruptible: Boolean(variant.interruptible ?? true),
             isReaction: Boolean(variant.isReaction),

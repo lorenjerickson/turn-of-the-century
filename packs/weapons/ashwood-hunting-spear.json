@@ -23,34 +23,17 @@
     },
     "handedness": "versatile",
     "actions": {
-      "defaultActionId": "meleeStrike",
+      "defaultActionId": "weaponAttack",
       "variants": [
         {
-          "id": "meleeStrike",
-          "label": "Strike",
-          "type": "attack",
-          "apCost": 1,
-          "requiresToHit": true,
-          "toHitBonus": 0,
-          "requirements": []
-        },
-        {
-          "id": "thrownAttack",
-          "label": "Throw",
+          "id": "weaponAttack",
+          "label": "Attack",
           "type": "attack",
           "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "requirements": []
-        },
-        {
-          "id": "twoHandedStrike",
-          "label": "Two-Handed Strike",
-          "type": "attack",
-          "apCost": 2,
-          "requiresToHit": true,
-          "toHitBonus": 1,
-          "requirements": []
+          "recapFormat": "{{Owner.name}} thrusts {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+          "notes": "Measured spear thrust."
         }
       ]
     },
@@ -90,12 +73,7 @@
       "concealable": false,
       "noisy": false,
       "experimental": false
-    },
-    "traits": [
-      "meleeWeapon",
-      "thrownWeapon",
-      "versatileGrip"
-    ]
+    }
   },
   "flags": {}
 }

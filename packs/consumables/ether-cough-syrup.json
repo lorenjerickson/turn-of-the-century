@@ -22,23 +22,16 @@
       "requiresHands": true
     },
     "actions": {
-      "defaultActionId": "useItem",
+      "defaultActionId": "consumeItem",
       "variants": [
         {
-          "id": "useItem",
-          "label": "Use",
+          "id": "consumeItem",
+          "label": "Consume Item",
           "type": "consumable",
           "apCost": 1,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "requirements": [
-            {
-              "field": "system.quantity.value",
-              "op": "gt",
-              "value": 0,
-              "fieldRef": ""
-            }
-          ]
+          "notes": ""
         }
       ]
     },
@@ -78,10 +71,7 @@
       "addictive": true,
       "experimental": false,
       "restricted": false
-    },
-    "traits": [
-      "usableItem"
-    ]
+    }
   },
   "flags": {}
 }

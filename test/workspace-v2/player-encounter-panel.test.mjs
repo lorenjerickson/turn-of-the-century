@@ -149,6 +149,24 @@ describe("player encounter panel", () => {
         assert.match(html, /data-action="encounter-clear-plan" disabled>Clear Plan<\/button>/);
     });
 
+    it("shows no active encounter when selected actor is not in combat", () => {
+        const model = buildPlayerEncounterPanelModel({
+            actor: actorFixture(),
+            planner: null,
+            combat: {
+                id: "combat-1",
+                name: "Rookery Ambush",
+                round: 2,
+                phase: "planning"
+            }
+        });
+        const html = renderPlayerEncounterPanel(model, { escapeHTML });
+
+        assert.equal(model.activeEncounter, false);
+        assert.match(html, /class="totc-v2-encounter-panel is-empty"/);
+        assert.match(html, /class="totc-v2-encounter-panel__empty">No active encounter\.<\/div>/);
+    });
+
     it("renders available actions in the popup modal filtered by remaining AP", () => {
         const model = buildPlayerEncounterPanelModel({
             actor: actorFixture(),

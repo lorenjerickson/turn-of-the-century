@@ -28,6 +28,7 @@ import {
     migrateTotcActorProfessions,
     migrateTotcActorEconomy,
     migrateTotcEncounterActions,
+    migrateTotcActionRecapFormats,
     migrateTotcModifiers,
     migrateTotcStarterCompendiums,
     migrateSeedMissingWorldActors,
@@ -333,6 +334,7 @@ async function maybeRunAutomatedMigrations() {
             migrateActorEconomy: migrateTotcActorEconomy,
             migrateEquipmentSlots: migrateTotcEquipmentSlots,
             migrateEncounterActions: migrateTotcEncounterActions,
+            migrateActionRecapFormats: migrateTotcActionRecapFormats,
             migrateModifiers: migrateTotcModifiers,
             migrateStarterCompendiums: migrateTotcStarterCompendiums,
             seedMissingActors: migrateSeedMissingWorldActors,
@@ -533,6 +535,7 @@ Hooks.once("ready", async () => {
         migrateActorEconomy: migrateTotcActorEconomy,
         migrateEquipmentSlots: migrateTotcEquipmentSlots,
         migrateEncounterActions: migrateTotcEncounterActions,
+        migrateActionRecapFormats: migrateTotcActionRecapFormats,
         migrateModifiers: migrateTotcModifiers,
         migrateStarterCompendiums: migrateTotcStarterCompendiums,
         seedMissingActors: migrateSeedMissingWorldActors,
@@ -545,6 +548,7 @@ Hooks.once("ready", async () => {
                 migrateActorEconomy: migrateTotcActorEconomy,
                 migrateEquipmentSlots: migrateTotcEquipmentSlots,
                 migrateEncounterActions: migrateTotcEncounterActions,
+                migrateActionRecapFormats: migrateTotcActionRecapFormats,
                 migrateModifiers: migrateTotcModifiers,
                 migrateStarterCompendiums: migrateTotcStarterCompendiums,
                 seedMissingActors: migrateSeedMissingWorldActors,
@@ -950,28 +954,37 @@ Hooks.on("preCreateToken", (tokenDoc, data, options, userId) => {
 });
 
 Hooks.on("createToken", async (tokenDoc, options, userId) => {
+    void options;
+    void userId;
     if (!game.user?.isGM) return;
-    const activeCombat = game.combat;
-    if (!activeCombat) return;
-
-    // Only add if it's on the same scene as the combat
     const sceneId = tokenDoc.parent?.id ?? tokenDoc.scene?.id;
-    if (sceneId !== activeCombat.scene?.id) return;
+    if (!sceneId) return;
 
-    const actor = tokenDoc.actor;
-    if (!actor) return;
+    const activeEncounters = (game.combats?.contents ?? []).filter((combat) => {
+        const combatSceneId = combat?.scene?.id ?? combat?.sceneId ?? "";
+        const initialized = Boolean(combat?.encounterState?.initialized ?? combat?.encounter?.state?.initialized);
+        return initialized && combatSceneId === sceneId;
+    });
 
-    // Check if the token is already in combat
-    const existing = activeCombat.combatants?.some(c => c.tokenId === tokenDoc.id);
-    if (existing) return;
+    if (!activeEncounters.length) return;
 
-    // Add to combat
-    await activeCombat.createEmbeddedDocuments("Combatant", [{
-        tokenId: tokenDoc.id,
-        actorId: actor.id,
-        sceneId,
-        hidden: Boolean(tokenDoc.hidden)
-    }]);
+    for (const combat of activeEncounters) {
+        if (typeof combat?.syncSceneCombatants === "function") {
+            await combat.syncSceneCombatants({ tokenDocuments: [tokenDoc] });
+            continue;
+        }
+
+        if (!tokenDoc?.actor) continue;
+        const existing = (combat.combatants?.contents ?? []).some((combatant) => String(combatant?.tokenId ?? "") === String(tokenDoc.id ?? ""));
+        if (existing) continue;
+
+        await combat.createEmbeddedDocuments("Combatant", [{
+            tokenId: tokenDoc.id,
+            actorId: tokenDoc.actor.id,
+            sceneId,
+            hidden: Boolean(tokenDoc.hidden)
+        }]);
+    }
 });
 
 Hooks.once("shutdown", () => {

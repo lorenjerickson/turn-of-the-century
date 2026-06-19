@@ -32,13 +32,8 @@
           "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": -2,
-          "notes": "Fast draw and fire with reduced accuracy.",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "recapFormat": "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+          "notes": "Fast draw and fire with reduced accuracy."
         },
         {
           "id": "pistolAimedShot",
@@ -47,13 +42,8 @@
           "apCost": 3,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "notes": "Deliberate shot with full accuracy.",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "recapFormat": "{{Owner.name}} carefully sights {{Target.name}} with {{Item.name}} and {{action.hitResult}}.",
+          "notes": "Deliberate shot with full accuracy."
         }
       ]
     },

@@ -1,6 +1,7 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 13;
+export const TOTC_WORLD_SCHEMA_VERSION = 14;
 
 import { migrateTotcItems } from "./items.mjs";
+import { migrateTotcActionRecapFormats } from "./action-recap-formats.mjs";
 
 export async function runTotcMigrations({
     currentVersion = 0,
@@ -10,6 +11,7 @@ export async function runTotcMigrations({
     migrateEquipmentSlots,
     migrateEncounterActions,
     migrateModifiers,
+    migrateActionRecapFormats,
     migrateStarterCompendiums,
     seedMissingActors,
     migrateStarterActorAvatars,
@@ -33,6 +35,9 @@ export async function runTotcMigrations({
     }
     if (typeof migrateModifiers !== "function") {
         throw new Error("runTotcMigrations requires a migrateModifiers function.");
+    }
+    if (typeof migrateActionRecapFormats !== "function") {
+        throw new Error("runTotcMigrations requires a migrateActionRecapFormats function.");
     }
     if (typeof migrateStarterCompendiums !== "function") {
         throw new Error("runTotcMigrations requires a migrateStarterCompendiums function.");
@@ -207,6 +212,21 @@ export async function runTotcMigrations({
         appliedVersion = 13;
     }
 
+    // v14: backfill recap template strings on existing action variants
+    if (appliedVersion < 14) {
+        const report = await migrateActionRecapFormats({
+            dryRun: false,
+            notify: false,
+            includeCompendiums: true
+        });
+        appliedSteps.push({
+            version: 14,
+            key: "action-recap-formats",
+            report
+        });
+        appliedVersion = 14;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -245,6 +265,10 @@ export async function runTotcMigrations({
 
                 if (step.key === "starter-actor-avatars") {
                     return `${step.key}: ${step.report.updated} avatars updated`;
+                }
+
+                if (step.key === "action-recap-formats") {
+                    return `${step.key}: ${step.report.itemsUpdated} items updated`;
                 }
 
                 return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;

@@ -27,69 +27,17 @@
       }
     },
     "actions": {
-      "defaultActionId": "torchBash",
+      "defaultActionId": "useItem",
       "variants": [
         {
-          "id": "torchBash",
-          "label": "Torch Bash",
-          "type": "attack",
-          "apCost": 1,
-          "requiresToHit": true,
-          "toHitBonus": 0,
-          "rangeType": "melee",
-          "targetSelf": false,
-          "targetAlly": false,
-          "requiresAdjacency": true,
-          "conditions": [],
-          "notes": "<p>Strike with the unlit torch. Improvised bludgeoning blow. The torch remains intact and usable.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "lightTorch",
-          "label": "Light Torch",
+          "id": "useItem",
+          "label": "Use Item",
           "type": "utility",
           "apCost": 1,
           "requiresToHit": false,
           "toHitBonus": 0,
-          "rangeType": "melee",
-          "targetSelf": false,
-          "targetAlly": false,
-          "requiresAdjacency": false,
-          "conditions": [],
-          "notes": "<p>Strike a match or use a tinderbox to light the torch. Requires a fire source. Once lit, the torch grants illumination and enables the Brandish action.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "brandishLitTorch",
-          "label": "Brandish (Lit)",
-          "type": "attack",
-          "apCost": 2,
-          "requiresToHit": true,
-          "toHitBonus": 0,
-          "rangeType": "melee",
-          "targetSelf": false,
-          "targetAlly": false,
-          "requiresAdjacency": true,
-          "conditions": [
-            "burning"
-          ],
-          "notes": "<p>Drive a lit torch into a target. On hit: burning condition. Only available when the torch is lit. Damages the torch on extended use.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
+          "notes": ""
         }
       ]
     },

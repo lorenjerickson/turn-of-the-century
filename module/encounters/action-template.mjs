@@ -114,6 +114,7 @@ export function createActionVariantField({
         apCost: new NumberField({ required: true, integer: true, min: 1, initial: defaultApCost }),
         requiresToHit: new BooleanField({ required: true, initial: defaultRequiresToHit }),
         toHitBonus: new NumberField({ required: true, integer: true, initial: defaultToHitBonus }),
+        recapFormat: new StringField({ required: true, blank: true, initial: "" }),
         notes: new HTMLField({ required: true, blank: true }),
         requirements: new ArrayField(
             createActionRequirementField(),

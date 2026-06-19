@@ -23,55 +23,17 @@
     },
     "handedness": "twoHanded",
     "actions": {
-      "defaultActionId": "aimedShot",
+      "defaultActionId": "weaponAttack",
       "variants": [
         {
-          "id": "quickShot",
-          "label": "Quick Shot",
+          "id": "weaponAttack",
+          "label": "Attack",
           "type": "attack",
           "apCost": 2,
           "requiresToHit": true,
-          "toHitBonus": -2,
-          "requirements": [
-            {
-              "field": "system.ammunition.loaded",
-              "op": "gt",
-              "value": 0,
-              "fieldRef": ""
-            }
-          ]
-        },
-        {
-          "id": "aimedShot",
-          "label": "Aim and Fire",
-          "type": "attack",
-          "apCost": 3,
-          "requiresToHit": true,
           "toHitBonus": 0,
-          "requirements": [
-            {
-              "field": "system.ammunition.loaded",
-              "op": "gt",
-              "value": 0,
-              "fieldRef": ""
-            }
-          ]
-        },
-        {
-          "id": "reload",
-          "label": "Reload",
-          "type": "utility",
-          "apCost": 2,
-          "requiresToHit": false,
-          "toHitBonus": 0,
-          "requirements": [
-            {
-              "field": "system.ammunition.loaded",
-              "op": "lt",
-              "value": 0,
-              "fieldRef": "system.ammunition.capacity"
-            }
-          ]
+          "recapFormat": "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+          "notes": "Controlled longarm shot."
         }
       ]
     },
@@ -116,12 +78,7 @@
       "concealable": false,
       "noisy": true,
       "experimental": false
-    },
-    "traits": [
-      "firearm",
-      "projectileAmmo",
-      "twoHanded"
-    ]
+    }
   },
   "flags": {}
 }

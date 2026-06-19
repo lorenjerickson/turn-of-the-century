@@ -70,6 +70,7 @@ function createActionVariantField({ defaultId = "consumeItem", defaultLabel = "C
         apCost: new NumberField({ required: true, integer: true, min: 1, initial: defaultApCost }),
         requiresToHit: new BooleanField({ required: true, initial: false }),
         toHitBonus: new NumberField({ required: true, integer: true, initial: 0 }),
+        recapFormat: new StringField({ required: true, blank: true, initial: "" }),
         // Targeting
         targetSelf: new BooleanField({ required: true, initial: true }),
         targetAlly: new BooleanField({ required: true, initial: false }),
@@ -146,6 +147,7 @@ export class ConsumableDataModel extends foundry.abstract.TypeDataModel {
                             apCost: 1,
                             requiresToHit: false,
                             toHitBonus: 0,
+                            recapFormat: "{{Owner.name}} uses {{Item.name}}.",
                             notes: ""
                         }]
                     }

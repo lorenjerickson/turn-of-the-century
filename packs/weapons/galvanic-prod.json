@@ -23,16 +23,17 @@
     },
     "handedness": "oneHanded",
     "actions": {
-      "defaultActionId": "meleeStrike",
+      "defaultActionId": "weaponAttack",
       "variants": [
         {
-          "id": "meleeStrike",
-          "label": "Strike",
+          "id": "weaponAttack",
+          "label": "Attack",
           "type": "attack",
-          "apCost": 1,
+          "apCost": 2,
           "requiresToHit": true,
           "toHitBonus": 0,
-          "requirements": []
+          "recapFormat": "{{Owner.name}} jabs with {{Item.name}} and {{action.hitResult}}.",
+          "notes": "Unstable electrical strike."
         }
       ]
     },
@@ -78,11 +79,7 @@
       "concealable": false,
       "noisy": true,
       "experimental": true
-    },
-    "traits": [
-      "meleeWeapon",
-      "singleHanded"
-    ]
+    }
   },
   "flags": {}
 }

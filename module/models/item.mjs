@@ -138,6 +138,7 @@ export class ItemDataModel extends foundry.abstract.TypeDataModel {
                             apCost: 1,
                             requiresToHit: false,
                             toHitBonus: 0,
+                            recapFormat: "{{Owner.name}} uses {{Item.name}}.",
                             notes: ""
                         }]
                     }

@@ -27,49 +27,17 @@
       }
     },
     "actions": {
-      "defaultActionId": "lanternBash",
+      "defaultActionId": "useItem",
       "variants": [
         {
-          "id": "lanternBash",
-          "label": "Lantern Bash",
-          "type": "attack",
+          "id": "useItem",
+          "label": "Use Item",
+          "type": "utility",
           "apCost": 1,
-          "requiresToHit": true,
+          "requiresToHit": false,
           "toHitBonus": 0,
-          "rangeType": "melee",
-          "targetSelf": false,
-          "targetAlly": false,
-          "requiresAdjacency": true,
-          "conditions": [],
-          "notes": "<p>Strike with the iron lantern body. Bludgeoning damage. The lantern remains intact.</p>",
-          "completionPhaseIncrement": 0,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
-        },
-        {
-          "id": "throwLantern",
-          "label": "Hurl Lantern",
-          "type": "attack",
-          "apCost": 3,
-          "requiresToHit": true,
-          "toHitBonus": -1,
-          "rangeType": "normal",
-          "targetSelf": false,
-          "targetAlly": false,
-          "requiresAdjacency": false,
-          "conditions": [
-            "burning"
-          ],
-          "notes": "<p>Smash the lantern against a target or into their area. Oil splashes and ignites. On hit: burning condition. Destroys the lantern. Range 15ft.</p>",
-          "completionPhaseIncrement": 1,
-          "cpiPerFeet": 0,
-          "autoResolve": false,
-          "interruptible": true,
-          "isReaction": false,
-          "reactionTriggerType": ""
+          "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
+          "notes": ""
         }
       ]
     },

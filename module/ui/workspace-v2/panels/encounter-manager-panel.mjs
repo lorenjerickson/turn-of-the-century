@@ -113,6 +113,7 @@ function buildCombatantSummary(combatant, state, timeline, apBudget) {
 export function buildEncounterManagerPanelModel({ combat = null } = {}) {
     const state = combat?.encounterState ?? combat?.encounter?.state ?? {};
     const resolution = state?.resolution ?? {};
+    const phase = String(combat?.phase ?? state?.phase ?? "planning");
     const initialized = Boolean(state?.initialized);
     const apBudget = Math.max(1, toNumber(state?.apBudget ?? combat?.apBudget, 6));
     const timeline = toArray(state?.timeline);
@@ -123,7 +124,9 @@ export function buildEncounterManagerPanelModel({ combat = null } = {}) {
     const tickNarrative = tickNarrativeFromResolution(resolution, currentTick)
         || latestSlotNarrative(timeline, currentTick)
         || latestSlotNarrative(timeline, latestSlot);
-    const canStep = Boolean(combat?.stepEncounterResolution) && toArray(resolution?.snapshots).length > 0;
+    const hasSnapshots = Boolean(combat?.stepEncounterResolution)
+        && toArray(resolution?.snapshots).length > 0;
+    const isInProgress = phase === "resolving" || phase === "roundComplete";
 
     return {
         active: Boolean(combat),
@@ -131,7 +134,7 @@ export function buildEncounterManagerPanelModel({ combat = null } = {}) {
         combatId: String(combat?.id ?? ""),
         name: String(combat?.name ?? "Encounter"),
         round: toNumber(state?.round ?? combat?.round, 1),
-        phase: String(combat?.phase ?? state?.phase ?? "planning"),
+        phase,
         apBudget,
         currentTick,
         totalTicks,
@@ -140,8 +143,8 @@ export function buildEncounterManagerPanelModel({ combat = null } = {}) {
         canStartRound: Boolean(combat?.initializeEncounterRound),
         canResolveRound: Boolean(combat?.resolveEncounterRound),
         canSetPhase: Boolean(combat?.setEncounterPhase),
-        canStepPrevious: canStep && currentTick > 0,
-        canStepNext: canStep && currentTick < totalTicks,
+        canStepPrevious: hasSnapshots && isInProgress && currentTick > 0,
+        canStepNext: hasSnapshots && phase === "resolving" && currentTick < totalTicks,
         actors: combatantContents(combat?.combatants).map((combatant) => buildCombatantSummary(combatant, state, timeline, apBudget)),
         lastNarrative: tickNarrative,
         lastEvaluatedTick: latestSlot || null
@@ -190,7 +193,7 @@ function renderActorPlan(actor, currentTick, phase, escapeHTML) {
 export function renderEncounterManagerPanel(model = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
     if (!model.active) {
         return `
-        <section class="totc-v2-encounter-manager">
+        <section class="totc-v2-encounter-manager is-empty">
             <div class="totc-v2-encounter-manager__empty">No active encounter.</div>
         </section>`;
     }
@@ -215,8 +218,8 @@ export function renderEncounterManagerPanel(model = {}, { escapeHTML = (value) =
             <button type="button" data-action="encounter-manager-set-phase" data-phase="locked" ${model.canSetPhase && model.phase === "planning" ? "" : "disabled"}>Lock Plans</button>
             <button type="button" data-action="encounter-manager-set-phase" data-phase="planning" ${model.canSetPhase && model.phase !== "planning" ? "" : "disabled"}>Reopen Planning</button>
             <button type="button" data-action="encounter-manager-resolve-round" ${model.canResolveRound ? "" : "disabled"}>Resolve Round</button>
-            <button type="button" data-action="encounter-manager-step-tick" data-direction="-1" ${model.canStepPrevious ? "" : "disabled"}>Previous Tick</button>
-            <button type="button" data-action="encounter-manager-step-tick" data-direction="1" ${model.canStepNext ? "" : "disabled"}>Next Tick</button>
+            <button type="button" data-action="encounter-manager-step-tick" data-direction="-1" ${model.canStepPrevious ? "" : "disabled"}>Prev Second</button>
+            <button type="button" data-action="encounter-manager-step-tick" data-direction="1" ${model.canStepNext ? "" : "disabled"}>Next Second</button>
         </div>
 
         <section class="totc-v2-encounter-manager__actors" style="--totc-ap-budget:${model.apBudget};--totc-current-tick:${model.currentTick};">

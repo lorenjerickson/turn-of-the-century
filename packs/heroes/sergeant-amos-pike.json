@@ -397,7 +397,8 @@
               "apCost": 2,
               "requiresToHit": true,
               "toHitBonus": 0,
-              "notes": ""
+              "recapFormat": "{{Owner.name}} strikes with {{Item.name}} and {{action.hitResult}}.",
+              "notes": "Close-range restraint blow."
             }
           ]
         },
@@ -579,6 +580,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]
@@ -718,6 +720,7 @@
               "apCost": 1,
               "requiresToHit": false,
               "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
             }
           ]

@@ -91,7 +91,35 @@ function combatFixture() {
     };
 }
 
+function resolvingCombatFixture() {
+    const combat = combatFixture();
+    return {
+        ...combat,
+        phase: "resolving",
+        encounterState: {
+            ...combat.encounterState,
+            phase: "resolving",
+            resolution: {
+                status: "paused",
+                currentTick: 2,
+                totalTicks: 6,
+                snapshots: [{ tick: 0 }, { tick: 1 }, { tick: 2 }],
+                tickNarratives: []
+            }
+        },
+        stepEncounterResolution: async () => {}
+    };
+}
+
 describe("encounter manager panel", () => {
+    it("renders no active encounter empty state when there is no encounter", () => {
+        const model = buildEncounterManagerPanelModel({ combat: null });
+        const html = renderEncounterManagerPanel(model, { escapeHTML });
+
+        assert.match(html, /class="totc-v2-encounter-manager is-empty"/);
+        assert.match(html, /class="totc-v2-encounter-manager__empty">No active encounter\.<\/div>/);
+    });
+
     it("builds GM actor summaries, current tick, and last AP narrative", () => {
         const model = buildEncounterManagerPanelModel({ combat: combatFixture() });
 
@@ -103,6 +131,16 @@ describe("encounter manager panel", () => {
         assert.deepEqual(model.actors[0].conditions, ["Bleeding"]);
         assert.deepEqual(model.actors[0].segments.map((segment) => segment.label), ["Move", "Strike"]);
         assert.equal(model.lastNarrative, "Briggs hunkers down.");
+    });
+
+    it("enables second-step controls only during resolving phase", () => {
+        const planningModel = buildEncounterManagerPanelModel({ combat: combatFixture() });
+        assert.equal(planningModel.canStepPrevious, false);
+        assert.equal(planningModel.canStepNext, false);
+
+        const resolvingModel = buildEncounterManagerPanelModel({ combat: resolvingCombatFixture() });
+        assert.equal(resolvingModel.canStepPrevious, true);
+        assert.equal(resolvingModel.canStepNext, true);
     });
 
     it("renders stacked actor plan rows with compact status labels, narrative, and lifecycle controls", () => {
@@ -121,7 +159,10 @@ describe("encounter manager panel", () => {
         assert.match(html, /class="totc-v2-encounter-manager__progress"/);
         assert.match(html, /data-action="encounter-manager-step-tick" data-direction="-1"/);
         assert.match(html, /data-action="encounter-manager-step-tick" data-direction="1"/);
+        assert.match(html, />Prev Second<\/button>/);
+        assert.match(html, />Next Second<\/button>/);
         assert.match(html, /Briggs hunkers down\./);
+        assert.match(html, /class="totc-v2-encounter-manager__current-line" aria-hidden="true"/);
     });
 
     it("wires GM start encounter to activate the Encounter Manager panel", () => {
@@ -130,7 +171,7 @@ describe("encounter manager panel", () => {
         assert.match(workspaceRootSource, /this\.panelRegistry\.get\("encounter-manager"\)/);
         assert.match(workspaceRootSource, /restorePanel\(panelDef, \{ preferredDockId: panelDef\.defaultDock \?\? "leftDock" \}\)/);
         assert.match(workspaceRootSource, /#wireEncounterManagerPanelHandlers/);
-        assert.match(workspaceRootSource, /resolveEncounterRound/);
+        assert.match(workspaceRootSource, /beginEncounterResolution/);
         assert.match(workspaceRootSource, /encounter-manager-step-tick/);
         assert.match(workspaceRootSource, /stepEncounterResolution/);
     });

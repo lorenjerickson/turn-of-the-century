@@ -165,6 +165,7 @@ export class WeaponDataModel extends foundry.abstract.TypeDataModel {
                             apCost: 2,
                             requiresToHit: true,
                             toHitBonus: 0,
+                            recapFormat: "{{Owner.name}} attacks with {{Item.name}}.",
                             notes: ""
                         }]
                     }
