@@ -7,10 +7,6 @@ import { renderInspectorPanel } from "../panels/inspector-panel.mjs";
 import { renderMediaBrowserPanel } from "../panels/media-browser-panel.mjs";
 import { renderLoggingPanel } from "../panels/logging-panel.mjs";
 import { renderDesignIssuesPanel } from "../panels/design-issues-panel.mjs";
-import {
-    buildGridCalibrationModel,
-    renderGridCalibrationDialog
-} from "../panels/grid-calibration.mjs";
 import { renderScenePropertiesPanel } from "../panels/scene-properties-panel.mjs";
 import { renderScenesPanel } from "../panels/scenes-panel.mjs";
 import {
@@ -23,72 +19,6 @@ import { renderEncounterManagerPanel } from "../panels/encounter-manager-panel.m
 import { renderPlayerEncounterPanel } from "../panels/player-encounter-panel.mjs";
 import { renderCampaignViewPanel } from "../panels/campaign-view-panel.mjs";
 import { renderGMAssistantPanel } from "../panels/gm-assistant-panel.mjs";
-
-function collectionContents(collection) {
-    if (!collection) return [];
-    if (Array.isArray(collection)) return collection;
-    if (Array.isArray(collection.contents)) return collection.contents;
-    if (typeof collection.values === "function") return Array.from(collection.values());
-    if (typeof collection[Symbol.iterator] === "function") return Array.from(collection);
-    return [];
-}
-
-function positiveNumber(value, fallback) {
-    const numeric = Number(value);
-    return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
-}
-
-function tokenTexture(token) {
-    return String(token?.texture?.src
-        ?? token?.document?.texture?.src
-        ?? token?.actor?.prototypeToken?.texture?.src
-        ?? token?.actor?.img
-        ?? ""
-    ).trim();
-}
-
-function tokenName(token) {
-    return String(token?.name ?? token?.document?.name ?? token?.actor?.name ?? "Token").trim();
-}
-
-function tokenPosition(token, axis) {
-    return Number(token?.[axis] ?? token?.document?.[axis] ?? 0);
-}
-
-function tokenGridSize(token, axis, fallback = 1) {
-    return positiveNumber(token?.[axis] ?? token?.document?.[axis], fallback);
-}
-
-function tokenDocumentId(token) {
-    return String(token?.id ?? token?._id ?? token?.document?.id ?? token?.document?._id ?? "").trim();
-}
-
-function plannedTokenPositionsFromEncounter(combat = null) {
-    const state = combat?.encounterState ?? combat?.encounter?.state ?? {};
-    if (String(state?.phase ?? combat?.phase ?? "") !== "planning") return new Map();
-
-    const positions = new Map();
-    const perCombatant = state?.perCombatant ?? {};
-    for (const combatant of collectionContents(combat?.combatants)) {
-        const tokenId = String(combatant?.tokenId ?? combatant?.token?.id ?? combatant?.token?.document?.id ?? "").trim();
-        if (!tokenId) continue;
-
-        const combatantState = perCombatant?.[combatant.id] ?? {};
-        if (combatantState.ready) continue;
-
-        const plan = Array.isArray(combatantState.plan) ? combatantState.plan : [];
-        for (const action of plan) {
-            if (String(action?.type ?? "") !== "movement") continue;
-            const x = Number(action?.movementTargetX);
-            const y = Number(action?.movementTargetY);
-            if (Number.isFinite(x) && Number.isFinite(y)) {
-                positions.set(tokenId, { x, y });
-            }
-        }
-    }
-
-    return positions;
-}
 
 export class WorkspacePanelHost {
     constructor({
@@ -281,50 +211,16 @@ export class WorkspacePanelHost {
         const panelId = String(panel?.id ?? "").trim();
         const mapScene = this.getMapPanelScene(panel, context);
         const sceneName = this.escapeHTML(mapScene?.name ?? "Current Scene");
-        const mapSrc = mapScene?.mapSrc ?? "";
         const sceneId = String(mapScene?.id ?? this.getPanelSceneId(panel, context) ?? "").trim();
         const dimensions = [mapScene?.width, mapScene?.height].filter((value) => Number.isFinite(value) && value > 0);
         const dimensionLabel = dimensions.length === 2 ? `${dimensions[0]} x ${dimensions[1]}` : "Scene map";
 
-        const calModel = buildGridCalibrationModel({
-            state: this.gridCalibrationState(),
-            scene: mapScene
-        });
-        const calActive = calModel.active;
-        const sceneGridOverlayState = this.getSceneGridOverlayState(mapScene);
-        const sceneWallOverlayState = this.getSceneWallOverlayState(mapScene);
-        const encounterMovementOverlayState = this.getEncounterMovementOverlayState(mapScene);
-        const encounterTargetOverlayState = this.getEncounterTargetOverlayState(mapScene);
-        const sceneGridOverlayActive = Boolean(!calActive && sceneGridOverlayState);
-        const wallOverlayActive = Boolean(sceneWallOverlayState?.segments?.length);
-        const gridOverlayActive = calActive || sceneGridOverlayActive || wallOverlayActive;
-        const calDialog = renderGridCalibrationDialog(calModel, { escapeHTML: (v) => this.escapeHTML(v) });
-        const tokenMarkup = this.#renderMapTokenLayer(mapScene, encounterTargetOverlayState);
-
-        const imageMarkup = mapSrc
-            ? `<div class="totc-v2-map-panel__viewport${calActive ? " is-calibrating" : ""}" data-action="map-viewport" data-map-viewport="true"
-                data-scene-actor-drop-target="true" data-map-panel-id="${this.escapeHTML(panelId)}" data-scene-id="${this.escapeHTML(sceneId)}"
-                data-map-key="${this.escapeHTML(mapScene?.id ?? mapSrc)}"
-                data-grid-type="${this.escapeHTML(sceneGridOverlayState?.gridType ?? mapScene?.grid?.type ?? "")}"
-                data-grid-size="${this.escapeHTML(sceneGridOverlayState?.cellW ?? mapScene?.grid?.size ?? "")}"
-                data-grid-offset-x="${this.escapeHTML(sceneGridOverlayState?.offsetX ?? -Number(mapScene?.shiftX ?? 0))}"
-                data-grid-offset-y="${this.escapeHTML(sceneGridOverlayState?.offsetY ?? -Number(mapScene?.shiftY ?? 0))}">
-                <img class="totc-v2-map-panel__image" src="${this.escapeHTML(mapSrc)}" alt="${sceneName}" draggable="false" data-action="map-image">
-                ${tokenMarkup}
-                ${this.#renderEncounterMovementOverlay(encounterMovementOverlayState)}
-                ${this.#renderEncounterTargetOverlay(encounterTargetOverlayState)}
-                ${gridOverlayActive ? `<svg class="totc-v2-map-panel__grid-overlay" data-grid-overlay="true" aria-hidden="true"></svg>` : ""}
-                <div class="totc-v2-map-panel__actor-drop-preview" data-actor-drop-preview="true" aria-hidden="true"></div>
-            </div>`
-            : `<div class="totc-v2-map-panel__empty">No active scene map available</div>`;
         return `
-        <figure class="totc-v2-map-panel${calActive ? " is-calibrating" : ""}">
-            ${imageMarkup}
+        <figure class="totc-v2-map-panel totc-v2-map-panel--native-canvas" data-native-canvas-panel="true" data-map-panel-id="${this.escapeHTML(panelId)}" data-scene-id="${this.escapeHTML(sceneId)}">
             <figcaption class="totc-v2-map-panel__caption">
                 <span class="totc-v2-map-panel__name">${sceneName}</span>
                 <span class="totc-v2-map-panel__meta">${this.escapeHTML(dimensionLabel)}</span>
             </figcaption>
-            ${calDialog}
         </figure>`;
     }
 
@@ -445,91 +341,6 @@ export class WorkspacePanelHost {
                 ${secondarySegment}
             </div>
         </nav>`;
-    }
-
-    #renderMapTokenLayer(scene = null, targetOverlay = null) {
-        const cell = positiveNumber(scene?.grid?.size, 100);
-        const tokens = collectionContents(scene?.tokens).filter(Boolean);
-        const selectedTokenIds = this.getSelectedTokenIds();
-        const targetTokenIds = new Set(targetOverlay?.targetTokenIds ?? []);
-        const sourceTokenId = String(targetOverlay?.sourceTokenId ?? "").trim();
-        const targetingActive = Boolean(targetOverlay?.active);
-        const encounterCombat = globalThis.ui?.combat?.viewed ?? globalThis.game?.combat ?? globalThis.game?.combats?.active ?? null;
-        const encounterState = encounterCombat?.encounterState ?? encounterCombat?.encounter?.state ?? {};
-        const currentTick = Number(encounterState?.resolution?.currentTick ?? encounterState?.currentEvaluationTick ?? 0);
-        const perCombatant = encounterState?.perCombatant ?? {};
-        const timeline = Array.isArray(encounterState?.timeline) ? encounterState.timeline : [];
-        const plannedPositions = plannedTokenPositionsFromEncounter(encounterCombat);
-
-        const combatantByTokenId = new Map();
-        for (const combatant of collectionContents(encounterCombat?.combatants)) {
-            const combatTokenId = String(combatant?.tokenId ?? combatant?.token?.id ?? "").trim();
-            if (combatTokenId) combatantByTokenId.set(combatTokenId, combatant);
-        }
-
-        const tokenMarkup = tokens.map((token) => {
-            const tokenId = tokenDocumentId(token);
-            const plannedPosition = plannedPositions.get(tokenId);
-            const x = Number.isFinite(plannedPosition?.x) ? plannedPosition.x : tokenPosition(token, "x");
-            const y = Number.isFinite(plannedPosition?.y) ? plannedPosition.y : tokenPosition(token, "y");
-            const width = tokenGridSize(token, "width") * cell;
-            const height = tokenGridSize(token, "height") * cell;
-            const src = tokenTexture(token);
-            const name = tokenName(token);
-            const actorId = String(token?.actor?.id ?? token?.actor?._id ?? token?.actorId ?? "").trim();
-            const isSelected = selectedTokenIds.has(tokenId) ? " is-selected" : "";
-            const targetClass = targetingActive
-                ? targetTokenIds.has(tokenId)
-                    ? " is-targetable"
-                    : tokenId === sourceTokenId
-                        ? " is-source"
-                        : " is-out-of-range"
-                : "";
-            const combatant = combatantByTokenId.get(tokenId) ?? null;
-            const combatantId = String(combatant?.id ?? "").trim();
-            const combatantState = combatantId ? perCombatant?.[combatantId] : null;
-            const readyClass = combatantState?.ready ? " is-ready" : "";
-            const healthValue = combatant?.actor?.system?.resources?.health?.value ?? token?.actor?.system?.resources?.health?.value;
-            const healthKnown = Number.isFinite(Number(healthValue));
-            const health = Number(healthValue);
-            const incapacitatedClass = healthKnown && health <= 0 ? " is-incapacitated" : "";
-            const actingNow = combatantId
-                ? timeline.some((entry) => String(entry?.combatantId ?? "") === combatantId && Number(entry?.tick ?? entry?.slot ?? 0) === currentTick)
-                : false;
-            const actingClass = actingNow ? " is-acting" : "";
-            const style = `left:${this.escapeHTML(x)}px;top:${this.escapeHTML(y)}px;width:${this.escapeHTML(width)}px;height:${this.escapeHTML(height)}px`;
-            return src
-                ? `<img class="totc-v2-map-panel__token${isSelected}${targetClass}${readyClass}${actingClass}${incapacitatedClass}" src="${this.escapeHTML(src)}" alt="${this.escapeHTML(name)}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token" draggable="false">`
-                : `<span class="totc-v2-map-panel__token totc-v2-map-panel__token--fallback${isSelected}${targetClass}${readyClass}${actingClass}${incapacitatedClass}" title="${this.escapeHTML(name)}" style="${style}" data-token-id="${this.escapeHTML(tokenId)}" data-actor-id="${this.escapeHTML(actorId)}" data-action="map-token">${this.escapeHTML(name.slice(0, 1).toUpperCase() || "?")}</span>`;
-        }).join("");
-        return `<div class="totc-v2-map-panel__token-layer" data-map-token-layer="true" aria-label="Scene tokens">${tokenMarkup}</div>`;
-    }
-
-    #renderEncounterMovementOverlay(model = null) {
-        if (!model?.active || !Array.isArray(model.cells) || !model.cells.length) return "";
-        const cells = model.cells.map((cell) => {
-            const classes = [
-                "totc-v2-map-panel__movement-cell",
-                cell.origin ? "is-origin" : ""
-            ].filter(Boolean).join(" ");
-            const style = `left:${this.escapeHTML(cell.left)}px;top:${this.escapeHTML(cell.top)}px;width:${this.escapeHTML(cell.width)}px;height:${this.escapeHTML(cell.height)}px`;
-            const title = cell.origin
-                ? "Current position"
-                : `${this.escapeHTML(cell.distanceFeet)} ft, ${this.escapeHTML(cell.requiredAp)} AP`;
-            return `<button type="button" class="${classes}" style="${style}" data-action="encounter-move-square" data-row="${this.escapeHTML(cell.row)}" data-col="${this.escapeHTML(cell.col)}" data-required-ap="${this.escapeHTML(cell.requiredAp)}" title="${title}" aria-label="${title}"></button>`;
-        }).join("");
-        return `<div class="totc-v2-map-panel__movement-overlay" data-encounter-movement-overlay="true" aria-label="Reachable movement squares">${cells}</div>`;
-    }
-
-    #renderEncounterTargetOverlay(model = null) {
-        if (!model?.active) return "";
-        const diameter = Math.max(0, Number(model.radiusPixels ?? 0) * 2);
-        const radius = Math.max(0, Number(model.radiusPixels ?? 0));
-        const left = Number(model.origin?.x ?? 0) - radius;
-        const top = Number(model.origin?.y ?? 0) - radius;
-        const style = `left:${this.escapeHTML(left)}px;top:${this.escapeHTML(top)}px;width:${this.escapeHTML(diameter)}px;height:${this.escapeHTML(diameter)}px`;
-        const label = `Select ${this.escapeHTML(String(model.rangeType ?? "attack"))} target (${this.escapeHTML(String(model.rangeFeet ?? 0))} ft)`;
-        return `<div class="totc-v2-map-panel__targeting-overlay" data-encounter-targeting-overlay="true" aria-label="${label}"><div class="totc-v2-map-panel__targeting-ring" style="${style}"></div><div class="totc-v2-map-panel__targeting-label">${label}</div></div>`;
     }
 
     #renderCompendiumPanel(context = {}) {

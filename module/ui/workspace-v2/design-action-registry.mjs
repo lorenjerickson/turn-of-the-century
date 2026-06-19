@@ -2,7 +2,8 @@ import { createNpcDesignActor } from "./design-actions/actor-actions.mjs";
 import {
     activateSceneWallDesignMode,
     createSceneDesignScene,
-    detectSceneWalls
+    detectSceneWalls,
+    openSceneGridConfiguration
 } from "./design-actions/scene-actions.mjs";
 
 const DEFAULT_RELEVANCE = 50;
@@ -69,13 +70,7 @@ export const DEFAULT_DESIGN_ACTIONS = Object.freeze([
         domain: "scene",
         contexts: ["map"],
         relevance: 93,
-        execute: async (context = {}) => {
-            if (typeof context.app?._openGridCalibration === "function") {
-                context.app._openGridCalibration({ scene: context.scene });
-                return { ok: true, silent: true };
-            }
-            return { ok: false, level: "warn", message: "Grid calibration is not available." };
-        }
+        execute: async (context = {}) => openSceneGridConfiguration(context)
     },
     {
         id: "scene.detectWalls",

@@ -20,30 +20,28 @@ const workspacePanelHostSource = readFileSync(
 const styles = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
 describe("workspace actor drag and drop", () => {
-    it("marks map panels as actor drop targets with scene ids", () => {
-        assert.match(workspacePanelHostSource, /data-map-viewport="true"[\s\S]*data-scene-actor-drop-target="true"/);
+    it("does not use workspace map panels as custom actor drop targets", () => {
+        assert.match(workspacePanelHostSource, /data-native-canvas-panel="true"/);
         assert.match(workspacePanelHostSource, /data-scene-id="\$\{this\.escapeHTML\(sceneId\)\}"/);
-        assert.doesNotMatch(workspacePanelHostSource, /<figure class="totc-v2-map-panel[\s\S]*data-scene-actor-drop-target="true"/);
-        assert.match(workspacePanelHostSource, /data-actor-drop-preview="true"/);
+        assert.doesNotMatch(workspacePanelHostSource, /data-map-viewport="true"/);
+        assert.doesNotMatch(workspacePanelHostSource, /data-scene-actor-drop-target="true"/);
+        assert.doesNotMatch(workspacePanelHostSource, /data-actor-drop-preview="true"/);
     });
 
-    it("wires actor list drag payloads to scene actor drops", () => {
+    it("wires actor list drag payloads without workspace scene drop targets", () => {
         assert.match(workspaceRootSource, /this\.sceneActorDropController\.wireActorListDragHandlers\(this\.element\)/);
-        assert.match(workspaceRootSource, /this\.sceneActorDropController\.wireSceneActorDropHandlers\(this\.element\)/);
+        assert.doesNotMatch(workspaceRootSource, /this\.sceneActorDropController\.wireSceneActorDropHandlers\(this\.element\)/);
         assert.match(sceneActorDropControllerSource, /buildActorListDragPayload\(\{/);
         assert.match(sceneActorDropControllerSource, /event\.dataTransfer\.setData\(ACTOR_LIST_DRAG_MIME, JSON\.stringify\(payload\)\)/);
         assert.match(sceneActorDropControllerSource, /this\.\#setDragImage\(event\.dataTransfer, payload\.actorIds\)/);
         assert.match(sceneActorDropControllerSource, /dataTransfer\.setDragImage\(dragImage, 20, 20\)/);
         assert.match(sceneActorDropControllerSource, /actor\?\.prototypeToken\?\.texture\?\.src \?\? actor\?\.img/);
-        assert.match(sceneActorDropControllerSource, /#payloadFromDataTransfer\(dataTransfer\)\s*\{[\s\S]*parseActorListDragPayload\(dataTransfer\?\.getData\?\.\(ACTOR_LIST_DRAG_MIME\)\)/);
-        assert.match(sceneActorDropControllerSource, /parseTextPlainActorPayload\(dataTransfer\?\.getData\?\.\(TEXT_PLAIN_MIME\)\)/);
-        assert.match(sceneActorDropControllerSource, /#hasActorDragPayload\(dataTransfer\)\s*\{[\s\S]*this\.activeDragPayload\?\.actorIds\?\.length/);
-        assert.match(sceneActorDropControllerSource, /dataTransferHasType\(dataTransfer, TEXT_PLAIN_MIME\)/);
+        assert.doesNotMatch(sceneActorDropControllerSource, /renderActorDropPreview/);
+        assert.doesNotMatch(sceneActorDropControllerSource, /data-scene-actor-drop-target/);
+        assert.doesNotMatch(sceneActorDropControllerSource, /data-actor-drop-preview/);
         assert.match(workspaceRootSource, /getActorById: \(id\) => this\.\#getActorDocumentByReference\(id\)/);
         assert.match(workspaceRootSource, /#getActorDocumentByReference\(reference\)[\s\S]*id === actorUuid/);
         assert.match(workspaceRootSource, /logger: totcLogger/);
-        assert.match(sceneActorDropControllerSource, /this\.renderActorDropPreview\(target, \{ actors, scene, event \}\)/);
-        assert.match(sceneActorDropControllerSource, /await this\.addActorsToScene\(actors, \{ scene, anchorPosition \}\)/);
         assert.match(sceneActorDropControllerSource, /buildSceneActorTokenData\(\{ actors: selectedActors, scene, anchorPosition \}\)/);
     });
 
@@ -51,17 +49,15 @@ describe("workspace actor drag and drop", () => {
         assert.match(workspaceRootSource, /const WORKSPACE_PANEL_DRAG_MIME = "application\/x-totc-workspace-panel";/);
         assert.match(workspaceRootSource, /event\.dataTransfer\?\.setData\(WORKSPACE_PANEL_DRAG_MIME, panelId \?\? ""\)/);
         assert.match(workspaceRootSource, /if \(!dataTransferHasType\(event\.dataTransfer, WORKSPACE_PANEL_DRAG_MIME\)\) return;[\s\S]*event\.preventDefault\(\);/);
-        assert.match(sceneActorDropControllerSource, /if \(!this\.\#hasActorDragPayload\(event\.dataTransfer\)\) \{[\s\S]*Scene actor drop ignored without actor payload[\s\S]*return;[\s\S]*event\.stopPropagation\(\);/);
-        assert.match(sceneActorDropControllerSource, /#wireSceneActorDropDiagnostics\(root\)[\s\S]*Workspace actor drop captured/);
+        assert.doesNotMatch(sceneActorDropControllerSource, /Workspace actor drop captured/);
     });
 
-    it("styles actor drag rows and map drop targets", () => {
+    it("styles actor drag rows without custom map drop target styles", () => {
         assert.match(styles, /\.totc-v2-actor-list-panel__entry\.is-dragging\s*\{[\s\S]*opacity:\s*0\.56;/);
-        assert.match(styles, /\.totc-v2-map-panel__viewport\.is-actor-drop-target\s*\{[\s\S]*border-color:\s*rgba\(251, 191, 36, 0\.42\);/);
+        assert.doesNotMatch(styles, /\.totc-v2-map-panel__viewport\.is-actor-drop-target\s*\{/);
         assert.doesNotMatch(styles, /\.totc-v2-map-panel\.is-actor-drop-target\s*\{/);
-        assert.match(styles, /\.totc-v2-map-panel__actor-drop-preview\s*\{[\s\S]*transform-origin:\s*0 0;/);
-        assert.match(styles, /\.totc-v2-map-panel__actor-drop-preview\.has-preview\s*\{[\s\S]*opacity:\s*0\.62;/);
-        assert.match(styles, /\.totc-v2-map-panel__actor-drop-square\s*\{[\s\S]*position:\s*absolute;/);
+        assert.doesNotMatch(styles, /\.totc-v2-map-panel__actor-drop-preview\s*\{/);
+        assert.doesNotMatch(styles, /\.totc-v2-map-panel__actor-drop-square\s*\{/);
         assert.match(styles, /\.totc-v2-actor-drag-image\s*\{[\s\S]*display:\s*grid;/);
         assert.match(styles, /\.totc-v2-actor-drag-image img,[\s\S]*\.totc-v2-actor-drag-image span\s*\{[\s\S]*height:\s*2\.5rem;[\s\S]*width:\s*2\.5rem;/);
     });

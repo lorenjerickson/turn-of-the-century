@@ -77,7 +77,6 @@ import { WORKSPACE_V2_DOCK_IDS } from "./constants.mjs";
 import { InteractionController } from "./interaction-controller.mjs";
 import { GridCalibrationController } from "./grid-calibration-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
-import { MapViewportController } from "./map-viewport-controller.mjs";
 import { WorkspacePanelRegistry } from "./panel-registry.mjs";
 import { getDieRollRequestHostPanelId } from "./die-roll-request-routing.mjs";
 import { openFoundrySettingsView } from "./workspace-system-menu.mjs";
@@ -133,14 +132,10 @@ import {
     buildSceneWallOverlayState
 } from "./scene-wall-detection.mjs";
 import {
-    buildGridCalibrationSceneUpdate,
-    buildGridCalibrationOverlayModel,
-    buildSceneGridOverlayState,
-    GRID_CAL_PHASE_HINTS
+    buildGridCalibrationSceneUpdate
 } from "./panels/grid-calibration.mjs";
 import {
-    buildEncounterMovementOverlayModel,
-    findEncounterMovementOverlayCellAtPoint
+    buildEncounterMovementOverlayModel
 } from "./encounter-movement-overlay.mjs";
 import {
     buildEncounterTargetingOverlayModel
@@ -587,6 +582,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.ghostIntent = null;
         this.activeDesignLensPanelIds = new Set();
         this.selectedTokenIds = new Set();
+        this._nativeCanvasViewSceneId = "";
         this._activePlanEditSlot = null;
         this._wiredElement = null;
         this.designCommandPaletteOpen = false;
@@ -661,7 +657,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getActorById: (id) => this.#getActorDocumentByReference(id),
             getSceneById: (id) => this.#getSceneDocumentById(id),
             getFallbackScene: () => this.#getScenePropertiesScene(),
-            getImageSpacePoint: (viewport, event) => this.#getImageSpacePointFromMapEvent(viewport, event),
             setScenePropertiesState: (patch) => {
                 this.sceneWorkspaceController.patchState(patch);
             },
@@ -705,13 +700,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             random: () => Math.random(),
             logger: console
         });
-        this.mapViewportController = new MapViewportController({
-            stateStore: this.stateStore,
-            onTransformChange: () => {
-                this.#drawGridCalibrationOverlay();
-                this.#syncActorDropPreviewTransforms();
-            }
-        });
         this.gridCalibrationController = new GridCalibrationController({
             sceneResolver: (state) => state.sceneId
                 ? game.scenes?.get(state.sceneId)
@@ -728,6 +716,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._selectedWallIdsByScene = new Map();
         this._joinableWallIdsByScene = new Map();
         this._wallAddSequence = null;
+        this._onWallEditKeyDown = this.#onWallEditKeyDown.bind(this);
         this._gmAssistantState = {
             elementType: "campaign",
             actorType: "pawn",
@@ -1330,6 +1319,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async _onRender(context, options) {
         await super._onRender(context, options);
         this.hooksController.bindAll();
+        this.#syncNativeCanvasScene();
 
         this.#wireRollLockGuard();
         this.#wireDieRollRequestHandlers();
@@ -2096,10 +2086,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
-        this.#wireMapInteractionHandlers();
-        this.#wireGridCalibrationHandlers();
+        document.addEventListener("keydown", this._onWallEditKeyDown);
         this.#wireScenePropertiesHandlers();
-        this.#wireSceneActorDropHandlers();
         this.#wireLoggingPanelHandlers();
 
         this.#wireInteractionHandlers();
@@ -2109,7 +2097,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async close(options = {}) {
         this.hooksController.unbindAll();
         this.compendiumCacheController.dispose();
-        this.#endMapPanSession();
         this.sceneActorDropController.clearDragImage();
         this.gridCalibrationController.close();
         this._loggerUnsubscribe?.();
@@ -2133,9 +2120,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             .join("");
         const orientationClass = dock?.orientation === "horizontal" ? "is-horizontal" : "is-vertical";
         const collapsedClass = collapsed ? "is-collapsed" : "";
+        const nativeCanvasClass = dockId === "centerDock" && (dock?.stacks ?? []).some((stack) => {
+            const activePanel = (stack?.panels ?? []).find((panel) => panel.id === stack.activePanelId) ?? stack?.panels?.[0];
+            return this.#isMapPanel(activePanel);
+        }) ? " is-native-canvas-aperture" : "";
 
         return `
-        <section class="totc-v2-dock totc-v2-dock--${dockId} ${orientationClass} ${collapsedClass}" data-dock-id="${dockId}" data-collapsed="${collapsed ? "true" : "false"}">
+        <section class="totc-v2-dock totc-v2-dock--${dockId} ${orientationClass} ${collapsedClass}${nativeCanvasClass}" data-dock-id="${dockId}" data-collapsed="${collapsed ? "true" : "false"}">
             <div class="totc-v2-dock__stacks ${orientationClass}" data-dock-stacks="${dockId}">
                 ${stackItemsMarkup || `<div class='totc-v2-dock__empty' data-dock-drop-target='${dockId}'>Drop panel here</div>`}
             </div>
@@ -2161,14 +2152,16 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         const activePanel = (stack?.panels ?? []).find((panel) => panel.id === stack.activePanelId) ?? stack?.panels?.[0];
         const collapsed = Boolean(options.dockCollapsed);
-        const panelContent = collapsed ? "" : this.#renderPanelContent(activePanel, context);
+        const nativeCanvasAperture = dockId === "centerDock" && this.#isMapPanel(activePanel);
+        const panelContent = collapsed || nativeCanvasAperture ? "" : this.#renderPanelContent(activePanel, context);
         const designLensActive = this.#isDesignLensActive(activePanel?.id);
         const designButtonTitle = designLensActive ? "Close design lens" : "Open design lens";
         const canCollapseDock = dockId !== "centerDock";
         const collapseTitle = collapsed ? "Restore dock" : "Minimize dock";
+        const nativeCanvasClass = nativeCanvasAperture ? " is-native-canvas-aperture" : "";
 
         return `
-        <article class="totc-v2-stack ${collapsed ? "is-collapsed" : ""}" data-dock-id="${dockId}" data-stack-id="${stack.id}" style="flex-grow:${Number(stack.size) || 1};">
+        <article class="totc-v2-stack ${collapsed ? "is-collapsed" : ""}${nativeCanvasClass}" data-dock-id="${dockId}" data-stack-id="${stack.id}" style="flex-grow:${Number(stack.size) || 1};">
             <div class="totc-v2-stack__header">
                 <div class="totc-v2-stack__tabs">
                     ${options.includeDockLabel ? `<span class="totc-v2-dock-label-inline">${this.#escapeHTML(options.dockLabel ?? dockId)}</span>` : ""}
@@ -2762,8 +2755,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const offsetY = -Number(scene?.shiftY ?? 0);
         const row = Number(selectedCell?.row ?? 0);
         const col = Number(selectedCell?.col ?? 0);
-        const targetX = (col * gridSize) + offsetX;
-        const targetY = (row * gridSize) + offsetY;
+        const cellLeft = Number(selectedCell?.left);
+        const cellTop = Number(selectedCell?.top);
+        const targetX = Number.isFinite(cellLeft) ? cellLeft : (col * gridSize) + offsetX;
+        const targetY = Number.isFinite(cellTop) ? cellTop : (row * gridSize) + offsetY;
         const originX = Number(token?.x ?? token?.document?.x ?? 0);
         const originY = Number(token?.y ?? token?.document?.y ?? 0);
 
@@ -3919,325 +3914,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         await this.marketController.handleSell(itemId, requestedQuantity);
     }
 
-    #wireMapInteractionHandlers() {
-        const viewports = [...(this.element?.querySelectorAll("[data-action='map-viewport']") ?? [])];
-        if (!viewports.length) return;
-        this._onWallEditKeyDown ??= this.#onWallEditKeyDown.bind(this);
-        document.addEventListener("keydown", this._onWallEditKeyDown);
-
-        for (const viewport of viewports) {
-            const image = viewport.querySelector("[data-action='map-image']");
-            if (!(image instanceof HTMLImageElement)) continue;
-
-            viewport.addEventListener("contextmenu", (event) => {
-                if (this._wallAddSequence) this.#cancelWallAddSequence();
-                event.preventDefault();
-            });
-
-            viewport.addEventListener("dblclick", async (event) => {
-                const tokenEl = event.target.closest("[data-action='map-token']");
-                if (!tokenEl) return;
-                event.preventDefault();
-                event.stopPropagation();
-                await this.actorWorkspaceController.openActorEditor();
-            });
-
-            viewport.addEventListener("pointerdown", (event) => {
-                // Handle right-click panning
-                if (event.button === 2) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (this._wallAddSequence) {
-                        this.#cancelWallAddSequence();
-                        return;
-                    }
-                    this.mapViewportController.beginPan({
-                        pointerId: event.pointerId,
-                        viewport,
-                        image,
-                        clientX: event.clientX,
-                        clientY: event.clientY
-                    });
-
-                    this._onMapPanPointerMove ??= this.#onMapPanPointerMove.bind(this);
-                    this._onMapPanPointerUp ??= this.#onMapPanPointerUp.bind(this);
-                    document.addEventListener("pointermove", this._onMapPanPointerMove);
-                    document.addEventListener("pointerup", this._onMapPanPointerUp);
-                    return;
-                }
-
-                // Handle left-click actions (dragging or rubberband selection)
-                if (event.button !== 0) return;
-
-                if (this._encounterMovementInteraction) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    const overlayModel = this.#getEncounterMovementOverlayState(game.scenes?.get(viewport.dataset.sceneId) ?? canvas?.scene ?? game.scenes?.viewed ?? null);
-                    const point = this.#getImageSpacePointFromMapEvent(viewport, event);
-                    const cell = findEncounterMovementOverlayCellAtPoint(overlayModel, point);
-                    if (cell) {
-                        void this.#finishEncounterMovementInteraction(cell);
-                    } else {
-                        void this.#cancelEncounterMovementInteraction();
-                    }
-                    return;
-                }
-
-                if (this._encounterTargetingInteraction) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    const scene = game.scenes?.get(viewport.dataset.sceneId) ?? canvas?.scene ?? game.scenes?.viewed ?? null;
-                    const overlayModel = this.#getEncounterTargetOverlayState(scene);
-                    const tokenEl = event.target.closest("[data-action='map-token']");
-                    const tokenId = String(tokenEl?.dataset?.tokenId ?? "").trim();
-                    const canTarget = tokenId && (overlayModel?.targetTokenIds ?? []).includes(tokenId);
-                    if (canTarget) {
-                        void this.#finishEncounterTargetingInteraction(tokenId);
-                    } else {
-                        void this.#cancelEncounterTargetingInteraction();
-                    }
-                    return;
-                }
-
-                if (viewport.classList.contains("is-calibrating")) return;
-
-                const tokenEl = event.target.closest("[data-action='map-token']");
-
-                if (!tokenEl && this.#isWallSelectionPointerEvent(viewport)) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    this.#beginWallRubberbandSelection(viewport, event);
-                    return;
-                }
-
-                const hasModifier = event.shiftKey || event.ctrlKey || event.metaKey;
-                const initialSelectedIds = new Set(this.selectedTokenIds);
-
-                if (tokenEl) {
-                    // Token click/drag
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    const tokenId = tokenEl.dataset.tokenId;
-                    const sceneId = viewport.dataset.sceneId;
-                    const scene = game.scenes?.get(sceneId);
-                    if (!scene) return;
-
-                    const tokenDoc = scene.tokens?.get(tokenId);
-                    const actor = tokenDoc?.actor || game.actors?.get(tokenDoc?.actorId);
-                    if (!(game.user?.isGM || actor?.isOwner)) return;
-
-                    const isClickedSelected = this.selectedTokenIds.has(tokenId);
-
-                    if (!isClickedSelected) {
-                        if (hasModifier) {
-                            this.selectedTokenIds.add(tokenId);
-                        } else {
-                            this.selectedTokenIds = new Set([tokenId]);
-                        }
-                        for (const t of viewport.querySelectorAll("[data-action='map-token']")) {
-                            t.classList.toggle("is-selected", this.selectedTokenIds.has(t.dataset.tokenId));
-                        }
-                    }
-
-                    const draggedTokens = [];
-                    for (const id of this.selectedTokenIds) {
-                        const tDoc = scene.tokens?.get(id);
-                        const tActor = tDoc?.actor || game.actors?.get(tDoc?.actorId);
-                        if (!(game.user?.isGM || tActor?.isOwner)) continue;
-
-                        const el = viewport.querySelector(`[data-token-id="${id}"]`);
-                        if (el) {
-                            const startLeft = parseFloat(el.style.left) || 0;
-                            const startTop = parseFloat(el.style.top) || 0;
-                            draggedTokens.push({ id, el, startLeft, startTop });
-                        }
-                    }
-
-                    if (draggedTokens.length === 0) return;
-
-                    const startClientX = event.clientX;
-                    const startClientY = event.clientY;
-                    const { scale } = this.#getMapImageTransform(viewport);
-                    let moved = false;
-
-                    const onPointerMove = (moveEvent) => {
-                        const dx = (moveEvent.clientX - startClientX) / scale;
-                        const dy = (moveEvent.clientY - startClientY) / scale;
-                        if (Math.hypot(dx * scale, dy * scale) > 3) {
-                            moved = true;
-                        }
-                        for (const t of draggedTokens) {
-                            t.el.style.left = `${t.startLeft + dx}px`;
-                            t.el.style.top = `${t.startTop + dy}px`;
-                        }
-                    };
-
-                    const onPointerUp = async (upEvent) => {
-                        document.removeEventListener("pointermove", onPointerMove);
-                        document.removeEventListener("pointerup", onPointerUp);
-
-                        if (moved) {
-                            const dx = (upEvent.clientX - startClientX) / scale;
-                            const dy = (upEvent.clientY - startClientY) / scale;
-                            const cellSize = Number(viewport.dataset.gridSize) || 100;
-                            const offsetX = Number(viewport.dataset.gridOffsetX) || 0;
-                            const offsetY = Number(viewport.dataset.gridOffsetY) || 0;
-
-                            const updates = draggedTokens.map((t) => {
-                                const rawX = t.startLeft + dx;
-                                const rawY = t.startTop + dy;
-                                const snappedX = Math.round((rawX - offsetX) / cellSize) * cellSize + offsetX;
-                                const snappedY = Math.round((rawY - offsetY) / cellSize) * cellSize + offsetY;
-                                return { _id: t.id, x: snappedX, y: snappedY };
-                            });
-
-                            try {
-                                await scene.updateEmbeddedDocuments("Token", updates);
-                            } catch (err) {
-                                console.error("Failed to update token positions", err);
-                            }
-                        } else {
-                            if (isClickedSelected) {
-                                if (hasModifier) {
-                                    this.selectedTokenIds.delete(tokenId);
-                                } else {
-                                    this.selectedTokenIds = new Set([tokenId]);
-                                }
-                                for (const t of viewport.querySelectorAll("[data-action='map-token']")) {
-                                    t.classList.toggle("is-selected", this.selectedTokenIds.has(t.dataset.tokenId));
-                                }
-                            }
-                            if (!hasModifier) {
-                                await this.#showEncounterPanelForToken({
-                                    combat: this.#getEncounterCombatForToken(tokenDoc) ?? this.#getEncounterCombat(),
-                                    scene,
-                                    token: tokenDoc,
-                                    actor
-                                });
-                            }
-                        }
-                        this.#syncSelectionToCanvas(scene);
-                        this.render({ force: false });
-                    };
-
-                    document.addEventListener("pointermove", onPointerMove);
-                    document.addEventListener("pointerup", onPointerUp);
-                } else {
-                    // Rubberband selection
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    const sceneId = viewport.dataset.sceneId;
-                    const scene = game.scenes?.get(sceneId);
-
-                    const rect = viewport.getBoundingClientRect();
-                    const startClientX = event.clientX;
-                    const startClientY = event.clientY;
-                    const startViewportX = event.clientX - rect.left;
-                    const startViewportY = event.clientY - rect.top;
-
-                    const boxEl = document.createElement("div");
-                    boxEl.className = "totc-v2-map-viewport__selection-box";
-                    boxEl.style.position = "absolute";
-                    boxEl.style.left = `${startViewportX}px`;
-                    boxEl.style.top = `${startViewportY}px`;
-                    boxEl.style.width = "0px";
-                    boxEl.style.height = "0px";
-                    boxEl.style.pointerEvents = "none";
-                    boxEl.style.zIndex = "1000";
-                    viewport.appendChild(boxEl);
-
-                    let moved = false;
-
-                    const onPointerMove = (moveEvent) => {
-                        const currentRect = viewport.getBoundingClientRect();
-                        const currentViewportX = moveEvent.clientX - currentRect.left;
-                        const currentViewportY = moveEvent.clientY - currentRect.top;
-
-                        const left = Math.min(startViewportX, currentViewportX);
-                        const top = Math.min(startViewportY, currentViewportY);
-                        const width = Math.abs(currentViewportX - startViewportX);
-                        const height = Math.abs(currentViewportY - startViewportY);
-
-                        if (width > 3 || height > 3) {
-                            moved = true;
-                        }
-
-                        boxEl.style.left = `${left}px`;
-                        boxEl.style.top = `${top}px`;
-                        boxEl.style.width = `${width}px`;
-                        boxEl.style.height = `${height}px`;
-
-                        const boxRect = boxEl.getBoundingClientRect();
-                        const tokenEls = viewport.querySelectorAll("[data-action='map-token']");
-                        const currentBoxSelected = new Set();
-
-                        for (const el of tokenEls) {
-                            const tokenRect = el.getBoundingClientRect();
-                            const overlaps = !(
-                                tokenRect.right < boxRect.left ||
-                                tokenRect.left > boxRect.right ||
-                                tokenRect.bottom < boxRect.top ||
-                                tokenRect.top > boxRect.bottom
-                            );
-                            if (overlaps) {
-                                const tDoc = scene?.tokens?.get(el.dataset.tokenId);
-                                const tActor = tDoc?.actor || game.actors?.get(tDoc?.actorId);
-                                if (game.user?.isGM || tActor?.isOwner) {
-                                    currentBoxSelected.add(el.dataset.tokenId);
-                                }
-                            }
-                        }
-
-                        if (hasModifier) {
-                            this.selectedTokenIds = new Set([...initialSelectedIds, ...currentBoxSelected]);
-                        } else {
-                            this.selectedTokenIds = currentBoxSelected;
-                        }
-
-                        for (const el of tokenEls) {
-                            el.classList.toggle("is-selected", this.selectedTokenIds.has(el.dataset.tokenId));
-                        }
-                    };
-
-                    const onPointerUp = () => {
-                        document.removeEventListener("pointermove", onPointerMove);
-                        document.removeEventListener("pointerup", onPointerUp);
-                        boxEl.remove();
-
-                        if (!moved && !hasModifier) {
-                            this.selectedTokenIds.clear();
-                            for (const el of viewport.querySelectorAll("[data-action='map-token']")) {
-                                el.classList.remove("is-selected");
-                            }
-                        }
-
-                        this.#syncSelectionToCanvas(scene);
-                        this.render({ force: false });
-                    };
-
-                    document.addEventListener("pointermove", onPointerMove);
-                    document.addEventListener("pointerup", onPointerUp);
-                }
-            });
-
-            viewport.addEventListener("wheel", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this.mapViewportController.applyWheelZoom(viewport, image, event);
-            }, { passive: false });
-
-            if (image.complete && Number.isFinite(image.naturalWidth) && image.naturalWidth > 0) {
-                this.mapViewportController.syncViewport(viewport, image);
-            } else {
-                image.addEventListener("load", () => {
-                    this.mapViewportController.syncViewport(viewport, image);
-                }, { once: true });
-            }
-        }
-    }
-
     #wireInteractionHandlers() {
         const host = this.element?.querySelector("[data-layout-root='true']");
         if (!host) return;
@@ -4603,90 +4279,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (topHandle) topHandle.style.top = `${topBoundary}%`;
         if (bottomHandle) bottomHandle.style.top = `${bottomBoundary}%`;
 
-        this.#syncMapViewportTransforms();
-    }
-
-    #syncMapViewportTransforms() {
-        const viewports = [...(this.element?.querySelectorAll("[data-action='map-viewport']") ?? [])];
-        for (const viewport of viewports) {
-            const image = viewport.querySelector("[data-action='map-image']");
-            if (!(image instanceof HTMLImageElement)) continue;
-            if (!image.complete || !Number.isFinite(image.naturalWidth) || image.naturalWidth <= 0) continue;
-            this.mapViewportController.syncViewport(viewport, image);
-            this.#syncActorDropPreviewTransform(viewport);
-        }
-    }
-
-    #syncActorDropPreviewTransforms() {
-        this.sceneActorDropController.syncActorDropPreviewTransforms(this.element);
-    }
-
-    #syncActorDropPreviewTransform(viewport) {
-        this.sceneActorDropController.syncActorDropPreviewTransform(viewport);
-    }
-
-    #getMapImageTransform(viewport) {
-        const image = viewport?.querySelector?.("[data-action='map-image']");
-        if (!(image instanceof HTMLImageElement)) {
-            return {
-                scale: Number(this.mapViewportController.state?.scale),
-                offsetX: Number(this.mapViewportController.state?.offsetX ?? 0),
-                offsetY: Number(this.mapViewportController.state?.offsetY ?? 0)
-            };
-        }
-
-        const transform = String(image.style.transform ?? "").trim();
-        const matrixMatch = transform.match(/^matrix\(([^)]+)\)$/);
-        if (matrixMatch) {
-            const values = matrixMatch[1].split(",").map((value) => Number(value.trim()));
-            return { scale: values[0], offsetX: values[4], offsetY: values[5] };
-        }
-
-        const translateMatch = transform.match(/translate\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px\s*\)/);
-        const scaleMatch = transform.match(/scale\(\s*(-?[\d.]+)\s*\)/);
-        return {
-            scale: Number(scaleMatch?.[1] ?? this.mapViewportController.state?.scale),
-            offsetX: Number(translateMatch?.[1] ?? this.mapViewportController.state?.offsetX ?? 0),
-            offsetY: Number(translateMatch?.[2] ?? this.mapViewportController.state?.offsetY ?? 0)
-        };
-    }
-
-    #getImageSpacePointFromMapEvent(viewport, event) {
-        const rect = viewport?.getBoundingClientRect?.();
-        if (!rect || !event) return null;
-        const { scale, offsetX, offsetY } = this.#getMapImageTransform(viewport);
-        if (!Number.isFinite(scale) || scale <= 0) return null;
-        return {
-            x: ((event.clientX - rect.left) - Number(offsetX ?? 0)) / scale,
-            y: ((event.clientY - rect.top) - Number(offsetY ?? 0)) / scale
-        };
-    }
-
-    #getImageSpaceBoundsFromMapEvents(viewport, startEvent, currentEvent) {
-        const start = this.#getImageSpacePointFromMapEvent(viewport, startEvent);
-        const current = this.#getImageSpacePointFromMapEvent(viewport, currentEvent);
-        if (!start || !current) return null;
-        return {
-            left: Math.min(start.x, current.x),
-            right: Math.max(start.x, current.x),
-            top: Math.min(start.y, current.y),
-            bottom: Math.max(start.y, current.y)
-        };
-    }
-
-    #onMapPanPointerMove(event) {
-        this.mapViewportController.movePan(event);
-    }
-
-    #onMapPanPointerUp(event) {
-        if (event.pointerId !== this.mapViewportController.panSession?.pointerId) return;
-        this.#endMapPanSession();
-    }
-
-    #endMapPanSession() {
-        this.mapViewportController.endPan();
-        document.removeEventListener("pointermove", this._onMapPanPointerMove);
-        document.removeEventListener("pointerup", this._onMapPanPointerUp);
     }
 
     async #onWallEditKeyDown(event) {
@@ -4772,165 +4364,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.render({ force: false });
     }
 
-    #isWallEditingPointerEvent(viewport) {
-        const state = this.#getMapWallEditingState(viewport);
-        return state.mode === "walls" && ["add", "split"].includes(state.wallCommand);
-    }
-
-    #isWallSelectionPointerEvent(viewport) {
-        const state = this.#getMapWallEditingState(viewport);
-        return state.mode === "walls";
-    }
-
-    #getMapWallEditingState(viewport) {
-        const panelId = String(
-            viewport?.dataset?.mapPanelId
-            ?? viewport?.closest?.(".totc-v2-map-panel")?.querySelector?.("[data-map-panel-id]")?.dataset?.mapPanelId
-            ?? ""
-        ).trim();
-        return this.#getMapPanelToolbarState({ id: panelId });
-    }
-
-    #getSceneForMapViewport(viewport) {
-        const sceneId = String(viewport?.dataset?.sceneId ?? "").trim();
-        return sceneId ? this.#getSceneDocumentById(sceneId) : null;
-    }
-
-    async #handleWallEditingPointerDown(viewport, event) {
-        if (!game.user?.isGM) return;
-        const state = this.#getMapWallEditingState(viewport);
-        const scene = this.#getSceneForMapViewport(viewport);
-        const point = this.#getImageSpacePointFromMapEvent(viewport, event);
-        const grid = buildWallEditingGrid(scene);
-
-        if (!scene) {
-            ui.notifications?.warn("Open a scene before editing walls.");
-            return;
-        }
-        if (!grid || !point) {
-            ui.notifications?.warn("Wall editing requires a calibrated square grid.");
-            return;
-        }
-
-        if (state.wallCommand === "add") {
-            await this.#handleAddWallClick({ scene, grid, point, wallType: state.wallType });
-            return;
-        }
-
-        this.#cancelWallAddSequence({ notify: false });
-        let result = null;
-        if (state.wallCommand === "split") {
-            result = await splitWallSegmentAtPoint({ scene, point, grid });
-        }
-
-        if (result?.ok) this.#refreshSceneWallOverlay(scene);
-        this.#reportWallEditResult(state.wallCommand, result);
-    }
-
-    async #handleAddWallClick({ scene, grid, point, wallType = "wall" } = {}) {
-        const snapped = snapPointToGridIntersection(point, grid);
-        if (!snapped) return;
-
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        if (!this._wallAddSequence || this._wallAddSequence.sceneId !== sceneId) {
-            this._wallAddSequence = { sceneId, start: snapped };
-            ui.notifications?.info?.("Wall start set. Click another grid intersection to finish, or press Esc/right-click to cancel.");
-            return;
-        }
-
-        const result = await addWallSegmentToScene({
-            scene,
-            start: this._wallAddSequence.start,
-            end: snapped,
-            wallType
-        });
-        this._wallAddSequence = null;
-        if (result?.ok) this.#refreshSceneWallOverlay(scene);
-        this.#reportWallEditResult("add", result);
-    }
-
-    #beginWallRubberbandSelection(viewport, event) {
-        const scene = this.#getSceneForMapViewport(viewport);
-        if (!scene) {
-            ui.notifications?.warn("Open a scene before selecting walls.");
-            return;
-        }
-
-        const startPoint = this.#getImageSpacePointFromMapEvent(viewport, event);
-        if (!startPoint) return;
-
-        const rect = viewport.getBoundingClientRect();
-        const startViewportX = event.clientX - rect.left;
-        const startViewportY = event.clientY - rect.top;
-        const hasModifier = event.shiftKey || event.ctrlKey || event.metaKey;
-        const initialSelectedIds = new Set(this.#getSelectedWallIds(scene));
-        const initialJoinableIds = new Set(this.#getJoinableWallIds(scene));
-
-        let moved = false;
-        let boxEl = null;
-
-        const onPointerMove = (moveEvent) => {
-            const currentRect = viewport.getBoundingClientRect();
-            const currentViewportX = moveEvent.clientX - currentRect.left;
-            const currentViewportY = moveEvent.clientY - currentRect.top;
-            const left = Math.min(startViewportX, currentViewportX);
-            const top = Math.min(startViewportY, currentViewportY);
-            const width = Math.abs(currentViewportX - startViewportX);
-            const height = Math.abs(currentViewportY - startViewportY);
-
-            if (width > 3 || height > 3) moved = true;
-            if (!moved) return;
-            if (!boxEl) {
-                this.#cancelWallAddSequence({ notify: false });
-                this.selectedTokenIds.clear();
-                viewport.querySelectorAll("[data-action='map-token']").forEach((token) => token.classList.remove("is-selected"));
-                this.#syncSelectionToCanvas(scene);
-
-                boxEl = document.createElement("div");
-                boxEl.className = "totc-v2-map-viewport__selection-box";
-                boxEl.style.position = "absolute";
-                boxEl.style.pointerEvents = "none";
-                boxEl.style.zIndex = "1000";
-                viewport.appendChild(boxEl);
-            }
-
-            boxEl.style.left = `${left}px`;
-            boxEl.style.top = `${top}px`;
-            boxEl.style.width = `${width}px`;
-            boxEl.style.height = `${height}px`;
-
-            const bounds = this.#getImageSpaceBoundsFromMapEvents(viewport, event, moveEvent);
-            const selectedIds = new Set(findWallsIntersectingBounds({ walls: scene.walls, bounds }).map((entry) => entry.id));
-            const joinableIds = new Set(findWallsWithinBounds({ walls: scene.walls, bounds }).map((entry) => entry.id));
-            this.#setSelectedWallIds(scene, hasModifier ? [...initialSelectedIds, ...selectedIds] : selectedIds);
-            this.#setJoinableWallIds(scene, hasModifier ? [...initialJoinableIds, ...joinableIds] : joinableIds);
-            this.#refreshSceneWallOverlay(scene);
-        };
-
-        const onPointerUp = () => {
-            document.removeEventListener("pointermove", onPointerMove);
-            document.removeEventListener("pointerup", onPointerUp);
-            boxEl?.remove();
-
-            if (!moved) {
-                if (this.#isWallEditingPointerEvent(viewport)) {
-                    void this.#handleWallEditingPointerDown(viewport, event);
-                    return;
-                }
-                if (!hasModifier) {
-                    this.#setSelectedWallIds(scene, []);
-                    this.#setJoinableWallIds(scene, []);
-                    this.#refreshSceneWallOverlay(scene);
-                }
-            }
-
-            this.render({ force: false });
-        };
-
-        document.addEventListener("pointermove", onPointerMove);
-        document.addEventListener("pointerup", onPointerUp);
-    }
-
     #deactivateWallModeForPanel(panelId = "") {
         const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
         const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
@@ -4939,7 +4372,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             this.#setSelectedWallIds(scene, []);
             this.#setJoinableWallIds(scene, []);
             this.#setSceneDetectedWallOverlayState(scene, null);
-            this.#drawGridCalibrationOverlay();
         }
     }
 
@@ -5033,7 +4465,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#setSceneDetectedWallOverlayState(scene, buildSceneWallOverlayState(scene, {
             selectedWallIds
         }));
-        this.#drawGridCalibrationOverlay();
     }
 
     #isDesignLensActive(panelId) {
@@ -5057,318 +4488,47 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return null;
     }
 
+    #getActiveCenterMapPanel(layout = this.layoutEngine.getLayout()) {
+        const centerDock = layout?.root?.centerDock;
+        for (const stack of centerDock?.stacks ?? []) {
+            const activePanel = (stack?.panels ?? []).find((panel) => panel.id === stack.activePanelId) ?? stack?.panels?.[0];
+            if (this.#isMapPanel(activePanel)) return activePanel;
+        }
+        return null;
+    }
+
+    #syncNativeCanvasScene() {
+        const panel = this.#getActiveCenterMapPanel();
+        const sceneId = this.#getPanelSceneId(panel);
+        if (!sceneId) {
+            this._nativeCanvasViewSceneId = "";
+            return;
+        }
+
+        const currentSceneId = String(canvas?.scene?.id ?? game.scenes?.viewed?.id ?? "").trim();
+        if (currentSceneId === sceneId) {
+            this._nativeCanvasViewSceneId = sceneId;
+            return;
+        }
+
+        if (this._nativeCanvasViewSceneId === sceneId) return;
+
+        const scene = this.#getSceneDocumentById(sceneId);
+        if (!scene?.view) return;
+
+        this._nativeCanvasViewSceneId = sceneId;
+        void scene.view().catch((error) => {
+            this._nativeCanvasViewSceneId = "";
+            console.error("[turn-of-the-century] Failed to view workspace scene", error);
+        });
+    }
+
     // -----------------------------------------------------------------------
     // Grid calibration
     // -----------------------------------------------------------------------
 
-    /**
-     * Open the grid calibration tool for the current scene.
-     * Called by the scene.grid design action execute function.
-     *
-     * @param {{ scene: object|null }} opts
-     */
-    _openGridCalibration({ scene = null } = {}) {
-        const liveScene = scene ?? canvas?.scene ?? game.scenes?.viewed ?? null;
-        this.gridCalibrationController.open({ scene: liveScene });
-        this.render({ force: false });
-    }
-
-    /** Close and tear down the grid calibration tool without saving. */
-    #closeGridCalibration() {
-        this.gridCalibrationController.close();
-        this.render({ force: false });
-    }
-
-    /**
-     * Wire click listeners for the calibration dialog and the map viewport
-     * corner-picking interaction.  Called from _onRender each render cycle.
-     */
-    #wireGridCalibrationHandlers() {
-        // Dialog button wiring -------------------------------------------------
-
-        this.element?.querySelectorAll("[data-action='grid-cal-cancel']")?.forEach((btn) => {
-            btn.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this.#closeGridCalibration();
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='grid-cal-reset']")?.forEach((btn) => {
-            btn.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this.gridCalibrationController.resetCorners();
-                this.render({ force: false });
-            });
-        });
-
-        // Number inputs update state + redraw the overlay without a full render
-        this.element?.querySelectorAll("[data-action='grid-cal-cell-w']")?.forEach((input) => {
-            const handleInput = () => {
-                this.gridCalibrationController.setCellWidth(input.value);
-                this.#drawGridCalibrationOverlay();
-            };
-            input.addEventListener("input", handleInput);
-            input.addEventListener("change", handleInput);
-        });
-
-        this.element?.querySelectorAll("[data-action='grid-cal-cell-h']")?.forEach((input) => {
-            const handleInput = () => {
-                this.gridCalibrationController.setCellHeight(input.value);
-                this.#drawGridCalibrationOverlay();
-            };
-            input.addEventListener("input", handleInput);
-            input.addEventListener("change", handleInput);
-        });
-
-        this.element?.querySelectorAll("[data-action='grid-cal-offset-x']")?.forEach((input) => {
-            const handleInput = () => {
-                this.gridCalibrationController.setOffsetX(input.value);
-                this.#drawGridCalibrationOverlay();
-            };
-            input.addEventListener("input", handleInput);
-            input.addEventListener("change", handleInput);
-        });
-
-        this.element?.querySelectorAll("[data-action='grid-cal-offset-y']")?.forEach((input) => {
-            const handleInput = () => {
-                this.gridCalibrationController.setOffsetY(input.value);
-                this.#drawGridCalibrationOverlay();
-            };
-            input.addEventListener("input", handleInput);
-            input.addEventListener("change", handleInput);
-        });
-
-        this.element?.querySelectorAll("[data-action='grid-cal-confirm']")?.forEach((btn) => {
-            btn.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.#applyGridCalibration();
-            });
-        });
-
-        // Map viewport corner-picking ------------------------------------------
-        if (!this.gridCalibrationController.active) {
-            this.#drawGridCalibrationOverlay();
-            return;
-        }
-
-        const viewport = this.element?.querySelector("[data-map-viewport='true']");
-        if (!viewport) return;
-
-        viewport.addEventListener("pointerdown", (event) => {
-            // Only intercept left-button clicks while in corner-picking phase
-            if (event.button !== 0) return;
-            const state = this.gridCalibrationController.state;
-            if (!state?.active || (state.corner1 && state.corner2)) return;
-
-            event.preventDefault();
-            event.stopPropagation();
-
-            const vRect = viewport.getBoundingClientRect();
-            const { scale, offsetX: imgX, offsetY: imgY } = this.mapViewportController.state;
-            const point = {
-                x: Math.round((event.clientX - vRect.left - imgX) / scale),
-                y: Math.round((event.clientY - vRect.top  - imgY) / scale)
-            };
-
-            const pickResult = this.gridCalibrationController.pickCorner(point);
-            if (pickResult.phase === "pick-second") {
-                // Imperatively update the hint text — avoids a full re-render
-                const hint = this.element?.querySelector(".totc-v2-grid-cal__hint");
-                if (hint) hint.innerHTML = GRID_CAL_PHASE_HINTS["pick-second"];
-                this.#drawGridCalibrationOverlay();
-            } else if (pickResult.phase === "adjust") {
-                this.#drawGridCalibrationOverlay();
-                // Full render to show the adjust controls
-                this.render({ force: false });
-            }
-        });
-
-        // Draw initial overlay (covers the case where we re-render mid-adjust)
-        this.#drawGridCalibrationOverlay();
-    }
-
-    /**
-     * Imperatively draw (or redraw) the SVG grid overlay over the map viewport.
-     * Called after corner picks and after each input change.
-     */
-    #drawGridCalibrationOverlay() {
-        const overlay = this.element?.querySelector("[data-grid-overlay='true']");
-        if (!(overlay instanceof SVGElement)) return;
-
-        const viewport = overlay.closest("[data-map-viewport='true']");
-        if (!viewport) return;
-        const overlaySceneId = String(viewport.dataset.sceneId ?? "").trim();
-        const overlayScene = overlaySceneId ? (game.scenes?.get(overlaySceneId) ?? null) : null;
-        const state = this.gridCalibrationController.active
-            ? this.gridCalibrationController.state
-            : buildSceneGridOverlayState({
-                shiftX: -Number(viewport.dataset.gridOffsetX ?? 0),
-                shiftY: -Number(viewport.dataset.gridOffsetY ?? 0),
-                grid: {
-                    type: Number(viewport.dataset.gridType ?? 0),
-                    size: Number(viewport.dataset.gridSize ?? 0)
-                }
-            });
-        const detectedWallsOverlay = this.#getSceneDetectedWallOverlayState(overlayScene);
-        const hasDetectedWalls = Array.isArray(detectedWallsOverlay?.segments) && detectedWallsOverlay.segments.length > 0;
-        if (!state?.active && !hasDetectedWalls) {
-            overlay.innerHTML = "";
-            return;
-        }
-
-        const vRect = viewport.getBoundingClientRect();
-        const W = vRect.width;
-        const H = vRect.height;
-
-        const { scale, offsetX, offsetY } = this.mapViewportController.state;
-        const overlayModel = state?.active
-            ? buildGridCalibrationOverlayModel({
-                state,
-                viewport: { width: W, height: H },
-                transform: { scale, offsetX, offsetY }
-            })
-            : { verticalLines: [], horizontalLines: [], corners: [], cellRef: null };
-
-        overlay.setAttribute("width", W);
-        overlay.setAttribute("height", H);
-        overlay.setAttribute("viewBox", `0 0 ${W} ${H}`);
-
-        let inner = "";
-
-        if (state?.active) {
-            // Grid lines — only shown once both corners have been picked and we
-            // have a valid cell size.
-            for (const x of overlayModel.verticalLines) {
-                const rounded = x.toFixed(1);
-                inner += `<line x1="${rounded}" y1="0" x2="${rounded}" y2="${H}" class="totc-v2-grid-overlay__vline"/>`;
-            }
-
-            for (const y of overlayModel.horizontalLines) {
-                const rounded = y.toFixed(1);
-                inner += `<line x1="0" y1="${rounded}" x2="${W}" y2="${rounded}" class="totc-v2-grid-overlay__hline"/>`;
-            }
-
-            if (overlayModel.cellRef) {
-                inner += `<rect x="${overlayModel.cellRef.x.toFixed(1)}" y="${overlayModel.cellRef.y.toFixed(1)}" width="${overlayModel.cellRef.width.toFixed(1)}" height="${overlayModel.cellRef.height.toFixed(1)}" class="totc-v2-grid-overlay__cell-ref"/>`;
-            }
-
-            // Corner markers
-            for (const corner of overlayModel.corners) {
-                const cx = corner.x.toFixed(1);
-                const cy = corner.y.toFixed(1);
-                inner += `<circle cx="${cx}" cy="${cy}" r="7" class="totc-v2-grid-overlay__corner-ring"/>`;
-                inner += `<circle cx="${cx}" cy="${cy}" r="2.5" class="totc-v2-grid-overlay__corner-dot"/>`;
-            }
-        }
-
-        if (hasDetectedWalls) {
-            const toViewportX = (value) => (Number(value) * scale) + offsetX;
-            const toViewportY = (value) => (Number(value) * scale) + offsetY;
-            const selectedSegments = detectedWallsOverlay.segments.filter((segment) => segment.selected);
-            if (selectedSegments.length) {
-                inner += `<defs><linearGradient id="totc-v2-wall-selection-halo" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fff799" stop-opacity="0.08"/><stop offset="50%" stop-color="#fff799" stop-opacity="0.45"/><stop offset="100%" stop-color="#fff799" stop-opacity="0.08"/></linearGradient></defs>`;
-            }
-
-            for (const segment of detectedWallsOverlay.segments) {
-                const x1 = toViewportX(segment.x1).toFixed(1);
-                const y1 = toViewportY(segment.y1).toFixed(1);
-                const x2 = toViewportX(segment.x2).toFixed(1);
-                const y2 = toViewportY(segment.y2).toFixed(1);
-                const wallKindClass = segment.wallKind === "door"
-                    ? " is-door"
-                    : segment.wallKind === "window"
-                        ? " is-window"
-                        : "";
-                if (segment.selected) {
-                    inner += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="totc-v2-grid-overlay__selected-wall-halo"/>`;
-                }
-                inner += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="totc-v2-grid-overlay__detected-wall${wallKindClass}${segment.selected ? " is-selected" : ""}"/>`;
-            }
-
-            for (const intersection of detectedWallsOverlay.intersections ?? []) {
-                const x = toViewportX(intersection.x);
-                const y = toViewportY(intersection.y);
-                inner += `<rect x="${(x - 3.75).toFixed(1)}" y="${(y - 3.75).toFixed(1)}" width="7.5" height="7.5" class="totc-v2-grid-overlay__detected-wall-junction"/>`;
-            }
-        }
-
-        overlay.innerHTML = inner;
-    }
-
-    /**
-     * Apply the calibrated grid values to the Foundry scene document and
-     * close the calibration tool.
-     */
-    async #applyGridCalibration() {
-        const state = this.gridCalibrationController.state;
-        if (!state?.active) return;
-        this.#syncGridCalibrationStateFromInputs();
-
-        const scene = state.sceneId
-            ? game.scenes?.get(state.sceneId)
-            : (canvas?.scene ?? game.scenes?.viewed ?? null);
-
-        if (!scene) {
-            ui.notifications?.warn("No active scene — cannot apply grid calibration.");
-            return;
-        }
-
-        const updateData = buildGridCalibrationSceneUpdate({
-            cellW: state.cellW ?? 100,
-            offsetX: state.offsetX ?? 0,
-            offsetY: state.offsetY ?? 0,
-            gridType: state.gridType
-        });
-        const size = updateData["grid.size"];
-
-        try {
-            await scene.update(updateData);
-            this.#rememberAppliedGridOverlayState(scene, updateData);
-            ui.notifications?.info(`Grid updated: ${size} px per cell (offset ${-updateData.shiftX}, ${-updateData.shiftY}).`);
-        } catch (err) {
-            console.error("[turn-of-the-century] Grid calibration apply failed", err);
-            ui.notifications?.error("Failed to apply grid — see console for details.");
-            return;
-        }
-
-        this.gridCalibrationController.close();
-        this.render({ force: false });
-    }
-
-    #getSceneGridOverlayState(scene = null) {
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        const sceneState = buildSceneGridOverlayState(scene);
-        if (sceneState) {
-            if (sceneId) this._appliedGridOverlayStates.delete(sceneId);
-            return sceneState;
-        }
-        return sceneId ? (this._appliedGridOverlayStates.get(sceneId) ?? null) : null;
-    }
-
-    #rememberAppliedGridOverlayState(scene = null, updateData = {}) {
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        if (!sceneId) return;
-
-        const gridType = Number(updateData["grid.type"] ?? scene?.grid?.type ?? 1);
-        const cellSize = Number(updateData["grid.size"] ?? scene?.grid?.size ?? 0);
-        if (!gridType || cellSize < 4) {
-            this._appliedGridOverlayStates.delete(sceneId);
-            return;
-        }
-
-        this._appliedGridOverlayStates.set(sceneId, {
-            active: true,
-            gridType,
-            corner1: null,
-            corner2: null,
-            cellW: cellSize,
-            cellH: cellSize,
-            offsetX: -Number(updateData.shiftX ?? 0),
-            offsetY: -Number(updateData.shiftY ?? 0)
-        });
+    #getSceneGridOverlayState() {
+        return null;
     }
 
     #getSceneDetectedWallOverlayState(scene = null) {
@@ -5587,6 +4747,26 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         await this.sceneWorkspaceController.openScenePropertiesPanel();
     }
 
+    async _openSceneGridConfiguration({ scene = null } = {}) {
+        const targetScene = scene ?? canvas?.scene ?? game.scenes?.viewed ?? null;
+        if (!targetScene) {
+            ui.notifications?.warn?.("Open a scene before editing the grid.");
+            return;
+        }
+
+        const targetSceneId = String(targetScene?.id ?? targetScene?._id ?? "").trim();
+        const currentSceneId = String(canvas?.scene?.id ?? game.scenes?.viewed?.id ?? "").trim();
+        if (targetSceneId && currentSceneId !== targetSceneId) {
+            await targetScene.view?.();
+        }
+
+        if (targetScene.sheet?.render) {
+            targetScene.sheet.render(true);
+        } else {
+            ui.notifications?.warn?.("Scene configuration is not available in this Foundry session.");
+        }
+    }
+
     async _createSceneDesignScene() {
         return await this.sceneWorkspaceController.createSceneDesignScene();
     }
@@ -5653,14 +4833,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.sceneWorkspaceController.wireScenePropertiesHandlers(this.element);
     }
 
-    #clearSceneActorDropTargets(except = null) {
-        this.sceneActorDropController.clearSceneActorDropTargets(except);
-    }
-
-    #wireSceneActorDropHandlers() {
-        this.sceneActorDropController.wireSceneActorDropHandlers(this.element);
-    }
-
     async #addActorsToScene(actors = [], { scene = null, anchorPosition = null } = {}) {
         await this.sceneActorDropController.addActorsToScene(actors, { scene, anchorPosition });
     }
@@ -5672,16 +4844,19 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const tokenY = Number(y);
         if (!Number.isFinite(tokenX) || !Number.isFinite(tokenY)) return false;
 
-        const viewports = Array.from(this.element?.querySelectorAll("[data-action='map-viewport']") ?? []);
-        const viewport = viewports.find((entry) => String(entry?.dataset?.sceneId ?? "").trim() === targetSceneId) ?? null;
-        const image = viewport?.querySelector?.("[data-action='map-image']");
-        if (!(image instanceof HTMLImageElement) || !image.complete || !Number.isFinite(image.naturalWidth) || image.naturalWidth <= 0) {
-            return false;
+        const scene = this.#getSceneDocumentById(targetSceneId);
+        if (!scene) return false;
+
+        const currentSceneId = String(canvas?.scene?.id ?? game.scenes?.viewed?.id ?? "").trim();
+        if (currentSceneId !== targetSceneId) {
+            await scene.view?.();
         }
 
-        this.mapViewportController.syncViewport(viewport, image);
-        this.mapViewportController.centerOnPoint(viewport, image, { x: tokenX, y: tokenY, persist: true });
-        this.#syncActorDropPreviewTransform(viewport);
+        if (typeof canvas?.animatePan === "function") {
+            await canvas.animatePan({ x: tokenX, y: tokenY });
+        } else if (typeof canvas?.pan === "function") {
+            canvas.pan({ x: tokenX, y: tokenY });
+        }
         return true;
     }
 
@@ -5709,8 +4884,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
             if (actionId === "scene.detectWalls" && result?.ok && actionScene) {
                 this.#setSceneDetectedWallOverlayState(actionScene, result.detectedWallOverlay ?? null);
-                this.#drawGridCalibrationOverlay();
-            }
+                }
 
             if (result?.level === "warn") {
                 ui.notifications?.warn(result.message ?? `${action.label} is not available right now.`);

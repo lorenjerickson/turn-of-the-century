@@ -212,6 +212,8 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /#projectEncounterTokenForPlan/);
         assert.match(workspaceRootSource, /beforeActionIndex: interaction\.actionIndex/);
         assert.match(workspaceRootSource, /movementOriginX/);
+        assert.match(workspaceRootSource, /const cellLeft = Number\(selectedCell\?\.left\)/);
+        assert.match(workspaceRootSource, /Number\.isFinite\(cellLeft\) \? cellLeft : \(col \* gridSize\) \+ offsetX/);
         assert.match(workspaceRootSource, /tokenDocument\?\.update\?\.\(\{ x: targetX, y: targetY \}\)/);
         assert.match(workspaceRootSource, /_encounterTargetingInteraction/);
         assert.match(workspaceRootSource, /#beginEncounterTargetingInteraction/);

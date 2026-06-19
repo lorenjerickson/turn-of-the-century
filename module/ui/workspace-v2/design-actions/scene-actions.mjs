@@ -265,6 +265,36 @@ export class SceneDesignService {
         };
     }
 
+    async openSceneGridConfiguration() {
+        const scene = getScene(this.context);
+        if (!scene) {
+            return {
+                ok: false,
+                level: "warn",
+                message: "Open a scene before editing the grid."
+            };
+        }
+
+        if (typeof this.context.app?._openSceneGridConfiguration === "function") {
+            await this.context.app._openSceneGridConfiguration({ scene });
+            return { ok: true, silent: true };
+        }
+
+        if (scene.sheet) {
+            renderFoundryApplication(scene.sheet, { force: true });
+            return {
+                ok: true,
+                message: "Scene configuration opened."
+            };
+        }
+
+        return {
+            ok: false,
+            level: "warn",
+            message: "Scene configuration is not available in this Foundry session."
+        };
+    }
+
     async uploadBackgroundFile({ file, target, overwrite = false } = {}) {
         const FilePickerClass = getFilePickerClass(this.context);
         if (!FilePickerClass || typeof FilePickerClass.upload !== "function") {
@@ -476,6 +506,10 @@ export async function uploadSceneBackgroundFile({ file, target, overwrite = fals
 
 export async function activateSceneWallDesignMode(context = {}) {
     return new SceneDesignService(context).activateWallDesignMode();
+}
+
+export async function openSceneGridConfiguration(context = {}) {
+    return new SceneDesignService(context).openSceneGridConfiguration();
 }
 
 export async function detectSceneWalls(context = {}) {

@@ -9,6 +9,7 @@ import {
     createSceneFromBackgroundPath,
     detectSceneWalls,
     isSceneBackgroundImagePath,
+    openSceneGridConfiguration,
     SCENE_BACKGROUND_IMAGE_ASSET_PATH,
     SceneDesignService,
     uploadSceneBackgroundFile
@@ -168,6 +169,40 @@ describe("scene design actions", () => {
         assert.equal(result.name, "New Scene");
         assert.equal(Object.hasOwn(createdData, "background"), false);
         assert.equal(createdData.flags["turn-of-the-century"].designDraft, true);
+    });
+
+    it("opens native scene configuration for grid editing", async () => {
+        let rendered = false;
+        const result = await openSceneGridConfiguration({
+            scene: {
+                sheet: {
+                    render: (options) => {
+                        rendered = options;
+                    }
+                }
+            }
+        });
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(rendered, { force: true });
+        assert.match(result.message, /Scene configuration opened/);
+    });
+
+    it("delegates grid editing to the workspace native scene configuration bridge", async () => {
+        let delegatedScene = null;
+        const scene = { id: "scene-1" };
+        const result = await openSceneGridConfiguration({
+            scene,
+            app: {
+                _openSceneGridConfiguration: async ({ scene: passedScene }) => {
+                    delegatedScene = passedScene;
+                }
+            }
+        });
+
+        assert.equal(result.ok, true);
+        assert.equal(result.silent, true);
+        assert.equal(delegatedScene, scene);
     });
 
     it("uploads scene backgrounds through the Foundry V14 namespaced FilePicker implementation", async () => {
