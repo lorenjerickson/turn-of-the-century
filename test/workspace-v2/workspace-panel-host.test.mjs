@@ -67,6 +67,139 @@ describe("WorkspacePanelHost", () => {
         assert.match(html, /Rookery Yard/);
     });
 
+    it("renders planned movement positions during encounter planning", () => {
+        const priorUi = globalThis.ui;
+        const priorGame = globalThis.game;
+        const combat = {
+            phase: "planning",
+            encounterState: {
+                phase: "planning",
+                perCombatant: {
+                    "combatant-1": {
+                        plan: [{
+                            type: "movement",
+                            movementTargetX: 500,
+                            movementTargetY: 300
+                        }]
+                    }
+                }
+            },
+            combatants: {
+                contents: [{
+                    id: "combatant-1",
+                    tokenId: "token-1",
+                    actor: { system: { resources: { health: { value: 10 } } } }
+                }]
+            }
+        };
+
+        globalThis.ui = { combat: { viewed: combat } };
+        globalThis.game = { combat: null, combats: { active: null } };
+
+        try {
+            const host = new WorkspacePanelHost({
+                escapeHTML,
+                isMapPanel: () => true,
+                getMapPanelScene: () => ({
+                    id: "scene-1",
+                    name: "Rookery Yard",
+                    mapSrc: "yard.webp",
+                    width: 1200,
+                    height: 800,
+                    grid: { type: 1, size: 100 },
+                    tokens: {
+                        contents: [{
+                            id: "token-1",
+                            name: "Ada",
+                            x: 100,
+                            y: 100,
+                            width: 1,
+                            height: 1,
+                            texture: { src: "tokens/ada.webp" }
+                        }]
+                    }
+                }),
+                gridCalibrationState: () => ({ active: false })
+            });
+
+            const html = host.renderPanelBodyContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
+
+            assert.match(html, /data-token-id="token-1"/);
+            assert.match(html, /style="left:500px;top:300px;width:100px;height:100px"/);
+        } finally {
+            globalThis.ui = priorUi;
+            globalThis.game = priorGame;
+        }
+    });
+
+    it("does not render planned movement positions for ready combatants", () => {
+        const priorUi = globalThis.ui;
+        const priorGame = globalThis.game;
+        const combat = {
+            phase: "planning",
+            encounterState: {
+                phase: "planning",
+                perCombatant: {
+                    "combatant-1": {
+                        ready: true,
+                        plan: [{
+                            type: "movement",
+                            movementTargetX: 500,
+                            movementTargetY: 300,
+                            movementOriginX: 100,
+                            movementOriginY: 100
+                        }]
+                    }
+                }
+            },
+            combatants: {
+                contents: [{
+                    id: "combatant-1",
+                    tokenId: "token-1",
+                    actor: { system: { resources: { health: { value: 10 } } } }
+                }]
+            }
+        };
+
+        globalThis.ui = { combat: { viewed: combat } };
+        globalThis.game = { combat: null, combats: { active: null } };
+
+        try {
+            const host = new WorkspacePanelHost({
+                escapeHTML,
+                isMapPanel: () => true,
+                getMapPanelScene: () => ({
+                    id: "scene-1",
+                    name: "Rookery Yard",
+                    mapSrc: "yard.webp",
+                    width: 1200,
+                    height: 800,
+                    grid: { type: 1, size: 100 },
+                    tokens: {
+                        contents: [{
+                            id: "token-1",
+                            name: "Ada",
+                            x: 100,
+                            y: 100,
+                            width: 1,
+                            height: 1,
+                            texture: { src: "tokens/ada.webp" }
+                        }]
+                    }
+                }),
+                gridCalibrationState: () => ({ active: false })
+            });
+
+            const html = host.renderPanelBodyContent({ id: "map:scene-1", baseId: "map", sceneId: "scene-1" });
+
+            assert.match(html, /style="left:100px;top:100px;width:100px;height:100px"/);
+            assert.doesNotMatch(html, /style="left:500px;top:300px;width:100px;height:100px"/);
+        } finally {
+            globalThis.ui = priorUi;
+            globalThis.game = priorGame;
+        }
+    });
+
     it("renders overlay layer when only detected wall overlay is present", () => {
         const host = new WorkspacePanelHost({
             escapeHTML,

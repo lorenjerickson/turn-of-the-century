@@ -2582,6 +2582,41 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         )) ?? null;
     }
 
+    #projectEncounterTokenForPlan({ token = null, combat = null, combatantId = "", beforeActionIndex = Infinity } = {}) {
+        if (!token || !combatantId) return token;
+
+        const plan = this.#collectionContents(combat?.getCombatantPlan?.(combatantId));
+        const limit = Number.isFinite(Number(beforeActionIndex)) ? Math.max(0, Number(beforeActionIndex)) : plan.length;
+        let projectedX = Number(token?.x ?? token?.document?.x ?? 0);
+        let projectedY = Number(token?.y ?? token?.document?.y ?? 0);
+        let changed = false;
+
+        for (let index = 0; index < Math.min(limit, plan.length); index += 1) {
+            const action = plan[index];
+            if (String(action?.type ?? "") !== "movement") continue;
+            const x = Number(action?.movementTargetX);
+            const y = Number(action?.movementTargetY);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+            projectedX = x;
+            projectedY = y;
+            changed = true;
+        }
+
+        if (!changed) return token;
+        return {
+            ...token,
+            x: projectedX,
+            y: projectedY,
+            document: token.document
+                ? {
+                    ...token.document,
+                    x: projectedX,
+                    y: projectedY
+                }
+                : token.document
+        };
+    }
+
     #beginEncounterMovementInteraction({ combat = null, combatantId = "", actionIndex = -1, maxAp = 0 } = {}) {
         const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
         const token = this.#getEncounterMovementToken({ combat, combatantId, scene });
@@ -2649,8 +2684,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (sceneId && interaction.sceneId && sceneId !== interaction.sceneId) return null;
         const token = this.#collectionGet(scene.tokens, interaction.tokenId);
         if (!token) return null;
-        return buildEncounterMovementOverlayModel({
+        const projectedToken = this.#projectEncounterTokenForPlan({
             token,
+            combat: this.#getEncounterCombatById(interaction.combatId) ?? this.#getEncounterCombat(),
+            combatantId: interaction.combatantId,
+            beforeActionIndex: interaction.actionIndex
+        });
+        return buildEncounterMovementOverlayModel({
+            token: projectedToken,
             scene,
             maxAp: interaction.maxAp,
             feetPerAp: interaction.feetPerAp || 10,
@@ -2670,6 +2711,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         const sourceToken = this.#collectionGet(scene.tokens, interaction.tokenId);
         if (!sourceToken) return null;
+        const projectedSourceToken = this.#projectEncounterTokenForPlan({
+            token: sourceToken,
+            combat,
+            combatantId: interaction.combatantId,
+            beforeActionIndex: interaction.actionIndex
+        });
 
         const targetTokens = this.#collectionContents(scene.tokens).filter((token) => {
             const tokenId = String(token?.id ?? token?._id ?? token?.document?.id ?? "").trim();
@@ -2681,7 +2728,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         return buildEncounterTargetingOverlayModel({
             scene,
-            sourceToken,
+            sourceToken: projectedSourceToken,
             targetTokens,
             maxRangeFeet: interaction.rangeFeet,
             rangeType: interaction.rangeType
@@ -2717,6 +2764,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const col = Number(selectedCell?.col ?? 0);
         const targetX = (col * gridSize) + offsetX;
         const targetY = (row * gridSize) + offsetY;
+        const originX = Number(token?.x ?? token?.document?.x ?? 0);
+        const originY = Number(token?.y ?? token?.document?.y ?? 0);
 
         plan[index] = {
             ...entry,
@@ -2724,10 +2773,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             movementTargetRow: row,
             movementTargetCol: col,
             movementTargetX: targetX,
-            movementTargetY: targetY
+            movementTargetY: targetY,
+            movementOriginX: Number.isFinite(originX) ? originX : null,
+            movementOriginY: Number.isFinite(originY) ? originY : null
         };
 
         await combat.setCombatantPlan(interaction.combatantId, plan);
+        const tokenDocument = token?.document ?? token;
+        await tokenDocument?.update?.({ x: targetX, y: targetY });
         this.render({ force: false });
     }
 
@@ -2774,8 +2827,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     async #cancelEncounterTargetingInteraction() {
-        if (!this._encounterTargetingInteraction) return;
+        const interaction = this._encounterTargetingInteraction;
+        if (!interaction) return;
+        const combat = this.#getEncounterCombatById(interaction.combatId) ?? this.#getEncounterCombat();
         this._encounterTargetingInteraction = null;
+        if (combat?.removeCombatantAction) {
+            await combat.removeCombatantAction(interaction.combatantId, interaction.actionIndex);
+        }
         this.render({ force: false });
     }
 

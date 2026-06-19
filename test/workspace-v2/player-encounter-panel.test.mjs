@@ -209,10 +209,15 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /encounter-close-popup/);
         assert.match(workspaceRootSource, /setCombatantPlan/);
         assert.match(workspaceRootSource, /setCombatantActionApCost/);
+        assert.match(workspaceRootSource, /#projectEncounterTokenForPlan/);
+        assert.match(workspaceRootSource, /beforeActionIndex: interaction\.actionIndex/);
+        assert.match(workspaceRootSource, /movementOriginX/);
+        assert.match(workspaceRootSource, /tokenDocument\?\.update\?\.\(\{ x: targetX, y: targetY \}\)/);
         assert.match(workspaceRootSource, /_encounterTargetingInteraction/);
         assert.match(workspaceRootSource, /#beginEncounterTargetingInteraction/);
         assert.match(workspaceRootSource, /#finishEncounterTargetingInteraction/);
         assert.match(workspaceRootSource, /#cancelEncounterTargetingInteraction/);
+        assert.match(workspaceRootSource, /#cancelEncounterTargetingInteraction\(\)[\s\S]*removeCombatantAction\(interaction\.combatantId, interaction\.actionIndex\)/);
         assert.doesNotMatch(workspaceRootSource, /rollEncounter/);
         assert.doesNotMatch(workspaceRootSource, /rollAllMissing/);
         assert.doesNotMatch(workspaceRootSource, /player-execute-encounter-action/);

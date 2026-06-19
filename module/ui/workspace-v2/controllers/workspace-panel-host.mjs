@@ -59,6 +59,37 @@ function tokenGridSize(token, axis, fallback = 1) {
     return positiveNumber(token?.[axis] ?? token?.document?.[axis], fallback);
 }
 
+function tokenDocumentId(token) {
+    return String(token?.id ?? token?._id ?? token?.document?.id ?? token?.document?._id ?? "").trim();
+}
+
+function plannedTokenPositionsFromEncounter(combat = null) {
+    const state = combat?.encounterState ?? combat?.encounter?.state ?? {};
+    if (String(state?.phase ?? combat?.phase ?? "") !== "planning") return new Map();
+
+    const positions = new Map();
+    const perCombatant = state?.perCombatant ?? {};
+    for (const combatant of collectionContents(combat?.combatants)) {
+        const tokenId = String(combatant?.tokenId ?? combatant?.token?.id ?? combatant?.token?.document?.id ?? "").trim();
+        if (!tokenId) continue;
+
+        const combatantState = perCombatant?.[combatant.id] ?? {};
+        if (combatantState.ready) continue;
+
+        const plan = Array.isArray(combatantState.plan) ? combatantState.plan : [];
+        for (const action of plan) {
+            if (String(action?.type ?? "") !== "movement") continue;
+            const x = Number(action?.movementTargetX);
+            const y = Number(action?.movementTargetY);
+            if (Number.isFinite(x) && Number.isFinite(y)) {
+                positions.set(tokenId, { x, y });
+            }
+        }
+    }
+
+    return positions;
+}
+
 export class WorkspacePanelHost {
     constructor({
         designActionRegistry,
@@ -428,6 +459,7 @@ export class WorkspacePanelHost {
         const currentTick = Number(encounterState?.resolution?.currentTick ?? encounterState?.currentEvaluationTick ?? 0);
         const perCombatant = encounterState?.perCombatant ?? {};
         const timeline = Array.isArray(encounterState?.timeline) ? encounterState.timeline : [];
+        const plannedPositions = plannedTokenPositionsFromEncounter(encounterCombat);
 
         const combatantByTokenId = new Map();
         for (const combatant of collectionContents(encounterCombat?.combatants)) {
@@ -436,13 +468,14 @@ export class WorkspacePanelHost {
         }
 
         const tokenMarkup = tokens.map((token) => {
-            const x = tokenPosition(token, "x");
-            const y = tokenPosition(token, "y");
+            const tokenId = tokenDocumentId(token);
+            const plannedPosition = plannedPositions.get(tokenId);
+            const x = Number.isFinite(plannedPosition?.x) ? plannedPosition.x : tokenPosition(token, "x");
+            const y = Number.isFinite(plannedPosition?.y) ? plannedPosition.y : tokenPosition(token, "y");
             const width = tokenGridSize(token, "width") * cell;
             const height = tokenGridSize(token, "height") * cell;
             const src = tokenTexture(token);
             const name = tokenName(token);
-            const tokenId = String(token?.id ?? token?._id ?? token?.document?.id ?? token?._id ?? "").trim();
             const actorId = String(token?.actor?.id ?? token?.actor?._id ?? token?.actorId ?? "").trim();
             const isSelected = selectedTokenIds.has(tokenId) ? " is-selected" : "";
             const targetClass = targetingActive

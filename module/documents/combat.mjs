@@ -103,6 +103,14 @@ function toNumber(value, fallback = 0) {
     return Number.isFinite(number) ? number : fallback;
 }
 
+function tokenDocumentId(token = null) {
+    return String(token?.id ?? token?._id ?? token?.document?.id ?? token?.document?._id ?? "").trim();
+}
+
+function tokenDocumentForUpdate(token = null) {
+    return token?.document ?? token ?? null;
+}
+
 function resolvePropertyPath(source, path) {
     if (!path) return undefined;
     if (typeof foundry?.utils?.getProperty === "function") {
@@ -124,6 +132,21 @@ function formatRecapTemplate(template, context = {}) {
 function hasInitiativeValue(value) {
     const number = Number(value);
     return Number.isFinite(number);
+}
+
+function reactionRuntimeFromResolution(resolution = {}) {
+    return {
+        consumedKeys: new Set(toArray(resolution?.reactionConsumedKeys).map((key) => String(key)))
+    };
+}
+
+function serializeReactionRuntime(reactionRuntime = null) {
+    return [...(reactionRuntime?.consumedKeys ?? new Set())];
+}
+
+function optionalNumber(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
 }
 
 function clampActionData(action, index = 0) {
@@ -154,7 +177,9 @@ function clampActionData(action, index = 0) {
         movementTargetX: Number(action.movementTargetX ?? 0),
         movementTargetY: Number(action.movementTargetY ?? 0),
         movementTargetRow: Number(action.movementTargetRow ?? 0),
-        movementTargetCol: Number(action.movementTargetCol ?? 0)
+        movementTargetCol: Number(action.movementTargetCol ?? 0),
+        movementOriginX: optionalNumber(action.movementOriginX),
+        movementOriginY: optionalNumber(action.movementOriginY)
     };
 }
 
@@ -575,6 +600,10 @@ export class TurnOfTheCenturyEncounter {
         perCombatant[combatantId].ready = Boolean(ready);
         perCombatant[combatantId].committedAt = ready ? Date.now() : 0;
 
+        if (ready) {
+            await this.#restoreCombatantPlanningOrigin(combatantId, perCombatant[combatantId].plan);
+        }
+
         await this.#setState({
             ...state,
             perCombatant
@@ -785,7 +814,7 @@ export class TurnOfTheCenturyEncounter {
         const perCombatant = Object.fromEntries(
             (this.#combat.combatants?.contents ?? []).map((combatant) => [
                 combatant.id,
-                this.#defaultCombatantState()
+                this.#defaultCombatantState(this.apBudget)
             ])
         );
 
@@ -966,18 +995,46 @@ export class TurnOfTheCenturyEncounter {
     }
 
     #getCombatantTokenDocument(combatant) {
-        const tokenId = String(combatant?.tokenId ?? combatant?.token?.id ?? "").trim();
+        const tokenId = String(combatant?.tokenId ?? combatant?.token?.id ?? combatant?.token?.document?.id ?? "").trim();
         if (!tokenId) return null;
 
         const currentSceneToken = canvas?.scene?.tokens?.get?.(tokenId) ?? null;
-        if (currentSceneToken) return currentSceneToken;
+        if (currentSceneToken) return tokenDocumentForUpdate(currentSceneToken);
+
+        const placeableToken = toArray(canvas?.tokens?.placeables)
+            .find((token) => tokenDocumentId(token) === tokenId) ?? null;
+        if (placeableToken) return tokenDocumentForUpdate(placeableToken);
 
         for (const scene of game.scenes?.contents ?? []) {
             const token = scene?.tokens?.get?.(tokenId);
-            if (token) return token;
+            if (token) return tokenDocumentForUpdate(token);
         }
 
         return null;
+    }
+
+    async #restoreCombatantPlanningOrigin(combatantId, plan = []) {
+        const movementAction = toArray(plan).find((action) => (
+            String(action?.type ?? "") === "movement"
+            && Number.isFinite(Number(action?.movementOriginX))
+            && Number.isFinite(Number(action?.movementOriginY))
+        ));
+        if (!movementAction) return;
+
+        const combatant = this.#combat.combatants?.get(combatantId) ?? null;
+        const token = this.#getCombatantTokenDocument(combatant);
+        const tokenDocument = tokenDocumentForUpdate(token);
+        if (!tokenDocument?.update) return;
+
+        const originX = Number(movementAction.movementOriginX);
+        const originY = Number(movementAction.movementOriginY);
+        const currentX = toNumber(tokenDocument.x ?? token?.x, 0);
+        const currentY = toNumber(tokenDocument.y ?? token?.y, 0);
+        if (Math.abs(currentX - originX) <= Number.EPSILON && Math.abs(currentY - originY) <= Number.EPSILON) {
+            return;
+        }
+
+        await tokenDocument.update({ x: originX, y: originY });
     }
 
     async #captureResolutionSnapshot({ tick = 0, perCombatant = {}, timeline = [], tickNarratives = [], tokenPositionOverrides = null } = {}) {
@@ -1001,11 +1058,11 @@ export class TurnOfTheCenturyEncounter {
             }
 
             const token = this.#getCombatantTokenDocument(combatant);
-            const tokenId = String(token?.id ?? token?._id ?? "").trim();
+            const tokenId = tokenDocumentId(token);
             if (tokenId) {
                 tokenPositions[tokenId] = tokenPositionOverrides?.[tokenId] ?? {
-                    x: toNumber(token.x, 0),
-                    y: toNumber(token.y, 0)
+                    x: toNumber(token.x ?? token.document?.x, 0),
+                    y: toNumber(token.y ?? token.document?.y, 0)
                 };
             }
         }
@@ -1055,19 +1112,24 @@ export class TurnOfTheCenturyEncounter {
         const tokenUpdates = [];
         for (const [tokenId, position] of Object.entries(snapshot.tokenPositions ?? {})) {
             const token = canvas?.scene?.tokens?.get?.(tokenId)
+                ?? toArray(canvas?.tokens?.placeables)
+                    .find((placeable) => tokenDocumentId(placeable) === tokenId)
                 ?? [...(game.scenes?.contents ?? [])]
                     .map((scene) => scene?.tokens?.get?.(tokenId))
                     .find(Boolean)
                 ?? null;
 
-            if (!token) continue;
-            const nextX = toNumber(position?.x, toNumber(token.x, 0));
-            const nextY = toNumber(position?.y, toNumber(token.y, 0));
-            if (Math.abs(toNumber(token.x, 0) - nextX) <= Number.EPSILON && Math.abs(toNumber(token.y, 0) - nextY) <= Number.EPSILON) {
+            const tokenDocument = tokenDocumentForUpdate(token);
+            if (!tokenDocument) continue;
+            const nextX = toNumber(position?.x, toNumber(tokenDocument.x ?? token.x, 0));
+            const nextY = toNumber(position?.y, toNumber(tokenDocument.y ?? token.y, 0));
+            const currentX = toNumber(tokenDocument.x ?? token.x, 0);
+            const currentY = toNumber(tokenDocument.y ?? token.y, 0);
+            if (Math.abs(currentX - nextX) <= Number.EPSILON && Math.abs(currentY - nextY) <= Number.EPSILON) {
                 continue;
             }
 
-            tokenUpdates.push(token.update({ x: nextX, y: nextY }));
+            tokenUpdates.push(tokenDocument.update({ x: nextX, y: nextY }));
         }
 
         await Promise.all([...actorUpdates, ...tokenUpdates]);
@@ -1815,6 +1877,31 @@ export class TurnOfTheCenturyEncounter {
         return result;
     }
 
+    #buildRoundHistoryEntry({ round = 1, timeline = [], tickNarratives = [] } = {}) {
+        return {
+            round,
+            resolvedAt: Date.now(),
+            timeline: foundry.utils.deepClone(toArray(timeline)),
+            tickNarratives: foundry.utils.deepClone(toArray(tickNarratives))
+        };
+    }
+
+    #roundHistoryWithFinalEntry({
+        round = 1,
+        timeline = [],
+        tickNarratives = [],
+        existingHistory = []
+    } = {}) {
+        const history = toArray(existingHistory);
+        const existingIndex = history.findIndex((entry) => toNumber(entry?.round, 0) === toNumber(round, 0));
+        const entry = this.#buildRoundHistoryEntry({ round, timeline, tickNarratives });
+        if (existingIndex < 0) return [...history, entry];
+
+        const next = [...history];
+        next[existingIndex] = entry;
+        return next;
+    }
+
     async #evaluateResolutionTick({
         tick = 0,
         perCombatant = {},
@@ -2223,7 +2310,7 @@ export class TurnOfTheCenturyEncounter {
             const perCombatant = foundry.utils.deepClone(currentState.perCombatant ?? {});
             const timeline = foundry.utils.deepClone(toArray(resolution.timeline ?? currentState.timeline));
             const tickNarratives = foundry.utils.deepClone(toArray(resolution.tickNarratives ?? []));
-            const reactionRuntime = { consumedKeys: new Set() };
+            const reactionRuntime = reactionRuntimeFromResolution(resolution);
             const result = await this.#evaluateResolutionTick({
                 tick: nextTick,
                 perCombatant,
@@ -2236,21 +2323,33 @@ export class TurnOfTheCenturyEncounter {
             snapshots[nextTick] = snapshot;
             tickNarratives[nextTick - 1] = result.narrative;
 
-                        await this.#applyResolutionSnapshot(snapshot);
+            await this.#applyResolutionSnapshot(snapshot);
 
             const nextPhase = nextTick >= totalTicks ? "roundComplete" : "resolving";
+            const round = this.#combat.round || currentState.round || 1;
+            const nextRoundHistory = nextPhase === "roundComplete"
+                ? this.#roundHistoryWithFinalEntry({
+                    round,
+                    timeline: snapshot.timeline ?? [],
+                    tickNarratives,
+                    existingHistory: currentState.roundHistory
+                })
+                : currentState.roundHistory;
             await this.#setState({
                 ...currentState,
                 phase: nextPhase,
                 timeline: foundry.utils.deepClone(toArray(snapshot.timeline)),
                 perCombatant: foundry.utils.deepClone(snapshot.perCombatant ?? currentState.perCombatant ?? {}),
                 currentEvaluationTick: nextTick,
+                planningStartedAt: nextPhase === "roundComplete" ? 0 : currentState.planningStartedAt,
+                roundHistory: nextRoundHistory,
                 resolution: {
                     ...resolution,
                     currentTick: nextTick,
                     status: nextTick >= totalTicks ? "complete" : "paused",
                     snapshots: foundry.utils.deepClone(snapshots),
-                    tickNarratives: foundry.utils.deepClone(tickNarratives)
+                    tickNarratives: foundry.utils.deepClone(tickNarratives),
+                    reactionConsumedKeys: serializeReactionRuntime(reactionRuntime)
                 }
             });
 
@@ -2261,7 +2360,7 @@ export class TurnOfTheCenturyEncounter {
 
             if (nextPhase === "roundComplete") {
                 this.emit(TOTC_ENCOUNTER_EVENTS.ROUND_RESOLVED, {
-                    round: this.#combat.round || this.state.round || 1,
+                    round,
                     timeline: snapshot.timeline ?? []
                 });
             }
@@ -2273,23 +2372,45 @@ export class TurnOfTheCenturyEncounter {
 
         await this.#applyResolutionSnapshot(snapshot);
 
+        const nextPhase = nextTick >= totalTicks ? "roundComplete" : "resolving";
+        const round = this.#combat.round || currentState.round || 1;
+        const tickNarratives = foundry.utils.deepClone(toArray(snapshot.tickNarratives ?? resolution.tickNarratives ?? []));
+        const nextRoundHistory = nextPhase === "roundComplete"
+            ? this.#roundHistoryWithFinalEntry({
+                round,
+                timeline: snapshot.timeline ?? [],
+                tickNarratives,
+                existingHistory: currentState.roundHistory
+            })
+            : currentState.roundHistory;
+
         await this.#setState({
             ...currentState,
-            phase: "resolving",
+            phase: nextPhase,
             timeline: foundry.utils.deepClone(toArray(snapshot.timeline)),
             perCombatant: foundry.utils.deepClone(snapshot.perCombatant ?? currentState.perCombatant ?? {}),
             currentEvaluationTick: nextTick,
+            planningStartedAt: nextPhase === "roundComplete" ? 0 : currentState.planningStartedAt,
+            roundHistory: nextRoundHistory,
             resolution: {
                 ...resolution,
                 currentTick: nextTick,
-                status: nextTick >= totalTicks ? "complete" : "paused"
+                status: nextTick >= totalTicks ? "complete" : "paused",
+                tickNarratives
             }
         });
 
         this.emit(TOTC_ENCOUNTER_EVENTS.PHASE_CHANGED, {
-            phase: "resolving",
+            phase: nextPhase,
             previousPhase: currentState.phase
         });
+
+        if (nextPhase === "roundComplete") {
+            this.emit(TOTC_ENCOUNTER_EVENTS.ROUND_RESOLVED, {
+                round,
+                timeline: snapshot.timeline ?? []
+            });
+        }
 
         return snapshot;
     }
@@ -2362,12 +2483,11 @@ export class TurnOfTheCenturyEncounter {
         const round = this.#combat.round || this.state.round || 1;
         const nextHistory = [
             ...toArray(this.state.roundHistory),
-            {
+            this.#buildRoundHistoryEntry({
                 round,
-                resolvedAt: Date.now(),
-                timeline: foundry.utils.deepClone(result.timeline),
-                tickNarratives: foundry.utils.deepClone(result.tickNarratives)
-            }
+                timeline: result.timeline,
+                tickNarratives: result.tickNarratives
+            })
         ];
 
         await this.#setState({
@@ -2383,7 +2503,8 @@ export class TurnOfTheCenturyEncounter {
                 currentTick: result.totalTicks,
                 totalTicks: result.totalTicks,
                 snapshots: result.snapshots,
-                tickNarratives: result.tickNarratives
+                tickNarratives: result.tickNarratives,
+                reactionConsumedKeys: serializeReactionRuntime(result.reactionRuntime)
             }
         });
 
@@ -2466,7 +2587,24 @@ export class TurnOfTheCenturyEncounter {
             };
         }
 
+        if ((action.requiresToHit || action.requiresTarget) && !action.targetId) {
+            return {
+                result: "failed",
+                targetCombatantId: null,
+                targetName: game.i18n.localize("TOTC.Encounter.TargetUnspecified"),
+                detail: `${combatant.name} cannot complete ${action.label}; no target was selected.`
+            };
+        }
+
         const targetCombatant = this.#resolveDeclaredTarget(combatant.id, action.targetId);
+        if ((action.requiresToHit || action.requiresTarget) && !targetCombatant) {
+            return {
+                result: "failed",
+                targetCombatantId: null,
+                targetName: game.i18n.localize("TOTC.Encounter.TargetUnspecified"),
+                detail: `${combatant.name} cannot complete ${action.label}; no target was selected.`
+            };
+        }
         if (targetCombatant && this.#isCombatantIncapacitated(targetCombatant, { actorHealth: evaluationSnapshot?.actorHealth })) {
             return {
                 result: "interrupted",

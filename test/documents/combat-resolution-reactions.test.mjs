@@ -720,6 +720,188 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         assert.equal(steppedState.resolution.tickNarratives.length, 1);
     });
 
+    it("finalizes round state and history from the last stepped reconciliation", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        const harness = buildCombatHarness({
+            apBudget: 1,
+            plans: {
+                "c-a": [],
+                "c-b": []
+            },
+            withWeapon: false
+        });
+
+        const encounter = new TurnOfTheCenturyEncounter(harness.combat);
+        await encounter.beginEncounterResolution();
+        await encounter.stepEncounterResolution(1);
+
+        const finalState = harness.getState();
+        assert.equal(finalState.phase, "roundComplete");
+        assert.equal(finalState.currentEvaluationTick, 1);
+        assert.equal(finalState.resolution.status, "complete");
+        assert.equal(finalState.roundHistory.length, 1);
+        assert.equal(finalState.roundHistory[0].round, 1);
+        assert.deepEqual(finalState.roundHistory[0].timeline, finalState.timeline);
+    });
+
+    it("does not choose a fallback target for an untargeted attack", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        const attackAction = {
+            id: "weapon-1:shot",
+            actionId: "shot",
+            type: "attack",
+            label: "Quick Shot",
+            apCost: 1,
+            itemId: "weapon-1",
+            targetId: null,
+            requiresToHit: true,
+            toHitBonus: 0,
+            isReaction: false,
+            reactionTriggerType: ""
+        };
+
+        const harness = buildCombatHarness({
+            apBudget: 1,
+            plans: {
+                "c-a": [attackAction],
+                "c-b": []
+            },
+            withWeapon: true
+        });
+
+        const encounter = new TurnOfTheCenturyEncounter(harness.combat);
+        const timeline = await encounter.resolveEncounterRound({ tickDelayMs: 0 });
+        const attackEntry = timeline.find((entry) => entry.combatantId === "c-a");
+
+        assert.equal(attackEntry?.outcome?.result, "failed");
+        assert.match(String(attackEntry?.outcome?.detail ?? ""), /no target/i);
+        assert.equal(harness.target.system.resources.health.value, 20);
+    });
+
+    it("preserves consumed reaction windows across step-by-step resolution", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+
+        const firstPistol = makeWeaponItem({ id: "pistol-a", loaded: 2, damage: "3", normalRange: 30 });
+        const secondPistol = makeWeaponItem({ id: "pistol-c", loaded: 2, damage: "3", normalRange: 30 });
+        const dodgeAction = {
+            id: "dodge",
+            actionId: "dodge",
+            type: "defense",
+            label: "Dodge",
+            apCost: 2,
+            requiresToHit: false,
+            toHitBonus: 0,
+            isReaction: true,
+            reactionTriggerType: "incomingAttack"
+        };
+        const harness = buildMultiCombatHarness({
+            apBudget: 2,
+            combatants: [
+                {
+                    id: "c-a",
+                    actorId: "actor-a",
+                    name: "First Shooter",
+                    tokenId: "token-a",
+                    x: 0,
+                    y: 0,
+                    initiative: 30,
+                    items: [firstPistol],
+                    inventory: {
+                        equipment: { hands: { itemIds: ["pistol-a"] }, torso: { itemIds: [] }, belt: { itemIds: [] } },
+                        pack: { itemIds: [] }
+                    }
+                },
+                {
+                    id: "c-c",
+                    actorId: "actor-c",
+                    name: "Second Shooter",
+                    tokenId: "token-c",
+                    x: 0,
+                    y: 0,
+                    initiative: 20,
+                    items: [secondPistol],
+                    inventory: {
+                        equipment: { hands: { itemIds: ["pistol-c"] }, torso: { itemIds: [] }, belt: { itemIds: [] } },
+                        pack: { itemIds: [] }
+                    }
+                },
+                {
+                    id: "c-b",
+                    actorId: "actor-b",
+                    name: "Target",
+                    tokenId: "token-b",
+                    x: 0,
+                    y: 0,
+                    initiative: 10,
+                    dexBonus: 5,
+                    items: [],
+                    inventory: {
+                        equipment: { hands: { itemIds: [] }, torso: { itemIds: [] }, belt: { itemIds: [] } },
+                        pack: { itemIds: [] }
+                    }
+                }
+            ],
+            plans: {
+                "c-a": [{
+                    id: "pistol-a:shot",
+                    actionId: "shot",
+                    type: "attack",
+                    label: "First Shot",
+                    apCost: 1,
+                    itemId: "pistol-a",
+                    targetId: "c-b",
+                    requiresToHit: true,
+                    toHitBonus: 0,
+                    rangeType: "normal",
+                    isReaction: false,
+                    reactionTriggerType: ""
+                }],
+                "c-c": [
+                    {
+                        id: "hunkDown",
+                        actionId: "hunkDown",
+                        type: "defense",
+                        label: "Hunker Down",
+                        apCost: 1,
+                        requiresToHit: false,
+                        isReaction: false,
+                        reactionTriggerType: ""
+                    },
+                    {
+                        id: "pistol-c:shot",
+                        actionId: "shot",
+                        type: "attack",
+                        label: "Second Shot",
+                        apCost: 1,
+                        itemId: "pistol-c",
+                        targetId: "c-b",
+                        requiresToHit: true,
+                        toHitBonus: 0,
+                        rangeType: "normal",
+                        isReaction: false,
+                        reactionTriggerType: ""
+                    }
+                ],
+                "c-b": [dodgeAction]
+            }
+        });
+
+        const encounter = new TurnOfTheCenturyEncounter(harness.combat);
+        rollQueue = [15, 20, 15, 20];
+
+        await encounter.beginEncounterResolution();
+        await encounter.stepEncounterResolution(1);
+        await encounter.stepEncounterResolution(1);
+
+        const finalState = harness.getState();
+        const secondShot = finalState.timeline.find((entry) => entry.combatantId === "c-c" && entry.action?.label === "Second Shot");
+        const target = harness.combatants.find((combatant) => combatant.id === "c-b");
+
+        assert.equal(secondShot?.outcome?.result, "hit");
+        assert.deepEqual(finalState.resolution.reactionConsumedKeys, ["c-b:0:1"]);
+        assert.equal(target.actor.system.resources.health.value, 0);
+    });
+
     it("moves the live token when stepping a movement tick forward", async () => {
         const { TurnOfTheCenturyEncounter } = await loadCombatModule();
         const harness = buildMultiCombatHarness({
@@ -779,6 +961,124 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
 
         assert.equal(Number(pursuerToken?.x ?? 0), 200);
         assert.match(String(harness.getState().resolution.tickNarratives[0]?.summary ?? ""), /Pursuer moved 10 feet\./);
+    });
+
+    it("updates TokenDocument positions when the canvas lookup returns Token objects during stepping", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        const harness = buildMultiCombatHarness({
+            apBudget: 1,
+            combatants: [
+                {
+                    id: "c-m",
+                    actorId: "actor-m",
+                    name: "Mover",
+                    tokenId: "token-m",
+                    x: 0,
+                    y: 0,
+                    initiative: 20,
+                    items: [],
+                    inventory: {
+                        equipment: { hands: { itemIds: [] }, torso: { itemIds: [] }, belt: { itemIds: [] } },
+                        pack: { itemIds: [] }
+                    }
+                }
+            ],
+            plans: {
+                "c-m": [{
+                    id: "move",
+                    actionId: "move",
+                    type: "movement",
+                    label: "Move",
+                    apCost: 1,
+                    movementFeetPerAp: 10,
+                    movementTargetX: 300,
+                    movementTargetY: 100,
+                    isReaction: false,
+                    reactionTriggerType: ""
+                }]
+            }
+        });
+
+        const tokenDocument = {
+            id: "token-m",
+            x: 0,
+            y: 0,
+            width: 1,
+            height: 1,
+            parent: {
+                grid: {
+                    size: 100,
+                    distance: 5
+                }
+            },
+            async update(changes) {
+                this.x = Number(changes.x ?? this.x);
+                this.y = Number(changes.y ?? this.y);
+                return this;
+            }
+        };
+        globalThis.canvas.scene.tokens.get = (tokenId) => tokenId === "token-m"
+            ? { id: "token-m", document: tokenDocument }
+            : null;
+        globalThis.game.scenes.contents = [];
+
+        const encounter = new TurnOfTheCenturyEncounter(harness.combat);
+        await encounter.beginEncounterResolution();
+        await encounter.stepEncounterResolution(1);
+
+        assert.equal(tokenDocument.x, 300);
+        assert.equal(tokenDocument.y, 100);
+    });
+
+    it("restores a planning movement token to its origin when the plan is marked ready", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        const harness = buildMultiCombatHarness({
+            apBudget: 2,
+            combatants: [
+                {
+                    id: "c-m",
+                    actorId: "actor-m",
+                    name: "Mover",
+                    tokenId: "token-m",
+                    x: 0,
+                    y: 0,
+                    initiative: 20,
+                    items: [],
+                    inventory: {
+                        equipment: { hands: { itemIds: [] }, torso: { itemIds: [] }, belt: { itemIds: [] } },
+                        pack: { itemIds: [] }
+                    }
+                }
+            ],
+            plans: {
+                "c-m": [{
+                    id: "move",
+                    actionId: "move",
+                    type: "movement",
+                    label: "Move",
+                    apCost: 1,
+                    movementTargetX: 300,
+                    movementTargetY: 100,
+                    movementOriginX: 0,
+                    movementOriginY: 0,
+                    isReaction: false,
+                    reactionTriggerType: ""
+                }]
+            }
+        });
+
+        const tokenDocument = globalThis.canvas.scene.tokens.get("token-m");
+        tokenDocument.x = 300;
+        tokenDocument.y = 100;
+        harness.getState().perCombatant["c-m"].ready = false;
+        harness.getState().perCombatant["c-m"].committedAt = 0;
+
+        const encounter = new TurnOfTheCenturyEncounter(harness.combat);
+        await encounter.setCombatantReady("c-m", true);
+
+        assert.equal(tokenDocument.x, 0);
+        assert.equal(tokenDocument.y, 0);
+        assert.equal(harness.getState().perCombatant["c-m"].ready, true);
     });
 
     it("keeps tick narration in encounter state instead of publishing chat messages", async () => {
