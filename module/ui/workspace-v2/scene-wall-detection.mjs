@@ -27,6 +27,12 @@ function finiteNumber(value, fallback = 0) {
     return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function normalizedPhase(value, size) {
+    const numericSize = positiveNumber(size, 0);
+    if (numericSize <= 0) return 0;
+    return ((finiteNumber(value, 0) % numericSize) + numericSize) % numericSize;
+}
+
 function collectionContents(collection) {
     if (!collection) return [];
     if (Array.isArray(collection)) return collection;
@@ -95,22 +101,67 @@ export function buildSceneWallOverlayState(scene = null, { selectedWallIds = new
     };
 }
 
-export function buildRegularSquareGridModel(scene = null, { imageWidth = 0, imageHeight = 0 } = {}) {
-    const gridType = Number(scene?.grid?.type ?? GRID_TYPES.GRIDLESS);
-    const cellSize = positiveNumber(scene?.grid?.size, 0);
-    if (gridType !== GRID_TYPES.SQUARE || cellSize < 4) return null;
+function buildBackgroundSceneTransform(scene = null, { imageWidth = 0, imageHeight = 0, canvasDimensions = null } = {}) {
+    const dimensions = canvasDimensions ?? scene?.dimensions ?? {};
+    const hasFoundryDimensions = Boolean(canvasDimensions ?? scene?.dimensions);
+    const naturalWidth = positiveNumber(imageWidth, positiveNumber(scene?.width, 0));
+    const naturalHeight = positiveNumber(imageHeight, positiveNumber(scene?.height, 0));
+    const displayWidth = hasFoundryDimensions
+        ? positiveNumber(dimensions?.sceneWidth, positiveNumber(scene?.width, naturalWidth))
+        : naturalWidth;
+    const displayHeight = hasFoundryDimensions
+        ? positiveNumber(dimensions?.sceneHeight, positiveNumber(scene?.height, naturalHeight))
+        : naturalHeight;
 
-    const width = positiveNumber(scene?.width, positiveNumber(scene?.dimensions?.sceneWidth, imageWidth));
-    const height = positiveNumber(scene?.height, positiveNumber(scene?.dimensions?.sceneHeight, imageHeight));
+    return {
+        x: finiteNumber(dimensions?.sceneX, finiteNumber(dimensions?.x, 0)),
+        y: finiteNumber(dimensions?.sceneY, finiteNumber(dimensions?.y, 0)),
+        scaleX: naturalWidth > 0 && displayWidth > 0 ? displayWidth / naturalWidth : 1,
+        scaleY: naturalHeight > 0 && displayHeight > 0 ? displayHeight / naturalHeight : 1,
+        width: displayWidth,
+        height: displayHeight
+    };
+}
+
+function segmentFromImageToScene(segment = {}, transform = {}) {
+    const scaleX = positiveNumber(transform.scaleX, 1);
+    const scaleY = positiveNumber(transform.scaleY, 1);
+    const offsetX = finiteNumber(transform.x, 0);
+    const offsetY = finiteNumber(transform.y, 0);
+    return {
+        ...segment,
+        x1: offsetX + (finiteNumber(segment.x1, 0) * scaleX),
+        y1: offsetY + (finiteNumber(segment.y1, 0) * scaleY),
+        x2: offsetX + (finiteNumber(segment.x2, 0) * scaleX),
+        y2: offsetY + (finiteNumber(segment.y2, 0) * scaleY)
+    };
+}
+
+export function buildRegularSquareGridModel(scene = null, { imageWidth = 0, imageHeight = 0, canvasDimensions = null } = {}) {
+    const gridType = Number(scene?.grid?.type ?? GRID_TYPES.GRIDLESS);
+    const sceneCellSize = positiveNumber(scene?.grid?.size, 0);
+    if (gridType !== GRID_TYPES.SQUARE || sceneCellSize < 4) return null;
+
+    const transform = buildBackgroundSceneTransform(scene, { imageWidth, imageHeight, canvasDimensions });
+    const scaleX = positiveNumber(transform.scaleX, 1);
+    const scaleY = positiveNumber(transform.scaleY, 1);
+    const averageScale = (scaleX + scaleY) / 2;
+    const cellSize = sceneCellSize / averageScale;
+    const width = positiveNumber(imageWidth, transform.width / scaleX);
+    const height = positiveNumber(imageHeight, transform.height / scaleY);
     if (width <= 0 || height <= 0) return null;
+
+    const sceneOffsetX = -finiteNumber(scene?.shiftX, 0);
+    const sceneOffsetY = -finiteNumber(scene?.shiftY, 0);
 
     return {
         type: gridType,
         cellSize,
         width,
         height,
-        offsetX: -finiteNumber(scene?.shiftX, 0),
-        offsetY: -finiteNumber(scene?.shiftY, 0)
+        offsetX: normalizedPhase((sceneOffsetX - transform.x) / scaleX, cellSize),
+        offsetY: normalizedPhase((sceneOffsetY - transform.y) / scaleY, cellSize),
+        sceneTransform: transform
     };
 }
 
@@ -553,6 +604,7 @@ export function detectRegularGridWallSegments({
     width = 0,
     height = 0,
     scene = null,
+    canvasDimensions = null,
     grid = null,
     options = {}
 } = {}) {
@@ -560,7 +612,8 @@ export function detectRegularGridWallSegments({
     const imageHeight = Math.round(positiveNumber(height, imageData?.height));
     const gridModel = grid ?? buildRegularSquareGridModel(scene, {
         imageWidth,
-        imageHeight
+        imageHeight,
+        canvasDimensions
     });
     if (!gridModel) return { ok: false, reason: "unsupported-grid", segments: [] };
 
@@ -765,7 +818,8 @@ export function detectRegularGridWallSegments({
 
     const unique = new Map();
     for (const segment of detected) unique.set(segmentKey(segment), segment);
-    const segments = mergeSegments(filterQualitativeWalls([...unique.values()]));
+    const imageSegments = mergeSegments(filterQualitativeWalls([...unique.values()]));
+    const segments = imageSegments.map((segment) => segmentFromImageToScene(segment, gridModel.sceneTransform));
     return {
         ok: true,
         reason: "",

@@ -331,7 +331,33 @@ describe("scene design actions", () => {
         assert.equal(uploadOptions.overwrite, true);
     });
 
-    it("activates Foundry scene controls for wall editing when available", async () => {
+    it("activates Foundry v14 scene controls for wall editing when available", async () => {
+        let activatedWith = null;
+        let initializedWith = null;
+        const result = await activateSceneWallDesignMode({
+            scene: { id: "scene-1" },
+            canvas: { ready: true },
+            ui: {
+                controls: {
+                    activate: async (payload) => {
+                        activatedWith = payload;
+                    },
+                    initialize: async (payload) => {
+                        initializedWith = payload;
+                    }
+                }
+            }
+        });
+
+        assert.deepEqual(activatedWith, { control: "walls", tool: "walls" });
+        assert.equal(initializedWith, null);
+        assert.deepEqual(result, {
+            ok: true,
+            message: "Wall design tools activated."
+        });
+    });
+
+    it("falls back to legacy scene control initialization for wall editing", async () => {
         let initializedWith = null;
         const result = await activateSceneWallDesignMode({
             scene: { id: "scene-1" },
@@ -378,6 +404,7 @@ describe("scene design actions", () => {
         const imageData = makeImageData(201, 201);
         drawVerticalLine(imageData, 100, 0, 200, 0, 3);
         let created = null;
+        let activatedWith = null;
         const scene = {
             id: "scene-1",
             name: "Rookery Yard",
@@ -395,6 +422,13 @@ describe("scene design actions", () => {
         const result = await detectSceneWalls({
             scene,
             canvas: { ready: true },
+            ui: {
+                controls: {
+                    activate: async (payload) => {
+                        activatedWith = payload;
+                    }
+                }
+            },
             imageData
         });
 
@@ -406,6 +440,7 @@ describe("scene design actions", () => {
         });
         assert.equal(created.type, "Wall");
         assert.deepEqual(created.documents[0].c, [100, 0, 100, 200]);
+        assert.deepEqual(activatedWith, { control: "walls", tool: "walls" });
     });
 
     it("confirms before replacing existing walls during detection", async () => {

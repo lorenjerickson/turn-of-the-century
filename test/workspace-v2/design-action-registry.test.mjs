@@ -120,6 +120,7 @@ describe("WorkspaceDesignActionRegistry", () => {
     });
 
     it("executes the default scene wall action", async () => {
+        let activatedWith = null;
         let initializedWith = null;
         globalThis.canvas = {
             ready: true,
@@ -127,6 +128,9 @@ describe("WorkspaceDesignActionRegistry", () => {
         };
         globalThis.ui = {
             controls: {
+                activate: async (payload) => {
+                    activatedWith = payload;
+                },
                 initialize: async (payload) => {
                     initializedWith = payload;
                 }
@@ -136,7 +140,8 @@ describe("WorkspaceDesignActionRegistry", () => {
         const action = DEFAULT_DESIGN_ACTION_REGISTRY.get("scene.walls");
         const result = await action.execute({ scene: globalThis.canvas.scene });
 
-        assert.deepEqual(initializedWith, { control: "walls", tool: "walls" });
+        assert.deepEqual(activatedWith, { control: "walls", tool: "walls" });
+        assert.equal(initializedWith, null);
         assert.equal(result.ok, true);
     });
 

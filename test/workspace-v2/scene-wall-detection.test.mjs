@@ -69,19 +69,36 @@ function setPixel(imageData, x, y, value) {
 
 describe("regular grid wall detection", () => {
     it("builds a square grid model from Foundry scene grid and shift fields", () => {
-        assert.deepEqual(buildRegularSquareGridModel({
+        const model = buildRegularSquareGridModel({
             width: 300,
             height: 200,
             shiftX: -12,
             shiftY: -8,
             grid: { type: 1, size: 50 }
-        }), {
+        });
+
+        assert.deepEqual({
+            type: model.type,
+            cellSize: model.cellSize,
+            width: model.width,
+            height: model.height,
+            offsetX: model.offsetX,
+            offsetY: model.offsetY
+        }, {
             type: 1,
             cellSize: 50,
             width: 300,
             height: 200,
             offsetX: 12,
             offsetY: 8
+        });
+        assert.deepEqual(model.sceneTransform, {
+            x: 0,
+            y: 0,
+            scaleX: 1,
+            scaleY: 1,
+            width: 300,
+            height: 200
         });
     });
 
@@ -277,6 +294,42 @@ describe("regular grid wall detection", () => {
         })), [
             { orientation: "horizontal", x1: 0, y1: 100, x2: 100, y2: 100, type: "wall" },
             { orientation: "vertical", x1: 100, y1: 0, x2: 100, y2: 200, type: "wall" }
+        ]);
+    });
+
+    it("places detected walls on the background rectangle within a padded scene", () => {
+        const imageData = makeImageData(201, 201);
+        drawVerticalLine(imageData, 100, 0, 200, 0, 3);
+        drawHorizontalLine(imageData, 100, 0, 100, 0, 3);
+
+        const result = detectRegularGridWallSegments({
+            imageData,
+            scene: {
+                width: 280,
+                height: 261,
+                dimensions: {
+                    sceneX: 40,
+                    sceneY: 30,
+                    sceneWidth: 201,
+                    sceneHeight: 201
+                },
+                shiftX: -40,
+                shiftY: -30,
+                grid: { type: 1, size: 100 }
+            }
+        });
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(result.segments.map((segment) => ({
+            orientation: segment.orientation,
+            x1: segment.x1,
+            y1: segment.y1,
+            x2: segment.x2,
+            y2: segment.y2,
+            type: segment.type
+        })), [
+            { orientation: "horizontal", x1: 40, y1: 130, x2: 140, y2: 130, type: "wall" },
+            { orientation: "vertical", x1: 140, y1: 30, x2: 140, y2: 230, type: "wall" }
         ]);
     });
 

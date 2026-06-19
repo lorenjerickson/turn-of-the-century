@@ -22,6 +22,22 @@ describe("native canvas workspace integration", () => {
         assert.doesNotMatch(workspaceRootSource, /centerOnPoint\(viewport, image/);
     });
 
+    it("keeps grid calibration input keys from escaping to the native canvas", () => {
+        assert.match(workspaceRootSource, /gridCalibrationInputSelector/);
+        assert.match(workspaceRootSource, /input\.addEventListener\("keydown"[\s\S]*event\.stopPropagation\(\);/);
+        assert.match(workspaceRootSource, /event\.key === "Tab"[\s\S]*event\.preventDefault\(\);/);
+        assert.match(workspaceRootSource, /this\.\#syncGridCalibrationStateFromInputs\(\);[\s\S]*await this\.\#flushGridCalibrationPreview\(\);/);
+        assert.match(workspaceRootSource, /#focusAdjacentGridCalibrationInput/);
+    });
+
+    it("debounces grid calibration previews while keeping boundary events immediate", () => {
+        assert.match(workspaceRootSource, /GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS = 100/);
+        assert.match(workspaceRootSource, /GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS = 500/);
+        assert.match(workspaceRootSource, /input\.addEventListener\("input"[\s\S]*this\.\#scheduleGridCalibrationPreview\(\{ geometry: input\.dataset\.action !== "grid-cal-color" \}\);/);
+        assert.match(workspaceRootSource, /#scheduleGridCalibrationPreview\(\{ geometry = true \} = \{\}\)[\s\S]*GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS[\s\S]*GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS[\s\S]*setTimeout\(\(\) => \{[\s\S]*#previewGridCalibrationOnCanvas\(\);[\s\S]*delay/);
+        assert.match(workspaceRootSource, /#flushGridCalibrationPreview\(\)[\s\S]*this\.\#clearGridCalibrationPreviewTimer\(\);[\s\S]*return this\.\#previewGridCalibrationOnCanvas\(\);/);
+    });
+
     it("lets pointer events pass through the workspace canvas aperture", () => {
         assert.match(styles, /\.totc-workspace-v2-root-app\s*\{[\s\S]*pointer-events:\s*none;/);
         assert.match(styles, /\.turn-of-the-century \.totc-workspace-v2-shell\s*\{[\s\S]*pointer-events:\s*none;/);

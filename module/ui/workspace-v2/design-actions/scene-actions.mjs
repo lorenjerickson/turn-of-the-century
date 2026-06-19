@@ -392,6 +392,14 @@ export class SceneDesignService {
             };
         }
 
+        if (typeof controls?.activate === "function") {
+            await controls.activate({ control: WALL_CONTROL, tool: WALL_TOOL });
+            return {
+                ok: true,
+                message: "Wall design tools activated."
+            };
+        }
+
         if (typeof controls?.initialize === "function") {
             await controls.initialize({ control: WALL_CONTROL, tool: WALL_TOOL });
             return {
@@ -472,6 +480,7 @@ export class SceneDesignService {
             width: imageData.width,
             height: imageData.height,
             scene,
+            canvasDimensions: canvas?.dimensions ?? null,
             options
         });
         if (!detected.ok) {
@@ -506,6 +515,12 @@ export class SceneDesignService {
                     ? "This scene cannot replace existing walls automatically."
                     : "Wall detection could not create walls in this Foundry session."
             };
+        }
+
+        try {
+            await this.activateWallDesignMode();
+        } catch (error) {
+            console.warn("[turn-of-the-century] Wall detection could not activate native wall controls", error);
         }
 
         return {

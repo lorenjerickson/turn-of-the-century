@@ -244,6 +244,8 @@ const MIN_LEFT_RIGHT_DOCK_WIDTH = 240;
 const COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT = 38;
 const COLLAPSED_LEFT_RIGHT_DOCK_WIDTH = 42;
 const TEXT_INPUT_DEBOUNCE_MS = 300;
+const GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS = 100;
+const GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS = 500;
 const GM_PANEL_STATE_KEY = "gmPanelState";
 const MARKET_PANEL_STATE_KEY = "marketPanelState";
 const MARKET_SCENE_FLAG_KEY = "workspaceV2Market";
@@ -605,6 +607,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
         this._resizeSession = null;
         this._textInputDebounceTimers = new Map();
+        this._gridCalibrationPreviewTimer = null;
         this.compendiumCacheController = new CompendiumCacheController({
             load: () => loadUnifiedCompendiumItems({
                 packs: getCompendiumPacks(game?.packs),
@@ -1555,6 +1558,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.preventDefault();
                 event.stopPropagation();
                 this.gridCalibrationController.close();
+                this.#clearGridCalibrationPreviewTimer();
                 this.#clearGridCalibrationCanvasListener();
                 this.render({ force: false });
             });
@@ -1574,21 +1578,44 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.preventDefault();
                 event.stopPropagation();
                 this.#syncGridCalibrationStateFromInputs();
+                await this.#flushGridCalibrationPreview();
                 const result = await this.gridCalibrationController.apply();
-                if (result?.ok) this.#clearGridCalibrationCanvasListener();
+                if (result?.ok) {
+                    this.#clearGridCalibrationPreviewTimer();
+                    this.#clearGridCalibrationCanvasListener();
+                }
                 this.render({ force: false });
             });
         });
 
-        this.element?.querySelectorAll("[data-action='grid-cal-cell-w'], [data-action='grid-cal-cell-h'], [data-action='grid-cal-offset-x'], [data-action='grid-cal-offset-y'], [data-action='grid-cal-color']")?.forEach((input) => {
+        const gridCalibrationInputSelector = "[data-action='grid-cal-cell-w'], [data-action='grid-cal-cell-h'], [data-action='grid-cal-offset-x'], [data-action='grid-cal-offset-y'], [data-action='grid-cal-color']";
+        this.element?.querySelectorAll(gridCalibrationInputSelector)?.forEach((input) => {
+            input.addEventListener("keydown", async (event) => {
+                event.stopPropagation();
+                if (event.key === "Tab" || event.key === "Enter") {
+                    this.#syncGridCalibrationStateFromInputs();
+                    await this.#flushGridCalibrationPreview();
+                }
+                if (event.key === "Tab") {
+                    event.preventDefault();
+                    this.#focusAdjacentGridCalibrationInput(input, { backwards: event.shiftKey });
+                }
+            }, { capture: true });
+            input.addEventListener("keyup", (event) => {
+                event.stopPropagation();
+            }, { capture: true });
             input.addEventListener("input", async () => {
                 this.#syncGridCalibrationStateFromInputs();
-                await this.#previewGridCalibrationOnCanvas();
+                this.#scheduleGridCalibrationPreview({ geometry: input.dataset.action !== "grid-cal-color" });
             });
             input.addEventListener("change", async () => {
                 this.#syncGridCalibrationStateFromInputs();
-                await this.#previewGridCalibrationOnCanvas();
+                await this.#flushGridCalibrationPreview();
                 this.render({ force: false });
+            });
+            input.addEventListener("focusout", async () => {
+                this.#syncGridCalibrationStateFromInputs();
+                await this.#flushGridCalibrationPreview();
             });
         });
 
@@ -4782,6 +4809,44 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (offsetX !== undefined) this.gridCalibrationController.setOffsetX(offsetX);
         if (offsetY !== undefined) this.gridCalibrationController.setOffsetY(offsetY);
         if (color !== undefined) this.gridCalibrationController.setColor(color);
+    }
+
+    #focusAdjacentGridCalibrationInput(currentInput, { backwards = false } = {}) {
+        const root = this.element?.querySelector("[data-grid-calibration='true']");
+        if (!root) return false;
+
+        const inputs = Array.from(root.querySelectorAll("[data-action='grid-cal-cell-w'], [data-action='grid-cal-cell-h'], [data-action='grid-cal-offset-x'], [data-action='grid-cal-offset-y'], [data-action='grid-cal-color']"))
+            .filter((input) => !input.disabled && input.offsetParent !== null);
+        const currentIndex = inputs.indexOf(currentInput);
+        if (!inputs.length || currentIndex < 0) return false;
+
+        const delta = backwards ? -1 : 1;
+        const nextInput = inputs[(currentIndex + delta + inputs.length) % inputs.length];
+        nextInput?.focus?.();
+        nextInput?.select?.();
+        return Boolean(nextInput);
+    }
+
+    #scheduleGridCalibrationPreview({ geometry = true } = {}) {
+        if (this._gridCalibrationPreviewTimer) clearTimeout(this._gridCalibrationPreviewTimer);
+        const delay = geometry
+            ? GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS
+            : GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS;
+        this._gridCalibrationPreviewTimer = setTimeout(() => {
+            this._gridCalibrationPreviewTimer = null;
+            void this.#previewGridCalibrationOnCanvas();
+        }, delay);
+    }
+
+    #clearGridCalibrationPreviewTimer() {
+        if (!this._gridCalibrationPreviewTimer) return;
+        clearTimeout(this._gridCalibrationPreviewTimer);
+        this._gridCalibrationPreviewTimer = null;
+    }
+
+    async #flushGridCalibrationPreview() {
+        this.#clearGridCalibrationPreviewTimer();
+        return this.#previewGridCalibrationOnCanvas();
     }
 
     async #previewGridCalibrationOnCanvas() {

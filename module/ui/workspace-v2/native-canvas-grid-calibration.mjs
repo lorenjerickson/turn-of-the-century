@@ -61,10 +61,26 @@ export function listenForNativeCanvasPointerDown(canvasRef = globalThis.canvas, 
     return () => {};
 }
 
+function hasOwnValue(data, key) {
+    return Object.prototype.hasOwnProperty.call(data ?? {}, key);
+}
+
+function hasGridGeometryUpdate(updateData = {}) {
+    return hasOwnValue(updateData, "grid.type")
+        || hasOwnValue(updateData, "grid.size")
+        || hasOwnValue(updateData, "shiftX")
+        || hasOwnValue(updateData, "shiftY");
+}
+
 export async function previewNativeCanvasGrid({ canvasRef = globalThis.canvas, scene = null, updateData = null } = {}) {
     if (!scene || !updateData || typeof scene.updateSource !== "function") return false;
 
     scene.updateSource(updateData);
+
+    if (hasGridGeometryUpdate(updateData) && typeof canvasRef?.draw === "function") {
+        await canvasRef.draw(scene);
+        return true;
+    }
 
     if (typeof canvasRef?.grid?.draw === "function") {
         await canvasRef.grid.draw();

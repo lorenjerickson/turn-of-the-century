@@ -50,19 +50,23 @@ describe("native canvas grid calibration adapter", () => {
         ]);
     });
 
-    it("previews grid updates through scene source data and native canvas grid redraw", async () => {
+    it("previews grid geometry updates through scene source data and native canvas redraw", async () => {
         const receivedUpdates = [];
         const drawCalls = [];
+        const sceneDocument = {
+            updateSource: (data) => {
+                receivedUpdates.push(data);
+            }
+        };
         const ok = await previewNativeCanvasGrid({
-            scene: {
-                updateSource: (data) => {
-                    receivedUpdates.push(data);
-                }
-            },
+            scene: sceneDocument,
             canvasRef: {
+                draw: async (scene) => {
+                    drawCalls.push(["canvas.draw", scene]);
+                },
                 grid: {
                     draw: async () => {
-                        drawCalls.push("grid.draw");
+                        drawCalls.push(["grid.draw"]);
                     }
                 }
             },
@@ -81,6 +85,59 @@ describe("native canvas grid calibration adapter", () => {
             shiftX: -12,
             shiftY: -18
         }]);
-        assert.deepEqual(drawCalls, ["grid.draw"]);
+        assert.deepEqual(drawCalls, [["canvas.draw", sceneDocument]]);
+    });
+
+    it("previews grid color-only updates through the lightweight grid redraw", async () => {
+        const receivedUpdates = [];
+        const drawCalls = [];
+        const ok = await previewNativeCanvasGrid({
+            scene: {
+                updateSource: (data) => {
+                    receivedUpdates.push(data);
+                }
+            },
+            canvasRef: {
+                draw: async () => {
+                    drawCalls.push(["canvas.draw"]);
+                },
+                grid: {
+                    draw: async () => {
+                        drawCalls.push(["grid.draw"]);
+                    }
+                }
+            },
+            updateData: {
+                "grid.color": "#d8b45c"
+            }
+        });
+
+        assert.equal(ok, true);
+        assert.deepEqual(receivedUpdates, [{ "grid.color": "#d8b45c" }]);
+        assert.deepEqual(drawCalls, [["grid.draw"]]);
+    });
+
+    it("falls back to a full canvas redraw when no grid layer redraw is available", async () => {
+        const receivedUpdates = [];
+        const drawCalls = [];
+        const ok = await previewNativeCanvasGrid({
+            scene: {
+                updateSource: (data) => {
+                    receivedUpdates.push(data);
+                }
+            },
+            canvasRef: {
+                draw: async () => {
+                    drawCalls.push(["canvas.draw"]);
+                }
+            },
+            updateData: {
+                "grid.color": "#d8b45c"
+            }
+        });
+
+        assert.equal(ok, true);
+        assert.deepEqual(receivedUpdates, [{ "grid.color": "#d8b45c" }]);
+        assert.deepEqual(drawCalls, [["canvas.draw"]]);
     });
 });
