@@ -2,7 +2,7 @@
   "_id": "4776f3be650a8c1c",
   "name": "Rivet Hammer",
   "type": "weapon",
-  "img": "icons/weapons/hammers/hammer-riveted.webp",
+  "img": "modules/game-icons-net/blackbackground/gear-hammer.svg",
   "system": {
     "artwork": {
       "image": "icons/weapons/swords/sword-guard-steel.webp",

@@ -11,8 +11,8 @@ before(() => {
 });
 
 describe("runTotcMigrations", () => {
-    it("exports TOTC_WORLD_SCHEMA_VERSION as 14", () => {
-        assert.equal(TOTC_WORLD_SCHEMA_VERSION, 14);
+    it("exports TOTC_WORLD_SCHEMA_VERSION as 15", () => {
+        assert.equal(TOTC_WORLD_SCHEMA_VERSION, 15);
     });
 
     it("throws when seedMissingActors is not a function", async () => {
@@ -27,6 +27,7 @@ describe("runTotcMigrations", () => {
                 migrateEncounterActions: noop,
                 migrateModifiers: noop,
                 migrateActionRecapFormats: noop,
+                migrateItemIcons: noop,
                 migrateStarterCompendiums: noop,
                 seedMissingActors: undefined,
                 migrateStarterActorAvatars: noop
@@ -47,6 +48,7 @@ describe("runTotcMigrations", () => {
                 migrateEncounterActions: noop,
                 migrateModifiers: noop,
                 migrateActionRecapFormats: noop,
+                migrateItemIcons: noop,
                 migrateStarterCompendiums: noop,
                 seedMissingActors: noop,
                 migrateStarterActorAvatars: undefined
@@ -59,6 +61,7 @@ describe("runTotcMigrations", () => {
         let seedCalled = false;
         let avatarsCalled = false;
         let recapCalled = false;
+        let iconsCalled = false;
         const noop = async () => ({});
         const seedMissingActors = async () => {
             seedCalled = true;
@@ -72,6 +75,10 @@ describe("runTotcMigrations", () => {
             avatarsCalled = true;
             return { scanned: 3, updated: 2 };
         };
+        const migrateItemIcons = async () => {
+            iconsCalled = true;
+            return { itemsScanned: 8, itemsUpdated: 4, changedDocuments: [] };
+        };
 
         const result = await runTotcMigrations({
             currentVersion: 11,
@@ -82,6 +89,7 @@ describe("runTotcMigrations", () => {
             migrateEncounterActions: noop,
             migrateModifiers: noop,
             migrateActionRecapFormats,
+            migrateItemIcons,
             migrateStarterCompendiums: noop,
             seedMissingActors,
             migrateStarterActorAvatars,
@@ -91,7 +99,8 @@ describe("runTotcMigrations", () => {
         assert.equal(seedCalled, true);
         assert.equal(avatarsCalled, true);
         assert.equal(recapCalled, true);
-        assert.equal(result.toVersion, 14);
+        assert.equal(iconsCalled, true);
+        assert.equal(result.toVersion, 15);
         const step = result.applied.find((s) => s.key === "seed-missing-actors");
         assert.ok(step, "seed-missing-actors step should be present");
         assert.equal(step.version, 12);
@@ -104,19 +113,25 @@ describe("runTotcMigrations", () => {
         assert.ok(recapStep, "action-recap-formats step should be present");
         assert.equal(recapStep.version, 14);
         assert.equal(recapStep.report.itemsUpdated, 5);
+        const iconStep = result.applied.find((s) => s.key === "item-icons");
+        assert.ok(iconStep, "item-icons step should be present");
+        assert.equal(iconStep.version, 15);
+        assert.equal(iconStep.report.itemsUpdated, 4);
     });
 
-    it("skips v12, v13, and v14 when currentVersion is already 14", async () => {
+    it("skips v12 through v15 when currentVersion is already 15", async () => {
         let seedCalled = false;
         let avatarsCalled = false;
         let recapCalled = false;
+        let iconsCalled = false;
         const noop = async () => ({});
         const seedMissingActors = async () => { seedCalled = true; return {}; };
         const migrateActionRecapFormats = async () => { recapCalled = true; return {}; };
         const migrateStarterActorAvatars = async () => { avatarsCalled = true; return {}; };
+        const migrateItemIcons = async () => { iconsCalled = true; return {}; };
 
         const result = await runTotcMigrations({
-            currentVersion: 14,
+            currentVersion: 15,
             migrateActorProfiles: noop,
             migrateActorProfessions: noop,
             migrateActorEconomy: noop,
@@ -124,6 +139,7 @@ describe("runTotcMigrations", () => {
             migrateEncounterActions: noop,
             migrateModifiers: noop,
             migrateActionRecapFormats,
+            migrateItemIcons,
             migrateStarterCompendiums: noop,
             seedMissingActors,
             migrateStarterActorAvatars,
@@ -133,6 +149,7 @@ describe("runTotcMigrations", () => {
         assert.equal(seedCalled, false);
         assert.equal(avatarsCalled, false);
         assert.equal(recapCalled, false);
+        assert.equal(iconsCalled, false);
         assert.equal(result.applied.length, 0);
     });
 });

@@ -2,7 +2,7 @@
   "_id": "e741c4e6fb48cd55",
   "name": "Ironlung Vapour Cartridge",
   "type": "consumable",
-  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "img": "modules/game-icons-net/blackbackground/gas-mask.svg",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

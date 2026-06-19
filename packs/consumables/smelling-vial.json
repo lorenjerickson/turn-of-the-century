@@ -2,7 +2,7 @@
   "_id": "cfc0b2c25e9304c2",
   "name": "Smelling Vial",
   "type": "consumable",
-  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "img": "modules/game-icons-net/blackbackground/perfume-bottle.svg",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

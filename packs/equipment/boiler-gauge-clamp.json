@@ -2,7 +2,7 @@
   "_id": "53440e5e9c4a60fb",
   "name": "Boiler Gauge Clamp",
   "type": "equipment",
-  "img": "icons/tools/hand/clamp-steel.webp",
+  "img": "modules/game-icons-net/blackbackground/clamp.svg",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

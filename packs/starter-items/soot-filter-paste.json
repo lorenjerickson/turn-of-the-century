@@ -2,7 +2,7 @@
   "_id": "264e7269e720e611",
   "name": "Soot Filter Paste",
   "type": "consumable",
-  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "img": "modules/game-icons-net/blackbackground/gas-mask.svg",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

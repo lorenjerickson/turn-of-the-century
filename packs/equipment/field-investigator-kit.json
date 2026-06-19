@@ -2,7 +2,7 @@
   "_id": "63c1260a4be755e2",
   "name": "Field Investigator Kit",
   "type": "equipment",
-  "img": "icons/tools/scribal/lens-glass-brown.webp",
+  "img": "modules/game-icons-net/blackbackground/magnifying-glass.svg",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

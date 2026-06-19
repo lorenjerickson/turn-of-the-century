@@ -2,7 +2,7 @@
   "_id": "6cd7d8753ccba910",
   "name": "Storm Orientation",
   "type": "talent",
-  "img": "icons/environment/wilderness/weather-wind.webp",
+  "img": "modules/game-icons-net/blackbackground/compass.svg",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

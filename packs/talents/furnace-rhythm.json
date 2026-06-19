@@ -2,7 +2,7 @@
   "_id": "be9b15f47d454b0c",
   "name": "Furnace Rhythm",
   "type": "talent",
-  "img": "icons/magic/fire/flame-burning-furnace.webp",
+  "img": "modules/game-icons-net/blackbackground/furnace.svg",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

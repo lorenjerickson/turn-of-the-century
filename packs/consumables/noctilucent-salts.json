@@ -2,7 +2,7 @@
   "_id": "75d80eb4fea0695a",
   "name": "Noctilucent Salts",
   "type": "consumable",
-  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "img": "modules/game-icons-net/blackbackground/chemical-drop.svg",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

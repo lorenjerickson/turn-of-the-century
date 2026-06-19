@@ -30,6 +30,13 @@ describe("migration entrypoint wiring", () => {
         assert.equal(source.includes("migrateActionRecapFormats: migrateTotcActionRecapFormats"), true);
     });
 
+    it("wires the item icon migration", () => {
+        const source = readFileSync(new URL("../turn-of-the-century.mjs", import.meta.url), "utf8");
+
+        assert.equal(source.includes("migrateTotcItemIcons"), true);
+        assert.equal(source.includes("migrateItemIcons: migrateTotcItemIcons"), true);
+    });
+
     it("does not restore the legacy repeated startup seeding flag", () => {
         const source = readFileSync(new URL("../turn-of-the-century.mjs", import.meta.url), "utf8");
 

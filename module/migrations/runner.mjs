@@ -1,4 +1,4 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 14;
+export const TOTC_WORLD_SCHEMA_VERSION = 15;
 
 import { migrateTotcItems } from "./items.mjs";
 import { migrateTotcActionRecapFormats } from "./action-recap-formats.mjs";
@@ -12,6 +12,7 @@ export async function runTotcMigrations({
     migrateEncounterActions,
     migrateModifiers,
     migrateActionRecapFormats,
+    migrateItemIcons,
     migrateStarterCompendiums,
     seedMissingActors,
     migrateStarterActorAvatars,
@@ -38,6 +39,9 @@ export async function runTotcMigrations({
     }
     if (typeof migrateActionRecapFormats !== "function") {
         throw new Error("runTotcMigrations requires a migrateActionRecapFormats function.");
+    }
+    if (typeof migrateItemIcons !== "function") {
+        throw new Error("runTotcMigrations requires a migrateItemIcons function.");
     }
     if (typeof migrateStarterCompendiums !== "function") {
         throw new Error("runTotcMigrations requires a migrateStarterCompendiums function.");
@@ -227,6 +231,21 @@ export async function runTotcMigrations({
         appliedVersion = 14;
     }
 
+    // v15: replace broken and generic starter-item artwork with curated icons
+    if (appliedVersion < 15) {
+        const report = await migrateItemIcons({
+            dryRun: false,
+            notify: false,
+            includeCompendiums: true
+        });
+        appliedSteps.push({
+            version: 15,
+            key: "item-icons",
+            report
+        });
+        appliedVersion = 15;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -268,6 +287,10 @@ export async function runTotcMigrations({
                 }
 
                 if (step.key === "action-recap-formats") {
+                    return `${step.key}: ${step.report.itemsUpdated} items updated`;
+                }
+
+                if (step.key === "item-icons") {
                     return `${step.key}: ${step.report.itemsUpdated} items updated`;
                 }
 

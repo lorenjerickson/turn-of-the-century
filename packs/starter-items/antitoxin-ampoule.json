@@ -2,7 +2,7 @@
   "_id": "900ae674549fc032",
   "name": "Antitoxin Ampoule",
   "type": "consumable",
-  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "img": "modules/game-icons-net/blackbackground/medicines.svg",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

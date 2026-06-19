@@ -6,6 +6,23 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = dirname(fileURLToPath(new URL("../system.json", import.meta.url)));
 
+const DEFAULT_ITEM_ICONS = {
+    armor: "icons/svg/shield.svg",
+    campaign: "icons/svg/book.svg",
+    consumable: "icons/svg/pill.svg",
+    effect: "icons/svg/aura.svg",
+    equipment: "icons/svg/clockwork.svg",
+    ethnicity: "icons/svg/mystery-man.svg",
+    item: "icons/svg/item-bag.svg",
+    location: "icons/svg/city.svg",
+    profession: "icons/svg/mystery-man.svg",
+    quirk: "icons/svg/hazard.svg",
+    scenario: "icons/svg/combat.svg",
+    skill: "icons/svg/book.svg",
+    talent: "icons/svg/upgrade.svg",
+    weapon: "icons/svg/sword.svg"
+};
+
 describe("static compendium pack content", () => {
     it("declares item packs with bundled JSON documents", () => {
         const system = JSON.parse(readFileSync(join(rootDir, "system.json"), "utf8"));
@@ -19,6 +36,54 @@ describe("static compendium pack content", () => {
 
             assert.ok(documents.length > 0, `${pack.name} should include static JSON documents`);
         }
+    });
+
+    it("gives every bundled item an explicit icon and uses type-appropriate defaults", () => {
+        const system = JSON.parse(readFileSync(join(rootDir, "system.json"), "utf8"));
+        const itemPacks = system.packs.filter((pack) => pack.type === "Item");
+        const requiredPackages = new Set((system.relationships?.requires ?? []).map((relationship) => relationship.id));
+
+        for (const pack of itemPacks) {
+            const packPath = join(rootDir, pack.path);
+            const documentFiles = readdirSync(packPath).filter((fileName) => fileName.endsWith(".json"));
+
+            for (const fileName of documentFiles) {
+                const document = JSON.parse(readFileSync(join(packPath, fileName), "utf8"));
+                const image = String(document.img ?? "").trim();
+                assert.ok(image, `${pack.name}/${fileName} should define an icon`);
+                assert.equal(/\s/.test(image), false, `${pack.name}/${fileName} icon path should not contain whitespace`);
+
+                if (image.startsWith("icons/svg/")) {
+                    assert.equal(
+                        image,
+                        DEFAULT_ITEM_ICONS[document.type],
+                        `${pack.name}/${fileName} should use the default icon for ${document.type}`
+                    );
+                }
+
+                if (image.startsWith("modules/game-icons-net/")) {
+                    assert.equal(requiredPackages.has("game-icons-net"), true, "game-icons-net should be a required system dependency");
+                    assert.match(
+                        image,
+                        /^modules\/game-icons-net\/(?:black|white)background\/[a-z0-9_-]+\.svg$/,
+                        `${pack.name}/${fileName} should use a stable Game-icons.net path`
+                    );
+                }
+            }
+        }
+    });
+
+    it("replaces generic starter item defaults with curated icons", () => {
+        const starterPath = join(rootDir, "packs/starter-items");
+        const documents = readdirSync(starterPath)
+            .filter((fileName) => fileName.endsWith(".json"))
+            .map((fileName) => JSON.parse(readFileSync(join(starterPath, fileName), "utf8")));
+
+        assert.equal(
+            documents.some((document) => String(document.img ?? "").startsWith("icons/svg/")),
+            false,
+            "starter items should not retain generic Foundry type icons"
+        );
     });
 
     it("declares a starter scene pack with the Lobby scene and shipped background", () => {

@@ -2,7 +2,7 @@
   "_id": "d6d36e3b8f8f99cf",
   "name": "Acid-Wash Solution",
   "type": "consumable",
-  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "img": "modules/game-icons-net/blackbackground/acid-tube.svg",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

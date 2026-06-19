@@ -2,7 +2,7 @@
   "_id": "f02a16acf51ff17d",
   "name": "Nightwatch Tonic",
   "type": "consumable",
-  "img": "icons/consumables/potions/potion-bottle-corked-cyan.webp",
+  "img": "modules/game-icons-net/blackbackground/all-seeing-eye.svg",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

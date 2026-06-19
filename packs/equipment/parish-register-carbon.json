@@ -2,7 +2,7 @@
   "_id": "b7861222b191354b",
   "name": "Parish Register Carbon",
   "type": "item",
-  "img": "icons/sundries/documents/document-worn-folded.webp",
+  "img": "modules/game-icons-net/blackbackground/archive-register.svg",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

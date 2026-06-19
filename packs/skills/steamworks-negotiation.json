@@ -2,7 +2,7 @@
   "_id": "ed18d92672febeae",
   "name": "Steamworks Negotiation",
   "type": "skill",
-  "img": "icons/skills/social/diplomacy-peace.webp",
+  "img": "modules/game-icons-net/blackbackground/discussion.svg",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

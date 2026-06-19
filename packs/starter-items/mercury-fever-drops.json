@@ -2,7 +2,7 @@
   "_id": "20fe92e02ef73883",
   "name": "Mercury Fever Drops",
   "type": "consumable",
-  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
+  "img": "modules/game-icons-net/blackbackground/eyedropper.svg",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

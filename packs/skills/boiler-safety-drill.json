@@ -2,7 +2,7 @@
   "_id": "86fdba5221744ac6",
   "name": "Boiler Safety Drill",
   "type": "skill",
-  "img": "icons/tools/smithing/furnace-fire-orange.webp",
+  "img": "modules/game-icons-net/blackbackground/furnace.svg",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

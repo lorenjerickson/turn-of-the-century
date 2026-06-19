@@ -2,7 +2,7 @@
   "_id": "b52ddaf5d2313126",
   "name": "Locksmith Roll",
   "type": "equipment",
-  "img": "icons/tools/hand/pick-steel-white.webp",
+  "img": "modules/game-icons-net/blackbackground/lockpicks.svg",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

@@ -2,7 +2,7 @@
   "_id": "ffbc8f08e698391d",
   "name": "Last-Light Resolve",
   "type": "talent",
-  "img": "icons/magic/light/explosion-star-small-yellow.webp",
+  "img": "modules/game-icons-net/blackbackground/candle-light.svg",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

@@ -276,6 +276,18 @@
             }
         }
     },
+    "relationships": {
+        "requires": [
+            {
+                "id": "game-icons-net",
+                "type": "module",
+                "manifest": "https://raw.githubusercontent.com/datdamnzotz/icons/master/module.json",
+                "compatibility": {
+                    "verified": "0.0.45"
+                }
+            }
+        ]
+    },
     "socket": true,
     "initiative": "1d20",
     "grid": {

@@ -2,7 +2,7 @@
   "_id": "0fdbb004584d4ef1",
   "name": "Mortuary Lantern",
   "type": "equipment",
-  "img": "icons/sundries/lights/lantern-bullseye-silver.webp",
+  "img": "modules/game-icons-net/blackbackground/old-lantern.svg",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

@@ -2,7 +2,7 @@
   "_id": "43cb44ad032f46bb",
   "name": "Signal Almanac",
   "type": "item",
-  "img": "icons/sundries/books/book-embossed-compass-blue.webp",
+  "img": "modules/game-icons-net/blackbackground/rule-book.svg",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

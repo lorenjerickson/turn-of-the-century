@@ -2,7 +2,7 @@
   "_id": "12a76f6d0d962534",
   "name": "Pocket Reliquary",
   "type": "item",
-  "img": "icons/commodities/treasure/token-gold-red.webp",
+  "img": "modules/game-icons-net/blackbackground/holy-symbol.svg",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",
