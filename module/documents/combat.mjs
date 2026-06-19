@@ -915,7 +915,10 @@ export class TurnOfTheCenturyEncounter {
         perCombatant[combatantId] = {
             ...combatantState,
             spentAp: 0,
-            remainingAp: Math.max(0, this.apBudget - totalCost),
+            // This field is consumed by the tick evaluator, so it represents
+            // runtime AP remaining in the round. Planning capacity is derived
+            // separately by getCombatantRemainingAp from the action costs.
+            remainingAp: this.apBudget,
             plan: normalized,
             pointer: 0,
             progress: 0,
@@ -998,6 +1001,14 @@ export class TurnOfTheCenturyEncounter {
         const tokenId = String(combatant?.tokenId ?? combatant?.token?.id ?? combatant?.token?.document?.id ?? "").trim();
         if (!tokenId) return null;
 
+        // Foundry's Combatant document owns the authoritative relationship to its
+        // TokenDocument. Prefer that relationship over rediscovering a token by an
+        // ID which is only unique within a Scene.
+        const combatantToken = tokenDocumentForUpdate(combatant?.token);
+        if (combatantToken && tokenDocumentId(combatantToken) === tokenId) {
+            return combatantToken;
+        }
+
         const currentSceneToken = canvas?.scene?.tokens?.get?.(tokenId) ?? null;
         if (currentSceneToken) return tokenDocumentForUpdate(currentSceneToken);
 
@@ -1035,6 +1046,14 @@ export class TurnOfTheCenturyEncounter {
         }
 
         await tokenDocument.update({ x: originX, y: originY });
+    }
+
+    async #restorePlanningOrigins(perCombatant = {}) {
+        const updates = [];
+        for (const [combatantId, combatantState] of Object.entries(perCombatant ?? {})) {
+            updates.push(this.#restoreCombatantPlanningOrigin(combatantId, combatantState?.plan));
+        }
+        await Promise.all(updates);
     }
 
     async #captureResolutionSnapshot({ tick = 0, perCombatant = {}, timeline = [], tickNarratives = [], tokenPositionOverrides = null } = {}) {
@@ -1111,7 +1130,13 @@ export class TurnOfTheCenturyEncounter {
 
         const tokenUpdates = [];
         for (const [tokenId, position] of Object.entries(snapshot.tokenPositions ?? {})) {
-            const token = canvas?.scene?.tokens?.get?.(tokenId)
+            const combatant = (this.#combat.combatants?.contents ?? [])
+                .find((candidate) => (
+                    String(candidate?.tokenId ?? "").trim() === tokenId
+                    || tokenDocumentId(candidate?.token) === tokenId
+                )) ?? null;
+            const token = this.#getCombatantTokenDocument(combatant)
+                ?? canvas?.scene?.tokens?.get?.(tokenId)
                 ?? toArray(canvas?.tokens?.placeables)
                     .find((placeable) => tokenDocumentId(placeable) === tokenId)
                 ?? [...(game.scenes?.contents ?? [])]
@@ -1835,6 +1860,7 @@ export class TurnOfTheCenturyEncounter {
         const perCombatant = foundry.utils.deepClone(initialState.perCombatant ?? {});
         const timeline = [];
         const tickNarratives = [];
+        await this.#restorePlanningOrigins(perCombatant);
         const snapshots = [await this.#captureResolutionSnapshot({
             tick: 0,
             perCombatant,

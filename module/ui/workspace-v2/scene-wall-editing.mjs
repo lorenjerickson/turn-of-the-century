@@ -1,8 +1,8 @@
 import {
-    buildRegularSquareGridModel,
     buildWallDocumentDefaults,
     getSceneWallDocuments
 } from "./scene-wall-detection.mjs";
+import { GRID_TYPES } from "./panels/grid-calibration.mjs";
 
 const DEFAULT_WALL_CLICK_TOLERANCE = 18;
 const WALL_DOOR_DOOR = 1;
@@ -140,7 +140,18 @@ function clickTolerance(grid = null) {
 }
 
 export function buildWallEditingGrid(scene = null) {
-    return buildRegularSquareGridModel(scene);
+    const cellSize = positiveNumber(scene?.grid?.size, 0);
+    const gridType = Number(scene?.grid?.type ?? GRID_TYPES.GRIDLESS);
+    if (gridType !== GRID_TYPES.SQUARE || cellSize < 4) return null;
+
+    return {
+        type: gridType,
+        cellSize,
+        width: positiveNumber(scene?.dimensions?.sceneWidth, positiveNumber(scene?.width, 0)),
+        height: positiveNumber(scene?.dimensions?.sceneHeight, positiveNumber(scene?.height, 0)),
+        offsetX: -finiteNumber(scene?.shiftX, 0),
+        offsetY: -finiteNumber(scene?.shiftY, 0)
+    };
 }
 
 export function snapPointToGridIntersection(point = null, grid = null) {

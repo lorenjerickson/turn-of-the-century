@@ -86,6 +86,32 @@ describe("scene wall editing", () => {
         assert.deepEqual(snapPointToGridIntersection({ x: 144, y: 252 }, grid), { x: 100, y: 300 });
     });
 
+    it("builds wall editing grids in scene coordinates when Foundry dimensions include padding metadata", () => {
+        const grid = buildWallEditingGrid({
+            width: 280,
+            height: 260,
+            dimensions: {
+                sceneX: 40,
+                sceneY: 30,
+                sceneWidth: 201,
+                sceneHeight: 201
+            },
+            shiftX: -40,
+            shiftY: -30,
+            grid: { type: 1, size: 100 }
+        });
+
+        assert.deepEqual(grid, {
+            type: 1,
+            cellSize: 100,
+            width: 201,
+            height: 201,
+            offsetX: 40,
+            offsetY: 30
+        });
+        assert.deepEqual(snapPointToGridIntersection({ x: 142, y: 131 }, grid), { x: 140, y: 130 });
+    });
+
     it("builds manual wall data for selected wall types", () => {
         const door = buildManualWallDocumentData({
             start: { x: 0, y: 0 },

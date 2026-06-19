@@ -29,6 +29,14 @@ describe("workspace token interactions", () => {
 
     it("activates native wall tools instead of workspace map pointer handlers", () => {
         assert.match(workspaceRootSource, /#executeDesignAction\("scene\.walls", \{ panelId \}\)/);
+        assert.match(workspaceRootSource, /await this\.\#deactivateWallModeForPanel\(panelId\)/);
+        assert.match(workspaceRootSource, /ui\.controls\.activate\(\{ control: "tokens", tool: "select" \}\)/);
+        assert.match(workspaceRootSource, /canvas\?\.tokens\?\.activate\?\.\(\)/);
+        assert.match(workspaceRootSource, /#syncWallCommandCanvasListener/);
+        assert.match(workspaceRootSource, /listenForNativeCanvasPointerDown\(canvas/);
+        assert.match(workspaceRootSource, /#handleWallCommandCanvasPointerDown/);
+        assert.match(workspaceRootSource, /addWallSegmentToScene/);
+        assert.match(workspaceRootSource, /splitWallSegmentAtPoint/);
         assert.match(workspaceRootSource, /getControlledWallIds\(canvas\?\.walls\)/);
         assert.match(workspaceRootSource, /removeWallSegmentsById/);
         assert.match(workspaceRootSource, /joinWallSegmentsById/);

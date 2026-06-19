@@ -137,7 +137,8 @@ import {
     buildSceneWallOverlayState
 } from "./scene-wall-detection.mjs";
 import {
-    buildEncounterMovementOverlayModel
+    buildEncounterMovementOverlayModel,
+    findEncounterMovementOverlayCellAtPoint
 } from "./encounter-movement-overlay.mjs";
 import {
     buildEncounterTargetingOverlayModel
@@ -246,6 +247,7 @@ const COLLAPSED_LEFT_RIGHT_DOCK_WIDTH = 42;
 const TEXT_INPUT_DEBOUNCE_MS = 300;
 const GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS = 100;
 const GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS = 500;
+const ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER = "totc-encounter-movement";
 const GM_PANEL_STATE_KEY = "gmPanelState";
 const MARKET_PANEL_STATE_KEY = "marketPanelState";
 const MARKET_SCENE_FLAG_KEY = "workspaceV2Market";
@@ -717,10 +719,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._mapPanelToolbarStates = new Map();
         this._encounterPlannerSelection = null;
         this._encounterMovementInteraction = null;
+        this._encounterMovementCanvasCleanup = null;
+        this._encounterMovementCanvasRef = null;
         this._encounterTargetingInteraction = null;
         this._selectedWallIdsByScene = new Map();
         this._joinableWallIdsByScene = new Map();
         this._wallAddSequence = null;
+        this._wallCommandCanvasCleanup = null;
+        this._wallCommandCanvasRef = null;
         this._gridCalibrationCanvasCleanup = null;
         this._gridCalibrationCanvasRef = null;
         this._onWallEditKeyDown = this.#onWallEditKeyDown.bind(this);
@@ -1503,8 +1509,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (nextMode === "walls") {
                     await this.#executeDesignAction("scene.walls", { panelId });
                 } else if (mode === "walls") {
-                    this.#deactivateWallModeForPanel(panelId);
+                    await this.#deactivateWallModeForPanel(panelId);
                 }
+                this.#syncWallCommandCanvasListener();
                 this.render({ force: false });
             });
         });
@@ -1526,6 +1533,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     return;
                 }
                 this.#patchMapPanelToolbarState(panelId, { wallCommand: command });
+                this.#syncWallCommandCanvasListener();
                 if (command === "detect") {
                     await this.#executeDesignAction("scene.detectWalls", { panelId });
                 }
@@ -2196,6 +2204,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.sceneActorDropController.clearDragImage();
         this.gridCalibrationController.close();
         this.#clearGridCalibrationCanvasListener();
+        this.#clearWallCommandCanvasListener();
+        this.#clearEncounterMovementNativeOverlay();
         this._loggerUnsubscribe?.();
         return await super.close?.(options);
     }
@@ -2706,11 +2716,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
     }
 
-    #beginEncounterMovementInteraction({ combat = null, combatantId = "", actionIndex = -1, maxAp = 0 } = {}) {
+    #beginEncounterMovementInteraction({ combat = null, combatantId = "", actionIndex = -1, maxAp = 0, feetPerAp = 10 } = {}) {
         const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
         const token = this.#getEncounterMovementToken({ combat, combatantId, scene });
         if (!scene || !token || Number(maxAp) <= 0) {
             this._encounterMovementInteraction = null;
+            this.#clearEncounterMovementNativeOverlay();
             return;
         }
 
@@ -2721,9 +2732,75 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             sceneId: String(scene.id ?? scene._id ?? ""),
             tokenId: String(token.id ?? token._id ?? token.document?.id ?? ""),
             maxAp: Math.max(1, Math.floor(Number(maxAp) || 1)),
-            feetPerAp: 10
+            feetPerAp: Math.max(1, Number(feetPerAp) || 10)
         };
         this._encounterTargetingInteraction = null;
+        this.#syncEncounterMovementNativeOverlay();
+        this.#syncEncounterMovementCanvasListener();
+    }
+
+    #getNativeGridHighlightLayer() {
+        return canvas?.interface?.grid ?? canvas?.grid ?? null;
+    }
+
+    #clearEncounterMovementNativeOverlay() {
+        const gridLayer = this.#getNativeGridHighlightLayer();
+        gridLayer?.clearHighlightLayer?.(ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER);
+        this._encounterMovementCanvasCleanup?.();
+        this._encounterMovementCanvasCleanup = null;
+        this._encounterMovementCanvasRef = null;
+    }
+
+    #syncEncounterMovementNativeOverlay() {
+        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
+        const model = this.#getEncounterMovementOverlayState(scene);
+        const gridLayer = this.#getNativeGridHighlightLayer();
+        if (!model?.active || !gridLayer) {
+            this.#clearEncounterMovementNativeOverlay();
+            return;
+        }
+
+        gridLayer.clearHighlightLayer?.(ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER);
+        gridLayer.addHighlightLayer?.(ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER);
+        for (const cell of model.cells ?? []) {
+            gridLayer.highlightPosition?.(ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER, {
+                x: cell.left,
+                y: cell.top,
+                color: cell.origin ? 0x38bdf8 : 0x22c55e,
+                border: cell.origin ? 0x0ea5e9 : 0x16a34a,
+                alpha: cell.origin ? 0.28 : 0.18
+            });
+        }
+    }
+
+    #syncEncounterMovementCanvasListener() {
+        if (!this._encounterMovementInteraction) {
+            this.#clearEncounterMovementNativeOverlay();
+            return;
+        }
+        if (this._encounterMovementCanvasRef === canvas && this._encounterMovementCanvasCleanup) return;
+
+        this._encounterMovementCanvasCleanup?.();
+        this._encounterMovementCanvasRef = canvas;
+        this._encounterMovementCanvasCleanup = listenForNativeCanvasPointerDown(canvas, (event) => {
+            void this.#handleEncounterMovementCanvasPointerDown(event);
+        });
+    }
+
+    async #handleEncounterMovementCanvasPointerDown(event = {}) {
+        if (!this._encounterMovementInteraction) return;
+        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
+        const model = this.#getEncounterMovementOverlayState(scene);
+        const point = getNativeCanvasEventScenePoint(event, canvas);
+        const cell = findEncounterMovementOverlayCellAtPoint(model, point);
+        if (!cell) {
+            await this.#cancelEncounterMovementInteraction();
+            return;
+        }
+
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        await this.#finishEncounterMovementInteraction(cell);
     }
 
     #resolveEncounterActionRangeFeet(action = null, actor = null) {
@@ -2831,6 +2908,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const scene = game.scenes?.get?.(interaction.sceneId) ?? canvas?.scene ?? game.scenes?.viewed ?? null;
         const token = this.#collectionGet(scene?.tokens, interaction.tokenId);
         this._encounterMovementInteraction = null;
+        this.#clearEncounterMovementNativeOverlay();
         if (!combat?.setCombatantPlan || !token) {
             this.render({ force: false });
             return;
@@ -2858,9 +2936,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const originX = Number(token?.x ?? token?.document?.x ?? 0);
         const originY = Number(token?.y ?? token?.document?.y ?? 0);
 
+        const movementFeetPerAp = Math.max(1, Number(entry.movementFeetPerAp ?? interaction.feetPerAp ?? 10) || 10);
         plan[index] = {
             ...entry,
             apCost: cost,
+            movementFeet: movementFeetPerAp * cost,
+            movementFeetPerAp,
             movementTargetRow: row,
             movementTargetCol: col,
             movementTargetX: targetX,
@@ -2880,6 +2961,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (!interaction) return;
         const combat = this.#getEncounterCombatById(interaction.combatId) ?? this.#getEncounterCombat();
         this._encounterMovementInteraction = null;
+        this.#clearEncounterMovementNativeOverlay();
         if (combat?.removeCombatantAction) {
             await combat.removeCombatantAction(interaction.combatantId, interaction.actionIndex);
         }
@@ -3014,30 +3096,42 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const actionIndex = Number(button.dataset.actionIndex);
                 if (Number.isNaN(actionIndex)) return;
 
+                const remainingSlotAp = Math.max(1, Math.floor(Number(this._activePlanEditSlot?.remainingAp ?? (Number(combat.apBudget ?? 6) - actionIndex)) || 1));
+                const movementFeetPerAp = Math.max(1, Number(actionData.movementFeetPerAp ?? 10) || 10);
+                const planAction = actionData.type === "movement"
+                    ? {
+                        ...actionData,
+                        apCost: remainingSlotAp,
+                        apMax: Math.max(Number(actionData.apMax ?? 1), remainingSlotAp),
+                        movementFeet: movementFeetPerAp * remainingSlotAp,
+                        movementFeetPerAp
+                    }
+                    : actionData;
                 const currentPlan = combat.getCombatantPlan?.(combatantId) ?? [];
-                const nextPlan = [...currentPlan.slice(0, actionIndex), actionData];
+                const nextPlan = [...currentPlan.slice(0, actionIndex), planAction];
                 await combat.setCombatantPlan(combatantId, nextPlan);
 
-                if (actionData.requiresTarget) {
+                if (planAction.requiresTarget) {
                     this.#beginEncounterTargetingInteraction({
                         combat,
                         combatantId,
                         actionIndex,
-                        action: actionData
+                        action: planAction
                     });
-                } else if (actionData.type === "movement") {
+                } else if (planAction.type === "movement") {
                     this.#beginEncounterMovementInteraction({
                         combat,
                         combatantId,
                         actionIndex,
-                        maxAp: this._activePlanEditSlot?.remainingAp ?? (Number(combat.apBudget ?? 6) - 1)
+                        maxAp: remainingSlotAp,
+                        feetPerAp: movementFeetPerAp
                     });
-                } else if (actionData.requiresToHit && ["melee", "normal", "long"].includes(String(actionData.rangeType ?? "").toLowerCase())) {
+                } else if (planAction.requiresToHit && ["melee", "normal", "long"].includes(String(planAction.rangeType ?? "").toLowerCase())) {
                     this.#beginEncounterTargetingInteraction({
                         combat,
                         combatantId,
                         actionIndex,
-                        action: actionData
+                        action: planAction
                     });
                 } else {
                     this._encounterMovementInteraction = null;
@@ -4405,11 +4499,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             event.preventDefault();
             if (wallsActive) {
                 this.#patchMapPanelToolbarState(panelId, { mode: null });
-                this.#deactivateWallModeForPanel(panelId);
+                await this.#deactivateWallModeForPanel(panelId);
             } else {
                 this.#patchMapPanelToolbarState(panelId, { mode: "walls" });
                 await this.#executeDesignAction("scene.walls", { panelId });
             }
+            this.#syncWallCommandCanvasListener();
             this.render({ force: false });
             return;
         }
@@ -4419,6 +4514,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (key === "a") {
             event.preventDefault();
             this.#patchMapPanelToolbarState(panelId, { wallCommand: "add" });
+            this.#syncWallCommandCanvasListener();
             this.render({ force: false });
             return;
         }
@@ -4427,6 +4523,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             event.preventDefault();
             this.#cancelWallAddSequence();
             this.#patchMapPanelToolbarState(panelId, { wallCommand: "split" });
+            this.#syncWallCommandCanvasListener();
             this.render({ force: false });
             return;
         }
@@ -4456,14 +4553,29 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.render({ force: false });
     }
 
-    #deactivateWallModeForPanel(panelId = "") {
+    async #deactivateWallModeForPanel(panelId = "") {
         const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
         const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
         this.#cancelWallAddSequence({ notify: false });
+        this.#clearWallCommandCanvasListener();
         if (scene) {
             this.#setSelectedWallIds(scene, []);
             this.#setJoinableWallIds(scene, []);
             this.#setSceneDetectedWallOverlayState(scene, null);
+        }
+
+        try {
+            if (typeof ui?.controls?.activate === "function") {
+                await ui.controls.activate({ control: "tokens", tool: "select" });
+                return;
+            }
+            if (typeof ui?.controls?.initialize === "function") {
+                await ui.controls.initialize({ control: "tokens", tool: "select" });
+                return;
+            }
+            await canvas?.tokens?.activate?.();
+        } catch (error) {
+            console.warn("[turn-of-the-century] Failed to deactivate native wall controls", error);
         }
     }
 
@@ -4509,6 +4621,100 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (!this._wallAddSequence) return;
         this._wallAddSequence = null;
         if (notify) ui.notifications?.info?.("Wall add cancelled.");
+    }
+
+    #clearWallCommandCanvasListener() {
+        this._wallCommandCanvasCleanup?.();
+        this._wallCommandCanvasCleanup = null;
+        this._wallCommandCanvasRef = null;
+    }
+
+    #getActiveWallCommandPanel() {
+        const panels = [
+            this.#getPrimaryActivePanel(),
+            this.#getActiveCenterMapPanel()
+        ].filter(Boolean);
+
+        for (const panel of panels) {
+            if (!this.#isMapPanel(panel)) continue;
+            const state = this.#getMapPanelToolbarState(panel);
+            const command = String(state.wallCommand ?? "").trim();
+            if (state.mode === "walls" && ["add", "split"].includes(command)) {
+                return { panel, state, command };
+            }
+        }
+
+        return null;
+    }
+
+    #syncWallCommandCanvasListener() {
+        const active = this.#getActiveWallCommandPanel();
+        if (!active) {
+            this.#clearWallCommandCanvasListener();
+            return;
+        }
+
+        if (this._wallCommandCanvasRef === canvas && this._wallCommandCanvasCleanup) return;
+
+        this.#clearWallCommandCanvasListener();
+        this._wallCommandCanvasRef = canvas;
+        this._wallCommandCanvasCleanup = listenForNativeCanvasPointerDown(canvas, (event) => {
+            void this.#handleWallCommandCanvasPointerDown(event);
+        });
+    }
+
+    async #handleWallCommandCanvasPointerDown(event = {}) {
+        const active = this.#getActiveWallCommandPanel();
+        if (!active || !game.user?.isGM) return;
+
+        const point = getNativeCanvasEventScenePoint(event, canvas);
+        if (!point) {
+            ui.notifications?.warn?.("That wall click could not be converted to scene coordinates.");
+            return;
+        }
+
+        event?.stopPropagation?.();
+        event?.preventDefault?.();
+
+        const scene = this.#getDesignActionScene(active.panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
+        const grid = buildWallEditingGrid(scene);
+        const snapped = snapPointToGridIntersection(point, grid);
+        if (!scene || !snapped) {
+            ui.notifications?.warn?.("Wall editing requires a calibrated square grid.");
+            return;
+        }
+
+        if (active.command === "add") {
+            await this.#handleWallAddCanvasPoint({ scene, point: snapped, state: active.state });
+            return;
+        }
+
+        if (active.command === "split") {
+            const result = await splitWallSegmentAtPoint({ scene, point: snapped, grid });
+            if (result?.ok) this.#refreshSceneWallOverlay(scene);
+            this.#reportWallEditResult("split", result);
+        }
+    }
+
+    async #handleWallAddCanvasPoint({ scene = null, point = null, state = {} } = {}) {
+        if (!scene || !point) return;
+
+        if (!this._wallAddSequence?.start) {
+            this._wallAddSequence = { sceneId: String(scene.id ?? scene._id ?? ""), start: point };
+            ui.notifications?.info?.("Wall start set. Click the second grid point.");
+            return;
+        }
+
+        const start = this._wallAddSequence.start;
+        this._wallAddSequence = null;
+        const result = await addWallSegmentToScene({
+            scene,
+            start,
+            end: point,
+            wallType: state.wallType
+        });
+        if (result?.ok) this.#refreshSceneWallOverlay(scene);
+        this.#reportWallEditResult("add", result);
     }
 
     #reportWallEditResult(command, result = null) {

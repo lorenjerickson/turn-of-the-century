@@ -20,10 +20,12 @@ describe("GridCalibrationController", () => {
 
     it("applies scene updates and closes on success", async () => {
         let updateData = null;
+        let updateOptions = null;
         const controller = new GridCalibrationController({
             sceneResolver: () => ({
-                update: async (data) => {
+                update: async (data, options) => {
                     updateData = data;
+                    updateOptions = options;
                 }
             }),
             notifications: { info: () => {} }
@@ -42,7 +44,29 @@ describe("GridCalibrationController", () => {
             shiftX: -24,
             shiftY: -18
         });
+        assert.deepEqual(updateOptions, { diff: false });
         assert.equal(controller.active, false);
+    });
+
+    it("forces persistence when preview has already updated the live scene source", async () => {
+        let persisted = false;
+        const controller = new GridCalibrationController({
+            sceneResolver: () => ({
+                update: async (_data, options) => {
+                    persisted = options?.diff === false;
+                }
+            }),
+            notifications: { info: () => {} }
+        });
+        controller.open({ scene: { id: "scene-1" } });
+        controller.setCellWidth(96);
+        controller.setOffsetX(31);
+        controller.setOffsetY(17);
+
+        const result = await controller.apply();
+
+        assert.equal(result.ok, true);
+        assert.equal(persisted, true);
     });
 
     it("applies manually adjusted offsets instead of reverting to zero", async () => {

@@ -118,7 +118,7 @@ export class GridCalibrationController {
         const updateData = this.buildUpdateData();
 
         try {
-            await scene.update(updateData);
+            await scene.update(updateData, { diff: false });
             this.notifications?.info?.(`Grid updated: ${updateData["grid.size"]} px per cell (offset ${-updateData.shiftX}, ${-updateData.shiftY}).`);
         } catch (error) {
             this.logger?.error?.("[turn-of-the-century] Grid calibration apply failed", error);
