@@ -6,6 +6,10 @@ import {
     getSceneBackgroundLevel,
     getSceneBackgroundSource
 } from "../scene-background-source.mjs";
+import {
+    buildGridCalibrationModel,
+    GRID_CAL_PHASE_HINTS
+} from "./grid-calibration.mjs";
 import { isDefaultScene } from "../../../seeded-scenes.mjs";
 
 function safeEscape(value) {
@@ -24,6 +28,28 @@ function toArray(collection) {
 function positiveNumber(value, fallback) {
     const numeric = Number(value);
     return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
+}
+
+function normalizeImageDimensions(dimensions = null) {
+    const width = Number(dimensions?.width ?? dimensions?.naturalWidth ?? 0);
+    const height = Number(dimensions?.height ?? dimensions?.naturalHeight ?? 0);
+    if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) return null;
+    return {
+        width: Math.round(width),
+        height: Math.round(height)
+    };
+}
+
+export async function loadImageDimensions(source = "", { ImageClass = globalThis.Image } = {}) {
+    const src = String(source ?? "").trim();
+    if (!src || typeof ImageClass !== "function") return null;
+
+    return new Promise((resolve) => {
+        const image = new ImageClass();
+        image.onload = () => resolve(normalizeImageDimensions(image));
+        image.onerror = () => resolve(null);
+        image.src = src;
+    });
 }
 
 function sceneTokenName(token) {
@@ -107,6 +133,9 @@ export function buildSceneBackgroundUploadTarget({ sceneName = "", filename = ""
 export function buildScenePropertiesPanelModel({
     scene = null,
     actors = [],
+    gridCalibrationState = null,
+    sceneToolsState = null,
+    sceneToolActions = [],
     status = "",
     error = ""
 } = {}) {
@@ -127,11 +156,141 @@ export function buildScenePropertiesPanelModel({
         accept,
         isDefault: isDefaultScene(scene),
         uploadEnabled: Boolean(scene && sceneName),
+        dimensionSyncEnabled: Boolean(scene && backgroundPath),
         deleteEnabled: Boolean(scene),
+        sceneToolsPanelId: sceneId ? `map:${sceneId}` : "",
+        sceneToolsState: sceneToolsState ?? {},
+        sceneToolActions: Array.isArray(sceneToolActions)
+            ? sceneToolActions.filter((action) => action?.id !== "scene.walls")
+            : [],
+        gridCalibration: buildGridCalibrationModel({
+            state: gridCalibrationState,
+            scene
+        }),
         sceneTokens: buildSceneTokenListModel(scene),
         status: String(status ?? "").trim(),
         error: String(error ?? "").trim()
     };
+}
+
+export function renderSceneMapToolbar(panelId = "", state = {}, { escapeHTML = safeEscape } = {}) {
+    const safePanelId = escapeHTML(panelId);
+    const mode = String(state.mode ?? "");
+    const wallsActive = mode === "walls";
+    const wallCommand = String(state.wallCommand ?? "detect");
+    const wallType = String(state.wallType ?? "wall");
+    const selectedWallCount = Number(state.selectedWallCount ?? 0);
+    const joinableWallCount = Number(state.joinableWallCount ?? 0);
+    const canDeleteSelectedWalls = selectedWallCount > 0;
+    const canJoinSelectedWalls = joinableWallCount > 1;
+
+    const primarySegment = `
+        <div class="totc-v2-map-toolbar__segment" role="group" aria-label="View mode">
+            <button type="button"
+                class="totc-v2-map-toolbar__btn${wallsActive ? " is-active" : ""}"
+                data-action="map-mode-select"
+                data-map-panel-id="${safePanelId}"
+                data-mode="walls"
+                aria-pressed="${wallsActive}"
+                title="Walls view - draw and edit scene walls">
+                <i class="fa-solid fa-draw-polygon" aria-hidden="true"></i>
+                <span>Walls</span>
+            </button>
+        </div>`;
+
+    const secondarySegment = wallsActive ? `
+            <div class="totc-v2-map-toolbar__segment" role="group" aria-label="Wall command">
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallCommand === "detect" ? " is-active" : ""}"
+                    data-action="map-wall-command"
+                    data-map-panel-id="${safePanelId}"
+                    data-command="detect"
+                    aria-pressed="${wallCommand === "detect"}"
+                    title="Auto-detect grid-aligned walls from the map image">
+                    <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                    <span>Detect</span>
+                </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallCommand === "add" ? " is-active" : ""}"
+                    data-action="map-wall-command"
+                    data-map-panel-id="${safePanelId}"
+                    data-command="add"
+                    aria-pressed="${wallCommand === "add"}"
+                    title="Click a grid edge to add a wall segment">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                    <span>Add</span>
+                </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn"
+                    data-action="map-wall-command"
+                    data-map-panel-id="${safePanelId}"
+                    data-command="remove"
+                    aria-pressed="false"
+                    ${canDeleteSelectedWalls ? "" : "disabled"}
+                    title="${canDeleteSelectedWalls ? `Delete ${selectedWallCount} selected wall segment${selectedWallCount === 1 ? "" : "s"}` : "Select wall segments to delete them"}">
+                    <i class="fa-solid fa-minus" aria-hidden="true"></i>
+                    <span>Remove</span>
+                </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallCommand === "split" ? " is-active" : ""}"
+                    data-action="map-wall-command"
+                    data-map-panel-id="${safePanelId}"
+                    data-command="split"
+                    aria-pressed="${wallCommand === "split"}"
+                    title="Click a wall segment to split it at the nearest grid point">
+                    <i class="fa-solid fa-scissors" aria-hidden="true"></i>
+                    <span>Split</span>
+                </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn"
+                    data-action="map-wall-command"
+                    data-map-panel-id="${safePanelId}"
+                    data-command="join"
+                    aria-pressed="false"
+                    ${canJoinSelectedWalls ? "" : "disabled"}
+                    title="${canJoinSelectedWalls ? `Join ${joinableWallCount} fully selected wall segment${joinableWallCount === 1 ? "" : "s"}` : "Fully enclose adjacent wall segments to join them"}">
+                    <i class="fa-solid fa-link" aria-hidden="true"></i>
+                    <span>Join</span>
+                </button>
+            </div>
+            <div class="totc-v2-map-toolbar__segment" role="group" aria-label="Wall type">
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallType === "wall" ? " is-active" : ""}"
+                    data-action="map-wall-type"
+                    data-map-panel-id="${safePanelId}"
+                    data-wall-type="wall"
+                    aria-pressed="${wallType === "wall"}"
+                    title="Wall - solid impassable barrier">
+                    <span>Wall</span>
+                </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallType === "door" ? " is-active" : ""}"
+                    data-action="map-wall-type"
+                    data-map-panel-id="${safePanelId}"
+                    data-wall-type="door"
+                    aria-pressed="${wallType === "door"}"
+                    title="Door - openable passage">
+                    <span>Door</span>
+                </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallType === "window" ? " is-active" : ""}"
+                    data-action="map-wall-type"
+                    data-map-panel-id="${safePanelId}"
+                    data-wall-type="window"
+                    aria-pressed="${wallType === "window"}"
+                    title="Window - see-through barrier">
+                    <span>Window</span>
+                </button>
+            </div>
+        ` : "";
+
+    return `
+        <nav class="totc-v2-map-toolbar" aria-label="Scene tools" data-map-panel-id="${safePanelId}">
+            <div class="totc-v2-map-toolbar__primary">
+                ${primarySegment}
+                ${secondarySegment}
+            </div>
+        </nav>`;
 }
 
 /**
@@ -140,30 +299,43 @@ export function buildScenePropertiesPanelModel({
  * Foundry v14 stores background media on embedded Level documents. This object
  * is used only for older scene schemas and compatibility shims.
  */
-export function buildSceneBackgroundUpdateData(backgroundPath = "") {
+export function buildSceneBackgroundUpdateData(backgroundPath = "", { dimensions = null } = {}) {
     const src = String(backgroundPath ?? "").trim();
     if (!src) return {};
+    const size = normalizeImageDimensions(dimensions);
     return {
         img: src,
         "background.src": src,
-        "texture.src": src
+        "texture.src": src,
+        ...(size ? { width: size.width, height: size.height } : {})
     };
 }
 
-export function buildSceneLevelBackgroundUpdateData(backgroundPath = "") {
+export function buildSceneLevelBackgroundUpdateData(backgroundPath = "", { dimensions = null } = {}) {
     const src = String(backgroundPath ?? "").trim();
     if (!src) return {};
-    return { "background.src": src };
+    const size = normalizeImageDimensions(dimensions);
+    return {
+        "background.src": src,
+        ...(size ? { x: 0, y: 0, width: size.width, height: size.height } : {})
+    };
 }
 
-export function buildSceneLevelBackgroundCreationData(backgroundPath = "", { name = "" } = {}) {
+export function buildSceneLevelBackgroundCreationData(backgroundPath = "", { name = "", dimensions = null } = {}) {
     const src = String(backgroundPath ?? "").trim();
     if (!src) return {};
+    const size = normalizeImageDimensions(dimensions);
     return {
         name: String(name ?? "").trim() || "Ground Level",
+        ...(size ? { x: 0, y: 0, width: size.width, height: size.height } : {}),
         elevation: { bottom: 0, top: 999 },
         background: { src }
     };
+}
+
+function buildSceneDimensionUpdateData(dimensions = null) {
+    const size = normalizeImageDimensions(dimensions);
+    return size ? { width: size.width, height: size.height } : {};
 }
 
 function sceneHasLevelSupport(scene) {
@@ -179,12 +351,17 @@ function sceneHasLevelSupport(scene) {
  * Older versions store background media directly on the Scene. Prefer the Level
  * path when available, then fall back to the legacy scene update shape.
  */
-export async function applySceneBackgroundUpdate(scene, backgroundPath = "") {
+export async function applySceneBackgroundUpdate(scene, backgroundPath = "", { dimensions = null } = {}) {
     const src = String(backgroundPath ?? "").trim();
     if (!scene || !src) return { ok: false, mode: "none", document: null };
 
     const level = getSceneBackgroundLevel(scene);
-    const levelUpdate = buildSceneLevelBackgroundUpdateData(src);
+    const sceneSizeUpdate = buildSceneDimensionUpdateData(dimensions);
+    const levelUpdate = buildSceneLevelBackgroundUpdateData(src, { dimensions });
+
+    if (Object.keys(sceneSizeUpdate).length && typeof scene.update === "function") {
+        await scene.update(sceneSizeUpdate);
+    }
 
     if (level) {
         if (typeof level.update === "function") {
@@ -201,13 +378,13 @@ export async function applySceneBackgroundUpdate(scene, backgroundPath = "") {
 
     if (sceneHasLevelSupport(scene) && typeof scene.createEmbeddedDocuments === "function") {
         const documents = await scene.createEmbeddedDocuments("Level", [
-            buildSceneLevelBackgroundCreationData(src)
+            buildSceneLevelBackgroundCreationData(src, { dimensions })
         ]);
         return { ok: true, mode: "level-created", document: documents?.[0] ?? null };
     }
 
     if (typeof scene.update === "function") {
-        const document = await scene.update(buildSceneBackgroundUpdateData(src));
+        const document = await scene.update(buildSceneBackgroundUpdateData(src, { dimensions }));
         return { ok: true, mode: "scene", document: document ?? scene };
     }
 
@@ -243,6 +420,8 @@ export function renderScenePropertiesPanel(model = {}, {
     const accept = escapeHTML(model.accept ?? SCENE_BACKGROUND_IMAGE_EXTENSIONS.map((ext) => `.${ext}`).join(","));
     const targetPath = model.target?.path || `${SCENE_BACKGROUND_IMAGE_ASSET_PATH}/<scene-slug>.<ext>`;
     const sceneTokens = Array.isArray(model.sceneTokens) ? model.sceneTokens : [];
+    const gridCalibration = model.gridCalibration ?? { active: false };
+    const sceneToolActions = Array.isArray(model.sceneToolActions) ? model.sceneToolActions : [];
 
     if (!model.sceneId) {
         return `
@@ -268,8 +447,41 @@ export function renderScenePropertiesPanel(model = {}, {
             <label class="totc-v2-scene-properties-panel__default-label">
                 <input type="checkbox" data-action="scene-properties-set-default" ${model.isDefault ? "checked" : ""} ${sceneActionDisabled}> Default scene
             </label>
+            <button type="button" data-action="scene-properties-sync-background-dimensions" ${model.dimensionSyncEnabled ? "" : "disabled"}>Fit Background</button>
             <button type="button" class="totc-v2-scene-properties-panel__danger" data-action="scene-properties-delete" ${sceneActionDisabled}>Delete Scene</button>
         </footer>
+        <section class="totc-v2-scene-properties-panel__tools">
+            <header>
+                <h3>Scene Tools</h3>
+            </header>
+            ${sceneToolActions.length ? `
+                <div class="totc-v2-scene-properties-panel__tool-actions" role="list">
+                    ${sceneToolActions.map((action) => `
+                        <button
+                            type="button"
+                            class="totc-v2-scene-properties-panel__tool-action"
+                            data-action="design-lens-action"
+                            data-design-action-id="${escapeHTML(action.id)}"
+                            data-panel-id="${escapeHTML(model.sceneToolsPanelId)}"
+                            role="listitem"
+                            title="${escapeHTML(action.description)}">
+                            ${escapeHTML(action.label)}
+                        </button>`).join("")}
+                </div>
+            ` : ""}
+            ${renderSceneMapToolbar(model.sceneToolsPanelId, model.sceneToolsState, { escapeHTML })}
+        </section>
+        <section class="totc-v2-scene-properties-panel__grid" data-grid-calibration="${gridCalibration.active ? "true" : "false"}">
+            <header>
+                <h3>Grid Calibration</h3>
+                <button type="button" data-action="grid-cal-start" ${sceneActionDisabled}>
+                    ${gridCalibration.active ? "Restart" : "Calibrate"}
+                </button>
+            </header>
+            ${gridCalibration.active ? renderScenePropertiesGridCalibration(gridCalibration, { escapeHTML }) : `
+                <p class="totc-v2-scene-properties-panel__grid-idle">Use two clicks on the viewed scene to derive grid size and offset.</p>
+            `}
+        </section>
         <section class="totc-v2-scene-properties-panel__tokens">
             <header>
                 <h3>Scene Tokens</h3>
@@ -303,4 +515,53 @@ export function renderScenePropertiesPanel(model = {}, {
             </div>
         </section>
     </section>`;
+}
+
+function renderScenePropertiesGridCalibration(model = {}, { escapeHTML = safeEscape } = {}) {
+    const hint = GRID_CAL_PHASE_HINTS[model.phase] ?? "";
+    const canApply = model.phase === "adjust" ? "" : "disabled";
+
+    return `
+        <div class="totc-v2-scene-properties-panel__grid-state">
+            <p>${hint}</p>
+            <dl>
+                <div>
+                    <dt>Point 1</dt>
+                    <dd>${model.corner1 ? `${escapeHTML(Math.round(model.corner1.x))}, ${escapeHTML(Math.round(model.corner1.y))}` : "Not set"}</dd>
+                </div>
+                <div>
+                    <dt>Point 2</dt>
+                    <dd>${model.corner2 ? `${escapeHTML(Math.round(model.corner2.x))}, ${escapeHTML(Math.round(model.corner2.y))}` : "Not set"}</dd>
+                </div>
+            </dl>
+        </div>
+        <div class="totc-v2-scene-properties-panel__grid-fields">
+            <label>
+                <span>${model.isSquare ? "Cell size" : "Cell width"} (px)</span>
+                <input type="number" data-action="grid-cal-cell-w" min="4" max="4096" step="1" value="${escapeHTML(model.cellW)}">
+            </label>
+            ${!model.isSquare ? `
+                <label>
+                    <span>Cell height (px)</span>
+                    <input type="number" data-action="grid-cal-cell-h" min="4" max="4096" step="1" value="${escapeHTML(model.cellH)}">
+                </label>
+            ` : ""}
+            <label>
+                <span>Offset X (px)</span>
+                <input type="number" data-action="grid-cal-offset-x" step="1" value="${escapeHTML(model.offsetX)}">
+            </label>
+            <label>
+                <span>Offset Y (px)</span>
+                <input type="number" data-action="grid-cal-offset-y" step="1" value="${escapeHTML(model.offsetY)}">
+            </label>
+            <label>
+                <span>Grid color</span>
+                <input type="color" data-action="grid-cal-color" value="${escapeHTML(model.color ?? "#000000")}">
+            </label>
+        </div>
+        <footer class="totc-v2-scene-properties-panel__grid-actions">
+            <button type="button" data-action="grid-cal-reset">Re-pick</button>
+            <button type="button" data-action="grid-cal-cancel">Cancel</button>
+            <button type="button" data-action="grid-cal-confirm" ${canApply}>Apply</button>
+        </footer>`;
 }

@@ -113,7 +113,7 @@ describe("Scenes panel", () => {
         assert.match(html, /Default/);
     });
 
-    it("applies a background-image gradient style when mapSrc is available", () => {
+    it("applies a background-image gradient style when a thumbnail source is available", () => {
         const model = buildScenesPanelModel({
             scenes: [{ id: "scene-a", name: "Station Yard", img: "yard.webp", grid: { type: 1 } }]
         });

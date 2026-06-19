@@ -30,6 +30,13 @@ export const GRID_TYPES = Object.freeze({
     HEXCOLS_EVEN: 5
 });
 
+const DEFAULT_GRID_COLOR = "#000000";
+
+function normalizeGridColor(value = "") {
+    const color = String(value ?? "").trim();
+    return /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : DEFAULT_GRID_COLOR;
+}
+
 // ---------------------------------------------------------------------------
 // Pure calculation helpers
 // ---------------------------------------------------------------------------
@@ -71,7 +78,7 @@ export function cornersToGridOffset(corner1, corner2, { cellW, cellH }) {
     };
 }
 
-export function buildGridCalibrationSceneUpdate({ cellW = 100, offsetX = 0, offsetY = 0, gridType = GRID_TYPES.SQUARE } = {}) {
+export function buildGridCalibrationSceneUpdate({ cellW = 100, offsetX = 0, offsetY = 0, gridType = GRID_TYPES.SQUARE, color = DEFAULT_GRID_COLOR } = {}) {
     const size = Math.max(4, Math.round(Number(cellW) || 100));
     const phaseX = Math.round(Number(offsetX) || 0);
     const phaseY = Math.round(Number(offsetY) || 0);
@@ -80,6 +87,7 @@ export function buildGridCalibrationSceneUpdate({ cellW = 100, offsetX = 0, offs
     return {
         "grid.type": type,
         "grid.size": size,
+        "grid.color": normalizeGridColor(color),
         shiftX: -phaseX,
         shiftY: -phaseY
     };
@@ -98,7 +106,8 @@ export function buildSceneGridOverlayState(scene = null) {
         cellW: cellSize,
         cellH: cellSize,
         offsetX: -Number(scene?.shiftX ?? 0),
-        offsetY: -Number(scene?.shiftY ?? 0)
+        offsetY: -Number(scene?.shiftY ?? 0),
+        color: normalizeGridColor(scene?.grid?.color)
     };
 }
 
@@ -241,6 +250,7 @@ export function buildGridCalibrationModel({ state = null, scene = null } = {}) {
         : (isSquare ? cellW : fallbackSize);
     const offsetX = Number.isFinite(state.offsetX) ? state.offsetX : fallbackOffX;
     const offsetY = Number.isFinite(state.offsetY) ? state.offsetY : fallbackOffY;
+    const color = normalizeGridColor(state.color ?? scene?.grid?.color);
 
     const phase = !state.corner1 ? "pick-first"
         : !state.corner2      ? "pick-second"
@@ -257,6 +267,7 @@ export function buildGridCalibrationModel({ state = null, scene = null } = {}) {
         offsetY: Math.round(offsetY),
         gridDistance: Number(scene?.grid?.distance ?? 5),
         gridUnits: String(scene?.grid?.units ?? "ft"),
+        color,
         corner1: state.corner1 ?? null,
         corner2: state.corner2 ?? null
     };

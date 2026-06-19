@@ -61,12 +61,21 @@ describe("scene design actions", () => {
 
     it("builds Foundry scene data from an organized battle-map image", () => {
         const data = buildSceneCreationData({
-            backgroundPath: "assets/images/scenes/whitechapel-alley-night.webp"
+            backgroundPath: "assets/images/scenes/whitechapel-alley-night.webp",
+            dimensions: { width: 2400, height: 1600 }
         });
 
         assert.equal(data.name, "Whitechapel Alley Night");
         assert.equal(data.navigation, true);
         assert.equal(data.img, "assets/images/scenes/whitechapel-alley-night.webp");
+        assert.equal(data.width, 2400);
+        assert.equal(data.height, 1600);
+        assert.equal(data.levels[0].background.src, "assets/images/scenes/whitechapel-alley-night.webp");
+        assert.equal(data.levels[0].name, "Ground Level");
+        assert.equal(data.levels[0].x, 0);
+        assert.equal(data.levels[0].y, 0);
+        assert.equal(data.levels[0].width, 2400);
+        assert.equal(data.levels[0].height, 1600);
         assert.equal(Object.hasOwn(data, "background"), false);
         assert.equal(data.flags["turn-of-the-century"].designCreated, true);
         assert.equal(data.flags["turn-of-the-century"].assetContext, "images/scenes");
@@ -98,6 +107,7 @@ describe("scene design actions", () => {
         assert.equal(result.ok, true);
         assert.equal(result.name, "Baker Street");
         assert.equal(createdData.img, "assets/images/scenes/baker-street.webp");
+        assert.equal(createdData.levels[0].background.src, "assets/images/scenes/baker-street.webp");
     });
 
     it("encapsulates scene creation behind SceneDesignService", async () => {
@@ -118,6 +128,30 @@ describe("scene design actions", () => {
         assert.equal(result.ok, true);
         assert.equal(result.name, "Railway Yard");
         assert.equal(createdData.img, "assets/images/scenes/railway-yard.webp");
+        assert.equal(createdData.levels[0].background.src, "assets/images/scenes/railway-yard.webp");
+    });
+
+    it("adds detected image dimensions when creating a scene from a background", async () => {
+        let createdData = null;
+        const service = new SceneDesignService({
+            imageDimensionsLoader: async () => ({ width: 3200, height: 1800 }),
+            SceneClass: {
+                create: async (data) => {
+                    createdData = data;
+                    return { name: data.name };
+                }
+            }
+        });
+
+        const result = await service.createFromBackgroundPath({
+            backgroundPath: "assets/images/scenes/embankment.webp"
+        });
+
+        assert.equal(result.ok, true);
+        assert.equal(createdData.width, 3200);
+        assert.equal(createdData.height, 1800);
+        assert.equal(createdData.levels[0].width, 3200);
+        assert.equal(createdData.levels[0].height, 1800);
     });
 
     it("refuses to create scenes from unorganized media paths", async () => {

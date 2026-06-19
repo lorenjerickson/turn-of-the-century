@@ -435,6 +435,7 @@ describe("regular grid wall detection", () => {
             flags: {
                 "turn-of-the-century": {
                     detectedWall: true,
+                    wallKind: "wall",
                     detectedKind: "wall",
                     detectionScore: 0.75
                 }
@@ -497,6 +498,7 @@ describe("regular grid wall detection", () => {
         assert.equal(wall.sound, 300);
         assert.equal(wall.door, "none");
         assert.equal(wall.ds, "closed");
+        assert.equal(wall.flags["turn-of-the-century"].wallKind, "wall");
     });
 
     it("falls back to legacy wall sense constants when edge constants are unavailable", () => {

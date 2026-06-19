@@ -7,11 +7,18 @@ import {
     buildSceneLevelBackgroundUpdateData,
     buildSceneBackgroundUpdateData,
     buildSceneBackgroundUploadTarget,
+    loadImageDimensions,
     buildScenePropertiesPanelModel,
     resolveScenePropertiesMapPanelScene,
     renderScenePropertiesPanel,
     slugifySceneName
 } from "../../module/ui/workspace-v2/panels/scene-properties-panel.mjs";
+
+function toolbarButton(html, command) {
+    return Array.from(html.matchAll(/<button type="button"[\s\S]*?<\/button>/g))
+        .map((match) => match[0])
+        .find((button) => button.includes(`data-command="${command}"`)) ?? "";
+}
 
 describe("Scene properties panel", () => {
     it("slugifies scene names for world asset filenames", () => {
@@ -83,6 +90,7 @@ describe("Scene properties panel", () => {
         assert.equal(model.sceneId, "");
         assert.equal(model.uploadEnabled, false);
         assert.equal(model.deleteEnabled, false);
+        assert.equal(model.dimensionSyncEnabled, false);
     });
 
     it("disables upload when scene has no name", () => {
@@ -113,11 +121,52 @@ describe("Scene properties panel", () => {
         assert.equal(model.error, "");
     });
 
+    it("builds grid calibration model for the bound scene", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: {
+                id: "scene-a",
+                name: "Whitechapel",
+                grid: { type: 1, size: 80, distance: 5, units: "ft", color: "#d8b45c" },
+                shiftX: -12,
+                shiftY: -18
+            },
+            gridCalibrationState: {
+                active: true,
+                sceneId: "scene-a",
+                gridType: 1,
+                corner1: null,
+                corner2: null,
+                cellW: null,
+                cellH: null,
+                offsetX: null,
+                offsetY: null
+            }
+        });
+
+        assert.equal(model.gridCalibration.active, true);
+        assert.equal(model.gridCalibration.phase, "pick-first");
+        assert.equal(model.gridCalibration.cellW, 80);
+        assert.equal(model.gridCalibration.offsetX, 12);
+        assert.equal(model.gridCalibration.color, "#d8b45c");
+    });
+
     it("builds legacy direct-scene background update data", () => {
         assert.deepEqual(buildSceneBackgroundUpdateData("assets/images/scenes/whitechapel.webp"), {
             img: "assets/images/scenes/whitechapel.webp",
             "background.src": "assets/images/scenes/whitechapel.webp",
             "texture.src": "assets/images/scenes/whitechapel.webp"
+        });
+    });
+
+    it("adds image dimensions to legacy direct-scene background update data", () => {
+        assert.deepEqual(buildSceneBackgroundUpdateData("assets/images/scenes/whitechapel.webp", {
+            dimensions: { width: 2400.2, height: 1600.4 }
+        }), {
+            img: "assets/images/scenes/whitechapel.webp",
+            "background.src": "assets/images/scenes/whitechapel.webp",
+            "texture.src": "assets/images/scenes/whitechapel.webp",
+            width: 2400,
+            height: 1600
         });
     });
 
@@ -127,9 +176,35 @@ describe("Scene properties panel", () => {
         });
     });
 
+    it("adds tile dimensions to Foundry v14 level background update data", () => {
+        assert.deepEqual(buildSceneLevelBackgroundUpdateData("assets/images/scenes/whitechapel.webp", {
+            dimensions: { width: 2400, height: 1600 }
+        }), {
+            "background.src": "assets/images/scenes/whitechapel.webp",
+            x: 0,
+            y: 0,
+            width: 2400,
+            height: 1600
+        });
+    });
+
     it("builds Foundry v14 level creation data", () => {
         assert.deepEqual(buildSceneLevelBackgroundCreationData("assets/images/scenes/whitechapel.webp"), {
             name: "Ground Level",
+            elevation: { bottom: 0, top: 999 },
+            background: { src: "assets/images/scenes/whitechapel.webp" }
+        });
+    });
+
+    it("adds tile dimensions to Foundry v14 level creation data", () => {
+        assert.deepEqual(buildSceneLevelBackgroundCreationData("assets/images/scenes/whitechapel.webp", {
+            dimensions: { width: 2400, height: 1600 }
+        }), {
+            name: "Ground Level",
+            x: 0,
+            y: 0,
+            width: 2400,
+            height: 1600,
             elevation: { bottom: 0, top: 999 },
             background: { src: "assets/images/scenes/whitechapel.webp" }
         });
@@ -142,6 +217,7 @@ describe("Scene properties panel", () => {
 
     it("updates an existing Foundry v14 level background", async () => {
         let received = null;
+        let sceneUpdate = null;
         const level = {
             id: "level-a",
             index: 0,
@@ -155,12 +231,25 @@ describe("Scene properties panel", () => {
 
         const result = await applySceneBackgroundUpdate({
             id: "scene-a",
-            levels: [level]
-        }, "assets/images/scenes/whitechapel.webp");
+            levels: [level],
+            update: async (data) => {
+                sceneUpdate = data;
+                return null;
+            }
+        }, "assets/images/scenes/whitechapel.webp", {
+            dimensions: { width: 2400, height: 1600 }
+        });
 
         assert.equal(result.ok, true);
         assert.equal(result.mode, "level");
-        assert.deepEqual(received, { "background.src": "assets/images/scenes/whitechapel.webp" });
+        assert.deepEqual(sceneUpdate, { width: 2400, height: 1600 });
+        assert.deepEqual(received, {
+            "background.src": "assets/images/scenes/whitechapel.webp",
+            x: 0,
+            y: 0,
+            width: 2400,
+            height: 1600
+        });
         assert.equal(result.document, level);
     });
 
@@ -176,7 +265,9 @@ describe("Scene properties panel", () => {
             }
         };
 
-        const result = await applySceneBackgroundUpdate(scene, "assets/images/scenes/whitechapel.webp");
+        const result = await applySceneBackgroundUpdate(scene, "assets/images/scenes/whitechapel.webp", {
+            dimensions: { width: 2400, height: 1600 }
+        });
 
         assert.equal(result.ok, true);
         assert.equal(result.mode, "level-created");
@@ -184,9 +275,29 @@ describe("Scene properties panel", () => {
         assert.equal(received.type, "Level");
         assert.deepEqual(received.documents, [{
             name: "Ground Level",
+            x: 0,
+            y: 0,
+            width: 2400,
+            height: 1600,
             elevation: { bottom: 0, top: 999 },
             background: { src: "assets/images/scenes/whitechapel.webp" }
         }]);
+    });
+
+    it("loads image dimensions from a browser Image implementation", async () => {
+        class TestImage {
+            set src(value) {
+                this._src = value;
+                this.naturalWidth = 3200;
+                this.naturalHeight = 1800;
+                this.onload();
+            }
+        }
+
+        assert.deepEqual(await loadImageDimensions("assets/images/scenes/wide.webp", { ImageClass: TestImage }), {
+            width: 3200,
+            height: 1800
+        });
     });
 
     it("falls back to a legacy scene background update when levels are unavailable", async () => {
@@ -260,8 +371,93 @@ describe("Scene properties panel", () => {
 
         assert.match(html, /data-action="scene-properties-name"/);
         assert.match(html, /data-action="scene-properties-background-upload"/);
+        assert.match(html, /data-action="scene-properties-sync-background-dimensions" disabled/);
         assert.match(html, /data-action="scene-properties-delete"/);
         assert.match(html, /data-action="scene-properties-set-default"/);
+        assert.match(html, /Grid Calibration/);
+        assert.match(html, /data-action="grid-cal-start"/);
+    });
+
+    it("enables background dimension sync when a scene has a background", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: { id: "scene-a", name: "Whitechapel", img: "assets/images/scenes/whitechapel.webp" }
+        });
+        const html = renderScenePropertiesPanel(model);
+
+        assert.equal(model.dimensionSyncEnabled, true);
+        assert.match(html, /data-action="scene-properties-sync-background-dimensions"(?! disabled)/);
+    });
+
+    it("renders scene editing tools in the scene properties panel", () => {
+        const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
+            scene: { id: "scene-a", name: "Whitechapel" },
+            sceneToolsState: { mode: null, wallCommand: "split", wallType: "wall" },
+            sceneToolActions: [
+                { id: "scene.grid", label: "Grid", description: "Edit grid." },
+                { id: "scene.detectWalls", label: "Detect Walls", description: "Detect walls." },
+                { id: "scene.walls", label: "Walls", description: "Draw walls." }
+            ]
+        }));
+
+        assert.match(html, /Scene Tools/);
+        assert.match(html, /data-action="design-lens-action"[\s\S]*data-design-action-id="scene\.grid"/);
+        assert.match(html, /data-action="design-lens-action"[\s\S]*data-design-action-id="scene\.detectWalls"/);
+        assert.doesNotMatch(html, /data-design-action-id="scene\.walls"/);
+        assert.match(html, /data-action="map-mode-select"/);
+        assert.match(html, /data-map-panel-id="map:scene-a"/);
+        assert.match(html, /data-mode="walls"[\s\S]*aria-pressed="false"/);
+        assert.doesNotMatch(html, /data-command="split"/);
+        assert.doesNotMatch(html, /data-command="join"/);
+    });
+
+    it("renders wall submenu commands in scene properties when wall mode is active", () => {
+        const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
+            scene: { id: "scene-a", name: "Whitechapel" },
+            sceneToolsState: {
+                mode: "walls",
+                wallCommand: "split",
+                wallType: "wall",
+                selectedWallCount: 2,
+                joinableWallCount: 2
+            }
+        }));
+        const removeButton = toolbarButton(html, "remove");
+        const joinButton = toolbarButton(html, "join");
+
+        assert.match(html, /data-command="add"/);
+        assert.match(html, /data-command="split"[\s\S]*aria-pressed="true"/);
+        assert.match(html, /data-wall-type="wall"[\s\S]*aria-pressed="true"/);
+        assert.match(removeButton, /Delete 2 selected wall segments/);
+        assert.doesNotMatch(removeButton, /disabled/);
+        assert.doesNotMatch(removeButton, /is-active/);
+        assert.match(joinButton, /Join 2 fully selected wall segments/);
+        assert.doesNotMatch(joinButton, /disabled/);
+        assert.doesNotMatch(joinButton, /is-active/);
+    });
+
+    it("renders active grid calibration controls", () => {
+        const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
+            scene: { id: "scene-a", name: "Whitechapel", grid: { type: 1, size: 100 } },
+            gridCalibrationState: {
+                active: true,
+                sceneId: "scene-a",
+                gridType: 1,
+                corner1: { x: 12, y: 18 },
+                corner2: { x: 112, y: 118 },
+                cellW: 100,
+                cellH: 100,
+                offsetX: 12,
+                offsetY: 18
+            }
+        }));
+
+        assert.match(html, /data-grid-calibration="true"/);
+        assert.match(html, /data-action="grid-cal-cell-w"/);
+        assert.match(html, /data-action="grid-cal-offset-x"/);
+        assert.match(html, /data-action="grid-cal-color"/);
+        assert.match(html, /data-action="grid-cal-confirm"/);
+        assert.match(html, /12, 18/);
+        assert.match(html, /112, 118/);
     });
 
     it("does not render Save or Reset buttons", () => {

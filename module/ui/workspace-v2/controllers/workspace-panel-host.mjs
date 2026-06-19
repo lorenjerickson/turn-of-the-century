@@ -60,19 +60,14 @@ export class WorkspacePanelHost {
     renderPanelContent(panel, context = {}) {
         const content = this.renderPanelBodyContent(panel, context);
         const isMapPanel = this.isMapPanel(panel);
-        const panelId = String(panel?.id ?? "").trim();
-        const mapToolbarState = isMapPanel ? this.getMapPanelToolbarState(panel) : {};
-        const mapToolbarMarkup = this.isGM() && isMapPanel
-            ? this.#renderMapToolbar(this.escapeHTML(panelId), mapToolbarState)
-            : "";
+        if (isMapPanel) return content;
+
         const designLensModel = buildDesignLensModel({
             panel,
             active: this.isDesignLensActive(panel?.id),
             isGM: this.isGM(),
-            registry: this.designActionRegistry,
-            excludeActionIds: isMapPanel ? ["scene.walls"] : []
+            registry: this.designActionRegistry
         });
-        if (mapToolbarMarkup) designLensModel.extraActionsMarkup = mapToolbarMarkup;
         const designLens = renderDesignLensSurface(designLensModel, {
             escapeHTML: (value) => this.escapeHTML(value)
         });
@@ -222,125 +217,6 @@ export class WorkspacePanelHost {
                 <span class="totc-v2-map-panel__meta">${this.escapeHTML(dimensionLabel)}</span>
             </figcaption>
         </figure>`;
-    }
-
-    #renderMapToolbar(panelId = "", state = {}) {
-        const mode = String(state.mode ?? "");
-        const wallsActive = mode === "walls";
-        const wallCommand = String(state.wallCommand ?? "detect");
-        const wallType = String(state.wallType ?? "wall");
-        const selectedWallCount = Number(state.selectedWallCount ?? 0);
-        const joinableWallCount = Number(state.joinableWallCount ?? 0);
-        const canDeleteSelectedWalls = selectedWallCount > 0;
-        const canJoinSelectedWalls = joinableWallCount > 1;
-
-        const primarySegment = `
-        <div class="totc-v2-map-toolbar__segment" role="group" aria-label="View mode">
-            <button type="button"
-                class="totc-v2-map-toolbar__btn${wallsActive ? " is-active" : ""}"
-                data-action="map-mode-select"
-                data-map-panel-id="${panelId}"
-                data-mode="walls"
-                aria-pressed="${wallsActive}"
-                title="Walls view — draw and edit scene walls">
-                <i class="fa-solid fa-draw-polygon" aria-hidden="true"></i>
-                <span>Walls</span>
-            </button>
-        </div>`;
-
-        const secondarySegment = wallsActive ? `
-            <div class="totc-v2-map-toolbar__segment" role="group" aria-label="Wall command">
-                <button type="button"
-                    class="totc-v2-map-toolbar__btn${wallCommand === "detect" ? " is-active" : ""}"
-                    data-action="map-wall-command"
-                    data-map-panel-id="${panelId}"
-                    data-command="detect"
-                    aria-pressed="${wallCommand === "detect"}"
-                    title="Auto-detect grid-aligned walls from the map image">
-                    <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-                    <span>Detect</span>
-                </button>
-                <button type="button"
-                    class="totc-v2-map-toolbar__btn${wallCommand === "add" ? " is-active" : ""}"
-                    data-action="map-wall-command"
-                    data-map-panel-id="${panelId}"
-                    data-command="add"
-                    aria-pressed="${wallCommand === "add"}"
-                    title="Click a grid edge to add a wall segment">
-                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                    <span>Add</span>
-                </button>
-                <button type="button"
-                    class="totc-v2-map-toolbar__btn"
-                    data-action="map-wall-command"
-                    data-map-panel-id="${panelId}"
-                    data-command="remove"
-                    aria-pressed="false"
-                    ${canDeleteSelectedWalls ? "" : "disabled"}
-                    title="${canDeleteSelectedWalls ? `Delete ${selectedWallCount} selected wall segment${selectedWallCount === 1 ? "" : "s"}` : "Select wall segments to delete them"}">
-                    <i class="fa-solid fa-minus" aria-hidden="true"></i>
-                    <span>Remove</span>
-                </button>
-                <button type="button"
-                    class="totc-v2-map-toolbar__btn${wallCommand === "split" ? " is-active" : ""}"
-                    data-action="map-wall-command"
-                    data-map-panel-id="${panelId}"
-                    data-command="split"
-                    aria-pressed="${wallCommand === "split"}"
-                    title="Click a wall segment to split it at the nearest grid point">
-                    <i class="fa-solid fa-scissors" aria-hidden="true"></i>
-                    <span>Split</span>
-                </button>
-                <button type="button"
-                    class="totc-v2-map-toolbar__btn"
-                    data-action="map-wall-command"
-                    data-map-panel-id="${panelId}"
-                    data-command="join"
-                    aria-pressed="false"
-                    ${canJoinSelectedWalls ? "" : "disabled"}
-                    title="${canJoinSelectedWalls ? `Join ${joinableWallCount} fully selected wall segment${joinableWallCount === 1 ? "" : "s"}` : "Fully enclose adjacent wall segments to join them"}">
-                    <i class="fa-solid fa-link" aria-hidden="true"></i>
-                    <span>Join</span>
-                </button>
-            </div>
-            <div class="totc-v2-map-toolbar__segment" role="group" aria-label="Wall type">
-                <button type="button"
-                    class="totc-v2-map-toolbar__btn${wallType === "wall" ? " is-active" : ""}"
-                    data-action="map-wall-type"
-                    data-map-panel-id="${panelId}"
-                    data-wall-type="wall"
-                    aria-pressed="${wallType === "wall"}"
-                    title="Wall — solid impassable barrier">
-                    <span>Wall</span>
-                </button>
-                <button type="button"
-                    class="totc-v2-map-toolbar__btn${wallType === "door" ? " is-active" : ""}"
-                    data-action="map-wall-type"
-                    data-map-panel-id="${panelId}"
-                    data-wall-type="door"
-                    aria-pressed="${wallType === "door"}"
-                    title="Door — openable passage">
-                    <span>Door</span>
-                </button>
-                <button type="button"
-                    class="totc-v2-map-toolbar__btn${wallType === "window" ? " is-active" : ""}"
-                    data-action="map-wall-type"
-                    data-map-panel-id="${panelId}"
-                    data-wall-type="window"
-                    aria-pressed="${wallType === "window"}"
-                    title="Window — see-through barrier">
-                    <span>Window</span>
-                </button>
-            </div>
-        ` : "";
-
-        return `
-        <nav class="totc-v2-map-toolbar" aria-label="Map tools" data-map-panel-id="${panelId}">
-            <div class="totc-v2-map-toolbar__primary">
-                ${primarySegment}
-                ${secondarySegment}
-            </div>
-        </nav>`;
     }
 
     #renderCompendiumPanel(context = {}) {

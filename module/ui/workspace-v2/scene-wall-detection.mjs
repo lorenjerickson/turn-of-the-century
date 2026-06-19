@@ -792,6 +792,7 @@ export function buildDetectedWallDocumentData(segments = [], { foundryConstants 
         flags: {
             "turn-of-the-century": {
                 detectedWall: true,
+                wallKind: "wall",
                 detectedKind: String(segment.type ?? "wall"),
                 detectionScore: Number(segment.score ?? 0)
             }

@@ -107,6 +107,34 @@ function titleCaseFromSlug(value = "") {
     return words.map((word) => word.slice(0, 1).toUpperCase() + word.slice(1)).join(" ") || "New Scene";
 }
 
+function normalizeImageDimensions(dimensions = null) {
+    const width = Number(dimensions?.width ?? dimensions?.naturalWidth ?? 0);
+    const height = Number(dimensions?.height ?? dimensions?.naturalHeight ?? 0);
+    if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) return null;
+    return {
+        width: Math.round(width),
+        height: Math.round(height)
+    };
+}
+
+async function loadImageDimensionsFromSource(source = "", context = {}) {
+    if (context.imageDimensions) return normalizeImageDimensions(context.imageDimensions);
+    if (typeof context.imageDimensionsLoader === "function") {
+        return normalizeImageDimensions(await context.imageDimensionsLoader(source, context));
+    }
+
+    const ImageClass = context.ImageClass ?? globalThis.Image;
+    const src = String(source ?? "").trim();
+    if (!src || typeof ImageClass !== "function") return null;
+
+    return new Promise((resolve) => {
+        const image = new ImageClass();
+        image.onload = () => resolve(normalizeImageDimensions(image));
+        image.onerror = () => resolve(null);
+        image.src = src;
+    });
+}
+
 async function loadImageDataFromSource(source = "", context = {}) {
     if (context.imageData) return context.imageData;
     if (typeof context.imageDataLoader === "function") return context.imageDataLoader(source, context);
@@ -151,16 +179,24 @@ export function isSceneBackgroundImagePath(path = "", { worldId = "" } = {}) {
         || Boolean(worldPrefix && normalized.startsWith(worldPrefix));
 }
 
-export function buildSceneCreationData({ backgroundPath = "", name = "", navigation = true } = {}) {
+export function buildSceneCreationData({ backgroundPath = "", name = "", navigation = true, dimensions = null } = {}) {
     const safeBackgroundPath = String(backgroundPath ?? "").trim();
     const filename = normalizeSlashPath(safeBackgroundPath).split("/").pop() ?? "";
     const sceneName = String(name ?? "").trim() || titleCaseFromSlug(filename);
+    const size = normalizeImageDimensions(dimensions);
 
-    // Use `img` as the primary background field (Foundry v14 API).
-    // scene.background / scene.texture are deprecated in v14.
     return {
         name: sceneName,
         navigation: Boolean(navigation),
+        ...(size ? { width: size.width, height: size.height } : {}),
+        levels: safeBackgroundPath ? [{
+            name: "Ground Level",
+            ...(size ? { x: 0, y: 0, width: size.width, height: size.height } : {}),
+            elevation: { bottom: 0, top: 999 },
+            background: { src: safeBackgroundPath }
+        }] : [],
+        // Keep the legacy field populated so older worlds and our fallback
+        // diagnostics can still identify the intended map asset.
         img: safeBackgroundPath,
         flags: {
             "turn-of-the-century": {
@@ -212,7 +248,8 @@ export class SceneDesignService {
             };
         }
 
-        const sceneData = buildSceneCreationData({ backgroundPath, name, navigation });
+        const dimensions = await loadImageDimensionsFromSource(backgroundPath, this.context);
+        const sceneData = buildSceneCreationData({ backgroundPath, name, navigation, dimensions });
         const scene = await SceneClass.create(sceneData);
         notifications?.info?.(`Created scene: ${scene?.name ?? sceneData.name}.`);
         renderFoundryApplication(scene?.sheet, { force: true });

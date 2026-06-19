@@ -38,6 +38,7 @@ describe("GridCalibrationController", () => {
         assert.deepEqual(updateData, {
             "grid.type": 1,
             "grid.size": 100,
+            "grid.color": "#000000",
             shiftX: -24,
             shiftY: -18
         });
@@ -65,6 +66,37 @@ describe("GridCalibrationController", () => {
         assert.deepEqual(updateData, {
             "grid.type": 1,
             "grid.size": 96,
+            "grid.color": "#000000",
+            shiftX: -31,
+            shiftY: -17
+        });
+    });
+
+    it("applies manual adjustments made after selecting calibration points", async () => {
+        let updateData = null;
+        const controller = new GridCalibrationController({
+            sceneResolver: () => ({
+                update: async (data) => {
+                    updateData = data;
+                }
+            }),
+            notifications: { info: () => {} }
+        });
+        controller.open({ scene: { id: "scene-1", grid: { type: 1 } } });
+        controller.pickCorner({ x: 124, y: 218 });
+        controller.pickCorner({ x: 224, y: 318 });
+        controller.setCellWidth(96);
+        controller.setOffsetX(31);
+        controller.setOffsetY(17);
+        controller.setColor("#d8b45c");
+
+        const result = await controller.apply();
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(updateData, {
+            "grid.type": 1,
+            "grid.size": 96,
+            "grid.color": "#d8b45c",
             shiftX: -31,
             shiftY: -17
         });
@@ -91,6 +123,7 @@ describe("GridCalibrationController", () => {
         assert.deepEqual(updateData, {
             "grid.type": 1,
             "grid.size": 96,
+            "grid.color": "#000000",
             shiftX: 31,
             shiftY: 17
         });

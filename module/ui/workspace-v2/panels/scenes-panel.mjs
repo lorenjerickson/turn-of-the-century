@@ -9,7 +9,7 @@ function getSceneCollectionEntries(scenes) {
     return [];
 }
 
-function defaultMapSourceResolver(scene) {
+function defaultThumbnailSourceResolver(scene) {
     return getSceneBackgroundSource(scene);
 }
 
@@ -21,7 +21,7 @@ export function buildScenesPanelModel({
     scenes = [],
     currentScene = null,
     viewedScene = null,
-    mapSourceResolver = defaultMapSourceResolver
+    thumbnailSourceResolver = defaultThumbnailSourceResolver
 } = {}) {
     const currentSceneId = getSceneId(currentScene);
     const viewedSceneId = getSceneId(viewedScene);
@@ -29,7 +29,7 @@ export function buildScenesPanelModel({
         .filter(Boolean)
         .map((scene) => {
             const id = getSceneId(scene);
-            const mapSrc = mapSourceResolver(scene) || "";
+            const thumbnailSrc = thumbnailSourceResolver(scene) || "";
             const gridType = Number(scene?.grid?.type ?? 0);
             const isDefault = Boolean(scene?.flags?.["turn-of-the-century"]?.defaultScene);
             return {
@@ -39,8 +39,8 @@ export function buildScenesPanelModel({
                 current: Boolean(id && id === currentSceneId),
                 viewed: Boolean(id && id === viewedSceneId),
                 isDefault,
-                mapSrc,
-                hasMap: Boolean(mapSrc),
+                thumbnailSrc,
+                hasMap: Boolean(thumbnailSrc),
                 gridless: gridType === 0
             };
         });
@@ -64,8 +64,8 @@ export function renderScenesPanel(panelModel = {}, { escapeHTML = (value) => Str
         </header>
         <div class="totc-v2-scenes-panel__list" role="list">
             ${entries.length ? entries.map((scene) => {
-                const bgStyle = scene.mapSrc
-                    ? ` style="background-image:linear-gradient(rgba(5,10,20,0.68),rgba(5,10,20,0.68)),url('${escapeHTML(scene.mapSrc)}');background-size:cover;background-position:center"`
+                const bgStyle = scene.thumbnailSrc
+                    ? ` style="background-image:linear-gradient(rgba(5,10,20,0.68),rgba(5,10,20,0.68)),url('${escapeHTML(scene.thumbnailSrc)}');background-size:cover;background-position:center"`
                     : "";
 
                 const badges = [

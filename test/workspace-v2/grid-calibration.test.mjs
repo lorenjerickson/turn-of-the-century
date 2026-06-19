@@ -137,6 +137,7 @@ describe("Grid calibration", () => {
         }), {
             "grid.type": 1,
             "grid.size": 100,
+            "grid.color": "#000000",
             shiftX: -24,
             shiftY: -19
         });
@@ -147,10 +148,12 @@ describe("Grid calibration", () => {
             cellW: 80,
             offsetX: 12,
             offsetY: 8,
-            gridType: 2
+            gridType: 2,
+            color: "#d8b45c"
         }), {
             "grid.type": 2,
             "grid.size": 80,
+            "grid.color": "#d8b45c",
             shiftX: -12,
             shiftY: -8
         });
@@ -164,6 +167,7 @@ describe("Grid calibration", () => {
         }), {
             "grid.type": 1,
             "grid.size": 100,
+            "grid.color": "#000000",
             shiftX: 12,
             shiftY: 8
         });

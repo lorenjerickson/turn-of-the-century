@@ -5,6 +5,7 @@ import {
     applySceneBackgroundUpdate,
     buildSceneBackgroundUploadTarget,
     buildSceneBackgroundUpdateData,
+    loadImageDimensions,
     resolveScenePropertiesMapPanelScene
 } from "../panels/scene-properties-panel.mjs";
 import {
@@ -84,10 +85,6 @@ export class SceneWorkspaceController {
         return this.sceneResolver(sceneId);
     }
 
-    getSceneMapSource(scene) {
-        return getSceneBackgroundSource(scene);
-    }
-
     getViewedSceneDocument() {
         return this.getViewedScene() ?? this.getCurrentScene() ?? null;
     }
@@ -114,12 +111,9 @@ export class SceneWorkspaceController {
     }
 
     buildSceneViewModel(scene, fallback = {}) {
-        const fallbackMapSrc = String(fallback.mapSrc ?? "").trim();
-
         return {
             id: scene?.id ?? scene?._id ?? fallback.id ?? null,
             name: scene?.name ?? fallback.name ?? "Current Scene",
-            mapSrc: fallbackMapSrc || this.getSceneMapSource(scene) || "",
             width: Number(scene?.width ?? fallback.width ?? 0),
             height: Number(scene?.height ?? fallback.height ?? 0),
             shiftX: Number(scene?.shiftX ?? fallback.shiftX ?? 0),
@@ -387,6 +381,14 @@ export class SceneWorkspaceController {
             });
         });
 
+        root?.querySelectorAll("[data-action='scene-properties-sync-background-dimensions']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#handleBackgroundDimensionSync();
+            });
+        });
+
         root?.querySelectorAll("[data-action='scene-properties-delete']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
@@ -525,18 +527,20 @@ export class SceneWorkspaceController {
 
         if (scene) {
             try {
-                const updateData = buildSceneBackgroundUpdateData(result.path);
+                const dimensions = await loadImageDimensions(result.path);
+                const updateData = buildSceneBackgroundUpdateData(result.path, { dimensions });
                 this.activityLogger.info?.("[bg-upload] Applying scene background update", {
                     sceneId: scene.id,
                     sceneName: scene.name,
                     legacySceneUpdateData: updateData,
+                    imageDimensions: dimensions,
                     levelCount: scene?.levels?.size ?? scene?.levels?.contents?.length ?? scene?._source?.levels?.length ?? null,
                     "scene.img (pre-update)": scene?.img ?? null,
                     "_source.img (pre-update)": scene?._source?.img ?? null,
                     "_source.background.src (pre-update)": scene?._source?.background?.src ?? null,
                     "_source.levels[0].background.src (pre-update)": scene?._source?.levels?.[0]?.background?.src ?? null
                 });
-                const saveResult = await applySceneBackgroundUpdate(scene, result.path);
+                const saveResult = await applySceneBackgroundUpdate(scene, result.path, { dimensions });
                 this.activityLogger.info?.("[bg-upload] Background update resolved - reading back scene state", {
                     sceneId: scene.id,
                     saveMode: saveResult.mode,
@@ -570,6 +574,51 @@ export class SceneWorkspaceController {
                 error: ""
             });
         }
+        this.render();
+    }
+
+    async #handleBackgroundDimensionSync() {
+        const ui = this.uiRef();
+        const scene = this.getScenePropertiesScene();
+        const backgroundPath = getSceneBackgroundSource(scene);
+        if (!scene || !backgroundPath) {
+            ui?.notifications?.warn?.("Choose a scene with a background image before fitting its dimensions.");
+            return;
+        }
+
+        this.patchState({ status: "Reading background dimensions...", error: "" });
+        this.render();
+
+        const dimensions = await loadImageDimensions(backgroundPath);
+        if (!dimensions) {
+            this.patchState({
+                status: "",
+                error: "Background image dimensions could not be read."
+            });
+            this.render();
+            return;
+        }
+
+        try {
+            const result = await applySceneBackgroundUpdate(scene, backgroundPath, { dimensions });
+            this.activityLogger.info?.("[bg-dimensions] Background dimensions synced", {
+                sceneId: scene.id,
+                backgroundPath,
+                dimensions,
+                mode: result.mode
+            });
+            this.patchState({
+                status: `Background fitted to ${dimensions.width} x ${dimensions.height}.`,
+                error: ""
+            });
+        } catch (error) {
+            this.logger?.error?.("[turn-of-the-century] Background dimension sync failed", error);
+            this.patchState({
+                status: "",
+                error: "Background dimension update failed."
+            });
+        }
+
         this.render();
     }
 

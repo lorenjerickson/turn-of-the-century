@@ -21,6 +21,7 @@ export class GridCalibrationController {
             active: true,
             sceneId: String(scene?.id ?? ""),
             gridType: Number(scene?.grid?.type ?? 1) || 1,
+            color: String(scene?.grid?.color ?? "#000000"),
             corner1: null,
             corner2: null,
             cellW: null,
@@ -68,6 +69,24 @@ export class GridCalibrationController {
         return this.state;
     }
 
+    setColor(value) {
+        if (!this.state) return null;
+        this.state.color = String(value ?? "").trim();
+        return this.state;
+    }
+
+    buildUpdateData() {
+        const state = this.state;
+        if (!state?.active) return null;
+        return buildGridCalibrationSceneUpdate({
+            cellW: state.cellW ?? 100,
+            offsetX: state.offsetX ?? 0,
+            offsetY: state.offsetY ?? 0,
+            gridType: state.gridType,
+            color: state.color
+        });
+    }
+
     pickCorner(point) {
         if (!this.state?.active) return { phase: "inactive", state: this.state };
         if (!this.state.corner1) {
@@ -96,12 +115,7 @@ export class GridCalibrationController {
             return { ok: false, reason: "missing-scene" };
         }
 
-        const updateData = buildGridCalibrationSceneUpdate({
-            cellW: state.cellW ?? 100,
-            offsetX: state.offsetX ?? 0,
-            offsetY: state.offsetY ?? 0,
-            gridType: state.gridType
-        });
+        const updateData = this.buildUpdateData();
 
         try {
             await scene.update(updateData);

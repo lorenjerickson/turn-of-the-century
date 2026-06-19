@@ -103,6 +103,11 @@ import {
     buildMediaBrowserPanelModel
 } from "./panels/media-browser-panel.mjs";
 import { getSceneBackgroundSource } from "./scene-background-source.mjs";
+import {
+    getNativeCanvasEventScenePoint,
+    listenForNativeCanvasPointerDown,
+    previewNativeCanvasGrid
+} from "./native-canvas-grid-calibration.mjs";
 import { totcLogger } from "./logger.mjs";
 import {
     buildLoggingPanelModel,
@@ -131,9 +136,6 @@ import {
 import {
     buildSceneWallOverlayState
 } from "./scene-wall-detection.mjs";
-import {
-    buildGridCalibrationSceneUpdate
-} from "./panels/grid-calibration.mjs";
 import {
     buildEncounterMovementOverlayModel
 } from "./encounter-movement-overlay.mjs";
@@ -716,6 +718,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._selectedWallIdsByScene = new Map();
         this._joinableWallIdsByScene = new Map();
         this._wallAddSequence = null;
+        this._gridCalibrationCanvasCleanup = null;
+        this._gridCalibrationCanvasRef = null;
         this._onWallEditKeyDown = this.#onWallEditKeyDown.bind(this);
         this._gmAssistantState = {
             elementType: "campaign",
@@ -1174,7 +1178,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             scene: {
                 id: scene?.id ?? null,
                 name: scene?.name ?? game.scenes?.viewed?.name ?? "Current Scene",
-                mapSrc: this.#getSceneMapSource(scene),
                 width: Number(scene?.width ?? canvas?.dimensions?.sceneWidth ?? 0),
                 height: Number(scene?.height ?? canvas?.dimensions?.sceneHeight ?? 0),
                 shiftX: Number(scene?.shiftX ?? 0),
@@ -1199,6 +1202,20 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             scenePropertiesPanel: buildScenePropertiesPanelModel({
                 scene: scenePropertiesScene,
                 actors: worldActors,
+                gridCalibrationState: this.gridCalibrationController.state,
+                sceneToolsState: scenePropertiesScene
+                    ? this.#getMapPanelToolbarState({
+                        id: `map:${scenePropertiesScene.id ?? scenePropertiesScene._id}`,
+                        baseId: "map",
+                        sceneId: scenePropertiesScene.id ?? scenePropertiesScene._id
+                    })
+                    : {},
+                sceneToolActions: scenePropertiesScene
+                    ? this.designActionRegistry.getApplicableActions({
+                        panelId: `map:${scenePropertiesScene.id ?? scenePropertiesScene._id}`,
+                        isGM: isGMUser
+                    })
+                    : [],
                 status: scenePropertiesState.status,
                 error: scenePropertiesState.error
             }),
@@ -1259,6 +1276,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const docksMarkup = WORKSPACE_V2_DOCK_IDS
             .map((dockId) => this.#renderDockMarkup(dockId, context.layout.root[dockId], context))
             .join("\n");
+        const nativeCanvasShellClass = this.#getActiveCenterMapPanel(context.layout) ? " has-native-canvas-aperture" : "";
         const panelToggleMarkup = (context.panelVisibility ?? []).map((panel) => `
             <label class="totc-v2-command-menu__panel-toggle">
                 <input
@@ -1270,7 +1288,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             </label>`).join("");
 
         root.innerHTML = `
-<section class="totc-workspace-v2-shell">
+<section class="totc-workspace-v2-shell${nativeCanvasShellClass}">
     <div class="totc-workspace-v2-shell__emergency">
         <div class="totc-v2-floating-control">
             <button type="button" class="totc-v2-emergency-button" data-action="totc-v2-panel-menu-toggle" title="Show visible panels" aria-label="Show visible panels" aria-expanded="false">
@@ -1299,7 +1317,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         </div>
     </div>
     <main class="totc-workspace-v2-shell__main">
-        <section class="totc-v2-layout" data-layout-root="true" style="grid-template-columns:${columnTemplate};grid-template-rows:${rowTemplate};">
+        <section class="totc-v2-layout${nativeCanvasShellClass}" data-layout-root="true" style="grid-template-columns:${columnTemplate};grid-template-rows:${rowTemplate};">
             ${docksMarkup}
             ${this.#renderDockSplittersMarkup(dockWeights, layoutRoot)}
             ${this.#renderFloatingWindowsMarkup(context.layout.root.floatingWindows ?? [])}
@@ -1320,6 +1338,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         await super._onRender(context, options);
         this.hooksController.bindAll();
         this.#syncNativeCanvasScene();
+        this.#syncGridCalibrationCanvasListener();
 
         this.#wireRollLockGuard();
         this.#wireDieRollRequestHandlers();
@@ -1519,6 +1538,56 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const panelId = String(button.dataset.mapPanelId ?? "").trim();
                 const wallType = String(button.dataset.wallType ?? "").trim();
                 this.#patchMapPanelToolbarState(panelId, { wallType });
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='grid-cal-start']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#startGridCalibrationFromSceneProperties();
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='grid-cal-cancel']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.gridCalibrationController.close();
+                this.#clearGridCalibrationCanvasListener();
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='grid-cal-reset']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.gridCalibrationController.resetCorners();
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='grid-cal-confirm']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.#syncGridCalibrationStateFromInputs();
+                const result = await this.gridCalibrationController.apply();
+                if (result?.ok) this.#clearGridCalibrationCanvasListener();
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='grid-cal-cell-w'], [data-action='grid-cal-cell-h'], [data-action='grid-cal-offset-x'], [data-action='grid-cal-offset-y'], [data-action='grid-cal-color']")?.forEach((input) => {
+            input.addEventListener("input", async () => {
+                this.#syncGridCalibrationStateFromInputs();
+                await this.#previewGridCalibrationOnCanvas();
+            });
+            input.addEventListener("change", async () => {
+                this.#syncGridCalibrationStateFromInputs();
+                await this.#previewGridCalibrationOnCanvas();
                 this.render({ force: false });
             });
         });
@@ -2099,6 +2168,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.compendiumCacheController.dispose();
         this.sceneActorDropController.clearDragImage();
         this.gridCalibrationController.close();
+        this.#clearGridCalibrationCanvasListener();
         this._loggerUnsubscribe?.();
         return await super.close?.(options);
     }
@@ -2217,8 +2287,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return floatingWindows.map((floatingWindow) => {
             const floatingContext = {
                 scene: {
-                    name: game.scenes?.viewed?.name ?? "Current Scene",
-                    mapSrc: this.#getSceneMapSource(canvas?.scene ?? game.scenes?.viewed ?? null)
+                    name: game.scenes?.viewed?.name ?? "Current Scene"
                 }
             };
             const title = this.#escapeHTML(this.#getPanelTitle(floatingWindow.panel, floatingContext) ?? "Floating Panel");
@@ -3097,10 +3166,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
 
-
-    #getSceneMapSource(scene) {
-        return this.sceneWorkspaceController.getSceneMapSource(scene);
-    }
 
     #getViewedScene() {
         return this.sceneWorkspaceController.getViewedSceneDocument();
@@ -4531,6 +4596,72 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return null;
     }
 
+    async #startGridCalibrationFromSceneProperties() {
+        const activePanel = this.#getPrimaryActivePanel();
+        const viewedScene = this.#getViewedScene();
+        const defaultScene = canvas?.scene ?? game.scenes?.active ?? viewedScene ?? null;
+        const scene = this.#getScenePropertiesScene(activePanel, { viewedScene, defaultScene });
+        if (!scene) {
+            ui.notifications?.warn?.("Open a scene before calibrating its grid.");
+            return;
+        }
+
+        const sceneId = String(scene.id ?? scene._id ?? "").trim();
+        const currentSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? game.scenes?.viewed?.id ?? "").trim();
+        if (sceneId && currentSceneId !== sceneId && typeof scene.view === "function") {
+            await scene.view();
+        }
+
+        this.gridCalibrationController.open({ scene });
+        this.#syncGridCalibrationCanvasListener();
+        ui.notifications?.info?.("Grid calibration started. Click two corners of the same visible grid cell on the scene.");
+        this.render({ force: false });
+    }
+
+    #clearGridCalibrationCanvasListener() {
+        this._gridCalibrationCanvasCleanup?.();
+        this._gridCalibrationCanvasCleanup = null;
+        this._gridCalibrationCanvasRef = null;
+    }
+
+    #syncGridCalibrationCanvasListener() {
+        if (!this.gridCalibrationController.active) {
+            this.#clearGridCalibrationCanvasListener();
+            return;
+        }
+
+        const targetSceneId = String(this.gridCalibrationController.state?.sceneId ?? "").trim();
+        const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
+        if (targetSceneId && canvasSceneId && targetSceneId !== canvasSceneId) return;
+        if (this._gridCalibrationCanvasRef === canvas && this._gridCalibrationCanvasCleanup) return;
+
+        this.#clearGridCalibrationCanvasListener();
+        this._gridCalibrationCanvasRef = canvas;
+        this._gridCalibrationCanvasCleanup = listenForNativeCanvasPointerDown(canvas, (event) => {
+            if (!this.gridCalibrationController.active) return;
+            const point = getNativeCanvasEventScenePoint(event, canvas);
+            if (!point) {
+                ui.notifications?.warn?.("That canvas click could not be converted to scene coordinates.");
+                return;
+            }
+
+            event?.stopPropagation?.();
+            event?.preventDefault?.();
+            const picked = this.gridCalibrationController.pickCorner({
+                x: Math.round(point.x),
+                y: Math.round(point.y)
+            });
+            if (picked.phase === "pick-second") {
+                ui.notifications?.info?.("First grid corner set. Click the opposite corner of the same cell.");
+            }
+            if (picked.phase === "adjust") {
+                ui.notifications?.info?.("Grid sample captured. Review the values and apply when ready.");
+                void this.#previewGridCalibrationOnCanvas();
+            }
+            this.render({ force: false });
+        });
+    }
+
     #getSceneDetectedWallOverlayState(scene = null) {
         const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
         return sceneId ? (this._detectedWallOverlayStates.get(sceneId) ?? null) : null;
@@ -4644,11 +4775,33 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const cellH = readNumber("grid-cal-cell-h");
         const offsetX = readNumber("grid-cal-offset-x");
         const offsetY = readNumber("grid-cal-offset-y");
+        const color = root.querySelector("[data-action='grid-cal-color']")?.value;
 
         if (cellW !== undefined) this.gridCalibrationController.setCellWidth(cellW);
         if (cellH !== undefined) this.gridCalibrationController.setCellHeight(cellH);
         if (offsetX !== undefined) this.gridCalibrationController.setOffsetX(offsetX);
         if (offsetY !== undefined) this.gridCalibrationController.setOffsetY(offsetY);
+        if (color !== undefined) this.gridCalibrationController.setColor(color);
+    }
+
+    async #previewGridCalibrationOnCanvas() {
+        const state = this.gridCalibrationController.state;
+        const updateData = this.gridCalibrationController.buildUpdateData();
+        if (!state?.active || !updateData) return false;
+
+        const scene = state.sceneId
+            ? game.scenes?.get(state.sceneId)
+            : (canvas?.scene ?? game.scenes?.viewed ?? null);
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
+        if (!scene || (sceneId && canvasSceneId && sceneId !== canvasSceneId)) return false;
+
+        try {
+            return await previewNativeCanvasGrid({ canvasRef: canvas, scene, updateData });
+        } catch (error) {
+            console.warn("[turn-of-the-century] Grid calibration preview failed", error);
+            return false;
+        }
     }
 
     #wireDebouncedTextInputHandlers() {

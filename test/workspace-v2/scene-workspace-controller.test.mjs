@@ -199,4 +199,74 @@ describe("SceneWorkspaceController", () => {
         assert.deepEqual(deletedIds, ["token-abc"]);
         assert.equal(renderCalled, true);
     });
+
+    it("syncs background dimensions through the scene properties action", async () => {
+        const previousImage = globalThis.Image;
+        class TestImage {
+            set src(value) {
+                this._src = value;
+                this.naturalWidth = 2400;
+                this.naturalHeight = 1600;
+                this.onload();
+            }
+        }
+        globalThis.Image = TestImage;
+
+        try {
+            const listeners = {};
+            const syncButton = {
+                addEventListener(type, handler) {
+                    listeners[type] = handler;
+                }
+            };
+            const root = {
+                querySelectorAll(selector) {
+                    if (selector === "[data-action='scene-properties-sync-background-dimensions']") return [syncButton];
+                    return [];
+                }
+            };
+            let receivedUpdate = null;
+            let renderCount = 0;
+            const scene = {
+                id: "scene-1",
+                name: "Rookery Yard",
+                img: "assets/images/scenes/rookery.webp",
+                update: async (data) => {
+                    receivedUpdate = data;
+                    return scene;
+                }
+            };
+            const controller = new SceneWorkspaceController({
+                layoutEngine: layoutEngineStub(),
+                panelRegistry: { get: () => null },
+                sceneResolver: () => scene,
+                getCurrentScene: () => scene,
+                render: () => { renderCount += 1; },
+                activityLogger: { info: () => {} }
+            });
+
+            controller.wireScenePropertiesHandlers(root);
+            await listeners.click({
+                preventDefault() {},
+                stopPropagation() {}
+            });
+
+            assert.deepEqual(receivedUpdate, {
+                img: "assets/images/scenes/rookery.webp",
+                "background.src": "assets/images/scenes/rookery.webp",
+                "texture.src": "assets/images/scenes/rookery.webp",
+                width: 2400,
+                height: 1600
+            });
+            assert.equal(controller.propertiesState.status, "Background fitted to 2400 x 1600.");
+            assert.equal(controller.propertiesState.error, "");
+            assert.equal(renderCount, 2);
+        } finally {
+            if (previousImage === undefined) {
+                delete globalThis.Image;
+            } else {
+                globalThis.Image = previousImage;
+            }
+        }
+    });
 });
