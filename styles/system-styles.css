@@ -6050,6 +6050,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     grid-template-rows: 36px minmax(0, 1fr);
     min-height: 0;
     overflow: hidden;
+    pointer-events: auto;
     position: absolute;
 }
 
@@ -6064,6 +6065,8 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     gap: 0.5rem;
     min-height: 36px;
     padding: 0.35rem 0.55rem;
+    touch-action: none;
+    user-select: none;
 }
 
 .turn-of-the-century .totc-v2-floating__buttons button {
@@ -6095,6 +6098,8 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     height: 16px;
     position: absolute;
     right: 2px;
+    touch-action: none;
+    user-select: none;
     width: 16px;
 }
 
@@ -6111,7 +6116,10 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 
 .turn-of-the-century .totc-v2-layout [data-action='dock-resizer'] {
     background: transparent;
+    pointer-events: auto;
     position: absolute;
+    touch-action: none;
+    user-select: none;
     z-index: 3;
 }
 

@@ -48,6 +48,15 @@ describe("native canvas workspace integration", () => {
         assert.match(styles, /\.turn-of-the-century \.totc-v2-stack\.is-native-canvas-aperture \.totc-v2-stack__header\s*\{[\s\S]*background:\s*rgba\(15,\s*23,\s*42,\s*0\.88\);[\s\S]*pointer-events:\s*auto;/);
     });
 
+    it("keeps floating panels and dock resize handles interactive above the canvas aperture", () => {
+        assert.match(styles, /\.turn-of-the-century \.totc-v2-floating\s*\{[\s\S]*pointer-events:\s*auto;/);
+        assert.match(styles, /\.turn-of-the-century \.totc-v2-floating__header\s*\{[\s\S]*touch-action:\s*none;[\s\S]*user-select:\s*none;/);
+        assert.match(styles, /\.turn-of-the-century \.totc-v2-floating__resize-handle\s*\{[\s\S]*touch-action:\s*none;[\s\S]*user-select:\s*none;/);
+        assert.match(styles, /\.turn-of-the-century \.totc-v2-layout \[data-action='dock-resizer'\]\s*\{[\s\S]*pointer-events:\s*auto;[\s\S]*touch-action:\s*none;[\s\S]*z-index:\s*3;/);
+        assert.match(workspaceRootSource, /\[data-action='floating-move-handle'\][\s\S]*addEventListener\("pointerdown"/);
+        assert.match(workspaceRootSource, /\[data-action='dock-resizer'\][\s\S]*addEventListener\("pointerdown"/);
+    });
+
     it("keeps Victorian theme surfaces from repainting the native canvas aperture", () => {
         assert.match(styles, /body\.totc-theme-victorian \.turn-of-the-century \.totc-v2-layout\.has-native-canvas-aperture\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
         assert.match(styles, /body\.totc-theme-victorian \.turn-of-the-century \.totc-v2-dock--centerDock\.is-native-canvas-aperture\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
