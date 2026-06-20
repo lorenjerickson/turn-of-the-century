@@ -21,7 +21,7 @@ class MockRoll {
     }
 }
 
-function makeActor({ id, name, health = 20, dexBonus = 0, items = [], inventory = null }) {
+function makeActor({ id, name, health = 20, dexBonus = 0, strength = 10, items = [], inventory = null }) {
     const actor = {
         id,
         name,
@@ -35,7 +35,7 @@ function makeActor({ id, name, health = 20, dexBonus = 0, items = [], inventory 
             },
             abilities: {
                 dex: { bonus: dexBonus },
-                str: { bonus: 0 }
+                str: { value: strength, bonus: 0 }
             },
             inventory: inventory ?? {
                 equipment: {
@@ -52,6 +52,11 @@ function makeActor({ id, name, health = 20, dexBonus = 0, items = [], inventory 
         },
         getRollData() {
             return { system: this.system };
+        },
+        statuses: new Set(),
+        async toggleStatusEffect(statusId, { active = true } = {}) {
+            if (active) this.statuses.add(statusId);
+            else this.statuses.delete(statusId);
         },
         async update(changes) {
             if (Object.hasOwn(changes, "system.resources.health.value")) {
@@ -300,6 +305,7 @@ function buildMultiCombatHarness({ apBudget = 1, combatants = [], plans = {} }) 
             name: entry.name,
             health: entry.health ?? 20,
             dexBonus: entry.dexBonus ?? 0,
+            strength: entry.strength ?? 10,
             items: entry.items ?? [],
             inventory: entry.inventory ?? null
         });
@@ -1668,12 +1674,14 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         assert.equal(stabber.actor.system.resources.health.value, 0);
     });
 
-    it("interrupts consumable completion when same-square collision knocks actor prone at end of tick", async () => {
+    it("does not reconcile tokens that only pass through the same square during the round", async () => {
         const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        globalThis.game.user.id = "gm";
+        globalThis.game.users = { contents: [{ id: "gm", name: "GM", isGM: true, active: true }] };
 
         const elixir = makeConsumableItem({ id: "elixir-1", quantity: 1 });
         const harness = buildMultiCombatHarness({
-            apBudget: 1,
+            apBudget: 2,
             combatants: [
                 {
                     id: "c-m",
@@ -1716,6 +1724,17 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
                     movementTargetY: 0,
                     isReaction: false,
                     reactionTriggerType: ""
+                }, {
+                    id: "move",
+                    actionId: "move",
+                    type: "movement",
+                    label: "Move",
+                    apCost: 1,
+                    movementFeetPerAp: 10,
+                    movementTargetX: 200,
+                    movementTargetY: 0,
+                    isReaction: false,
+                    reactionTriggerType: ""
                 }],
                 "c-d": [{
                     id: "elixir-1:drink",
@@ -1736,12 +1755,51 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         const timeline = await encounter.resolveEncounterRound({ tickDelayMs: 0 });
 
         const drinkEntry = timeline.find((entry) => entry.combatantId === "c-d" && entry.action?.actionId === "drink");
-        assert.equal(drinkEntry?.outcome?.result, "interrupted");
-        assert.equal(elixir.system.quantity, 1);
+        assert.equal(drinkEntry?.outcome?.result, "resolved");
+        assert.equal(elixir.system.quantity, 0);
+        assert.equal(timeline.some((entry) => entry.outcome?.result === "prone"), false);
+    });
 
-        const proneEntries = timeline.filter((entry) => entry.outcome?.result === "prone");
-        assert.ok(proneEntries.some((entry) => entry.combatantId === "c-d"));
-        assert.ok(proneEntries.some((entry) => entry.combatantId === "c-m"));
+    it("pauses at round end and applies prone plus concussive damage on a critical failure", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        const { dieRollRequestManager } = await import("../../module/die-roll-request-manager.mjs");
+        dieRollRequestManager.activeRequests.clear();
+        globalThis.game.user.id = "gm";
+        globalThis.game.users = { contents: [{ id: "gm", name: "GM", isGM: true, active: true }] };
+        const harness = buildMultiCombatHarness({
+            apBudget: 1,
+            combatants: [
+                { id: "c-a", actorId: "actor-a", name: "Agile", tokenId: "token-a", x: 100, y: 0, initiative: 20, dexBonus: 2 },
+                { id: "c-b", actorId: "actor-b", name: "Bruiser", tokenId: "token-b", x: 0, y: 0, initiative: 10, dexBonus: 0 }
+            ],
+            plans: {
+                "c-a": [{ id: "move", actionId: "move", type: "movement", label: "Move", apCost: 1, movementTargetX: 0, movementTargetY: 0 }],
+                "c-b": []
+            }
+        });
+        const encounter = new TurnOfTheCenturyEncounter(harness.combat);
+
+        const resolution = encounter.resolveEncounterRound({ tickDelayMs: 0 });
+        await new Promise((resolve) => setImmediate(resolve));
+        assert.equal(harness.getState().resolution.status, "awaitingContestedRolls");
+        const requests = dieRollRequestManager.getAllRequests().filter((request) => request.id.includes("collision"));
+        assert.equal(requests.length, 2);
+
+        rollQueue = [4];
+        for (const request of requests) {
+            const natural = request.actorId === "actor-a" ? 20 : 1;
+            dieRollRequestManager.sendResult(request.id, "gm", {
+                total: natural + (request.actorId === "actor-a" ? 2 : 0),
+                dice: [{ value: natural, kept: true }]
+            });
+        }
+
+        const timeline = await resolution;
+        assert.equal(harness.combatants.find((combatant) => combatant.id === "c-a").actor.statuses.has("prone"), false);
+        assert.equal(harness.combatants.find((combatant) => combatant.id === "c-b").actor.statuses.has("prone"), true);
+        assert.equal(harness.combatants.find((combatant) => combatant.id === "c-b").actor.system.resources.health.value, 16);
+        assert.ok(timeline.some((entry) => entry.combatantId === "c-a" && entry.outcome?.result === "standing"));
+        assert.ok(timeline.some((entry) => entry.combatantId === "c-b" && entry.outcome?.result === "criticalFailure" && entry.outcome?.damage === 4));
     });
 
     it("interrupts ranged attack at completion boundary when target moves out of range", async () => {

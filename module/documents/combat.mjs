@@ -8,6 +8,13 @@ import {
     getPlanningWarningSeconds
 } from "../encounters/action-catalog.mjs";
 import { getEnabledActionsForActor } from "../encounters/item-action-publisher.mjs";
+import { dieRollRequestManager } from "../die-roll-request-manager.mjs";
+import {
+    adjacentFreePosition,
+    findRoundEndGridConflicts,
+    lowestStrengthCombatantId,
+    resolveContestedDexterity
+} from "../encounters/round-end-collision.mjs";
 
 const BaseCombatDocument = foundry.documents?.Combat ?? Combat;
 
@@ -1376,55 +1383,172 @@ export class TurnOfTheCenturyEncounter {
         return [...damageByTarget.values()];
     }
 
-    #resolveSameSquareConflicts({ evaluationSnapshot = null, movementEffects = [] } = {}) {
-        const tokenToCombatant = new Map();
-        for (const combatant of this.#combat.combatants?.contents ?? []) {
-            const tokenId = String(combatant?.tokenId ?? combatant?.token?.id ?? "").trim();
-            if (tokenId) tokenToCombatant.set(tokenId, combatant.id);
+    #ownerUserIdForActor(actor = null) {
+        const ownerLevel = toNumber(globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OWNER, 3);
+        const users = collectionContents(game.users);
+        const playerOwner = users.find((user) => (
+            !user?.isGM
+            && user?.active !== false
+            && toNumber(actor?.ownership?.[user.id], 0) >= ownerLevel
+        ));
+        const anyOwner = users.find((user) => (
+            user?.active !== false
+            && toNumber(actor?.ownership?.[user.id], 0) >= ownerLevel
+        ));
+        return String(playerOwner?.id ?? anyOwner?.id ?? game.user?.id ?? "gm").trim();
+    }
+
+    async #applyProneEffect(combatant = null) {
+        const actor = combatant?.actor;
+        if (!actor) return;
+        if (typeof actor.toggleStatusEffect === "function") {
+            await actor.toggleStatusEffect("prone", { active: true });
+            return;
+        }
+        if (typeof actor.createEmbeddedDocuments === "function") {
+            const alreadyProne = collectionContents(actor.effects).some((effect) => (
+                effect?.statuses?.has?.("prone") || toArray(effect?.statuses).includes("prone")
+            ));
+            if (!alreadyProne) {
+                await actor.createEmbeddedDocuments("ActiveEffect", [{
+                    name: "Prone",
+                    icon: "icons/svg/falling.svg",
+                    statuses: ["prone"]
+                }]);
+            }
+        }
+    }
+
+    async #applyConcussiveDamage(combatant = null) {
+        const actor = combatant?.actor;
+        if (!actor) return 0;
+        const roll = await (new Roll("1d6")).roll({ async: true });
+        const damage = Math.max(1, toNumber(roll?.total, 1));
+        const health = toNumber(actor.system?.resources?.health?.value, 0);
+        await actor.update({ "system.resources.health.value": Math.max(0, health - damage) });
+        return damage;
+    }
+
+    async #resolveRoundEndGridConflicts({ snapshot = null, timeline = [], tickNarratives = [] } = {}) {
+        if (!game.users) return snapshot;
+        const gridSize = Number(canvas?.scene?.grid?.size ?? 100) || 100;
+        const combatants = this.#combat.combatants?.contents ?? [];
+        const movedCombatantIds = new Set(Object.entries(snapshot?.perCombatant ?? {})
+            .filter(([, state]) => toArray(state?.plan).some((action) => String(action?.type ?? "") === "movement"))
+            .map(([combatantId]) => combatantId));
+        const conflicts = findRoundEndGridConflicts({
+            tokenPositions: snapshot?.tokenPositions,
+            combatants,
+            gridSize
+        }).filter((members) => members.some((member) => movedCombatantIds.has(member.combatantId)));
+        if (!conflicts.length) return snapshot;
+
+        for (const conflict of conflicts) {
+            const requests = conflict.map((member) => {
+                const combatant = this.#combat.combatants?.get(member.combatantId) ?? null;
+                const actor = combatant?.actor ?? null;
+                const recipientId = this.#ownerUserIdForActor(actor);
+                return {
+                    member,
+                    combatant,
+                    request: dieRollRequestManager.sendRequest({
+                        id: `encounter-${this.#combat.id}-round-${this.#combat.round || 1}-collision-${member.combatantId}`,
+                        initiatorId: game.user?.id ?? "",
+                        requestor: { id: game.user?.id ?? "", name: game.user?.name ?? "GM", type: "gm" },
+                        recipientIds: [recipientId],
+                        actorId: actor?.id ?? "",
+                        tokenId: member.tokenId,
+                        rollType: "ability",
+                        rollSubType: "dexterity",
+                        label: `${combatant?.name ?? "Actor"}: contested Dexterity`,
+                        dice: [{ count: 1, faces: 20 }],
+                        modifiers: [{
+                            label: "Dexterity",
+                            value: toNumber(actor?.system?.abilities?.dex?.bonus, 0),
+                            source: "actor"
+                        }]
+                    }),
+                    recipientId
+                };
+            });
+
+            await this.#setState({
+                ...this.state,
+                phase: "resolving",
+                timeline: foundry.utils.deepClone(timeline),
+                resolution: {
+                    ...(this.state.resolution ?? {}),
+                    status: "awaitingContestedRolls",
+                    pendingRollRequestIds: requests.map(({ request }) => request.id)
+                }
+            });
+
+            const resolvedRequests = await Promise.all(requests.map(async (entry) => ({
+                ...entry,
+                request: await dieRollRequestManager.waitForResolution(entry.request.id)
+            })));
+            const contest = resolveContestedDexterity(resolvedRequests.map(({ combatant, request, recipientId }) => ({
+                combatantId: combatant?.id,
+                strength: toNumber(combatant?.actor?.system?.abilities?.str?.value, 0),
+                result: request?.results?.[recipientId] ?? {}
+            })));
+            const allCriticalSuccess = contest.every((entry) => entry.outcome === "criticalSuccess");
+            const allFailed = contest.every((entry) => ["failure", "criticalFailure"].includes(entry.outcome));
+            const displaceId = (allCriticalSuccess || allFailed) ? lowestStrengthCombatantId(contest) : null;
+
+            for (const entry of contest) {
+                const combatant = this.#combat.combatants?.get(entry.combatantId) ?? null;
+                let damage = 0;
+                if (["failure", "criticalFailure"].includes(entry.outcome)) await this.#applyProneEffect(combatant);
+                if (entry.outcome === "criticalFailure") damage = await this.#applyConcussiveDamage(combatant);
+                timeline.push({
+                    tick: this.apBudget,
+                    combatantId: entry.combatantId,
+                    combatantName: combatant?.name ?? "Combatant",
+                    action: null,
+                    outcome: {
+                        result: entry.outcome === "criticalFailure" ? "criticalFailure" : entry.outcome === "failure" ? "prone" : "standing",
+                        roll: entry.natural,
+                        total: entry.total,
+                        damage,
+                        damageType: damage ? "concussive" : null,
+                        detail: entry.outcome === "criticalFailure"
+                            ? `${combatant?.name ?? "The actor"} critically fails the contested Dexterity roll, is knocked prone, and takes ${damage} concussive damage.`
+                            : ["failure"].includes(entry.outcome)
+                                ? `${combatant?.name ?? "The actor"} loses the contested Dexterity roll and is knocked prone.`
+                                : `${combatant?.name ?? "The actor"} remains standing after the contested Dexterity roll.`
+                    }
+                });
+            }
+
+            if (displaceId) {
+                const displaced = conflict.find((member) => member.combatantId === displaceId);
+                const origin = snapshot.tokenPositions?.[displaced?.tokenId];
+                const destination = adjacentFreePosition({
+                    origin,
+                    occupiedPositions: Object.values(snapshot.tokenPositions ?? {}),
+                    gridSize
+                });
+                if (destination && displaced?.tokenId) {
+                    snapshot.tokenPositions[displaced.tokenId] = destination;
+                    timeline.push({
+                        tick: this.apBudget,
+                        combatantId: displaceId,
+                        combatantName: this.#combat.combatants?.get(displaceId)?.name ?? "Combatant",
+                        action: null,
+                        outcome: { result: "displaced", detail: `${this.#combat.combatants?.get(displaceId)?.name ?? "The actor"} is displaced to an adjacent square.` }
+                    });
+                }
+            }
         }
 
-        const projected = { ...(evaluationSnapshot?.tokenPositions ?? {}) };
-        const movedCombatantIds = new Set();
-        for (const effect of toArray(movementEffects)) {
-            const tokenId = String(effect?.tokenId ?? "").trim();
-            if (!tokenId) continue;
-
-            projected[tokenId] = {
-                x: toNumber(effect?.x, 0),
-                y: toNumber(effect?.y, 0)
-            };
-
-            const movedCombatantId = tokenToCombatant.get(tokenId);
-            if (movedCombatantId) movedCombatantIds.add(movedCombatantId);
-        }
-
-        const positionMap = new Map();
-        for (const [tokenId, pos] of Object.entries(projected)) {
-            const combatantId = tokenToCombatant.get(tokenId);
-            if (!combatantId) continue;
-
-            const key = `${toNumber(pos?.x, 0)}:${toNumber(pos?.y, 0)}`;
-            const bucket = positionMap.get(key) ?? [];
-            bucket.push(combatantId);
-            positionMap.set(key, bucket);
-        }
-
-        const conflicts = [];
-        const proneCombatantIds = new Set();
-        for (const members of positionMap.values()) {
-            if (members.length < 2) continue;
-            const includesMover = members.some((id) => movedCombatantIds.has(id));
-            if (!includesMover) continue;
-
-            const uniqueMembers = [...new Set(members)];
-            conflicts.push(uniqueMembers);
-            for (const id of uniqueMembers) proneCombatantIds.add(id);
-        }
-
-        return {
-            conflicts,
-            proneCombatantIds
-        };
+        return this.#captureResolutionSnapshot({
+            tick: this.apBudget,
+            perCombatant: snapshot?.perCombatant ?? {},
+            timeline,
+            tickNarratives,
+            tokenPositionOverrides: snapshot?.tokenPositions ?? {}
+        });
     }
 
     #markTimelineEntryInterrupted({ timeline = [], timelineIndex = -1, combatantName = "Combatant", actionLabel = "the action", reason = "" } = {}) {
@@ -2165,30 +2289,9 @@ export class TurnOfTheCenturyEncounter {
             }
         }
 
-        const collisionResolution = this.#resolveSameSquareConflicts({
-            evaluationSnapshot,
-            movementEffects: reconcilePlan.movementEffects
-        });
-        for (const conflict of collisionResolution.conflicts) {
-            const names = conflict
-                .map((combatantId) => this.#combat.combatants?.get(combatantId)?.name)
-                .filter(Boolean);
-            for (const combatantId of conflict) {
-                const combatant = this.#combat.combatants?.get(combatantId) ?? null;
-                if (!combatant) continue;
-                const others = names.filter((name) => name !== combatant.name).join(", ");
-                timeline.push({
-                    tick,
-                    combatantId,
-                    combatantName: combatant.name,
-                    action: null,
-                    outcome: {
-                        result: "prone",
-                        detail: `${combatant.name} is knocked prone after ending the tick in the same space as ${others || "another combatant"}.`
-                    }
-                });
-            }
-        }
+        // Tokens may cross or briefly share a square during AP playback. Contested
+        // Dexterity reconciliation is deliberately deferred until the round ends.
+        const collisionResolution = { proneCombatantIds: new Set() };
 
         for (const effect of reconcilePlan.consumeEffects) {
             const requiresStableStance = Boolean(effect?.cancelIfProne);
@@ -2346,6 +2449,9 @@ export class TurnOfTheCenturyEncounter {
                 orderedCombatants
             });
             snapshot = result.snapshot;
+            if (nextTick >= totalTicks) {
+                snapshot = await this.#resolveRoundEndGridConflicts({ snapshot, timeline, tickNarratives });
+            }
             snapshots[nextTick] = snapshot;
             tickNarratives[nextTick - 1] = result.narrative;
 
@@ -2455,14 +2561,15 @@ export class TurnOfTheCenturyEncounter {
      * other same-tick actions during the evaluation phase.
      *
      * **Phase 2: Reconciliation** — Candidate outcomes are collected into effect intents
-     * (movement, damage, consumables). Effects are reconciled in order (movement → collision
-     * detection → conditional consume → simultaneous damage), and each action's required
+     * (movement, damage, consumables). Effects are reconciled in order (movement → conditional
+     * consume → simultaneous damage), and each action's required
      * completion conditions are validated against the projected end-of-tick state. If a
      * completion boundary condition fails (e.g., actor prone, target dead, out of range), the
      * action is marked interrupted.
      *
-     * **Phase 3: Render and Publish** — Finalized timeline is persisted, snapshots captured,
-     * and state is emitted for playback and GM narration.
+     * **Phase 3: Round-End Reconciliation** — Tokens sharing a final grid square dispatch
+     * contested Dexterity roll requests. Resolution pauses until every participant responds.
+     * Finalized state is then persisted and emitted for playback and GM narration.
      *
      * @returns {Promise<object[]>} The completed timeline — one entry per AP tick per combatant.
      */
@@ -2505,6 +2612,14 @@ export class TurnOfTheCenturyEncounter {
                 await wait(tickDelayMs);
             }
         }
+
+        lastSnapshot = await this.#resolveRoundEndGridConflicts({
+            snapshot: lastSnapshot,
+            timeline: result.timeline,
+            tickNarratives: result.tickNarratives
+        });
+        result.snapshots[result.snapshots.length - 1] = lastSnapshot;
+        await this.#applyResolutionSnapshot(lastSnapshot);
 
         const round = this.#combat.round || this.state.round || 1;
         const nextHistory = [

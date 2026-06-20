@@ -73,4 +73,14 @@ describe("DieRollRequestManager", () => {
         assert.equal(manager.getRequest("cancel-me"), undefined);
         assert.deepEqual(manager.getAllRequests(), []);
     });
+
+    it("allows encounter resolution to wait for a dispatched request", async () => {
+        const manager = new DieRollRequestManager({ socketService: makeSocket(), now: () => 10 });
+        manager.sendRequest({ id: "wait-for-me", recipientIds: ["p1"] });
+
+        const waiting = manager.waitForResolution("wait-for-me");
+        manager.sendResult("wait-for-me", "p1", { total: 14, dice: [{ value: 14, kept: true }] });
+
+        assert.equal((await waiting).status, "resolved");
+    });
 });

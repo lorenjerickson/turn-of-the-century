@@ -170,6 +170,22 @@ export class DieRollRequestManager {
     hasOutstandingRequests() {
         return this.getAllRequests().some((request) => request.isPending);
     }
+
+    waitForResolution(requestId) {
+        const id = cleanId(requestId);
+        const existing = this.getRequest(id);
+        if (!existing || !existing.isPending) return Promise.resolve(existing ?? null);
+
+        return new Promise((resolve) => {
+            const unsubscribe = this.onChange(({ request } = {}) => {
+                if (cleanId(request?.id) !== id) return;
+                const current = this.getRequest(id);
+                if (current?.isPending) return;
+                unsubscribe();
+                resolve(current ?? null);
+            });
+        });
+    }
 }
 
 export const dieRollRequestManager = new DieRollRequestManager();
