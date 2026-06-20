@@ -216,7 +216,7 @@ export function renderSceneMapToolbar(panelId = "", state = {}, { escapeHTML = s
                     data-map-panel-id="${safePanelId}"
                     data-command="add"
                     aria-pressed="${wallCommand === "add"}"
-                    title="Click a grid edge to add a wall segment">
+                    title="Click grid intersections to draw connected wall segments; press Esc to finish">
                     <i class="fa-solid fa-plus" aria-hidden="true"></i>
                     <span>Add</span>
                 </button>

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
     addWallSegmentToScene,
+    advanceWallPlacementSequence,
     buildManualWallDocumentData,
     buildWallEditingGrid,
     findWallsIntersectingBounds,
@@ -59,6 +60,48 @@ function wall(id, c, extra = {}) {
 }
 
 describe("scene wall editing", () => {
+    it("advances chained wall placement from each previous grid intersection", () => {
+        const first = advanceWallPlacementSequence(null, {
+            sceneId: "scene-a",
+            point: { x: 100, y: 100 }
+        });
+        const second = advanceWallPlacementSequence(first.sequence, {
+            sceneId: "scene-a",
+            point: { x: 200, y: 100 }
+        });
+        const third = advanceWallPlacementSequence(second.sequence, {
+            sceneId: "scene-a",
+            point: { x: 200, y: 200 }
+        });
+
+        assert.equal(first.segment, null);
+        assert.deepEqual(second.segment, {
+            start: { x: 100, y: 100 },
+            end: { x: 200, y: 100 }
+        });
+        assert.deepEqual(third.segment, {
+            start: { x: 200, y: 100 },
+            end: { x: 200, y: 200 }
+        });
+        assert.deepEqual(third.sequence.start, { x: 200, y: 200 });
+    });
+
+    it("starts a fresh wall chain when the scene changes", () => {
+        const step = advanceWallPlacementSequence({
+            sceneId: "scene-a",
+            start: { x: 100, y: 100 }
+        }, {
+            sceneId: "scene-b",
+            point: { x: 300, y: 300 }
+        });
+
+        assert.equal(step.segment, null);
+        assert.deepEqual(step.sequence, {
+            sceneId: "scene-b",
+            start: { x: 300, y: 300 }
+        });
+    });
+
     it("collects controlled wall ids from Foundry wall layer shapes", () => {
         const controlledObjects = new Map([
             ["b", { document: wall("b", [100, 0, 200, 0]) }],

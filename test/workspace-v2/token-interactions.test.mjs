@@ -35,7 +35,14 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /#syncWallCommandCanvasListener/);
         assert.match(workspaceRootSource, /listenForNativeCanvasPointerDown\(canvas/);
         assert.match(workspaceRootSource, /#handleWallCommandCanvasPointerDown/);
+        assert.match(workspaceRootSource, /if \(!isPrimaryPointerButton\(event\)\) return;/);
         assert.match(workspaceRootSource, /addWallSegmentToScene/);
+        assert.match(workspaceRootSource, /advanceWallPlacementSequence\(previousSequence/);
+        assert.match(workspaceRootSource, /this\._wallAddSequence = step\.sequence/);
+        assert.match(workspaceRootSource, /activeWallCommand\?\.command === "add"[\s\S]*#stopWallAddMode\(activeWallCommand\.panel\)/);
+        assert.match(workspaceRootSource, /#stopWallAddMode\(panel = null[\s\S]*wallCommand: ""[\s\S]*#syncWallCommandCanvasListener\(\)/);
+        assert.match(workspaceRootSource, /Wall placement ended\. Click Add to begin again\./);
+        assert.doesNotMatch(workspaceRootSource, /if \(key === "a"\)/);
         assert.match(workspaceRootSource, /splitWallSegmentAtPoint/);
         assert.match(workspaceRootSource, /getControlledWallIds\(canvas\?\.walls\)/);
         assert.match(workspaceRootSource, /removeWallSegmentsById/);

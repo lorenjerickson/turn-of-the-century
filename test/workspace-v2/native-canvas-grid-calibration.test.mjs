@@ -3,11 +3,21 @@ import { describe, it } from "node:test";
 
 import {
     getNativeCanvasEventScenePoint,
+    isPrimaryPointerButton,
     listenForNativeCanvasPointerDown,
     previewNativeCanvasGrid
 } from "../../module/ui/workspace-v2/native-canvas-grid-calibration.mjs";
 
 describe("native canvas grid calibration adapter", () => {
+    it("accepts only primary-button pointer events", () => {
+        assert.equal(isPrimaryPointerButton({ button: 0 }), true);
+        assert.equal(isPrimaryPointerButton({ data: { button: 0 } }), true);
+        assert.equal(isPrimaryPointerButton({ nativeEvent: { button: 0 } }), true);
+        assert.equal(isPrimaryPointerButton({ button: 1 }), false);
+        assert.equal(isPrimaryPointerButton({ button: 2 }), false);
+        assert.equal(isPrimaryPointerButton({}), false);
+    });
+
     it("converts a PIXI pointer event through the canvas stage transform", () => {
         const point = getNativeCanvasEventScenePoint({
             data: { global: { x: 240, y: 180 } }

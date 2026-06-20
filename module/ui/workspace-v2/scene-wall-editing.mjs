@@ -169,6 +169,27 @@ export function snapPointToGridIntersection(point = null, grid = null) {
     };
 }
 
+export function advanceWallPlacementSequence(sequence = null, { sceneId = "", point = null } = {}) {
+    const normalizedSceneId = String(sceneId ?? "").trim();
+    const normalizedPoint = point ? { x: finiteNumber(point.x), y: finiteNumber(point.y) } : null;
+    if (!normalizedPoint) return { sequence, segment: null };
+
+    const previousSceneId = String(sequence?.sceneId ?? "").trim();
+    const previousStart = sequence?.start;
+    const nextSequence = { sceneId: normalizedSceneId, start: normalizedPoint };
+    if (!previousStart || previousSceneId !== normalizedSceneId) {
+        return { sequence: nextSequence, segment: null };
+    }
+
+    return {
+        sequence: nextSequence,
+        segment: {
+            start: { x: finiteNumber(previousStart.x), y: finiteNumber(previousStart.y) },
+            end: normalizedPoint
+        }
+    };
+}
+
 export function findNearestWallAtPoint({ walls = [], point = null, grid = null, tolerance = null } = {}) {
     if (!point) return null;
     const maximumDistance = positiveNumber(tolerance, clickTolerance(grid));

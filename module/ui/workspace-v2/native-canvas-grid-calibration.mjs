@@ -18,6 +18,17 @@ function domClientPoint(event = {}) {
     return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
 }
 
+export function isPrimaryPointerButton(event = {}) {
+    const candidates = [
+        event?.button,
+        event?.data?.button,
+        event?.nativeEvent?.button,
+        event?.data?.originalEvent?.button
+    ];
+    const button = candidates.find((value) => value !== undefined && value !== null && Number.isFinite(Number(value)));
+    return Number(button) === 0;
+}
+
 export function getNativeCanvasEventScenePoint(event = {}, canvasRef = globalThis.canvas) {
     const globalPoint = pointerGlobalPoint(event);
     const stage = canvasRef?.stage ?? canvasRef?.app?.stage ?? null;
