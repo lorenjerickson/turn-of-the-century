@@ -102,7 +102,10 @@ describe("SceneActorDropController", () => {
 
         assert.equal(dataTransfer.effectAllowed, "copy");
         assert.deepEqual(JSON.parse(storedData.get("application/x-totc-actor-list")).actorIds, ["a", "b"]);
-        assert.equal(storedData.get("text/plain"), "a,b");
+        assert.deepEqual(JSON.parse(storedData.get("text/plain")), {
+            type: "Actor",
+            uuid: "Actor.a"
+        });
         assert.equal(controller.activeDragPayload.actorIds.length, 2);
 
         row.listeners.dragend[0](fakeDragEvent(dataTransfer));

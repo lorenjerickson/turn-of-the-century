@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import {
+    buildFoundryActorDragPayload,
+    SceneActorDropController
+} from "../../module/ui/workspace-v2/controllers/scene-actor-drop-controller.mjs";
 
 const rootDir = new URL("../..", import.meta.url).pathname;
 const workspaceRootSource = readFileSync(join(rootDir, "module/ui/workspace-v2/workspace-root-app.mjs"), "utf8");
@@ -20,6 +24,58 @@ const workspacePanelHostSource = readFileSync(
 const styles = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
 describe("workspace actor drag and drop", () => {
+    it("builds the native Foundry actor payload expected by canvas drops", () => {
+        assert.deepEqual(buildFoundryActorDragPayload({ id: "actor-1", uuid: "Actor.actor-1" }), {
+            type: "Actor",
+            uuid: "Actor.actor-1"
+        });
+        assert.deepEqual(buildFoundryActorDragPayload({ id: "actor-2" }), {
+            type: "Actor",
+            uuid: "Actor.actor-2"
+        });
+        assert.equal(buildFoundryActorDragPayload(null), null);
+    });
+
+    it("writes a Foundry-compatible actor document to text/plain on dragstart", () => {
+        const listeners = new Map();
+        const row = {
+            dataset: { actorId: "actor-1" },
+            addEventListener: (type, handler) => listeners.set(type, handler),
+            classList: { add() {}, remove() {} }
+        };
+        const writes = new Map();
+        const dataTransfer = {
+            types: [],
+            setData(type, value) {
+                writes.set(type, value);
+                this.types.push(type);
+            },
+            setDragImage() {}
+        };
+        const controller = new SceneActorDropController({
+            getActorById: () => ({ id: "actor-1", uuid: "Actor.actor-1", name: "Ada" }),
+            documentRef: () => null,
+            logger: { debug() {}, warn() {} }
+        });
+
+        controller.wireActorListDragHandlers({
+            querySelectorAll: () => [row]
+        });
+        listeners.get("dragstart")({
+            stopPropagation() {},
+            dataTransfer
+        });
+
+        assert.deepEqual(JSON.parse(writes.get("text/plain")), {
+            type: "Actor",
+            uuid: "Actor.actor-1"
+        });
+        assert.deepEqual(JSON.parse(writes.get("application/x-totc-actor-list")), {
+            actorIds: ["actor-1"]
+        });
+        assert.equal(dataTransfer.effectAllowed, "copy");
+    });
+
     it("does not use workspace map panels as custom actor drop targets", () => {
         assert.match(workspacePanelHostSource, /data-native-canvas-panel="true"/);
         assert.match(workspacePanelHostSource, /data-scene-id="\$\{this\.escapeHTML\(sceneId\)\}"/);
@@ -33,6 +89,7 @@ describe("workspace actor drag and drop", () => {
         assert.doesNotMatch(workspaceRootSource, /this\.sceneActorDropController\.wireSceneActorDropHandlers\(this\.element\)/);
         assert.match(sceneActorDropControllerSource, /buildActorListDragPayload\(\{/);
         assert.match(sceneActorDropControllerSource, /event\.dataTransfer\.setData\(ACTOR_LIST_DRAG_MIME, JSON\.stringify\(payload\)\)/);
+        assert.match(sceneActorDropControllerSource, /event\.dataTransfer\.setData\("text\/plain", JSON\.stringify\(foundryPayload\)\)/);
         assert.match(sceneActorDropControllerSource, /this\.\#setDragImage\(event\.dataTransfer, payload\.actorIds\)/);
         assert.match(sceneActorDropControllerSource, /dataTransfer\.setDragImage\(dragImage, 20, 20\)/);
         assert.match(sceneActorDropControllerSource, /actor\?\.prototypeToken\?\.texture\?\.src \?\? actor\?\.img/);

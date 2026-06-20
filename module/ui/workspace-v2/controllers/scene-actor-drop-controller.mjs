@@ -10,6 +10,14 @@ function tokenIconForActor(actor) {
     return String(actor?.prototypeToken?.texture?.src ?? actor?.img ?? "").trim();
 }
 
+export function buildFoundryActorDragPayload(actor) {
+    if (!actor) return null;
+    const id = String(actor?.id ?? actor?._id ?? "").trim();
+    const uuid = String(actor?.uuid ?? (id ? `Actor.${id}` : "")).trim();
+    if (!uuid) return null;
+    return { type: "Actor", uuid };
+}
+
 export class SceneActorDropController {
     constructor({
         getRoot = () => null,
@@ -43,9 +51,15 @@ export class SceneActorDropController {
                     selectedActorIds: this.getSelectedActorIds()
                 });
                 if (!payload?.actorIds?.length || !event.dataTransfer) return;
+                const actor = this.getActorById(actorId);
+                const foundryPayload = buildFoundryActorDragPayload(actor ?? { id: actorId });
+                if (!foundryPayload) {
+                    this.#log("warn", "Actor map drag aborted without a Foundry document reference", { actorId });
+                    return;
+                }
                 this.activeDragPayload = payload;
                 event.dataTransfer.setData(ACTOR_LIST_DRAG_MIME, JSON.stringify(payload));
-                event.dataTransfer.setData("text/plain", payload.actorIds.join(","));
+                event.dataTransfer.setData("text/plain", JSON.stringify(foundryPayload));
                 event.dataTransfer.effectAllowed = "copy";
                 this.#setDragImage(event.dataTransfer, payload.actorIds);
                 this.#log("debug", "Actor map drag started", {
