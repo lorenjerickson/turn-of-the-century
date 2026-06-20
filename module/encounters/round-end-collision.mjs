@@ -35,7 +35,7 @@ export function resolveContestedDexterity(results = []) {
     return entries;
 }
 
-export function findRoundEndGridConflicts({ tokenPositions = {}, combatants = [], gridSize = 100 } = {}) {
+export function findGridConflicts({ tokenPositions = {}, combatants = [], gridSize = 100 } = {}) {
     const cells = new Map();
     const size = Math.max(1, number(gridSize, 100));
     for (const combatant of combatants) {

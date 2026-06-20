@@ -11,7 +11,7 @@ import { getEnabledActionsForActor } from "../encounters/item-action-publisher.m
 import { dieRollRequestManager } from "../die-roll-request-manager.mjs";
 import {
     adjacentFreePosition,
-    findRoundEndGridConflicts,
+    findGridConflicts,
     lowestStrengthCombatantId,
     resolveContestedDexterity
 } from "../encounters/round-end-collision.mjs";
@@ -1429,19 +1429,26 @@ export class TurnOfTheCenturyEncounter {
         return damage;
     }
 
-    async #resolveRoundEndGridConflicts({ snapshot = null, timeline = [], tickNarratives = [] } = {}) {
+    #isActorProne(actor = null) {
+        if (!actor) return false;
+        if (actor.statuses?.has?.("prone")) return true;
+        return collectionContents(actor.effects).some((effect) => (
+            effect?.statuses?.has?.("prone") || toArray(effect?.statuses).includes("prone")
+        ));
+    }
+
+    async #resolveTickEndGridConflicts({ tick = 0, snapshot = null, timeline = [], tickNarratives = [], perCombatant = {} } = {}) {
         if (!game.users) return snapshot;
         const gridSize = Number(canvas?.scene?.grid?.size ?? 100) || 100;
         const combatants = this.#combat.combatants?.contents ?? [];
-        const movedCombatantIds = new Set(Object.entries(snapshot?.perCombatant ?? {})
-            .filter(([, state]) => toArray(state?.plan).some((action) => String(action?.type ?? "") === "movement"))
-            .map(([combatantId]) => combatantId));
-        const conflicts = findRoundEndGridConflicts({
+        const conflicts = findGridConflicts({
             tokenPositions: snapshot?.tokenPositions,
-            combatants,
+            combatants: combatants.filter((combatant) => !this.#isActorProne(combatant?.actor)),
             gridSize
-        }).filter((members) => members.some((member) => movedCombatantIds.has(member.combatantId)));
+        });
         if (!conflicts.length) return snapshot;
+
+        await this.#applyResolutionSnapshot(snapshot);
 
         for (const conflict of conflicts) {
             const requests = conflict.map((member) => {
@@ -1452,7 +1459,7 @@ export class TurnOfTheCenturyEncounter {
                     member,
                     combatant,
                     request: dieRollRequestManager.sendRequest({
-                        id: `encounter-${this.#combat.id}-round-${this.#combat.round || 1}-collision-${member.combatantId}`,
+                        id: `encounter-${this.#combat.id}-round-${this.#combat.round || 1}-tick-${tick}-collision-${member.combatantId}`,
                         initiatorId: game.user?.id ?? "",
                         requestor: { id: game.user?.id ?? "", name: game.user?.name ?? "GM", type: "gm" },
                         recipientIds: [recipientId],
@@ -1476,9 +1483,12 @@ export class TurnOfTheCenturyEncounter {
                 ...this.state,
                 phase: "resolving",
                 timeline: foundry.utils.deepClone(timeline),
+                perCombatant: foundry.utils.deepClone(perCombatant),
+                currentEvaluationTick: tick,
                 resolution: {
                     ...(this.state.resolution ?? {}),
                     status: "awaitingContestedRolls",
+                    currentTick: tick,
                     pendingRollRequestIds: requests.map(({ request }) => request.id)
                 }
             });
@@ -1499,10 +1509,19 @@ export class TurnOfTheCenturyEncounter {
             for (const entry of contest) {
                 const combatant = this.#combat.combatants?.get(entry.combatantId) ?? null;
                 let damage = 0;
-                if (["failure", "criticalFailure"].includes(entry.outcome)) await this.#applyProneEffect(combatant);
+                if (["failure", "criticalFailure"].includes(entry.outcome)) {
+                    await this.#applyProneEffect(combatant);
+                    const state = perCombatant?.[entry.combatantId];
+                    if (state) {
+                        state.spentAp += Math.max(0, toNumber(state.remainingAp, 0));
+                        state.remainingAp = 0;
+                        state.pointer = toArray(state.plan).length;
+                        state.progress = 0;
+                    }
+                }
                 if (entry.outcome === "criticalFailure") damage = await this.#applyConcussiveDamage(combatant);
                 timeline.push({
-                    tick: this.apBudget,
+                    tick,
                     combatantId: entry.combatantId,
                     combatantName: combatant?.name ?? "Combatant",
                     action: null,
@@ -1513,9 +1532,9 @@ export class TurnOfTheCenturyEncounter {
                         damage,
                         damageType: damage ? "concussive" : null,
                         detail: entry.outcome === "criticalFailure"
-                            ? `${combatant?.name ?? "The actor"} critically fails the contested Dexterity roll, is knocked prone, and takes ${damage} concussive damage.`
+                            ? `${combatant?.name ?? "The actor"} critically fails the contested Dexterity roll, is knocked prone, forfeits their remaining plan, and takes ${damage} concussive damage.`
                             : ["failure"].includes(entry.outcome)
-                                ? `${combatant?.name ?? "The actor"} loses the contested Dexterity roll and is knocked prone.`
+                                ? `${combatant?.name ?? "The actor"} loses the contested Dexterity roll, is knocked prone, and forfeits their remaining plan.`
                                 : `${combatant?.name ?? "The actor"} remains standing after the contested Dexterity roll.`
                     }
                 });
@@ -1532,7 +1551,7 @@ export class TurnOfTheCenturyEncounter {
                 if (destination && displaced?.tokenId) {
                     snapshot.tokenPositions[displaced.tokenId] = destination;
                     timeline.push({
-                        tick: this.apBudget,
+                        tick,
                         combatantId: displaceId,
                         combatantName: this.#combat.combatants?.get(displaceId)?.name ?? "Combatant",
                         action: null,
@@ -1543,8 +1562,8 @@ export class TurnOfTheCenturyEncounter {
         }
 
         return this.#captureResolutionSnapshot({
-            tick: this.apBudget,
-            perCombatant: snapshot?.perCombatant ?? {},
+            tick,
+            perCombatant,
             timeline,
             tickNarratives,
             tokenPositionOverrides: snapshot?.tokenPositions ?? {}
@@ -2378,6 +2397,14 @@ export class TurnOfTheCenturyEncounter {
             }
         }
 
+        const reconciledEndState = await this.#resolveTickEndGridConflicts({
+            tick,
+            snapshot: projectedEndState,
+            timeline,
+            tickNarratives,
+            perCombatant
+        });
+
         const narrative = this.#buildTickNarrative(timeline, tick);
         tickNarratives.push(narrative);
         const snapshot = await this.#captureResolutionSnapshot({
@@ -2385,7 +2412,7 @@ export class TurnOfTheCenturyEncounter {
             perCombatant,
             timeline,
             tickNarratives,
-            tokenPositionOverrides: projectedTokenPositions
+            tokenPositionOverrides: reconciledEndState?.tokenPositions ?? projectedTokenPositions
         });
 
         return { snapshot, narrative };
@@ -2449,9 +2476,6 @@ export class TurnOfTheCenturyEncounter {
                 orderedCombatants
             });
             snapshot = result.snapshot;
-            if (nextTick >= totalTicks) {
-                snapshot = await this.#resolveRoundEndGridConflicts({ snapshot, timeline, tickNarratives });
-            }
             snapshots[nextTick] = snapshot;
             tickNarratives[nextTick - 1] = result.narrative;
 
@@ -2567,9 +2591,9 @@ export class TurnOfTheCenturyEncounter {
      * completion boundary condition fails (e.g., actor prone, target dead, out of range), the
      * action is marked interrupted.
      *
-     * **Phase 3: Round-End Reconciliation** — Tokens sharing a final grid square dispatch
-     * contested Dexterity roll requests. Resolution pauses until every participant responds.
-     * Finalized state is then persisted and emitted for playback and GM narration.
+     * **Phase 3: Tick-End Reconciliation** — Tokens sharing a grid square at the end of the
+     * tick dispatch contested Dexterity roll requests. Resolution pauses until every participant
+     * responds; prone actors forfeit their remaining plans. Finalized state is then persisted.
      *
      * @returns {Promise<object[]>} The completed timeline — one entry per AP tick per combatant.
      */
@@ -2612,14 +2636,6 @@ export class TurnOfTheCenturyEncounter {
                 await wait(tickDelayMs);
             }
         }
-
-        lastSnapshot = await this.#resolveRoundEndGridConflicts({
-            snapshot: lastSnapshot,
-            timeline: result.timeline,
-            tickNarratives: result.tickNarratives
-        });
-        result.snapshots[result.snapshots.length - 1] = lastSnapshot;
-        await this.#applyResolutionSnapshot(lastSnapshot);
 
         const round = this.#combat.round || this.state.round || 1;
         const nextHistory = [

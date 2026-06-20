@@ -1674,8 +1674,10 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         assert.equal(stabber.actor.system.resources.health.value, 0);
     });
 
-    it("does not reconcile tokens that only pass through the same square during the round", async () => {
+    it("reconciles at tick end and forfeits a prone actor's remaining plan", async () => {
         const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        const { dieRollRequestManager } = await import("../../module/die-roll-request-manager.mjs");
+        dieRollRequestManager.activeRequests.clear();
         globalThis.game.user.id = "gm";
         globalThis.game.users = { contents: [{ id: "gm", name: "GM", isGM: true, active: true }] };
 
@@ -1752,15 +1754,36 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         });
 
         const encounter = new TurnOfTheCenturyEncounter(harness.combat);
-        const timeline = await encounter.resolveEncounterRound({ tickDelayMs: 0 });
+        const resolution = encounter.resolveEncounterRound({ tickDelayMs: 0 });
+        await new Promise((resolve) => setImmediate(resolve));
+        assert.equal(harness.getState().resolution.status, "awaitingContestedRolls");
+        assert.equal(harness.getState().resolution.currentTick, 1);
+
+        const requests = dieRollRequestManager.getAllRequests().filter((request) => request.id.includes("tick-1-collision"));
+        assert.equal(requests.length, 2);
+        rollQueue = [3];
+        for (const request of requests) {
+            const natural = request.actorId === "actor-m" ? 1 : 20;
+            dieRollRequestManager.sendResult(request.id, "gm", {
+                total: natural,
+                dice: [{ value: natural, kept: true }]
+            });
+        }
+
+        const timeline = await resolution;
 
         const drinkEntry = timeline.find((entry) => entry.combatantId === "c-d" && entry.action?.actionId === "drink");
         assert.equal(drinkEntry?.outcome?.result, "resolved");
         assert.equal(elixir.system.quantity, 0);
-        assert.equal(timeline.some((entry) => entry.outcome?.result === "prone"), false);
+        assert.equal(harness.combatants.find((combatant) => combatant.id === "c-m").actor.statuses.has("prone"), true);
+        assert.equal(harness.getState().perCombatant["c-m"].remainingAp, 0);
+        assert.equal(harness.getState().perCombatant["c-m"].spentAp, 2);
+        assert.equal(harness.getState().perCombatant["c-m"].pointer, 2);
+        assert.equal(globalThis.canvas.scene.tokens.get("token-m").x, 0);
+        assert.equal(timeline.some((entry) => entry.tick === 2 && entry.combatantId === "c-m" && entry.action?.type === "movement"), false);
     });
 
-    it("pauses at round end and applies prone plus concussive damage on a critical failure", async () => {
+    it("pauses at tick end and applies prone plus concussive damage on a critical failure", async () => {
         const { TurnOfTheCenturyEncounter } = await loadCombatModule();
         const { dieRollRequestManager } = await import("../../module/die-roll-request-manager.mjs");
         dieRollRequestManager.activeRequests.clear();

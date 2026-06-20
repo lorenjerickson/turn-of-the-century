@@ -3,16 +3,16 @@ import { describe, it } from "node:test";
 
 import {
     adjacentFreePosition,
-    findRoundEndGridConflicts,
+    findGridConflicts,
     lowestStrengthCombatantId,
     resolveContestedDexterity
 } from "../../module/encounters/round-end-collision.mjs";
 
 const result = (natural, total = natural) => ({ dice: [{ value: natural, kept: true }], total });
 
-describe("round-end collision reconciliation", () => {
+describe("tick-end collision reconciliation", () => {
     it("groups tokens by their final grid cell rather than exact pixel position", () => {
-        const conflicts = findRoundEndGridConflicts({
+        const conflicts = findGridConflicts({
             gridSize: 100,
             combatants: [{ id: "a", tokenId: "ta" }, { id: "b", tokenId: "tb" }, { id: "c", tokenId: "tc" }],
             tokenPositions: { ta: { x: 101, y: 10 }, tb: { x: 175, y: 90 }, tc: { x: 200, y: 0 } }
