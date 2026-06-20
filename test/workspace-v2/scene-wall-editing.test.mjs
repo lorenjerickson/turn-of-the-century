@@ -130,6 +130,22 @@ describe("scene wall editing", () => {
         assert.deepEqual(snapPointToGridIntersection({ x: 144, y: 252 }, grid), { x: 100, y: 300 });
     });
 
+    it("does not clamp wall clicks to a derived scene resolution boundary", () => {
+        const grid = {
+            type: 1,
+            cellSize: 100,
+            width: 4096,
+            height: 4096,
+            offsetX: 0,
+            offsetY: 0
+        };
+
+        assert.deepEqual(
+            snapPointToGridIntersection({ x: 12144, y: 8351 }, grid),
+            { x: 12100, y: 8400 }
+        );
+    });
+
     it("builds wall editing grids in scene coordinates when Foundry dimensions include padding metadata", () => {
         const grid = buildWallEditingGrid({
             width: 280,
@@ -154,6 +170,7 @@ describe("scene wall editing", () => {
             offsetY: 30
         });
         assert.deepEqual(snapPointToGridIntersection({ x: 142, y: 131 }, grid), { x: 140, y: 130 });
+        assert.deepEqual(snapPointToGridIntersection({ x: 242, y: 231 }, grid), { x: 240, y: 230 });
     });
 
     it("builds manual wall data for selected wall types", () => {

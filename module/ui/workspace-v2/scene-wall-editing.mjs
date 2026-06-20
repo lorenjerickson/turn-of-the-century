@@ -159,13 +159,11 @@ export function snapPointToGridIntersection(point = null, grid = null) {
     if (!point || cellSize <= 0) return null;
     const offsetX = finiteNumber(grid?.offsetX, 0);
     const offsetY = finiteNumber(grid?.offsetY, 0);
-    const width = positiveNumber(grid?.width, Number.POSITIVE_INFINITY);
-    const height = positiveNumber(grid?.height, Number.POSITIVE_INFINITY);
     const x = Math.round((finiteNumber(point.x) - offsetX) / cellSize) * cellSize + offsetX;
     const y = Math.round((finiteNumber(point.y) - offsetY) / cellSize) * cellSize + offsetY;
     return {
-        x: Math.max(0, Math.min(width, Math.round(x))),
-        y: Math.max(0, Math.min(height, Math.round(y)))
+        x: Math.round(x),
+        y: Math.round(y)
     };
 }
 
