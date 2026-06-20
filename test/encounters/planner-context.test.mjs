@@ -81,6 +81,8 @@ describe("encounter planner context", () => {
         assert.equal(planner.remainingAp, 5);
         assert.deepEqual(planner.queue.map((action) => action.id), ["dodge"]);
         assert.deepEqual(planner.availableActions.map((action) => action.id), ["move"]);
+        assert.equal(planner.queue[0].img, "modules/game-icons-net/blackbackground/dodge.svg");
+        assert.equal(planner.availableActions[0].img, "modules/game-icons-net/blackbackground/move.svg");
     });
 
     it("builds a planner from combat turns when the combatants collection has no contents", async () => {

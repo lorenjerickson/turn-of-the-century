@@ -1,3 +1,5 @@
+import { resolveActionIcon } from "./action-icons.mjs";
+
 function toNumber(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
@@ -176,20 +178,13 @@ function resolveEncounterCombatForActor(actor, tokenDocument = null) {
     return { combat: null, combatant: null };
 }
 
-const ACTION_TYPE_ICONS = {
-    attack: "systems/turn-of-the-century/assets/icons/action-attack.svg",
-    movement: "systems/turn-of-the-century/assets/icons/action-move.svg",
-    defense: "systems/turn-of-the-century/assets/icons/action-defend.svg",
-    consumable: "systems/turn-of-the-century/assets/icons/action-use.svg"
-};
-const ACTION_FALLBACK_ICON = "icons/svg/d20-grey.svg";
-
 function resolveActionImg(action, actor) {
+    let itemIcon = "";
     if (action.itemId) {
         const item = actor?.items?.get(action.itemId);
-        if (item?.img) return item.img;
+        itemIcon = item?.img ?? "";
     }
-    return ACTION_TYPE_ICONS[action.type] ?? ACTION_FALLBACK_ICON;
+    return resolveActionIcon(action, { itemIcon });
 }
 
 function buildPlanSlots(queue, apBudget, actor) {
@@ -250,6 +245,10 @@ function buildEncounterPlannerFromResolvedCombatant({ actor = null, tokenDocumen
 
     const targetOptions = combat.getTargetOptionsForCombatant?.(combatant.id) ?? [];
     const planSlots = buildPlanSlots(queue, apBudget, actor);
+    const queueWithIcons = queue.map((action) => ({
+        ...action,
+        img: resolveActionImg(action, actor)
+    }));
 
     return {
         combatId: combat.id,
@@ -272,7 +271,7 @@ function buildEncounterPlannerFromResolvedCombatant({ actor = null, tokenDocumen
         canCommit: phase === "planning" && !Boolean(combatantState?.ready),
         canEditPlan: phase === "planning" && !Boolean(combatantState?.ready),
         planningWarningActive: Boolean(combat.isPlanningWarningActive),
-        queue,
+        queue: queueWithIcons,
         planSlots,
         availableActions,
         targetOptions
