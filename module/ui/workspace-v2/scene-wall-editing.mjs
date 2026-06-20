@@ -445,6 +445,11 @@ function selectedJoinGroups(entries = []) {
     return groups;
 }
 
+export function getJoinableWallIds(scene = null, ids = []) {
+    const groups = selectedJoinGroups(selectedWallEntries(scene, ids));
+    return [...new Set(groups.flatMap((group) => group.map((entry) => entry.id)))];
+}
+
 export async function joinWallSegmentsById({ scene = null, ids = [] } = {}) {
     if (!scene || typeof scene.deleteEmbeddedDocuments !== "function" || typeof scene.createEmbeddedDocuments !== "function") {
         return { ok: false, reason: "wall-update-unavailable" };

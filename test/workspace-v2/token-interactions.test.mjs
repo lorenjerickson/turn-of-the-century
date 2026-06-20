@@ -45,6 +45,7 @@ describe("workspace token interactions", () => {
         assert.doesNotMatch(workspaceRootSource, /if \(key === "a"\)/);
         assert.match(workspaceRootSource, /splitWallSegmentAtPoint/);
         assert.match(workspaceRootSource, /getControlledWallIds\(canvas\?\.walls\)/);
+        assert.match(workspaceRootSource, /#setJoinableWallIds\(scene, getJoinableWallIds\(scene, selectedIds\)\)/);
         assert.match(workspaceRootSource, /removeWallSegmentsById/);
         assert.match(workspaceRootSource, /joinWallSegmentsById/);
         assert.doesNotMatch(workspaceRootSource, /#beginWallRubberbandSelection/);

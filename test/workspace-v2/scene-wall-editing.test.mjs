@@ -9,6 +9,7 @@ import {
     findWallsIntersectingBounds,
     findWallsWithinBounds,
     getControlledWallIds,
+    getJoinableWallIds,
     joinWallSegmentsById,
     joinWallSegmentsAtPoint,
     removeWallSegmentsById,
@@ -344,6 +345,23 @@ describe("scene wall editing", () => {
             [0, 100, 300, 100],
             [400, 0, 400, 250]
         ]);
+    });
+
+    it("identifies selected wall segments that can be joined", () => {
+        const scene = makeScene({
+            walls: [
+                wall("left", [0, 100, 100, 100]),
+                wall("right", [100, 100, 300, 100]),
+                wall("gap", [400, 100, 500, 100]),
+                wall("perpendicular", [300, 100, 300, 200])
+            ]
+        });
+
+        assert.deepEqual(
+            getJoinableWallIds(scene, ["left", "right", "gap", "perpendicular"]),
+            ["left", "right"]
+        );
+        assert.deepEqual(getJoinableWallIds(scene, ["left", "gap"]), []);
     });
 
     it("joins selected wall groups without mixing wall, door, and window types", async () => {

@@ -431,7 +431,7 @@ describe("Scene properties panel", () => {
         assert.match(removeButton, /Delete 2 selected wall segments/);
         assert.doesNotMatch(removeButton, /disabled/);
         assert.doesNotMatch(removeButton, /is-active/);
-        assert.match(joinButton, /Join 2 fully selected wall segments/);
+        assert.match(joinButton, /Join 2 selected wall segments/);
         assert.doesNotMatch(joinButton, /disabled/);
         assert.doesNotMatch(joinButton, /is-active/);
     });

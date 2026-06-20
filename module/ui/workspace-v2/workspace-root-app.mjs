@@ -129,6 +129,7 @@ import {
     findWallsIntersectingBounds,
     findWallsWithinBounds,
     getControlledWallIds,
+    getJoinableWallIds,
     joinWallSegmentsById,
     removeWallSegmentsById,
     snapPointToGridIntersection,
@@ -4597,9 +4598,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async #joinSelectedWallsForPanel(panelId = "") {
         const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
         const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
+        this.#syncSelectedWallsFromCanvas(scene);
         const joinableIds = this.#getJoinableWallIds(scene);
         if (!scene || joinableIds.size < 2) {
-            ui.notifications?.warn?.("Select fully enclosed wall segments before joining them.");
+            ui.notifications?.warn?.("Select two or more aligned adjacent wall segments before joining them.");
             return;
         }
 
@@ -4923,7 +4925,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const selectedIds = getControlledWallIds(canvas?.walls);
         if (selectedIds.length) {
             this.#setSelectedWallIds(scene, selectedIds);
-            this.#setJoinableWallIds(scene, []);
+            this.#setJoinableWallIds(scene, getJoinableWallIds(scene, selectedIds));
             return true;
         }
 

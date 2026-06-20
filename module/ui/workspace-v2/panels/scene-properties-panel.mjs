@@ -248,7 +248,7 @@ export function renderSceneMapToolbar(panelId = "", state = {}, { escapeHTML = s
                     data-command="join"
                     aria-pressed="false"
                     ${canJoinSelectedWalls ? "" : "disabled"}
-                    title="${canJoinSelectedWalls ? `Join ${joinableWallCount} fully selected wall segment${joinableWallCount === 1 ? "" : "s"}` : "Fully enclose adjacent wall segments to join them"}">
+                    title="${canJoinSelectedWalls ? `Join ${joinableWallCount} selected wall segment${joinableWallCount === 1 ? "" : "s"}` : "Select two or more aligned adjacent wall segments to join them"}">
                     <i class="fa-solid fa-link" aria-hidden="true"></i>
                     <span>Join</span>
                 </button>
