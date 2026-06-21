@@ -134,6 +134,7 @@ import {
     removeWallSegmentsById,
     snapPointToGridIntersection,
     splitWallSegmentAtPoint,
+    wallTypeForShortcut,
     wallDocumentId
 } from "./scene-wall-editing.mjs";
 import {
@@ -1508,7 +1509,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const mode = String(button.dataset.mode ?? "").trim();
                 const current = this.#getMapPanelToolbarState(this.panelRegistry?.get?.(panelId) ?? { id: panelId });
                 const nextMode = current.mode === mode ? null : mode;
-                this.#patchMapPanelToolbarState(panelId, { mode: nextMode });
+                this.#patchMapPanelToolbarState(panelId, {
+                    mode: nextMode,
+                    ...(nextMode === "walls" ? { wallCommand: "add" } : {})
+                });
                 if (nextMode === "walls") {
                     await this.#executeDesignAction("scene.walls", { panelId });
                 } else if (mode === "walls") {
@@ -1528,18 +1532,23 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const command = String(button.dataset.command ?? "").trim();
                 this.#cancelWallAddSequence({ notify: false });
                 if (command === "remove") {
+                    this.#patchMapPanelToolbarState(panelId, { wallCommand: "add" });
+                    this.#syncWallCommandCanvasListener();
                     await this.#deleteSelectedWallsForPanel(panelId);
                     return;
                 }
                 if (command === "join") {
+                    this.#patchMapPanelToolbarState(panelId, { wallCommand: "add" });
+                    this.#syncWallCommandCanvasListener();
                     await this.#joinSelectedWallsForPanel(panelId);
                     return;
                 }
                 this.#patchMapPanelToolbarState(panelId, { wallCommand: command });
-                this.#syncWallCommandCanvasListener();
                 if (command === "detect") {
                     await this.#executeDesignAction("scene.detectWalls", { panelId });
+                    this.#patchMapPanelToolbarState(panelId, { wallCommand: "add" });
                 }
+                this.#syncWallCommandCanvasListener();
                 this.render({ force: false });
             });
         });
@@ -1551,7 +1560,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (!game.user?.isGM) return;
                 const panelId = String(button.dataset.mapPanelId ?? "").trim();
                 const wallType = String(button.dataset.wallType ?? "").trim();
-                this.#patchMapPanelToolbarState(panelId, { wallType });
+                this.#patchMapPanelToolbarState(panelId, { wallType, wallCommand: "add" });
+                this.#syncWallCommandCanvasListener();
                 this.render({ force: false });
             });
         });
@@ -4477,11 +4487,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             return;
         }
 
-        const activeWallCommand = this.#getActiveWallCommandPanel();
-        if (event.key === "Escape" && game.user?.isGM && activeWallCommand?.command === "add") {
+        const activeWallsPanel = this.#getActiveWallsPanel();
+        if (event.key === "Escape" && game.user?.isGM && activeWallsPanel) {
             event.preventDefault();
             event.stopPropagation();
-            this.#stopWallAddMode(activeWallCommand.panel);
+            this.#cancelWallAddSequence({ notify: false });
+            this.#patchMapPanelToolbarState(activeWallsPanel.panel.id, { wallCommand: "add" });
+            this.#syncWallCommandCanvasListener();
+            ui.notifications?.info?.("Wall placement reset. Click to set a new starting point.");
+            this.render({ force: false });
             return;
         }
 
@@ -4500,15 +4514,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const key = String(event.key ?? "").toLowerCase();
         const wallsActive = state.mode === "walls";
 
-        if (key === "w") {
+        if (key === "w" && !wallsActive) {
             event.preventDefault();
-            if (wallsActive) {
-                this.#patchMapPanelToolbarState(panelId, { mode: null });
-                await this.#deactivateWallModeForPanel(panelId);
-            } else {
-                this.#patchMapPanelToolbarState(panelId, { mode: "walls" });
-                await this.#executeDesignAction("scene.walls", { panelId });
-            }
+            this.#patchMapPanelToolbarState(panelId, { mode: "walls", wallCommand: "add" });
+            await this.#executeDesignAction("scene.walls", { panelId });
             this.#syncWallCommandCanvasListener();
             this.render({ force: false });
             return;
@@ -4538,16 +4547,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             return;
         }
 
-        const wallTypeByKey = {
-            1: "wall",
-            2: "window",
-            3: "door",
-            4: "transparent"
-        };
-        if (!wallTypeByKey[key]) return;
+        const wallType = wallTypeForShortcut(key);
+        if (!wallType) return;
 
         event.preventDefault();
-        this.#patchMapPanelToolbarState(panelId, { wallType: wallTypeByKey[key] });
+        this.#patchMapPanelToolbarState(panelId, { wallType, wallCommand: "add" });
+        this.#syncWallCommandCanvasListener();
         this.render({ force: false });
     }
 
@@ -4622,22 +4627,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (notify) ui.notifications?.info?.("Wall add cancelled.");
     }
 
-    #stopWallAddMode(panel = null, { notify = true } = {}) {
-        const panelId = String(panel?.id ?? "").trim();
-        this.#cancelWallAddSequence({ notify: false });
-        if (panelId) this.#patchMapPanelToolbarState(panelId, { wallCommand: "" });
-        this.#syncWallCommandCanvasListener();
-        if (notify) ui.notifications?.info?.("Wall placement ended. Click Add to begin again.");
-        this.render({ force: false });
-    }
-
     #clearWallCommandCanvasListener() {
         this._wallCommandCanvasCleanup?.();
         this._wallCommandCanvasCleanup = null;
         this._wallCommandCanvasRef = null;
     }
 
-    #getActiveWallCommandPanel() {
+    #getActiveWallsPanel() {
         const panels = [
             this.#getPrimaryActivePanel(),
             this.#getActiveCenterMapPanel()
@@ -4646,13 +4642,17 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         for (const panel of panels) {
             if (!this.#isMapPanel(panel)) continue;
             const state = this.#getMapPanelToolbarState(panel);
-            const command = String(state.wallCommand ?? "").trim();
-            if (state.mode === "walls" && ["add", "split"].includes(command)) {
-                return { panel, state, command };
-            }
+            if (state.mode === "walls") return { panel, state };
         }
 
         return null;
+    }
+
+    #getActiveWallCommandPanel() {
+        const active = this.#getActiveWallsPanel();
+        if (!active) return null;
+        const command = String(active.state.wallCommand ?? "").trim();
+        return ["add", "split"].includes(command) ? { ...active, command } : null;
     }
 
     #syncWallCommandCanvasListener() {
@@ -4702,6 +4702,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             const result = await splitWallSegmentAtPoint({ scene, point: snapped, grid });
             if (result?.ok) this.#refreshSceneWallOverlay(scene);
             this.#reportWallEditResult("split", result);
+            this.#patchMapPanelToolbarState(active.panel.id, { wallCommand: "add" });
+            this.#syncWallCommandCanvasListener();
+            this.render({ force: false });
         }
     }
 
@@ -4715,7 +4718,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
         this._wallAddSequence = step.sequence;
         if (!step.segment) {
-            ui.notifications?.info?.("Wall start set. Each left click adds the next segment. Press Esc to finish.");
+            ui.notifications?.info?.("Wall start set. Each left click adds the next segment. Press Esc to reset the origin.");
             return;
         }
 

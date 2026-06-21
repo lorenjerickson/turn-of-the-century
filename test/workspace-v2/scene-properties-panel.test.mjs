@@ -425,8 +425,12 @@ describe("Scene properties panel", () => {
         const joinButton = toolbarButton(html, "join");
 
         assert.match(html, /data-command="add"/);
-        assert.match(html, /Click grid intersections to draw connected wall segments; press Esc to finish/);
+        assert.match(html, /Click grid intersections to draw connected wall segments; press Esc to reset the origin/);
         assert.match(html, /data-wall-type="transparent"/);
+        assert.match(html, /Wall \(W\)/);
+        assert.match(html, /Door \(D\)/);
+        assert.match(html, /Window \(N\)/);
+        assert.match(html, /Transparent \(T\)/);
         assert.match(html, /data-command="split"[\s\S]*aria-pressed="true"/);
         assert.match(html, /data-wall-type="wall"[\s\S]*aria-pressed="true"/);
         assert.match(removeButton, /Delete 2 selected wall segments/);

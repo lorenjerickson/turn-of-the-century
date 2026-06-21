@@ -216,7 +216,7 @@ export function renderSceneMapToolbar(panelId = "", state = {}, { escapeHTML = s
                     data-map-panel-id="${safePanelId}"
                     data-command="add"
                     aria-pressed="${wallCommand === "add"}"
-                    title="Click grid intersections to draw connected wall segments; press Esc to finish">
+                    title="Click grid intersections to draw connected wall segments; press Esc to reset the origin">
                     <i class="fa-solid fa-plus" aria-hidden="true"></i>
                     <span>Add</span>
                 </button>
@@ -260,7 +260,7 @@ export function renderSceneMapToolbar(panelId = "", state = {}, { escapeHTML = s
                     data-map-panel-id="${safePanelId}"
                     data-wall-type="wall"
                     aria-pressed="${wallType === "wall"}"
-                    title="Wall - solid impassable barrier">
+                    title="Wall (W) - solid impassable barrier">
                     <span>Wall</span>
                 </button>
                 <button type="button"
@@ -269,7 +269,7 @@ export function renderSceneMapToolbar(panelId = "", state = {}, { escapeHTML = s
                     data-map-panel-id="${safePanelId}"
                     data-wall-type="door"
                     aria-pressed="${wallType === "door"}"
-                    title="Door - openable passage">
+                    title="Door (D) - openable passage">
                     <span>Door</span>
                 </button>
                 <button type="button"
@@ -278,7 +278,7 @@ export function renderSceneMapToolbar(panelId = "", state = {}, { escapeHTML = s
                     data-map-panel-id="${safePanelId}"
                     data-wall-type="window"
                     aria-pressed="${wallType === "window"}"
-                    title="Window - see-through barrier">
+                    title="Window (N) - see-through barrier">
                     <span>Window</span>
                 </button>
                 <button type="button"
@@ -287,7 +287,7 @@ export function renderSceneMapToolbar(panelId = "", state = {}, { escapeHTML = s
                     data-map-panel-id="${safePanelId}"
                     data-wall-type="transparent"
                     aria-pressed="${wallType === "transparent"}"
-                    title="Transparent - blocks movement while permitting sight, light, and sound">
+                    title="Transparent (T) - blocks movement while permitting sight, light, and sound">
                     <span>Transparent</span>
                 </button>
             </div>

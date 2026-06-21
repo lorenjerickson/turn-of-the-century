@@ -16,6 +16,7 @@ import {
     removeWallSegmentAtPoint,
     snapPointToGridIntersection,
     splitWallSegmentAtPoint,
+    wallTypeForShortcut,
     wallSegmentIntersectsBounds,
     wallSegmentWithinBounds
 } from "../../module/ui/workspace-v2/scene-wall-editing.mjs";
@@ -61,6 +62,14 @@ function wall(id, c, extra = {}) {
 }
 
 describe("scene wall editing", () => {
+    it("maps wall-mode type hotkeys", () => {
+        assert.equal(wallTypeForShortcut("D"), "door");
+        assert.equal(wallTypeForShortcut("w"), "wall");
+        assert.equal(wallTypeForShortcut("N"), "window");
+        assert.equal(wallTypeForShortcut("t"), "transparent");
+        assert.equal(wallTypeForShortcut("1"), "");
+    });
+
     it("advances chained wall placement from each previous grid intersection", () => {
         const first = advanceWallPlacementSequence(null, {
             sceneId: "scene-a",

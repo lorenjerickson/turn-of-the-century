@@ -8,6 +8,17 @@ const DEFAULT_WALL_CLICK_TOLERANCE = 18;
 const WALL_DOOR_DOOR = 1;
 const WALL_SENSE_NONE = 0;
 
+export const WALL_TYPE_SHORTCUTS = Object.freeze({
+    d: "door",
+    w: "wall",
+    n: "window",
+    t: "transparent"
+});
+
+export function wallTypeForShortcut(key = "") {
+    return WALL_TYPE_SHORTCUTS[String(key ?? "").trim().toLowerCase()] ?? "";
+}
+
 function finiteNumber(value, fallback = 0) {
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : fallback;
