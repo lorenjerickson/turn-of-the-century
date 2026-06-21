@@ -1114,6 +1114,54 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         assert.equal(harness.getState().resolution.currentTick, 3);
     });
 
+    it("routes movement ticks around blocking scene walls", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        const harness = buildMultiCombatHarness({
+            apBudget: 2,
+            combatants: [{
+                id: "c-m",
+                actorId: "actor-m",
+                name: "Mover",
+                tokenId: "token-m",
+                x: 0,
+                y: 0,
+                initiative: 20,
+                items: []
+            }],
+            plans: {
+                "c-m": [{
+                    id: "move",
+                    actionId: "move",
+                    type: "movement",
+                    label: "Move",
+                    apCost: 2,
+                    movementFeetPerAp: 10,
+                    movementTargetX: 200,
+                    movementTargetY: 0
+                }]
+            }
+        });
+        globalThis.canvas.scene.width = 500;
+        globalThis.canvas.scene.height = 500;
+        globalThis.canvas.scene.walls = [{
+            c: [100, 0, 100, 200],
+            move: 20,
+            door: 0,
+            ds: 0
+        }];
+
+        const token = globalThis.canvas.scene.tokens.get("token-m");
+        const encounter = new TurnOfTheCenturyEncounter(harness.combat);
+        await encounter.beginEncounterResolution();
+        await encounter.stepEncounterResolution(1);
+
+        assert.notDeepEqual({ x: token.x, y: token.y }, { x: 100, y: 0 });
+        assert.equal(token.y > 0, true);
+
+        await encounter.stepEncounterResolution(1);
+        assert.deepEqual({ x: token.x, y: token.y }, { x: 200, y: 0 });
+    });
+
     it("restores a planning movement token to its origin when the plan is marked ready", async () => {
         const { TurnOfTheCenturyEncounter } = await loadCombatModule();
         const harness = buildMultiCombatHarness({

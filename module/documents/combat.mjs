@@ -15,6 +15,11 @@ import {
     lowestStrengthCombatantId,
     resolveContestedDexterity
 } from "../encounters/round-end-collision.mjs";
+import {
+    findGridMovementPath,
+    movementPathLength,
+    pointAlongMovementPath
+} from "../encounters/grid-pathfinding.mjs";
 
 const BaseCombatDocument = foundry.documents?.Combat ?? Combat;
 
@@ -1248,13 +1253,21 @@ export class TurnOfTheCenturyEncounter {
 
         const currentX = toNumber(currentPosition.x, 0);
         const currentY = toNumber(currentPosition.y, 0);
-        const nextX = Math.round(currentX + ((targetX - currentX) / stepDivisor));
-        const nextY = Math.round(currentY + ((targetY - currentY) / stepDivisor));
+        const scene = token?.parent?.walls ? token.parent : (canvas?.scene ?? token?.parent ?? null);
+        const path = findGridMovementPath({
+            start: { x: currentX, y: currentY },
+            target: { x: targetX, y: targetY },
+            scene
+        });
+        const pathLength = movementPathLength(path);
+        if (path.length < 2 || pathLength <= Number.EPSILON) return null;
+        const nextPosition = pointAlongMovementPath(path, pathLength / stepDivisor);
+        if (!nextPosition) return null;
 
         return {
             tokenId,
-            x: nextX,
-            y: nextY
+            x: nextPosition.x,
+            y: nextPosition.y
         };
     }
 
