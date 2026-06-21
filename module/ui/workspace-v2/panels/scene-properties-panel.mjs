@@ -281,6 +281,15 @@ export function renderSceneMapToolbar(panelId = "", state = {}, { escapeHTML = s
                     title="Window - see-through barrier">
                     <span>Window</span>
                 </button>
+                <button type="button"
+                    class="totc-v2-map-toolbar__btn${wallType === "transparent" ? " is-active" : ""}"
+                    data-action="map-wall-type"
+                    data-map-panel-id="${safePanelId}"
+                    data-wall-type="transparent"
+                    aria-pressed="${wallType === "transparent"}"
+                    title="Transparent - blocks movement while permitting sight, light, and sound">
+                    <span>Transparent</span>
+                </button>
             </div>
         ` : "";
 

@@ -4541,7 +4541,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const wallTypeByKey = {
             1: "wall",
             2: "window",
-            3: "door"
+            3: "door",
+            4: "transparent"
         };
         if (!wallTypeByKey[key]) return;
 
@@ -4988,7 +4989,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 return values.every(Number.isFinite);
             }).map((segment) => ({
                 id: String(segment.id ?? "").trim(),
-                wallKind: ["door", "window"].includes(String(segment.wallKind ?? "").trim().toLowerCase())
+                wallKind: ["door", "window", "transparent"].includes(String(segment.wallKind ?? "").trim().toLowerCase())
                     ? String(segment.wallKind ?? "").trim().toLowerCase()
                     : "wall",
                 x1: Math.round(Number(segment.x1)),

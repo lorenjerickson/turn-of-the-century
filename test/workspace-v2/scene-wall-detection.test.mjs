@@ -513,6 +513,7 @@ describe("regular grid wall detection", () => {
                 { id: "wall-a", c: [0.2, 0.8, 100.3, 0.4] },
                 { id: "wall-b", _source: { c: [100, 0, 100, 100], flags: { "turn-of-the-century": { wallKind: "window" } } } },
                 { id: "wall-c", c: [200, 0, 200, 100], flags: { "turn-of-the-century": { wallKind: "door" } } },
+                { id: "wall-d", c: [300, 0, 300, 100], flags: { "turn-of-the-century": { wallKind: "transparent" } } },
                 { c: ["bad", 0, 50, 50] }
             ]
         }, {
@@ -521,7 +522,8 @@ describe("regular grid wall detection", () => {
             segments: [
                 { id: "wall-a", wallKind: "wall", x1: 0, y1: 1, x2: 100, y2: 0, selected: false },
                 { id: "wall-b", wallKind: "window", x1: 100, y1: 0, x2: 100, y2: 100, selected: true },
-                { id: "wall-c", wallKind: "door", x1: 200, y1: 0, x2: 200, y2: 100, selected: false }
+                { id: "wall-c", wallKind: "door", x1: 200, y1: 0, x2: 200, y2: 100, selected: false },
+                { id: "wall-d", wallKind: "transparent", x1: 300, y1: 0, x2: 300, y2: 100, selected: false }
             ],
             intersections: [
                 { x: 100, y: 0 }

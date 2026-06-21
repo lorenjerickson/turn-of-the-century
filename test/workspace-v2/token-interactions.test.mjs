@@ -48,6 +48,8 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /#setJoinableWallIds\(scene, getJoinableWallIds\(scene, selectedIds\)\)/);
         assert.match(workspaceRootSource, /removeWallSegmentsById/);
         assert.match(workspaceRootSource, /joinWallSegmentsById/);
+        assert.match(workspaceRootSource, /4: "transparent"/);
+        assert.match(workspaceRootSource, /\["door", "window", "transparent"\]/);
         assert.doesNotMatch(workspaceRootSource, /#beginWallRubberbandSelection/);
         assert.doesNotMatch(workspaceRootSource, /#handleWallEditingPointerDown/);
         assert.doesNotMatch(workspaceRootSource, /totc-v2-grid-overlay__/);

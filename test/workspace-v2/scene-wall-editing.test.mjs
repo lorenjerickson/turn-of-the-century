@@ -196,12 +196,29 @@ describe("scene wall editing", () => {
                 WALL_DOOR_STATES: { CLOSED: "closed" }
             }
         });
+        const transparent = buildManualWallDocumentData({
+            start: { x: 0, y: 0 },
+            end: { x: 100, y: 100 },
+            wallType: "transparent",
+            foundryConstants: {
+                WALL_MOVEMENT_TYPES: { NORMAL: "normal" },
+                EDGE_SENSE_TYPES: { NORMAL: "normal", NONE: "none" },
+                WALL_DOOR_TYPES: { NONE: "none", DOOR: "door" },
+                WALL_DOOR_STATES: { CLOSED: "closed" }
+            }
+        });
 
         assert.equal(door.door, "door");
         assert.equal(door.flags["turn-of-the-century"].wallKind, "door");
         assert.equal(window.sight, "none");
         assert.equal(window.light, "none");
         assert.equal(window.flags["turn-of-the-century"].wallKind, "window");
+        assert.equal(transparent.move, "normal");
+        assert.equal(transparent.sight, "none");
+        assert.equal(transparent.light, "none");
+        assert.equal(transparent.sound, "none");
+        assert.equal(transparent.door, "none");
+        assert.equal(transparent.flags["turn-of-the-century"].wallKind, "transparent");
     });
 
     it("adds a wall segment to the scene with the selected wall type", async () => {
@@ -381,7 +398,7 @@ describe("scene wall editing", () => {
         assert.deepEqual(getJoinableWallIds(scene, ["left", "gap"]), []);
     });
 
-    it("joins selected wall groups without mixing wall, door, and window types", async () => {
+    it("joins selected wall groups without mixing wall, door, window, and transparent types", async () => {
         const scene = makeScene({
             walls: [
                 wall("wall-left", [0, 100, 100, 100]),
@@ -389,25 +406,32 @@ describe("scene wall editing", () => {
                 wall("door-left", [0, 200, 100, 200], { flags: { "turn-of-the-century": { wallKind: "door" } } }),
                 wall("door-right", [100, 200, 200, 200], { flags: { "turn-of-the-century": { wallKind: "door" } } }),
                 wall("window-left", [0, 300, 100, 300], { flags: { "turn-of-the-century": { wallKind: "window" } } }),
-                wall("window-right", [100, 300, 200, 300], { flags: { "turn-of-the-century": { wallKind: "window" } } })
+                wall("window-right", [100, 300, 200, 300], { flags: { "turn-of-the-century": { wallKind: "window" } } }),
+                wall("transparent-left", [0, 400, 100, 400], { flags: { "turn-of-the-century": { wallKind: "transparent" } } }),
+                wall("transparent-right", [100, 400, 200, 400], { flags: { "turn-of-the-century": { wallKind: "transparent" } } })
             ]
         });
 
         const result = await joinWallSegmentsById({
             scene,
-            ids: ["wall-left", "wall-right", "door-left", "door-right", "window-left", "window-right"]
+            ids: [
+                "wall-left", "wall-right", "door-left", "door-right",
+                "window-left", "window-right", "transparent-left", "transparent-right"
+            ]
         });
 
         assert.equal(result.ok, true);
         assert.deepEqual(scene.calls[1].documents.map((document) => document.c), [
             [0, 100, 200, 100],
             [0, 200, 200, 200],
-            [0, 300, 200, 300]
+            [0, 300, 200, 300],
+            [0, 400, 200, 400]
         ]);
         assert.deepEqual(scene.calls[1].documents.map((document) => document.flags["turn-of-the-century"].wallKind), [
             "wall",
             "door",
-            "window"
+            "window",
+            "transparent"
         ]);
     });
 });

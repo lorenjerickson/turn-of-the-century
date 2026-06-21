@@ -56,7 +56,7 @@ function documentSource(document) {
 
 function normalizeWallKind(value) {
     const kind = String(value ?? "").trim().toLowerCase();
-    return ["wall", "door", "window"].includes(kind) ? kind : "wall";
+    return ["wall", "door", "window", "transparent"].includes(kind) ? kind : "wall";
 }
 
 function documentWallKind(document, fallback = "wall") {
@@ -352,11 +352,12 @@ function baseWallData(coords, { sourceWall = null, wallType = "wall", foundryCon
     if (kind === "door") {
         data.door = enumValue(foundryConstants, ["WALL_DOOR_TYPES", "DOOR"], WALL_DOOR_DOOR);
         data.ds = enumValue(foundryConstants, ["WALL_DOOR_STATES", "CLOSED"], defaults.ds);
-    } else if (kind === "window") {
+    } else if (kind === "window" || kind === "transparent") {
         const noneSense = enumValue(foundryConstants, ["EDGE_SENSE_TYPES", "NONE"],
             enumValue(foundryConstants, ["WALL_SENSE_TYPES", "NONE"], WALL_SENSE_NONE));
         data.sight = noneSense;
         data.light = noneSense;
+        if (kind === "transparent") data.sound = noneSense;
         data.door = defaults.door;
     }
 

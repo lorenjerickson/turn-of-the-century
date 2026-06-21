@@ -49,7 +49,7 @@ function documentId(document) {
 function wallKind(document) {
     const source = typeof document?.toObject === "function" ? document.toObject() : (document?._source ?? document ?? {});
     const kind = String(source.flags?.["turn-of-the-century"]?.wallKind ?? "").trim().toLowerCase();
-    return ["door", "window"].includes(kind) ? kind : "wall";
+    return ["door", "window", "transparent"].includes(kind) ? kind : "wall";
 }
 
 function enumValue(constants, path = [], fallback) {

@@ -426,6 +426,7 @@ describe("Scene properties panel", () => {
 
         assert.match(html, /data-command="add"/);
         assert.match(html, /Click grid intersections to draw connected wall segments; press Esc to finish/);
+        assert.match(html, /data-wall-type="transparent"/);
         assert.match(html, /data-command="split"[\s\S]*aria-pressed="true"/);
         assert.match(html, /data-wall-type="wall"[\s\S]*aria-pressed="true"/);
         assert.match(removeButton, /Delete 2 selected wall segments/);
@@ -434,6 +435,20 @@ describe("Scene properties panel", () => {
         assert.match(joinButton, /Join 2 selected wall segments/);
         assert.doesNotMatch(joinButton, /disabled/);
         assert.doesNotMatch(joinButton, /is-active/);
+    });
+
+    it("renders transparent as a selectable active wall type", () => {
+        const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
+            scene: { id: "scene-a", name: "Whitechapel" },
+            sceneToolsState: {
+                mode: "walls",
+                wallCommand: "add",
+                wallType: "transparent"
+            }
+        }));
+
+        assert.match(html, /totc-v2-map-toolbar__btn is-active[\s\S]*data-wall-type="transparent"[\s\S]*aria-pressed="true"/);
+        assert.match(html, /blocks movement while permitting sight, light, and sound/);
     });
 
     it("renders active grid calibration controls", () => {
