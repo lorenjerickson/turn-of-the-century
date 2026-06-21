@@ -13,6 +13,13 @@ export function buildNewTokenVisionDefaults() {
 export function buildNewSceneVisionDefaults() {
     return {
         tokenVision: true,
+        environment: {
+            darknessLevel: 0,
+            globalLight: {
+                enabled: 1,
+                bright: true
+            }
+        },
         fog: {
             mode: DEFAULT_SCENE_FOG_MODE
         }

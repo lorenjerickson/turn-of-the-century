@@ -110,6 +110,7 @@ import {
     buildNewSceneVisionDefaults,
     buildNewTokenVisionDefaults
 } from "./module/document-defaults.mjs";
+import { refreshGmTokenVisionPreview } from "./module/canvas-vision-preview.mjs";
 
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
 const ENCOUNTER_AP_BUDGET_SETTING = "encounterActionPointBudget";
@@ -968,6 +969,10 @@ Hooks.on("preCreateToken", (tokenDoc, data, options, userId) => {
 
 Hooks.on("preCreateScene", (sceneDoc) => {
     sceneDoc.updateSource(buildNewSceneVisionDefaults());
+});
+
+Hooks.on("controlToken", (token, controlled) => {
+    refreshGmTokenVisionPreview(token, controlled);
 });
 
 Hooks.on("createToken", async (tokenDoc, options, userId) => {

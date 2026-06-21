@@ -16,6 +16,10 @@ describe("Foundry document defaults", () => {
     it("requires token vision and enables individual fog exploration for new scenes", () => {
         assert.deepEqual(buildNewSceneVisionDefaults(), {
             tokenVision: true,
+            environment: {
+                darknessLevel: 0,
+                globalLight: { enabled: 1, bright: true }
+            },
             fog: { mode: 1 }
         });
     });
