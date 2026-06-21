@@ -111,6 +111,7 @@ import {
     buildNewTokenVisionDefaults
 } from "./module/document-defaults.mjs";
 import { refreshGmTokenVisionPreview } from "./module/canvas-vision-preview.mjs";
+import { PlanningVisibilityLock } from "./module/planning-visibility-lock.mjs";
 
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
 const ENCOUNTER_AP_BUDGET_SETTING = "encounterActionPointBudget";
@@ -136,6 +137,7 @@ const BaseItemSheetClass = requireItemSheetV2();
 const CombatDocumentClass = requireCombatDocumentClass();
 let encounterPlanningWatchHandle = null;
 let workspaceV2Coordinator = null;
+const planningVisibilityLock = new PlanningVisibilityLock();
 
 function logEncounterLifecycle(eventName, payload = {}) {
     const combat = payload.combat ?? payload.combatant?.combat ?? game.combat ?? null;
@@ -912,6 +914,7 @@ Hooks.once("ready", async () => {
 
 Hooks.on("updateCombat", (combat) => {
     logEncounterLifecycle("updateCombat", { combat });
+    planningVisibilityLock.sync(combat);
     rerenderEncounterActorSheets(combat);
     rerenderEncounterTracker(combat);
 });
@@ -973,6 +976,23 @@ Hooks.on("preCreateScene", (sceneDoc) => {
 
 Hooks.on("controlToken", (token, controlled) => {
     refreshGmTokenVisionPreview(token, controlled);
+});
+
+Hooks.on("canvasReady", () => {
+    planningVisibilityLock.sync(game.combat);
+});
+
+Hooks.on("canvasTearDown", () => {
+    planningVisibilityLock.release({ refresh: false });
+});
+
+Hooks.on("visibilityRefresh", () => {
+    planningVisibilityLock.enforce();
+});
+
+Hooks.on("refreshObject", (object) => {
+    if (object?.document?.documentName !== "Token") return;
+    planningVisibilityLock.enforceToken(object);
 });
 
 Hooks.on("createToken", async (tokenDoc, options, userId) => {
