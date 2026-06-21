@@ -157,10 +157,10 @@ export function findGridMovementPath({
     const minCol = Math.min(0, startCell.col, goalCell.col);
     const minRow = Math.min(0, startCell.row, goalCell.row);
     const maxCol = sceneWidth > 0
-        ? Math.max(Math.ceil((sceneWidth - offsetX) / gridSize), startCell.col, goalCell.col)
+        ? Math.max(Math.ceil((sceneWidth - offsetX) / gridSize) - 1, startCell.col, goalCell.col)
         : Math.max(startCell.col, goalCell.col) + fallbackMargin;
     const maxRow = sceneHeight > 0
-        ? Math.max(Math.ceil((sceneHeight - offsetY) / gridSize), startCell.row, goalCell.row)
+        ? Math.max(Math.ceil((sceneHeight - offsetY) / gridSize) - 1, startCell.row, goalCell.row)
         : Math.max(startCell.row, goalCell.row) + fallbackMargin;
 
     const center = (cell) => ({
@@ -258,4 +258,88 @@ export function movementPathLength(path = []) {
         );
     }
     return length;
+}
+
+export function findReachableGridMovementCells({
+    start = null,
+    maxDistance = 0,
+    scene = null,
+    foundryConstants = globalThis.CONST
+} = {}) {
+    if (!start || maxDistance < 0) return [];
+    const gridSize = Math.max(1, finiteNumber(scene?.grid?.size, 100));
+    const offsetX = -finiteNumber(scene?.shiftX, 0);
+    const offsetY = -finiteNumber(scene?.shiftY, 0);
+    const startCell = {
+        col: Math.round((finiteNumber(start.x) - offsetX) / gridSize),
+        row: Math.round((finiteNumber(start.y) - offsetY) / gridSize)
+    };
+    const maxCost = Math.max(0, finiteNumber(maxDistance) / gridSize);
+    const radius = Math.ceil(maxCost);
+    const sceneWidth = Math.max(
+        finiteNumber(scene?.width),
+        finiteNumber(scene?.dimensions?.width),
+        finiteNumber(scene?.dimensions?.sceneWidth) + offsetX
+    );
+    const sceneHeight = Math.max(
+        finiteNumber(scene?.height),
+        finiteNumber(scene?.dimensions?.height),
+        finiteNumber(scene?.dimensions?.sceneHeight) + offsetY
+    );
+    const minCol = Math.max(0, startCell.col - radius);
+    const minRow = Math.max(0, startCell.row - radius);
+    const maxCol = sceneWidth > 0
+        ? Math.min(Math.ceil((sceneWidth - offsetX) / gridSize) - 1, startCell.col + radius)
+        : startCell.col + radius;
+    const maxRow = sceneHeight > 0
+        ? Math.min(Math.ceil((sceneHeight - offsetY) / gridSize) - 1, startCell.row + radius)
+        : startCell.row + radius;
+    const walls = blockingWallSegments(scene, foundryConstants);
+    const center = (cell) => ({
+        x: offsetX + (cell.col * gridSize) + (gridSize / 2),
+        y: offsetY + (cell.row * gridSize) + (gridSize / 2)
+    });
+    const blocked = (from, to) => {
+        const a = center(from);
+        const b = center(to);
+        return walls.some((wall) => segmentsIntersect(a, b, { x: wall.x1, y: wall.y1 }, { x: wall.x2, y: wall.y2 }));
+    };
+
+    const open = new MinHeap();
+    open.push({ ...startCell, cost: 0, score: 0 });
+    const costs = new Map([[pointKey(startCell.col, startCell.row), 0]]);
+    const cells = [];
+
+    while (open.length) {
+        const current = open.pop();
+        const currentKey = pointKey(current.col, current.row);
+        if (current.cost > (costs.get(currentKey) ?? Number.POSITIVE_INFINITY)) continue;
+        if (current.cost > maxCost + 0.000001) continue;
+        cells.push({
+            col: current.col,
+            row: current.row,
+            distance: current.cost * gridSize
+        });
+
+        for (let dc = -1; dc <= 1; dc += 1) {
+            for (let dr = -1; dr <= 1; dr += 1) {
+                if (!dc && !dr) continue;
+                const next = { col: current.col + dc, row: current.row + dr };
+                if (next.col < minCol || next.col > maxCol || next.row < minRow || next.row > maxRow) continue;
+                if (blocked(current, next)) continue;
+                if (dc && dr) {
+                    const horizontal = { col: current.col + dc, row: current.row };
+                    const vertical = { col: current.col, row: current.row + dr };
+                    if (blocked(current, horizontal) || blocked(current, vertical)) continue;
+                }
+                const nextCost = current.cost + (dc && dr ? Math.SQRT2 : 1);
+                const nextKey = pointKey(next.col, next.row);
+                if (nextCost > maxCost + 0.000001 || nextCost >= (costs.get(nextKey) ?? Number.POSITIVE_INFINITY)) continue;
+                costs.set(nextKey, nextCost);
+                open.push({ ...next, cost: nextCost, score: nextCost });
+            }
+        }
+    }
+
+    return cells;
 }

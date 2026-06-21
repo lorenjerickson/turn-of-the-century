@@ -1,3 +1,5 @@
+import { findReachableGridMovementCells } from "../../encounters/grid-pathfinding.mjs";
+
 function numberOr(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
@@ -43,35 +45,28 @@ export function buildEncounterMovementOverlayModel({
         y: tokenY + ((tokenHeight * cellSize) / 2)
     };
     const originCell = gridCellForPoint({ ...origin, gridSize: cellSize, offsetX: gridOffsetX, offsetY: gridOffsetY });
-    const cellRadius = Math.ceil(maxPixels / cellSize);
-    const cells = [];
-
-    for (let row = originCell.row - cellRadius; row <= originCell.row + cellRadius; row += 1) {
-        for (let col = originCell.col - cellRadius; col <= originCell.col + cellRadius; col += 1) {
-            const left = gridOffsetX + (col * cellSize);
-            const top = gridOffsetY + (row * cellSize);
-            const center = {
-                x: left + (cellSize / 2),
-                y: top + (cellSize / 2)
-            };
-            const distancePixels = Math.hypot(center.x - origin.x, center.y - origin.y);
-            if (distancePixels > maxPixels + 0.0001) continue;
-
-            const distanceFeet = (distancePixels / cellSize) * gridDistance;
-            const requiredAp = Math.min(actionPoints, Math.max(0, Math.ceil(distanceFeet / movementFeetPerAp)));
-            cells.push({
-                col,
-                row,
-                left,
-                top,
-                width: cellSize,
-                height: cellSize,
-                requiredAp,
-                distanceFeet: Math.round(distanceFeet * 10) / 10,
-                origin: col === originCell.col && row === originCell.row
-            });
-        }
-    }
+    const reachableCells = findReachableGridMovementCells({
+        start: {
+            x: gridOffsetX + (originCell.col * cellSize),
+            y: gridOffsetY + (originCell.row * cellSize)
+        },
+        maxDistance: maxPixels,
+        scene
+    });
+    const cells = reachableCells.map(({ col, row, distance: distancePixels }) => {
+        const distanceFeet = (distancePixels / cellSize) * gridDistance;
+        return {
+            col,
+            row,
+            left: gridOffsetX + (col * cellSize),
+            top: gridOffsetY + (row * cellSize),
+            width: cellSize,
+            height: cellSize,
+            requiredAp: Math.min(actionPoints, Math.max(0, Math.ceil(distanceFeet / movementFeetPerAp))),
+            distanceFeet: Math.round(distanceFeet * 10) / 10,
+            origin: col === originCell.col && row === originCell.row
+        };
+    });
 
     return {
         active: Boolean(token && scene && actionPoints > 0),
