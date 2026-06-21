@@ -56,17 +56,23 @@ export function getNativeCanvasEventScenePoint(event = {}, canvasRef = globalThi
     return null;
 }
 
-export function listenForNativeCanvasPointerDown(canvasRef = globalThis.canvas, handler = () => {}) {
+export function listenForNativeCanvasPointerDown(canvasRef = globalThis.canvas, handler = () => {}, {
+    preferView = false,
+    capture = false
+} = {}) {
     const stage = canvasRef?.stage ?? canvasRef?.app?.stage ?? null;
+    const view = canvasRef?.app?.view ?? canvasRef?.app?.canvas ?? null;
+    if (preferView && view && typeof view.addEventListener === "function" && typeof view.removeEventListener === "function") {
+        view.addEventListener("pointerdown", handler, { capture });
+        return () => view.removeEventListener("pointerdown", handler, { capture });
+    }
     if (stage && typeof stage.on === "function" && typeof stage.off === "function") {
         stage.on("pointerdown", handler);
         return () => stage.off("pointerdown", handler);
     }
-
-    const view = canvasRef?.app?.view ?? canvasRef?.app?.canvas ?? null;
     if (view && typeof view.addEventListener === "function" && typeof view.removeEventListener === "function") {
-        view.addEventListener("pointerdown", handler, { capture: true });
-        return () => view.removeEventListener("pointerdown", handler, { capture: true });
+        view.addEventListener("pointerdown", handler, { capture });
+        return () => view.removeEventListener("pointerdown", handler, { capture });
     }
 
     return () => {};

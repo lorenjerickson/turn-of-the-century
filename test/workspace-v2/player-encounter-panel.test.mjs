@@ -249,6 +249,8 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /#cancelEncounterTargetingInteraction/);
         assert.match(workspaceRootSource, /#syncEncounterTargetingCanvasListener/);
         assert.match(workspaceRootSource, /#handleEncounterTargetingCanvasPointerDown/);
+        assert.match(workspaceRootSource, /preferView: true, capture: true/);
+        assert.match(workspaceRootSource, /stopImmediatePropagation/);
         assert.match(workspaceRootSource, /findEncounterTargetTokenAtPoint\(\{/);
         assert.match(workspaceRootSource, /if \(!isPrimaryPointerButton\(event\)\)[\s\S]*#cancelEncounterTargetingInteraction/);
         assert.match(workspaceRootSource, /if \(!tokenId\)[\s\S]*#cancelEncounterTargetingInteraction/);

@@ -2883,13 +2883,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._encounterTargetingCanvasRef = canvas;
         this._encounterTargetingCanvasCleanup = listenForNativeCanvasPointerDown(canvas, (event) => {
             void this.#handleEncounterTargetingCanvasPointerDown(event);
-        });
+        }, { preferView: true, capture: true });
     }
 
     async #handleEncounterTargetingCanvasPointerDown(event = {}) {
         if (!this._encounterTargetingInteraction) return;
         event?.preventDefault?.();
         event?.stopPropagation?.();
+        event?.stopImmediatePropagation?.();
+        event?.nativeEvent?.stopImmediatePropagation?.();
         if (!isPrimaryPointerButton(event)) {
             await this.#cancelEncounterTargetingInteraction();
             return;

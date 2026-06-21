@@ -60,6 +60,30 @@ describe("native canvas grid calibration adapter", () => {
         ]);
     });
 
+    it("can intercept DOM canvas input during capture before token controls", () => {
+        const calls = [];
+        const handler = () => {};
+        const view = {
+            addEventListener: (eventName, callback, options) => calls.push(["add", eventName, callback, options]),
+            removeEventListener: (eventName, callback, options) => calls.push(["remove", eventName, callback, options])
+        };
+        const stage = {
+            on: () => calls.push(["stage-on"]),
+            off: () => calls.push(["stage-off"])
+        };
+
+        const cleanup = listenForNativeCanvasPointerDown({ app: { view }, stage }, handler, {
+            preferView: true,
+            capture: true
+        });
+        cleanup();
+
+        assert.deepEqual(calls, [
+            ["add", "pointerdown", handler, { capture: true }],
+            ["remove", "pointerdown", handler, { capture: true }]
+        ]);
+    });
+
     it("previews grid geometry updates through scene source data and native canvas redraw", async () => {
         const receivedUpdates = [];
         const drawCalls = [];
