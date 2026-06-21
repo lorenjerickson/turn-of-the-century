@@ -31,7 +31,7 @@ import { evaluateRequirements } from "./action-template.mjs";
  */
 export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = 10 } = {}) {
     const actionCatalog = getBaseActionCatalog();
-    const baseOrder = ["move", "pursue", "follow", "avoid", "hunkDown", "dodge", "overwatch"];
+    const baseOrder = ["move", "open", "pursue", "follow", "avoid", "hunkDown", "dodge", "overwatch"];
 
     return baseOrder
         .map((id) => actionCatalog[id])
@@ -50,7 +50,7 @@ export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = 10 } =
                 actionId: variant.id,
                 type: variant.type,
                 label: variant.label,
-                description: null,
+                description: String(variant.description ?? "").trim() || null,
                 apCost: Number(variant.apCost ?? apMin),
                 apMin,
                 apMax,

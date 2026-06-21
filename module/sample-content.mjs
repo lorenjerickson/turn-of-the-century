@@ -188,6 +188,32 @@ function createArtwork(image, caption) {
     };
 }
 
+function createUnlockAction(recapFormat = "{{Owner.name}} uses {{Item.name}} to defeat the lock.") {
+    return {
+        id: "unlock",
+        label: "Unlock",
+        type: "utility",
+        apCost: 2,
+        requiresToHit: false,
+        toHitBonus: 0,
+        recapFormat,
+        notes: html("Unlock an adjacent locked door, chest, hatch, or similar mechanism.")
+    };
+}
+
+function createUseItemAction() {
+    return {
+        id: "useItem",
+        label: "Use Item",
+        type: "utility",
+        apCost: 1,
+        requiresToHit: false,
+        toHitBonus: 0,
+        recapFormat: "{{Owner.name}} uses {{Item.name}}.",
+        notes: ""
+    };
+}
+
 function createBaseItemLikeSystem() {
     return {
         artwork: createArtwork("icons/svg/item-bag.svg", "Utility item"),
@@ -1775,6 +1801,22 @@ const CONSUMABLE_CONFIGS = [
             description: html("A stoppered glass vial of dilute vitriol intended for descaling boiler parts; applied to corroded locks or seized mechanisms, it softens both metal and the confidence of their makers."),
             category: "chemical",
             use: { method: "apply" },
+            actions: {
+                defaultActionId: "consumeItem",
+                variants: [
+                    {
+                        id: "consumeItem",
+                        label: "Consume Item",
+                        type: "consumable",
+                        apCost: 1,
+                        requiresToHit: false,
+                        toHitBonus: 0,
+                        recapFormat: "{{Owner.name}} uses {{Item.name}}.",
+                        notes: ""
+                    },
+                    createUnlockAction("{{Owner.name}} applies {{Item.name}} and frees the lock.")
+                ]
+            },
             quantity: { value: 3, max: 3, unit: "application" },
             effects: [
                 { label: "Dissolve Obstruction", type: "removePenalty", target: "rusted", formula: "", value: 1, condition: "applied to corroded mechanism", notes: html("Reduces lock difficulty by 2 per application.") }
@@ -2448,6 +2490,13 @@ const EQUIPMENT_CONFIGS = [
             description: html("Fine picks, torsion bars, and graphite cloth for stubborn wards."),
             category: "tool",
             slot: "belt",
+            actions: {
+                defaultActionId: "useItem",
+                variants: [
+                    createUseItemAction(),
+                    createUnlockAction("{{Owner.name}} works {{Item.name}} through the lock.")
+                ]
+            },
             use: { skillCheck: { skill: "sleightOfHand", difficulty: 12, purpose: html("Manipulate locks and catches.") } },
             physical: { weight: 1, bulk: 0, quantity: 1, unit: "roll" },
             value: { price: 5, currency: "pounds" },
@@ -2518,6 +2567,13 @@ const EQUIPMENT_CONFIGS = [
             description: html("A short folding lever for crates, stuck hatches, and iron hasps."),
             category: "tool",
             slot: "belt",
+            actions: {
+                defaultActionId: "useItem",
+                variants: [
+                    createUseItemAction(),
+                    createUnlockAction("{{Owner.name}} levers the lock open with {{Item.name}}.")
+                ]
+            },
             use: { skillCheck: { skill: "athletics", difficulty: 11, purpose: html("Force simple barriers and jammed catches.") } },
             physical: { weight: 1.2, bulk: 0, quantity: 1, unit: "tool" },
             value: { price: 3, currency: "pounds" },

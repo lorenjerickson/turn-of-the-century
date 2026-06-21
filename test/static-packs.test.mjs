@@ -86,6 +86,22 @@ describe("static compendium pack content", () => {
         );
     });
 
+    it("gives plausible lock-opening equipment a 2 AP Unlock action", () => {
+        const capableItems = [
+            ["packs/equipment", "locksmith-roll.json"],
+            ["packs/equipment", "folding-pry-hook.json"],
+            ["packs/consumables", "acid-wash-solution.json"]
+        ];
+
+        for (const [packPath, fileName] of capableItems) {
+            const item = JSON.parse(readFileSync(join(rootDir, packPath, fileName), "utf8"));
+            const unlock = item.system.actions.variants.find((action) => action.id === "unlock");
+            assert.equal(unlock?.label, "Unlock", `${item.name} should provide Unlock`);
+            assert.equal(unlock?.type, "utility");
+            assert.equal(unlock?.apCost, 2);
+        }
+    });
+
     it("declares a starter scene pack with the Lobby scene and shipped background", () => {
         const system = JSON.parse(readFileSync(join(rootDir, "system.json"), "utf8"));
         const scenePack = system.packs.find((pack) => pack.name === "starter-scenes");

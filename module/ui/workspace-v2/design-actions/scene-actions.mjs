@@ -6,6 +6,7 @@ import {
     requireSceneDocumentClass
 } from "../../../foundry-v14-runtime.mjs";
 import { getSceneBackgroundSource } from "../scene-background-source.mjs";
+import { buildNewSceneVisionDefaults } from "../../../document-defaults.mjs";
 import {
     applyDetectedWallsToScene,
     buildDetectedWallDocumentData,
@@ -188,6 +189,7 @@ export function buildSceneCreationData({ backgroundPath = "", name = "", navigat
     return {
         name: sceneName,
         navigation: Boolean(navigation),
+        ...buildNewSceneVisionDefaults(),
         ...(size ? { width: size.width, height: size.height } : {}),
         levels: safeBackgroundPath ? [{
             name: "Ground Level",
@@ -213,6 +215,7 @@ export function buildBlankSceneCreationData({ name = "", navigation = true } = {
     return {
         name: sceneName,
         navigation: Boolean(navigation),
+        ...buildNewSceneVisionDefaults(),
         flags: {
             "turn-of-the-century": {
                 designCreated: true,

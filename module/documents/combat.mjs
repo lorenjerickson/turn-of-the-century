@@ -1037,27 +1037,38 @@ export class TurnOfTheCenturyEncounter {
     }
 
     async #restoreCombatantPlanningOrigin(combatantId, plan = []) {
-        const movementAction = toArray(plan).find((action) => (
+        const movementActions = toArray(plan).filter((action) => (
             String(action?.type ?? "") === "movement"
             && Number.isFinite(Number(action?.movementOriginX))
             && Number.isFinite(Number(action?.movementOriginY))
         ));
-        if (!movementAction) return;
+        if (!movementActions.length) return;
 
         const combatant = this.#combat.combatants?.get(combatantId) ?? null;
         const token = this.#getCombatantTokenDocument(combatant);
         const tokenDocument = tokenDocumentForUpdate(token);
         if (!tokenDocument?.update) return;
 
-        const originX = Number(movementAction.movementOriginX);
-        const originY = Number(movementAction.movementOriginY);
-        const currentX = toNumber(tokenDocument.x ?? token?.x, 0);
-        const currentY = toNumber(tokenDocument.y ?? token?.y, 0);
-        if (Math.abs(currentX - originX) <= Number.EPSILON && Math.abs(currentY - originY) <= Number.EPSILON) {
-            return;
-        }
+        const scene = tokenDocument.parent?.walls ? tokenDocument.parent : (canvas?.scene ?? tokenDocument.parent ?? null);
+        let current = {
+            x: toNumber(tokenDocument.x ?? token?.x, 0),
+            y: toNumber(tokenDocument.y ?? token?.y, 0)
+        };
 
-        await tokenDocument.update({ x: originX, y: originY });
+        for (const movementAction of movementActions.reverse()) {
+            const target = {
+                x: Number(movementAction.movementOriginX),
+                y: Number(movementAction.movementOriginY)
+            };
+            if (Math.abs(current.x - target.x) <= Number.EPSILON
+                && Math.abs(current.y - target.y) <= Number.EPSILON) continue;
+
+            const path = findGridMovementPath({ start: current, target, scene });
+            for (const waypoint of path.slice(1)) {
+                await tokenDocument.update({ x: waypoint.x, y: waypoint.y });
+            }
+            current = target;
+        }
     }
 
     async #restorePlanningOrigins(perCombatant = {}) {

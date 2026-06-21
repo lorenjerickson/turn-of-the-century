@@ -1,4 +1,4 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 15;
+export const TOTC_WORLD_SCHEMA_VERSION = 16;
 
 import { migrateTotcItems } from "./items.mjs";
 import { migrateTotcActionRecapFormats } from "./action-recap-formats.mjs";
@@ -13,6 +13,7 @@ export async function runTotcMigrations({
     migrateModifiers,
     migrateActionRecapFormats,
     migrateItemIcons,
+    migrateUnlockActions,
     migrateStarterCompendiums,
     seedMissingActors,
     migrateStarterActorAvatars,
@@ -42,6 +43,9 @@ export async function runTotcMigrations({
     }
     if (typeof migrateItemIcons !== "function") {
         throw new Error("runTotcMigrations requires a migrateItemIcons function.");
+    }
+    if (typeof migrateUnlockActions !== "function") {
+        throw new Error("runTotcMigrations requires a migrateUnlockActions function.");
     }
     if (typeof migrateStarterCompendiums !== "function") {
         throw new Error("runTotcMigrations requires a migrateStarterCompendiums function.");
@@ -246,6 +250,21 @@ export async function runTotcMigrations({
         appliedVersion = 15;
     }
 
+    // v16: add Unlock to compatible standalone and actor-embedded items
+    if (appliedVersion < 16) {
+        const report = await migrateUnlockActions({
+            dryRun: false,
+            notify: false,
+            includeCompendiums: true
+        });
+        appliedSteps.push({
+            version: 16,
+            key: "unlock-actions",
+            report
+        });
+        appliedVersion = 16;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -291,6 +310,10 @@ export async function runTotcMigrations({
                 }
 
                 if (step.key === "item-icons") {
+                    return `${step.key}: ${step.report.itemsUpdated} items updated`;
+                }
+
+                if (step.key === "unlock-actions") {
                     return `${step.key}: ${step.report.itemsUpdated} items updated`;
                 }
 

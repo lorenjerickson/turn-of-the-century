@@ -30,6 +30,7 @@ import {
     migrateTotcEncounterActions,
     migrateTotcActionRecapFormats,
     migrateTotcItemIcons,
+    migrateTotcUnlockActions,
     migrateTotcModifiers,
     migrateTotcStarterCompendiums,
     migrateSeedMissingWorldActors,
@@ -105,6 +106,10 @@ import {
 } from "./module/foundry-v14-runtime.mjs";
 import { OPENAI_API_KEY_SETTING } from "./module/services/llm-service.mjs";
 import { getDefaultScene } from "./module/seeded-scenes.mjs";
+import {
+    buildNewSceneVisionDefaults,
+    buildNewTokenVisionDefaults
+} from "./module/document-defaults.mjs";
 
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
 const ENCOUNTER_AP_BUDGET_SETTING = "encounterActionPointBudget";
@@ -337,6 +342,7 @@ async function maybeRunAutomatedMigrations() {
             migrateEncounterActions: migrateTotcEncounterActions,
             migrateActionRecapFormats: migrateTotcActionRecapFormats,
             migrateItemIcons: migrateTotcItemIcons,
+            migrateUnlockActions: migrateTotcUnlockActions,
             migrateModifiers: migrateTotcModifiers,
             migrateStarterCompendiums: migrateTotcStarterCompendiums,
             seedMissingActors: migrateSeedMissingWorldActors,
@@ -539,6 +545,7 @@ Hooks.once("ready", async () => {
         migrateEncounterActions: migrateTotcEncounterActions,
         migrateActionRecapFormats: migrateTotcActionRecapFormats,
         migrateItemIcons: migrateTotcItemIcons,
+        migrateUnlockActions: migrateTotcUnlockActions,
         migrateModifiers: migrateTotcModifiers,
         migrateStarterCompendiums: migrateTotcStarterCompendiums,
         seedMissingActors: migrateSeedMissingWorldActors,
@@ -553,6 +560,7 @@ Hooks.once("ready", async () => {
                 migrateEncounterActions: migrateTotcEncounterActions,
                 migrateActionRecapFormats: migrateTotcActionRecapFormats,
                 migrateItemIcons: migrateTotcItemIcons,
+                migrateUnlockActions: migrateTotcUnlockActions,
                 migrateModifiers: migrateTotcModifiers,
                 migrateStarterCompendiums: migrateTotcStarterCompendiums,
                 seedMissingActors: migrateSeedMissingWorldActors,
@@ -948,6 +956,7 @@ Hooks.on("combatStart", (combat) => {
 });
 
 Hooks.on("preCreateToken", (tokenDoc, data, options, userId) => {
+    tokenDoc.updateSource(buildNewTokenVisionDefaults());
     if (!isTokenCreationAllowed(tokenDoc)) {
         const actor = tokenDoc.actor || game.actors?.get(tokenDoc.actorId);
         const name = actor ? actor.name : "this Actor";
@@ -955,6 +964,10 @@ Hooks.on("preCreateToken", (tokenDoc, data, options, userId) => {
         ui.notifications?.warn(message);
         return false;
     }
+});
+
+Hooks.on("preCreateScene", (sceneDoc) => {
+    sceneDoc.updateSource(buildNewSceneVisionDefaults());
 });
 
 Hooks.on("createToken", async (tokenDoc, options, userId) => {

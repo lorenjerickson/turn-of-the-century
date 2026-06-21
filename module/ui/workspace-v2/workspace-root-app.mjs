@@ -141,6 +141,7 @@ import {
     buildSceneWallOverlayState
 } from "./scene-wall-detection.mjs";
 import {
+    buildEncounterPlanningMovementPath,
     buildEncounterMovementOverlayModel,
     findEncounterMovementOverlayCellAtPoint
 } from "./encounter-movement-overlay.mjs";
@@ -2948,6 +2949,20 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const targetY = Number.isFinite(cellTop) ? cellTop : (row * gridSize) + offsetY;
         const originX = Number(token?.x ?? token?.document?.x ?? 0);
         const originY = Number(token?.y ?? token?.document?.y ?? 0);
+        const projectedToken = this.#projectEncounterTokenForPlan({
+            token,
+            combat,
+            combatantId: interaction.combatantId,
+            beforeActionIndex: index
+        });
+        const movementPath = buildEncounterPlanningMovementPath({
+            start: {
+                x: Number(projectedToken?.x ?? projectedToken?.document?.x ?? originX),
+                y: Number(projectedToken?.y ?? projectedToken?.document?.y ?? originY)
+            },
+            target: { x: targetX, y: targetY },
+            scene
+        });
 
         const movementFeetPerAp = Math.max(1, Number(entry.movementFeetPerAp ?? interaction.feetPerAp ?? 10) || 10);
         plan[index] = {
@@ -2965,7 +2980,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         await combat.setCombatantPlan(interaction.combatantId, plan);
         const tokenDocument = token?.document ?? token;
-        await tokenDocument?.update?.({ x: targetX, y: targetY });
+        for (const waypoint of movementPath.slice(1)) {
+            await tokenDocument?.update?.({ x: waypoint.x, y: waypoint.y });
+        }
         this.render({ force: false });
     }
 

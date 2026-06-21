@@ -622,6 +622,16 @@
               "toHitBonus": 0,
               "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
               "notes": ""
+            },
+            {
+              "id": "unlock",
+              "label": "Unlock",
+              "type": "utility",
+              "apCost": 2,
+              "requiresToHit": false,
+              "toHitBonus": 0,
+              "recapFormat": "{{Owner.name}} levers the lock open with {{Item.name}}.",
+              "notes": "<p>Unlock an adjacent locked door, chest, hatch, or similar mechanism.</p>"
             }
           ]
         },

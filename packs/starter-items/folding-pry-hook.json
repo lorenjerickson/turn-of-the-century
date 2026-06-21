@@ -2,7 +2,7 @@
   "_id": "655a72164fc709a8",
   "name": "Folding Pry Hook",
   "type": "equipment",
-  "img": "modules/game-icons-net/blackbackground/crowbar.svg",
+  "img": "icons/tools/hand/crowbar-steel.webp",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",
@@ -38,6 +38,16 @@
           "toHitBonus": 0,
           "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
           "notes": ""
+        },
+        {
+          "id": "unlock",
+          "label": "Unlock",
+          "type": "utility",
+          "apCost": 2,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "recapFormat": "{{Owner.name}} levers the lock open with {{Item.name}}.",
+          "notes": "<p>Unlock an adjacent locked door, chest, hatch, or similar mechanism.</p>"
         }
       ]
     },

@@ -1,4 +1,7 @@
-import { findReachableGridMovementCells } from "../../encounters/grid-pathfinding.mjs";
+import {
+    findGridMovementPath,
+    findReachableGridMovementCells
+} from "../../encounters/grid-pathfinding.mjs";
 
 function numberOr(value, fallback = 0) {
     const number = Number(value);
@@ -94,4 +97,9 @@ export function findEncounterMovementOverlayCellAtPoint(model = {}, point = null
         && y >= cell.top
         && y < cell.top + cell.height
     )) ?? null;
+}
+
+export function buildEncounterPlanningMovementPath({ start = null, target = null, scene = null } = {}) {
+    if (!start || !target || !scene) return [];
+    return findGridMovementPath({ start, target, scene });
 }

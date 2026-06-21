@@ -226,7 +226,9 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /movementFeet: movementFeetPerAp \* cost/);
         assert.match(workspaceRootSource, /const cellLeft = Number\(selectedCell\?\.left\)/);
         assert.match(workspaceRootSource, /Number\.isFinite\(cellLeft\) \? cellLeft : \(col \* gridSize\) \+ offsetX/);
-        assert.match(workspaceRootSource, /tokenDocument\?\.update\?\.\(\{ x: targetX, y: targetY \}\)/);
+        assert.match(workspaceRootSource, /buildEncounterPlanningMovementPath\(\{/);
+        assert.match(workspaceRootSource, /for \(const waypoint of movementPath\.slice\(1\)\)/);
+        assert.match(workspaceRootSource, /tokenDocument\?\.update\?\.\(\{ x: waypoint\.x, y: waypoint\.y \}\)/);
         assert.match(workspaceRootSource, /_encounterTargetingInteraction/);
         assert.match(workspaceRootSource, /#beginEncounterTargetingInteraction/);
         assert.match(workspaceRootSource, /#finishEncounterTargetingInteraction/);

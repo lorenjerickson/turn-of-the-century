@@ -130,23 +130,30 @@ function emptyRevolver() {
 // ---------------------------------------------------------------------------
 
 describe("buildUniversalActions", () => {
-    it("returns move, hunker down, dodge, and overwatch actions", () => {
+    it("returns move, open, hunker down, dodge, and overwatch actions", () => {
         const actions = buildUniversalActions();
         const ids = actions.map((a) => a.id);
         assert.ok(ids.includes("move"),   "missing move");
+        assert.ok(ids.includes("open"), "missing open");
         assert.ok(ids.includes("hunkDown"), "missing hunkDown");
         assert.ok(ids.includes("dodge"), "missing dodge");
         assert.ok(ids.includes("overwatch"), "missing overwatch");
     });
 
-    it("both actions have variableAp = true", () => {
+    it("keeps Open fixed at 1 AP while duration-based actions remain variable", () => {
         const actions = buildUniversalActions();
-        assert.ok(actions.every((a) => a.variableAp === true));
+        const open = actions.find((action) => action.id === "open");
+        assert.equal(open.apCost, 1);
+        assert.equal(open.apMin, 1);
+        assert.equal(open.apMax, 1);
+        assert.equal(open.variableAp, false);
+        assert.equal(actions.find((action) => action.id === "move").variableAp, true);
     });
 
     it("apMax is bounded by the supplied apBudget", () => {
         const actions = buildUniversalActions({ apBudget: 4 });
-        assert.ok(actions.every((a) => a.apMax === 4));
+        assert.equal(actions.find((action) => action.id === "open").apMax, 1);
+        assert.ok(actions.filter((action) => action.id !== "open").every((a) => a.apMax === 4));
     });
 
     it("move action carries movementFeetPerAp", () => {
@@ -158,7 +165,7 @@ describe("buildUniversalActions", () => {
 
     it("non-movement universal actions have movementFeet = 0", () => {
         const actions = buildUniversalActions();
-        assert.equal(actions.filter((a) => a.id !== "move").every((a) => a.movementFeet === 0), true);
+        assert.equal(actions.filter((a) => a.type !== "movement").every((a) => a.movementFeet === 0), true);
     });
 
     it("both actions have itemId = null", () => {
@@ -168,7 +175,8 @@ describe("buildUniversalActions", () => {
 
     it("defaults apBudget to 6 and movementFeetPerAp to 10", () => {
         const actions = buildUniversalActions();
-        assert.ok(actions.every((a) => a.apMax === 6));
+        assert.equal(actions.find((action) => action.id === "open").apMax, 1);
+        assert.ok(actions.filter((action) => action.id !== "open").every((a) => a.apMax === 6));
         const move = actions.find((a) => a.id === "move");
         assert.equal(move.movementFeetPerAp, 10);
     });
@@ -279,8 +287,9 @@ describe("getEnabledActionsForActor", () => {
     it("returns only universal actions when actor has no items", () => {
         const actor = mockActor([]);
         const actions = getEnabledActionsForActor(actor);
-        assert.equal(actions.length, 4);
+        assert.equal(actions.length, buildUniversalActions().length);
         assert.ok(actions.some((a) => a.id === "move"));
+        assert.ok(actions.some((a) => a.id === "open"));
         assert.ok(actions.some((a) => a.id === "hunkDown"));
         assert.ok(actions.some((a) => a.id === "dodge"));
         assert.ok(actions.some((a) => a.id === "overwatch"));
@@ -288,12 +297,12 @@ describe("getEnabledActionsForActor", () => {
 
     it("returns universal actions when actor.items.contents is missing", () => {
         const actions = getEnabledActionsForActor({});
-        assert.equal(actions.length, 4);
+        assert.equal(actions.length, buildUniversalActions().length);
     });
 
     it("returns universal actions when actor is null/undefined", () => {
-        assert.equal(getEnabledActionsForActor(null).length,      4);
-        assert.equal(getEnabledActionsForActor(undefined).length, 4);
+        assert.equal(getEnabledActionsForActor(null).length, buildUniversalActions().length);
+        assert.equal(getEnabledActionsForActor(undefined).length, buildUniversalActions().length);
     });
 
     it("prepends universal actions before item actions", () => {
@@ -303,7 +312,8 @@ describe("getEnabledActionsForActor", () => {
         const actor = mockActor([item]);
         const actions = getEnabledActionsForActor(actor);
         assert.equal(actions[0].id, "move");
-        assert.equal(actions[1].id, "hunkDown");
+        assert.equal(actions[1].id, "open");
+        assert.equal(actions.at(-1).id, "item-001:meleeStrike");
     });
 
     it("aggregates enabled actions from multiple items", () => {

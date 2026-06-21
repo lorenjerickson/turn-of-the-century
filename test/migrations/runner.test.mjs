@@ -11,8 +11,8 @@ before(() => {
 });
 
 describe("runTotcMigrations", () => {
-    it("exports TOTC_WORLD_SCHEMA_VERSION as 15", () => {
-        assert.equal(TOTC_WORLD_SCHEMA_VERSION, 15);
+    it("exports TOTC_WORLD_SCHEMA_VERSION as 16", () => {
+        assert.equal(TOTC_WORLD_SCHEMA_VERSION, 16);
     });
 
     it("throws when seedMissingActors is not a function", async () => {
@@ -28,6 +28,7 @@ describe("runTotcMigrations", () => {
                 migrateModifiers: noop,
                 migrateActionRecapFormats: noop,
                 migrateItemIcons: noop,
+                migrateUnlockActions: noop,
                 migrateStarterCompendiums: noop,
                 seedMissingActors: undefined,
                 migrateStarterActorAvatars: noop
@@ -49,6 +50,7 @@ describe("runTotcMigrations", () => {
                 migrateModifiers: noop,
                 migrateActionRecapFormats: noop,
                 migrateItemIcons: noop,
+                migrateUnlockActions: noop,
                 migrateStarterCompendiums: noop,
                 seedMissingActors: noop,
                 migrateStarterActorAvatars: undefined
@@ -62,6 +64,7 @@ describe("runTotcMigrations", () => {
         let avatarsCalled = false;
         let recapCalled = false;
         let iconsCalled = false;
+        let unlockActionsCalled = false;
         const noop = async () => ({});
         const seedMissingActors = async () => {
             seedCalled = true;
@@ -79,6 +82,10 @@ describe("runTotcMigrations", () => {
             iconsCalled = true;
             return { itemsScanned: 8, itemsUpdated: 4, changedDocuments: [] };
         };
+        const migrateUnlockActions = async () => {
+            unlockActionsCalled = true;
+            return { itemsScanned: 6, itemsUpdated: 3, changedDocuments: [] };
+        };
 
         const result = await runTotcMigrations({
             currentVersion: 11,
@@ -90,6 +97,7 @@ describe("runTotcMigrations", () => {
             migrateModifiers: noop,
             migrateActionRecapFormats,
             migrateItemIcons,
+            migrateUnlockActions,
             migrateStarterCompendiums: noop,
             seedMissingActors,
             migrateStarterActorAvatars,
@@ -100,7 +108,8 @@ describe("runTotcMigrations", () => {
         assert.equal(avatarsCalled, true);
         assert.equal(recapCalled, true);
         assert.equal(iconsCalled, true);
-        assert.equal(result.toVersion, 15);
+        assert.equal(unlockActionsCalled, true);
+        assert.equal(result.toVersion, 16);
         const step = result.applied.find((s) => s.key === "seed-missing-actors");
         assert.ok(step, "seed-missing-actors step should be present");
         assert.equal(step.version, 12);
@@ -117,21 +126,27 @@ describe("runTotcMigrations", () => {
         assert.ok(iconStep, "item-icons step should be present");
         assert.equal(iconStep.version, 15);
         assert.equal(iconStep.report.itemsUpdated, 4);
+        const unlockStep = result.applied.find((s) => s.key === "unlock-actions");
+        assert.ok(unlockStep, "unlock-actions step should be present");
+        assert.equal(unlockStep.version, 16);
+        assert.equal(unlockStep.report.itemsUpdated, 3);
     });
 
-    it("skips v12 through v15 when currentVersion is already 15", async () => {
+    it("skips v12 through v16 when currentVersion is already 16", async () => {
         let seedCalled = false;
         let avatarsCalled = false;
         let recapCalled = false;
         let iconsCalled = false;
+        let unlockActionsCalled = false;
         const noop = async () => ({});
         const seedMissingActors = async () => { seedCalled = true; return {}; };
         const migrateActionRecapFormats = async () => { recapCalled = true; return {}; };
         const migrateStarterActorAvatars = async () => { avatarsCalled = true; return {}; };
         const migrateItemIcons = async () => { iconsCalled = true; return {}; };
+        const migrateUnlockActions = async () => { unlockActionsCalled = true; return {}; };
 
         const result = await runTotcMigrations({
-            currentVersion: 15,
+            currentVersion: 16,
             migrateActorProfiles: noop,
             migrateActorProfessions: noop,
             migrateActorEconomy: noop,
@@ -140,6 +155,7 @@ describe("runTotcMigrations", () => {
             migrateModifiers: noop,
             migrateActionRecapFormats,
             migrateItemIcons,
+            migrateUnlockActions,
             migrateStarterCompendiums: noop,
             seedMissingActors,
             migrateStarterActorAvatars,
@@ -150,6 +166,7 @@ describe("runTotcMigrations", () => {
         assert.equal(avatarsCalled, false);
         assert.equal(recapCalled, false);
         assert.equal(iconsCalled, false);
+        assert.equal(unlockActionsCalled, false);
         assert.equal(result.applied.length, 0);
     });
 });

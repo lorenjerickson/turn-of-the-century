@@ -135,6 +135,7 @@ describe("WorkspacePanelHost", () => {
 
         const html = host.renderPanelBodyContent({ id: "encounter", title: "Encounter" }, {
             playerEncounterPanel: {
+                activeEncounter: true,
                 status: {
                     name: "Ada Price",
                     type: "hero",

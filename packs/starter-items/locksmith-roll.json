@@ -2,7 +2,7 @@
   "_id": "b52ddaf5d2313126",
   "name": "Locksmith Roll",
   "type": "equipment",
-  "img": "modules/game-icons-net/blackbackground/lockpicks.svg",
+  "img": "icons/tools/hand/pick-steel-white.webp",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",
@@ -38,6 +38,16 @@
           "toHitBonus": 0,
           "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
           "notes": ""
+        },
+        {
+          "id": "unlock",
+          "label": "Unlock",
+          "type": "utility",
+          "apCost": 2,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "recapFormat": "{{Owner.name}} works {{Item.name}} through the lock.",
+          "notes": "<p>Unlock an adjacent locked door, chest, hatch, or similar mechanism.</p>"
         }
       ]
     },

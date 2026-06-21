@@ -2,7 +2,7 @@
   "_id": "d6d36e3b8f8f99cf",
   "name": "Acid-Wash Solution",
   "type": "consumable",
-  "img": "modules/game-icons-net/blackbackground/acid-tube.svg",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",
@@ -31,7 +31,18 @@
           "apCost": 1,
           "requiresToHit": false,
           "toHitBonus": 0,
+          "recapFormat": "{{Owner.name}} uses {{Item.name}}.",
           "notes": ""
+        },
+        {
+          "id": "unlock",
+          "label": "Unlock",
+          "type": "utility",
+          "apCost": 2,
+          "requiresToHit": false,
+          "toHitBonus": 0,
+          "recapFormat": "{{Owner.name}} applies {{Item.name}} and frees the lock.",
+          "notes": "<p>Unlock an adjacent locked door, chest, hatch, or similar mechanism.</p>"
         }
       ]
     },

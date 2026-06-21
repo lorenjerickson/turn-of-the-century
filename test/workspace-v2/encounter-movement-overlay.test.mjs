@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+    buildEncounterPlanningMovementPath,
     buildEncounterMovementOverlayModel,
     findEncounterMovementOverlayCellAtPoint
 } from "../../module/ui/workspace-v2/encounter-movement-overlay.mjs";
@@ -98,5 +99,23 @@ describe("encounter movement overlay", () => {
         const squareBeyondWall = findEncounterMovementOverlayCellAtPoint(model, { x: 250, y: 50 });
         assert.equal(squareBeyondWall?.requiredAp, 3);
         assert.equal(squareBeyondWall?.distanceFeet > 10, true);
+    });
+
+    it("builds an A* waypoint route for planning-phase token movement", () => {
+        const path = buildEncounterPlanningMovementPath({
+            start: { x: 0, y: 0 },
+            target: { x: 200, y: 0 },
+            scene: {
+                id: "scene-1",
+                width: 500,
+                height: 500,
+                grid: { size: 100, distance: 5 },
+                walls: [{ c: [100, 0, 100, 100], move: 20, door: 0 }]
+            }
+        });
+
+        assert.deepEqual(path[0], { x: 0, y: 0 });
+        assert.deepEqual(path.at(-1), { x: 200, y: 0 });
+        assert.equal(path.some((point) => point.y !== 0), true);
     });
 });

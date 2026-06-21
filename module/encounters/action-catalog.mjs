@@ -36,6 +36,29 @@ export const TOTC_ACTION_CATALOG = {
     },
 
     /**
+     * Open: operate an adjacent, unlocked door, chest, hatch, or similar closure.
+     */
+    open: {
+        id: "open",
+        label: "Open",
+        description: "Open an adjacent unlocked door, chest, hatch, or similar closure.",
+        type: "utility",
+        apCost: 1,
+        apMin: 1,
+        apMax: 1,
+        variableAp: false,
+        requiresToHit: false,
+        toHitBonus: 0,
+        completionPhaseIncrement: 0,
+        cpiPerFeet: 0,
+        autoResolve: false,
+        interruptible: true,
+        requiresTarget: false,
+        isReaction: false,
+        reactionTriggerType: ""
+    },
+
+    /**
      * Pursue: movement that continuously follows a selected target combatant.
      * Each AP increment re-evaluates the target's current position and advances
      * toward it.
