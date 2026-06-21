@@ -44,7 +44,8 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /wallTypeForShortcut\(key\)/);
         assert.match(workspaceRootSource, /key === "w" && !wallsActive/);
         assert.match(workspaceRootSource, /wallType, wallCommand: "add"/);
-        assert.match(workspaceRootSource, /active\.command === "split"[\s\S]*wallCommand: "add"/);
+        assert.match(workspaceRootSource, /active\.command === "split"[\s\S]*splitWallSegmentAtPoint/);
+        assert.doesNotMatch(workspaceRootSource, /active\.command === "split"[\s\S]*#patchMapPanelToolbarState\(active\.panel\.id, \{ wallCommand: "add" \}\)/);
         assert.doesNotMatch(workspaceRootSource, /#stopWallAddMode/);
         assert.doesNotMatch(workspaceRootSource, /if \(key === "a"\)/);
         assert.match(workspaceRootSource, /splitWallSegmentAtPoint/);

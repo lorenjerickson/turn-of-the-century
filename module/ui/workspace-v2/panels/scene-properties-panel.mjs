@@ -237,7 +237,7 @@ export function renderSceneMapToolbar(panelId = "", state = {}, { escapeHTML = s
                     data-map-panel-id="${safePanelId}"
                     data-command="split"
                     aria-pressed="${wallCommand === "split"}"
-                    title="Click a wall segment to split it at the nearest grid point">
+                    title="Click wall segments to split each at the nearest grid point; press Esc to return to Add">
                     <i class="fa-solid fa-scissors" aria-hidden="true"></i>
                     <span>Split</span>
                 </button>

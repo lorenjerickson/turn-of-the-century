@@ -432,6 +432,7 @@ describe("Scene properties panel", () => {
         assert.match(html, /Window \(N\)/);
         assert.match(html, /Transparent \(T\)/);
         assert.match(html, /data-command="split"[\s\S]*aria-pressed="true"/);
+        assert.match(html, /Click wall segments to split each at the nearest grid point; press Esc to return to Add/);
         assert.match(html, /data-wall-type="wall"[\s\S]*aria-pressed="true"/);
         assert.match(removeButton, /Delete 2 selected wall segments/);
         assert.doesNotMatch(removeButton, /disabled/);

@@ -4702,9 +4702,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             const result = await splitWallSegmentAtPoint({ scene, point: snapped, grid });
             if (result?.ok) this.#refreshSceneWallOverlay(scene);
             this.#reportWallEditResult("split", result);
-            this.#patchMapPanelToolbarState(active.panel.id, { wallCommand: "add" });
-            this.#syncWallCommandCanvasListener();
-            this.render({ force: false });
         }
     }
 
