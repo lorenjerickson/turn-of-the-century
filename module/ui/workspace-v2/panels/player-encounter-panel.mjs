@@ -71,6 +71,8 @@ function actionOptionModel(action = {}) {
         targetingRangeFeet: toNumber(action.targetingRangeFeet, 0),
         movementFeet: toNumber(action.movementFeet, 0),
         movementFeetPerAp: toNumber(action.movementFeetPerAp, 0),
+        planningLocked: Boolean(action.planningLocked),
+        planningRollResults: toArray(action.planningRollResults),
         itemId: action.itemId ? String(action.itemId) : "",
         img: String(action.img ?? ""),
         apLabel: action.variableAp && apMax > apMin
@@ -144,6 +146,14 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
         .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: "base" }));
 
     const plannedActions = toArray(planner?.queue).map(planSegmentModel);
+    const canEditPlan = Boolean(planner?.canEditPlan);
+    const lockedThroughIndex = plannedActions.reduce(
+        (boundary, action) => action.planningLocked ? action.index : boundary,
+        -1
+    );
+    for (const action of plannedActions) {
+        action.editable = canEditPlan && action.index > lockedThroughIndex;
+    }
     const encounterState = combat?.encounterState ?? combat?.encounter?.state ?? {};
     const resolution = encounterState?.resolution ?? {};
     const currentTick = Math.max(0, Math.min(apBudget, toNumber(resolution?.currentTick ?? encounterState?.currentEvaluationTick ?? 0, 0)));
@@ -162,7 +172,9 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
         remainingAp: toNumber(planner?.remainingAp, apBudget),
         plannedAp: toNumber(planner?.plannedAp, plannedActions.reduce((sum, action) => sum + action.apCost, 0)),
         planningTimeDisplay: String(planner?.planningTimeDisplay ?? ""),
-        canEditPlan: Boolean(planner?.canEditPlan),
+        canEditPlan,
+        lockedThroughIndex,
+        canClearPlan: canEditPlan && plannedActions.length > lockedThroughIndex + 1,
         canCommit: Boolean(planner?.canCommit),
         ready: Boolean(planner?.ready),
         currentTick,
@@ -210,21 +222,21 @@ function renderPlanBar(model, escapeHTML) {
         const startTick = currentTick;
         action.startTick = startTick;
         currentTick += action.span;
-        const clickableAttrs = model.canEditPlan
+        const clickableAttrs = action.editable
             ? `data-start-tick="${startTick}" style="grid-column:${startTick} / span ${action.span}; cursor:pointer;"`
             : `style="grid-column:${startTick} / span ${action.span};"`;
 
         return `
             <li class="totc-v2-encounter-panel__segment${action.variableAp ? " is-variable" : ""}"
-                draggable="${model.canEditPlan ? "true" : "false"}"
-                data-action="encounter-plan-segment"
+                draggable="${action.editable ? "true" : "false"}"
+                data-action="${action.editable ? "encounter-plan-segment" : "encounter-locked-plan-segment"}"
                 ${clickableAttrs}
                 ${actionDataAttributes(action, escapeHTML)}
                 title="${escapeHTML(action.label)} (${escapeHTML(action.apLabel)})">
-                <span>${escapeHTML(action.label)}</span>
+                <span>${action.planningLocked ? `<i class="fa-solid fa-lock" aria-label="Roll accepted; action locked"></i> ` : ""}${escapeHTML(action.label)}</span>
                 <small>${escapeHTML(action.apLabel)}</small>
-                ${model.canEditPlan ? `<button type="button" data-action="encounter-remove-action" data-action-index="${escapeHTML(String(action.index))}" title="Remove ${escapeHTML(action.label)}" aria-label="Remove ${escapeHTML(action.label)}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>` : ""}
-                ${model.canEditPlan && action.variableAp ? `<span class="totc-v2-encounter-panel__resize" data-action="encounter-resize-action" data-action-index="${escapeHTML(String(action.index))}" title="Resize action duration" aria-hidden="true"></span>` : ""}
+                ${action.editable ? `<button type="button" data-action="encounter-remove-action" data-action-index="${escapeHTML(String(action.index))}" title="Remove ${escapeHTML(action.label)}" aria-label="Remove ${escapeHTML(action.label)}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>` : ""}
+                ${action.editable && action.variableAp ? `<span class="totc-v2-encounter-panel__resize" data-action="encounter-resize-action" data-action-index="${escapeHTML(String(action.index))}" title="Resize action duration" aria-hidden="true"></span>` : ""}
             </li>`;
     }).join("");
 
@@ -352,7 +364,7 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
             </div>
             ${renderPlanBar(model, escapeHTML)}
             <footer class="totc-v2-encounter-panel__actions">
-                <button type="button" data-action="encounter-clear-plan" ${model.canEditPlan && model.hasPlannedActions ? "" : "disabled"}>Clear Plan</button>
+                <button type="button" data-action="encounter-clear-plan" ${model.canClearPlan ? "" : "disabled"}>Clear Unlocked</button>
                 <button type="button" data-action="encounter-toggle-ready" data-ready="${model.ready ? "true" : "false"}" aria-pressed="${model.ready ? "true" : "false"}" ${model.canCommit ? "" : "disabled"}>Ready</button>
             </footer>
             ${model.activePlanEditSlot ? renderPlanEditPopup(model, escapeHTML) : ""}

@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-    buildEncounterTargetingOverlayModel
+    buildEncounterTargetingOverlayModel,
+    findEncounterTargetTokenAtPoint
 } from "../../module/ui/workspace-v2/encounter-targeting-overlay.mjs";
 
 describe("encounter targeting overlay", () => {
@@ -39,5 +40,32 @@ describe("encounter targeting overlay", () => {
 
         assert.equal(model.active, false);
         assert.deepEqual(model.targetTokenIds, []);
+    });
+
+    it("accepts only an eligible visible token under the selected canvas square", () => {
+        const tokens = [
+            { id: "source", x: 0, y: 0, width: 1, height: 1, visible: true },
+            { id: "eligible", x: 100, y: 100, width: 1, height: 1, visible: true },
+            { id: "hidden", x: 200, y: 100, width: 1, height: 1, visible: false }
+        ];
+
+        assert.equal(findEncounterTargetTokenAtPoint({
+            tokens,
+            targetTokenIds: ["eligible", "hidden"],
+            point: { x: 150, y: 150 },
+            gridSize: 100
+        })?.id, "eligible");
+        assert.equal(findEncounterTargetTokenAtPoint({
+            tokens,
+            targetTokenIds: ["eligible", "hidden"],
+            point: { x: 250, y: 150 },
+            gridSize: 100
+        }), null);
+        assert.equal(findEncounterTargetTokenAtPoint({
+            tokens,
+            targetTokenIds: ["eligible"],
+            point: { x: 450, y: 450 },
+            gridSize: 100
+        }), null);
     });
 });

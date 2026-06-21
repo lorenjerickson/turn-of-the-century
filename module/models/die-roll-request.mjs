@@ -113,6 +113,14 @@ export class DieRollRequest {
         this.targetUserIds = recipientIds;
         this.actorId = cleanString(options.actorId || "");
         this.tokenId = cleanString(options.tokenId || "");
+        this.combatId = cleanString(options.combatId || "");
+        this.combatantId = cleanString(options.combatantId || "");
+        this.actionIndex = options.actionIndex !== null
+            && options.actionIndex !== undefined
+            && Number.isInteger(Number(options.actionIndex))
+            ? Number(options.actionIndex)
+            : null;
+        this.actionId = cleanString(options.actionId || "");
         this.rollType = rollType;
         this.rollSubType = rollSubType;
         this.label = cleanString(options.label || `${rollSubType} ${rollType}`.trim());
@@ -165,6 +173,10 @@ export class DieRollRequest {
             targetUserIds: [...this.targetUserIds],
             actorId: this.actorId,
             tokenId: this.tokenId,
+            combatId: this.combatId,
+            combatantId: this.combatantId,
+            actionIndex: this.actionIndex,
+            actionId: this.actionId,
             rollType: this.rollType,
             rollSubType: this.rollSubType,
             label: this.label,

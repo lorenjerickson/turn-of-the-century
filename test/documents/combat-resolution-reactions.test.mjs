@@ -1205,11 +1205,16 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         globalThis.canvas.scene.width = 500;
         globalThis.canvas.scene.height = 500;
         globalThis.canvas.scene.walls = [{ c: [200, 0, 200, 200], move: 20, door: 0 }];
-        const updates = [];
-        const updateToken = tokenDocument.update.bind(tokenDocument);
+        const sourceUpdates = [];
+        const persistedUpdates = [];
+        const persistToken = tokenDocument.update.bind(tokenDocument);
         tokenDocument.update = async (changes) => {
-            updates.push({ x: changes.x, y: changes.y });
-            return updateToken(changes);
+            persistedUpdates.push({ x: changes.x, y: changes.y });
+            return persistToken(changes);
+        };
+        tokenDocument.updateSource = (changes) => {
+            sourceUpdates.push({ x: changes.x, y: changes.y });
+            Object.assign(tokenDocument, changes);
         };
         harness.getState().perCombatant["c-m"].ready = false;
         harness.getState().perCombatant["c-m"].committedAt = 0;
@@ -1219,8 +1224,9 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
 
         assert.equal(tokenDocument.x, 0);
         assert.equal(tokenDocument.y, 0);
-        assert.equal(updates.some((point) => point.y >= 200), true);
-        assert.equal(updates.length > 1, true);
+        assert.equal(sourceUpdates.some((point) => point.y >= 200), true);
+        assert.equal(sourceUpdates.length > 1, true);
+        assert.deepEqual(persistedUpdates, []);
         assert.equal(harness.getState().perCombatant["c-m"].ready, true);
     });
 
@@ -1265,6 +1271,7 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         const tokenDocument = globalThis.canvas.scene.tokens.get("token-m");
         tokenDocument.x = 300;
         tokenDocument.y = 100;
+        tokenDocument.updateSource = (changes) => Object.assign(tokenDocument, changes);
 
         const encounter = new TurnOfTheCenturyEncounter(harness.combat);
         await encounter.beginEncounterResolution();

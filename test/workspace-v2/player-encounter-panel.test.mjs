@@ -126,7 +126,7 @@ describe("player encounter panel", () => {
         assert.match(html, /data-action="encounter-plan-segment"[\s\S]*draggable="true"/);
         assert.match(html, /data-action="encounter-resize-action"[\s\S]*data-action-index="0"/);
         assert.match(html, /data-action="encounter-remove-action"[\s\S]*data-action-index="1"/);
-        assert.match(html, /data-action="encounter-clear-plan"[\s\S]*>Clear Plan<\/button>/);
+        assert.match(html, /data-action="encounter-clear-plan"[\s\S]*>Clear Unlocked<\/button>/);
         assert.match(html, /data-action="encounter-toggle-ready"[\s\S]*aria-pressed="false"[\s\S]*>Ready<\/button>/);
         assert.match(html, /class="totc-v2-encounter-panel__progress"/);
         assert.match(html, /class="totc-v2-encounter-panel__current-line"/);
@@ -146,7 +146,21 @@ describe("player encounter panel", () => {
         });
         const html = renderPlayerEncounterPanel(model, { escapeHTML });
 
-        assert.match(html, /data-action="encounter-clear-plan" disabled>Clear Plan<\/button>/);
+        assert.match(html, /data-action="encounter-clear-plan" disabled>Clear Unlocked<\/button>/);
+    });
+
+    it("renders accepted-roll actions as locked and only permits later actions to be edited", () => {
+        const planner = plannerFixture();
+        planner.queue[0].planningLocked = true;
+        const model = buildPlayerEncounterPanelModel({ actor: actorFixture(), planner, combat: null });
+        const html = renderPlayerEncounterPanel(model, { escapeHTML });
+
+        assert.equal(model.lockedThroughIndex, 0);
+        assert.equal(model.plannedActions[0].editable, false);
+        assert.equal(model.plannedActions[1].editable, true);
+        assert.match(html, /data-action="encounter-locked-plan-segment"[\s\S]*fa-lock/);
+        assert.doesNotMatch(html, /data-action="encounter-locked-plan-segment"[^>]*draggable="true"/);
+        assert.match(html, /data-action="encounter-plan-segment"[\s\S]*data-action-index="1"/);
     });
 
     it("shows no active encounter when selected actor is not in combat", () => {
@@ -227,12 +241,17 @@ describe("player encounter panel", () => {
         assert.match(workspaceRootSource, /const cellLeft = Number\(selectedCell\?\.left\)/);
         assert.match(workspaceRootSource, /Number\.isFinite\(cellLeft\) \? cellLeft : \(col \* gridSize\) \+ offsetX/);
         assert.match(workspaceRootSource, /buildEncounterPlanningMovementPath\(\{/);
-        assert.match(workspaceRootSource, /for \(const waypoint of movementPath\.slice\(1\)\)/);
-        assert.match(workspaceRootSource, /tokenDocument\?\.update\?\.\(\{ x: waypoint\.x, y: waypoint\.y \}\)/);
+        assert.match(workspaceRootSource, /applyLocalPlanningTokenPath\(token, movementPath\)/);
+        assert.doesNotMatch(workspaceRootSource, /tokenDocument\?\.update\?\.\(\{ x: waypoint\.x, y: waypoint\.y \}\)/);
         assert.match(workspaceRootSource, /_encounterTargetingInteraction/);
         assert.match(workspaceRootSource, /#beginEncounterTargetingInteraction/);
         assert.match(workspaceRootSource, /#finishEncounterTargetingInteraction/);
         assert.match(workspaceRootSource, /#cancelEncounterTargetingInteraction/);
+        assert.match(workspaceRootSource, /#syncEncounterTargetingCanvasListener/);
+        assert.match(workspaceRootSource, /#handleEncounterTargetingCanvasPointerDown/);
+        assert.match(workspaceRootSource, /findEncounterTargetTokenAtPoint\(\{/);
+        assert.match(workspaceRootSource, /if \(!isPrimaryPointerButton\(event\)\)[\s\S]*#cancelEncounterTargetingInteraction/);
+        assert.match(workspaceRootSource, /if \(!tokenId\)[\s\S]*#cancelEncounterTargetingInteraction/);
         assert.match(workspaceRootSource, /#cancelEncounterTargetingInteraction\(\)[\s\S]*removeCombatantAction\(interaction\.combatantId, interaction\.actionIndex\)/);
         assert.doesNotMatch(workspaceRootSource, /rollEncounter/);
         assert.doesNotMatch(workspaceRootSource, /rollAllMissing/);

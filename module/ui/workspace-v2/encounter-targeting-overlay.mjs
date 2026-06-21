@@ -19,6 +19,36 @@ function tokenCenter(token = null, gridSize = 100) {
     };
 }
 
+function tokenBounds(token = null, gridSize = 100) {
+    const x = numberOr(token?.x ?? token?.document?.x, 0);
+    const y = numberOr(token?.y ?? token?.document?.y, 0);
+    return {
+        x,
+        y,
+        width: positiveNumber(token?.width ?? token?.document?.width, 1) * gridSize,
+        height: positiveNumber(token?.height ?? token?.document?.height, 1) * gridSize
+    };
+}
+
+export function findEncounterTargetTokenAtPoint({
+    tokens = [],
+    targetTokenIds = [],
+    point = null,
+    gridSize = 100
+} = {}) {
+    if (!point || !Number.isFinite(Number(point.x)) || !Number.isFinite(Number(point.y))) return null;
+    const eligible = new Set(targetTokenIds.map((id) => String(id)));
+    for (const token of [...tokens].reverse()) {
+        const id = String(token?.id ?? token?._id ?? token?.document?.id ?? "").trim();
+        if (!eligible.has(id) || token?.visible === false) continue;
+        const bounds = tokenBounds(token, gridSize);
+        if (Number(point.x) < bounds.x || Number(point.x) > bounds.x + bounds.width) continue;
+        if (Number(point.y) < bounds.y || Number(point.y) > bounds.y + bounds.height) continue;
+        return token;
+    }
+    return null;
+}
+
 export function buildEncounterTargetingOverlayModel({
     scene = null,
     sourceToken = null,

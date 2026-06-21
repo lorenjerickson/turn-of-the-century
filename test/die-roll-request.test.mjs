@@ -16,6 +16,10 @@ describe("DieRollRequest", () => {
             rollType: "attribute-save",
             rollSubType: "Constitution",
             label: "Constitution Saving Throw",
+            combatId: "combat-1",
+            combatantId: "combatant-1",
+            actionIndex: 2,
+            actionId: "resist",
             dice: [{ count: 2, faces: 20, keep: "lowest" }],
             modifiers: [{ label: "Constitution", value: 3 }]
         });
@@ -23,7 +27,16 @@ describe("DieRollRequest", () => {
         assert.equal(req.id, "req1");
         assert.deepEqual(req.recipientIds, ["player1", "player2"]);
         assert.equal(req.status, DIE_ROLL_REQUEST_STATUSES.PENDING);
+        assert.deepEqual(
+            (({ combatId, combatantId, actionIndex, actionId }) => ({ combatId, combatantId, actionIndex, actionId }))(req.toJSON()),
+            { combatId: "combat-1", combatantId: "combatant-1", actionIndex: 2, actionId: "resist" }
+        );
         assert.equal(req.getFormulaFor("player1"), "2d20kl1 + 3");
+    });
+
+    it("does not turn a serialized null action index into action zero", () => {
+        const req = new DieRollRequest(new DieRollRequest({ recipientIds: ["player1"] }).toJSON());
+        assert.equal(req.actionIndex, null);
     });
 
     it("tracks player adjustments without changing base modifiers", () => {

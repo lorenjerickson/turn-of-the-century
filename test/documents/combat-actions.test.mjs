@@ -73,6 +73,9 @@ describe("TurnOfTheCenturyEncounter actions", () => {
         assert.deepEqual(actions.map((action) => action.label), ["Move", "Open", "Pursue", "Follow", "Avoid", "Hunker Down", "Dodge", "Overwatch"]);
         assert.equal(actions.every((action) => action.itemId === null), true);
         assert.equal(actions.find((action) => action.id === "move").movementFeetPerAp, 10);
+        for (const id of ["pursue", "follow", "avoid"]) {
+            assert.equal(actions.find((action) => action.id === id).requiresTarget, true, `${id} should require a target token`);
+        }
     });
 
     it("lists actions for combatants found through the combatant collection", async () => {
@@ -182,5 +185,60 @@ describe("TurnOfTheCenturyEncounter actions", () => {
         assert.equal(itemActions.find((action) => action.itemId === "consumable-1").apCost, 3);
         assert.equal(actions.some((action) => action.id === "weapon-2:weaponAttack"), true);
         assert.equal(actions.some((action) => action.id === "tool-1:toolUse"), true);
+    });
+
+    it("locks accepted roll actions and preserves their planning timeline until the GM reopens planning", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        const combatant = {
+            id: "combatant-1",
+            initiative: 12,
+            actor: { isOwner: true, items: { contents: [] }, system: {} }
+        };
+        let storedState = {
+            phase: "planning",
+            apBudget: 6,
+            round: 1,
+            perCombatant: {
+                [combatant.id]: { plan: [], ready: false, committedAt: 0 }
+            }
+        };
+        const combat = {
+            id: "combat-1",
+            round: 1,
+            combatants: {
+                contents: [combatant],
+                get: (id) => id === combatant.id ? combatant : null
+            },
+            getFlag: () => storedState,
+            setFlag: async (_scope, _key, state) => { storedState = structuredClone(state); }
+        };
+        globalThis.game.user = { id: "player-1", isGM: false };
+        const encounter = new TurnOfTheCenturyEncounter(combat);
+        await encounter.setCombatantPlan(combatant.id, [
+            { id: "move", type: "movement", label: "Move", apCost: 1 },
+            { id: "strike", type: "attack", label: "Strike", apCost: 2, requiresToHit: true },
+            { id: "dodge", type: "defense", label: "Dodge", apCost: 1 }
+        ]);
+        await encounter.lockCombatantActionRoll(combatant.id, 1, { requestId: "roll-1", result: { total: 18 } });
+        await encounter.lockCombatantActionRoll(combatant.id, 1, { requestId: "roll-1", result: { total: 18 } });
+
+        assert.equal(encounter.getCombatantPlan(combatant.id)[1].planningLocked, true);
+        assert.equal(encounter.getCombatantPlan(combatant.id)[1].planningRollResults.length, 1);
+        await assert.rejects(() => encounter.removeCombatantAction(combatant.id, 1), /locked by an accepted roll/i);
+        await assert.rejects(() => encounter.removeCombatantAction(combatant.id, 0), /locked by an accepted roll/i);
+        await assert.rejects(
+            () => encounter.setCombatantPlan(combatant.id, encounter.getCombatantPlan(combatant.id).slice(0, 1)),
+            /lock this part/i
+        );
+
+        await encounter.clearCombatantPlan(combatant.id);
+        assert.deepEqual(encounter.getCombatantPlan(combatant.id).map((action) => action.id), ["move", "strike"]);
+
+        storedState.phase = "locked";
+        globalThis.game.user.isGM = true;
+        await encounter.setEncounterPhase("planning");
+        assert.equal(encounter.getCombatantPlan(combatant.id)[1].planningLocked, false);
+        await encounter.removeCombatantAction(combatant.id, 1);
+        assert.deepEqual(encounter.getCombatantPlan(combatant.id).map((action) => action.id), ["move"]);
     });
 });

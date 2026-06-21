@@ -20,6 +20,7 @@ import {
     movementPathLength,
     pointAlongMovementPath
 } from "../encounters/grid-pathfinding.mjs";
+import { applyLocalPlanningTokenPath } from "../encounters/planning-token-preview.mjs";
 
 const BaseCombatDocument = foundry.documents?.Combat ?? Combat;
 
@@ -191,8 +192,25 @@ function clampActionData(action, index = 0) {
         movementTargetRow: Number(action.movementTargetRow ?? 0),
         movementTargetCol: Number(action.movementTargetCol ?? 0),
         movementOriginX: optionalNumber(action.movementOriginX),
-        movementOriginY: optionalNumber(action.movementOriginY)
+        movementOriginY: optionalNumber(action.movementOriginY),
+        planningLocked: Boolean(action.planningLocked),
+        planningRollResults: toArray(action.planningRollResults).map((result) => foundry.utils.deepClone(result))
     };
+}
+
+function lockedActionComparable(action = {}) {
+    const comparable = foundry.utils.deepClone(action);
+    delete comparable.planningLocked;
+    delete comparable.planningRollResults;
+    return JSON.stringify(comparable);
+}
+
+function lockedThroughIndex(plan = []) {
+    let boundary = -1;
+    for (const [index, action] of toArray(plan).entries()) {
+        if (action?.planningLocked) boundary = index;
+    }
+    return boundary;
 }
 
 /**
@@ -498,6 +516,10 @@ export class TurnOfTheCenturyEncounter {
         return toArray(this.getCombatantState(combatantId)?.plan);
     }
 
+    getCombatantLockedThroughIndex(combatantId) {
+        return lockedThroughIndex(this.getCombatantPlan(combatantId));
+    }
+
     /**
      * Returns the number of AP already spent by a combatant this round.
      *
@@ -665,6 +687,9 @@ export class TurnOfTheCenturyEncounter {
         this.#requirePlanningOpen(combatantId);
 
         const plan = this.getCombatantPlan(combatantId);
+        if (Number(index) <= lockedThroughIndex(plan)) {
+            throw new Error("This part of the action plan is locked by an accepted roll result.");
+        }
         const next = plan.filter((_, currentIndex) => currentIndex !== Number(index));
         await this.setCombatantPlan(combatantId, next);
     }
@@ -683,7 +708,43 @@ export class TurnOfTheCenturyEncounter {
         }
         this.#requirePlanningOpen(combatantId);
 
-        await this.setCombatantPlan(combatantId, []);
+        const plan = this.getCombatantPlan(combatantId);
+        await this.setCombatantPlan(combatantId, plan.slice(0, lockedThroughIndex(plan) + 1));
+    }
+
+    async lockCombatantActionRoll(combatantId, actionIndex, roll = {}) {
+        if (!this.#isCombatantOwnedByCurrentUser(combatantId)) {
+            throw new Error("You do not have permission to accept rolls for this combatant's plan.");
+        }
+        if (this.phase !== "planning") {
+            throw new Error("Roll results can only lock actions during encounter planning.");
+        }
+
+        const index = Number(actionIndex);
+        const state = this.state;
+        const perCombatant = foundry.utils.deepClone(state.perCombatant ?? {});
+        const combatantState = perCombatant[combatantId];
+        const action = combatantState?.plan?.[index];
+        if (!action || !Number.isInteger(index) || index < 0) {
+            throw new Error(`Invalid action index: ${actionIndex}`);
+        }
+
+        const requestId = String(roll?.requestId ?? "").trim();
+        if (requestId && toArray(action.planningRollResults).some((entry) => String(entry?.requestId ?? "") === requestId)) {
+            return action;
+        }
+
+        action.planningLocked = true;
+        action.planningRollResults = [
+            ...toArray(action.planningRollResults),
+            foundry.utils.deepClone(roll)
+        ];
+        await this.#setState({ ...state, perCombatant });
+        this.emit(TOTC_ENCOUNTER_EVENTS.PLAN_UPDATED, {
+            combatantId,
+            plan: combatantState.plan
+        });
+        return action;
     }
 
     /**
@@ -918,6 +979,16 @@ export class TurnOfTheCenturyEncounter {
         if (!combatantState) throw new Error(`Combatant ${combatantId} is not part of the encounter state.`);
 
         const normalized = toArray(actions).map((action, index) => clampActionData(action, index));
+        for (const [index, existingAction] of toArray(combatantState.plan).entries()) {
+            if (!existingAction?.planningLocked) continue;
+            const nextAction = normalized[index];
+            const normalizedExistingAction = clampActionData(existingAction, index);
+            if (!nextAction || lockedActionComparable(normalizedExistingAction) !== lockedActionComparable(nextAction)) {
+                throw new Error("Accepted roll results lock this part of the action plan until the GM reopens planning.");
+            }
+            nextAction.planningLocked = true;
+            nextAction.planningRollResults = foundry.utils.deepClone(existingAction.planningRollResults ?? []);
+        }
 
         const totalCost = normalized.reduce((sum, action) => sum + action.apCost, 0);
         if (totalCost > this.apBudget) {
@@ -973,7 +1044,12 @@ export class TurnOfTheCenturyEncounter {
                 {
                     ...combatantState,
                     ready: false,
-                    committedAt: 0
+                    committedAt: 0,
+                    plan: toArray(combatantState.plan).map((action) => ({
+                        ...action,
+                        planningLocked: false,
+                        planningRollResults: []
+                    }))
                 }
             ]))
             : currentState.perCombatant;
@@ -1047,7 +1123,7 @@ export class TurnOfTheCenturyEncounter {
         const combatant = this.#combat.combatants?.get(combatantId) ?? null;
         const token = this.#getCombatantTokenDocument(combatant);
         const tokenDocument = tokenDocumentForUpdate(token);
-        if (!tokenDocument?.update) return;
+        if (!tokenDocument?.updateSource) return;
 
         const scene = tokenDocument.parent?.walls ? tokenDocument.parent : (canvas?.scene ?? tokenDocument.parent ?? null);
         let current = {
@@ -1064,9 +1140,7 @@ export class TurnOfTheCenturyEncounter {
                 && Math.abs(current.y - target.y) <= Number.EPSILON) continue;
 
             const path = findGridMovementPath({ start: current, target, scene });
-            for (const waypoint of path.slice(1)) {
-                await tokenDocument.update({ x: waypoint.x, y: waypoint.y });
-            }
+            await applyLocalPlanningTokenPath(tokenDocument, path);
             current = target;
         }
     }
@@ -3101,6 +3175,10 @@ export class TurnOfTheCenturyCombat extends BaseCombatDocument {
         return this.encounter.getCombatantPlan(combatantId);
     }
 
+    getCombatantLockedThroughIndex(combatantId) {
+        return this.encounter.getCombatantLockedThroughIndex(combatantId);
+    }
+
     getCombatantSpentAp(combatantId) {
         return this.encounter.getCombatantSpentAp(combatantId);
     }
@@ -3139,6 +3217,10 @@ export class TurnOfTheCenturyCombat extends BaseCombatDocument {
 
     async clearCombatantPlan(combatantId) {
         return this.encounter.clearCombatantPlan(combatantId);
+    }
+
+    async lockCombatantActionRoll(combatantId, actionIndex, roll = {}) {
+        return this.encounter.lockCombatantActionRoll(combatantId, actionIndex, roll);
     }
 
     async setCombatantActionApCost(combatantId, actionIndex, apCost) {

@@ -73,6 +73,7 @@ Hooks.once("ready", async () => {
     }
 });
 import { dieRollRequestManager } from "../../die-roll-request-manager.mjs";
+import { acceptCompletedPlanningRoll } from "../../encounters/planning-roll-lock.mjs";
 import { WORKSPACE_V2_DOCK_IDS } from "./constants.mjs";
 import { InteractionController } from "./interaction-controller.mjs";
 import { GridCalibrationController } from "./grid-calibration-controller.mjs";
@@ -145,8 +146,10 @@ import {
     buildEncounterMovementOverlayModel,
     findEncounterMovementOverlayCellAtPoint
 } from "./encounter-movement-overlay.mjs";
+import { applyLocalPlanningTokenPath } from "../../encounters/planning-token-preview.mjs";
 import {
-    buildEncounterTargetingOverlayModel
+    buildEncounterTargetingOverlayModel,
+    findEncounterTargetTokenAtPoint
 } from "./encounter-targeting-overlay.mjs";
 
 const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
@@ -727,6 +730,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._encounterMovementCanvasCleanup = null;
         this._encounterMovementCanvasRef = null;
         this._encounterTargetingInteraction = null;
+        this._encounterTargetingCanvasCleanup = null;
+        this._encounterTargetingCanvasRef = null;
         this._selectedWallIdsByScene = new Map();
         this._joinableWallIdsByScene = new Map();
         this._wallAddSequence = null;
@@ -919,7 +924,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         })).filter((user) => user.id);
     }
 
-    async #handleDieRollRequestChange() {
+    async #handleDieRollRequestChange(change = {}) {
+        await acceptCompletedPlanningRoll({ change });
         const userId = String(game.user?.id ?? "");
         const isGM = Boolean(game.user?.isGM);
         const hasRelevantPendingRequest = dieRollRequestManager
@@ -2219,6 +2225,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#clearGridCalibrationCanvasListener();
         this.#clearWallCommandCanvasListener();
         this.#clearEncounterMovementNativeOverlay();
+        this.#clearEncounterTargetingCanvasListener();
         this._loggerUnsubscribe?.();
         return await super.close?.(options);
     }
@@ -2841,6 +2848,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         if (!scene || !token || !combat || Number(actionIndex) < 0 || !Number.isFinite(rangeFeet) || rangeFeet <= 0) {
             this._encounterTargetingInteraction = null;
+            this.#clearEncounterTargetingCanvasListener();
             return;
         }
 
@@ -2854,6 +2862,54 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             rangeType
         };
         this._encounterMovementInteraction = null;
+        this.#clearEncounterMovementNativeOverlay();
+        this.#syncEncounterTargetingCanvasListener();
+        ui.notifications?.info?.(`Select a target token for ${String(action?.label ?? "this movement")}. Right-click or click empty ground to cancel.`);
+    }
+
+    #clearEncounterTargetingCanvasListener() {
+        this._encounterTargetingCanvasCleanup?.();
+        this._encounterTargetingCanvasCleanup = null;
+        this._encounterTargetingCanvasRef = null;
+    }
+
+    #syncEncounterTargetingCanvasListener() {
+        if (!this._encounterTargetingInteraction) {
+            this.#clearEncounterTargetingCanvasListener();
+            return;
+        }
+        if (this._encounterTargetingCanvasRef === canvas && this._encounterTargetingCanvasCleanup) return;
+        this.#clearEncounterTargetingCanvasListener();
+        this._encounterTargetingCanvasRef = canvas;
+        this._encounterTargetingCanvasCleanup = listenForNativeCanvasPointerDown(canvas, (event) => {
+            void this.#handleEncounterTargetingCanvasPointerDown(event);
+        });
+    }
+
+    async #handleEncounterTargetingCanvasPointerDown(event = {}) {
+        if (!this._encounterTargetingInteraction) return;
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        if (!isPrimaryPointerButton(event)) {
+            await this.#cancelEncounterTargetingInteraction();
+            return;
+        }
+
+        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
+        const overlay = this.#getEncounterTargetOverlayState(scene);
+        const point = getNativeCanvasEventScenePoint(event, canvas);
+        const token = findEncounterTargetTokenAtPoint({
+            tokens: canvas?.tokens?.placeables ?? this.#collectionContents(scene?.tokens),
+            targetTokenIds: overlay?.targetTokenIds ?? [],
+            point,
+            gridSize: Number(scene?.grid?.size ?? 100) || 100
+        });
+        const tokenId = String(token?.id ?? token?.document?.id ?? "").trim();
+        if (!tokenId) {
+            await this.#cancelEncounterTargetingInteraction();
+            return;
+        }
+        await this.#finishEncounterTargetingInteraction(tokenId);
     }
 
     #getEncounterMovementOverlayState(scene = null) {
@@ -2978,10 +3034,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
 
         await combat.setCombatantPlan(interaction.combatantId, plan);
-        const tokenDocument = token?.document ?? token;
-        for (const waypoint of movementPath.slice(1)) {
-            await tokenDocument?.update?.({ x: waypoint.x, y: waypoint.y });
-        }
+        await applyLocalPlanningTokenPath(token, movementPath);
         this.render({ force: false });
     }
 
@@ -3024,6 +3077,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
 
         this._encounterTargetingInteraction = null;
+        this.#clearEncounterTargetingCanvasListener();
         await combat.setCombatantPlan(interaction.combatantId, plan);
         this.render({ force: false });
     }
@@ -3033,6 +3087,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (!interaction) return;
         const combat = this.#getEncounterCombatById(interaction.combatId) ?? this.#getEncounterCombat();
         this._encounterTargetingInteraction = null;
+        this.#clearEncounterTargetingCanvasListener();
         if (combat?.removeCombatantAction) {
             await combat.removeCombatantAction(interaction.combatantId, interaction.actionIndex);
         }
