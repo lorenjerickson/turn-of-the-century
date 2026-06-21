@@ -2150,7 +2150,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.element?.querySelectorAll("[data-action='floating-close']")?.forEach((button) => {
             button.addEventListener("pointerdown", (event) => {
-                event.preventDefault();
                 event.stopPropagation();
             });
             button.addEventListener("click", async (event) => {

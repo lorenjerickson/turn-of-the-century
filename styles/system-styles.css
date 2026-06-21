@@ -6123,6 +6123,22 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     z-index: 3;
 }
 
+/*
+ * Keep workspace chrome interactive even when Foundry changes which wrapper
+ * receives the system class. The root application deliberately ignores
+ * pointer events so the native canvas remains usable; these controls must opt
+ * back in without depending on a theme-scoped ancestor selector.
+ */
+.totc-workspace-v2-root-app .totc-v2-floating,
+.totc-workspace-v2-root-app .totc-v2-floating__header,
+.totc-workspace-v2-root-app .totc-v2-floating__buttons,
+.totc-workspace-v2-root-app .totc-v2-floating__buttons button,
+.totc-workspace-v2-root-app .totc-v2-floating__resize-handle,
+.totc-workspace-v2-root-app .totc-v2-stack-splitter,
+.totc-workspace-v2-root-app [data-action='dock-resizer'] {
+    pointer-events: auto !important;
+}
+
 .turn-of-the-century .totc-v2-layout [data-action='dock-resizer'].is-hidden {
     display: none;
 }

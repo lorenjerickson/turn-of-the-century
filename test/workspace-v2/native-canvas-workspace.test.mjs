@@ -57,6 +57,13 @@ describe("native canvas workspace integration", () => {
         assert.match(workspaceRootSource, /\[data-action='dock-resizer'\][\s\S]*addEventListener\("pointerdown"/);
     });
 
+    it("keeps move, close, and resize controls interactive without a theme wrapper", () => {
+        assert.match(styles, /\.totc-workspace-v2-root-app \.totc-v2-floating,[\s\S]*\.totc-workspace-v2-root-app \[data-action='dock-resizer'\]\s*\{[\s\S]*pointer-events:\s*auto !important;/);
+        assert.match(styles, /\.totc-workspace-v2-root-app \.totc-v2-stack-splitter/);
+        assert.match(workspaceRootSource, /\[data-action='floating-close'\][\s\S]*pointerdown[\s\S]*event\.stopPropagation\(\)/);
+        assert.doesNotMatch(workspaceRootSource, /\[data-action='floating-close'\][\s\S]{0,180}pointerdown[\s\S]{0,120}event\.preventDefault\(\)/);
+    });
+
     it("keeps Victorian theme surfaces from repainting the native canvas aperture", () => {
         assert.match(styles, /body\.totc-theme-victorian \.turn-of-the-century \.totc-v2-layout\.has-native-canvas-aperture\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
         assert.match(styles, /body\.totc-theme-victorian \.turn-of-the-century \.totc-v2-dock--centerDock\.is-native-canvas-aperture\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
