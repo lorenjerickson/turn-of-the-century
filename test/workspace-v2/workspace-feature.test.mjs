@@ -63,6 +63,7 @@ let WorkspaceFeature;
 let WorkspaceRootApp;
 let WorkspacePanelHost;
 let EncounterPlanningFeature;
+let SceneDesignFeature;
 let ConcreteFeature;
 
 before(async () => {
@@ -77,6 +78,8 @@ before(async () => {
 
     const encounterFeatureModule = await import("../../module/ui/workspace-v2/controllers/encounter-planning-feature.mjs");
     EncounterPlanningFeature = encounterFeatureModule.EncounterPlanningFeature;
+    const sceneFeatureModule = await import("../../module/ui/workspace-v2/controllers/scene-design-feature.mjs");
+    SceneDesignFeature = sceneFeatureModule.SceneDesignFeature;
 
     ConcreteFeature = class extends WorkspaceFeature {
         constructor() {
@@ -140,6 +143,12 @@ describe("WorkspaceFeature and composition shell", () => {
         const app = new WorkspaceRootApp();
         assert.ok(app.encounterPlanningFeature instanceof EncounterPlanningFeature);
         assert.ok(app.features.includes(app.encounterPlanningFeature));
+    });
+
+    it("registers scene design as a built-in workspace feature", () => {
+        const app = new WorkspaceRootApp();
+        assert.ok(app.sceneDesignFeature instanceof SceneDesignFeature);
+        assert.ok(app.features.includes(app.sceneDesignFeature));
     });
 
     it("lets encounter planning project selected-token state into shared context", () => {

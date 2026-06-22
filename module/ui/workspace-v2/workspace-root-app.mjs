@@ -107,7 +107,6 @@ import { getSceneBackgroundSource } from "./scene-background-source.mjs";
 import {
     getNativeCanvasEventScenePoint,
     isPrimaryPointerButton,
-    listenForNativeCanvasPointerDown,
     previewNativeCanvasGrid
 } from "./native-canvas-grid-calibration.mjs";
 import { totcLogger } from "./logger.mjs";
@@ -129,8 +128,6 @@ import {
     buildWallEditingGrid,
     findWallsIntersectingBounds,
     findWallsWithinBounds,
-    getControlledWallIds,
-    getJoinableWallIds,
     joinWallSegmentsById,
     removeWallSegmentsById,
     snapPointToGridIntersection,
@@ -141,16 +138,6 @@ import {
 import {
     buildSceneWallOverlayState
 } from "./scene-wall-detection.mjs";
-import {
-    buildEncounterPlanningMovementPath,
-    buildEncounterMovementOverlayModel,
-    findEncounterMovementOverlayCellAtPoint
-} from "./encounter-movement-overlay.mjs";
-import { applyLocalPlanningTokenPath } from "../../encounters/planning-token-preview.mjs";
-import {
-    buildEncounterTargetingOverlayModel,
-    findEncounterTargetTokenAtPoint
-} from "./encounter-targeting-overlay.mjs";
 
 const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
 import {
@@ -217,9 +204,6 @@ import {
 } from "./panels/gm-assistant-panel.mjs";
 import { LLMService } from "../../services/llm-service.mjs";
 import {
-    findCombatantForToken
-} from "../../encounters/combatant-token-matching.mjs";
-import {
     requireActorDocumentClass,
     renderFoundryApplication,
     requireApplicationV2,
@@ -228,6 +212,7 @@ import {
 } from "../../foundry-v14-runtime.mjs";
 import { WorkspaceFeature } from "./workspace-feature.mjs";
 import { EncounterPlanningFeature } from "./controllers/encounter-planning-feature.mjs";
+import { SceneDesignFeature } from "./controllers/scene-design-feature.mjs";
 
 const ApplicationV2Base = requireApplicationV2();
 const CombatDocumentClass = requireCombatDocumentClass();
@@ -251,7 +236,6 @@ const COLLAPSED_LEFT_RIGHT_DOCK_WIDTH = 42;
 const TEXT_INPUT_DEBOUNCE_MS = 300;
 const GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS = 100;
 const GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS = 500;
-const ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER = "totc-encounter-movement";
 const GM_PANEL_STATE_KEY = "gmPanelState";
 const MARKET_PANEL_STATE_KEY = "marketPanelState";
 const MARKET_SCENE_FLAG_KEY = "workspaceV2Market";
@@ -686,11 +670,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getMapPanelScene: (panel, context) => this.#getMapPanelScene(panel, context),
             getPanelSceneId: (panel, context) => this.#getPanelSceneId(panel, context),
             gridCalibrationState: () => this.gridCalibrationController.state,
-            getSceneGridOverlayState: (scene) => this.#getSceneGridOverlayState(scene),
-            getSceneWallOverlayState: (scene) => this.#getSceneDetectedWallOverlayState(scene),
+            getSceneGridOverlayState: (scene) => this.sceneDesignFeature?.getSceneGridOverlayState(scene),
+            getSceneWallOverlayState: (scene) => this.sceneDesignFeature?.getSceneDetectedWallOverlayState(scene),
             getEncounterMovementOverlayState: (scene) => this.encounterPlanningFeature?.getMovementOverlayState(scene),
             getEncounterTargetOverlayState: (scene) => this.encounterPlanningFeature?.getTargetOverlayState(scene),
-            getMapPanelToolbarState: (panel) => this.#getMapPanelToolbarState(panel),
+            getMapPanelToolbarState: (panel) => this.sceneDesignFeature?.getMapPanelToolbarState(panel),
             renderMarketPanel: (marketPanel) => this.#renderMarketPanel(marketPanel),
             renderGamemasterPanel: (gmPanel, gmSnapshot, dieRollRequestPanel) => this.#renderGamemasterPanel(gmPanel, gmSnapshot, dieRollRequestPanel),
             getSelectedTokenIds: () => this.selectedTokenIds
@@ -729,24 +713,18 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             notifications: globalThis.ui?.notifications,
             logger: console
         });
-        this._appliedGridOverlayStates = new Map();
-        this._detectedWallOverlayStates = new Map();
-        this._mapPanelToolbarStates = new Map();
-        this._encounterPlannerSelection = null;
-        this._encounterMovementInteraction = null;
-        this._encounterMovementCanvasCleanup = null;
-        this._encounterMovementCanvasRef = null;
-        this._encounterTargetingInteraction = null;
-        this._encounterTargetingCanvasCleanup = null;
-        this._encounterTargetingCanvasRef = null;
-        this._selectedWallIdsByScene = new Map();
-        this._joinableWallIdsByScene = new Map();
-        this._wallAddSequence = null;
-        this._wallCommandCanvasCleanup = null;
-        this._wallCommandCanvasRef = null;
-        this._gridCalibrationCanvasCleanup = null;
-        this._gridCalibrationCanvasRef = null;
-        this._onWallEditKeyDown = this.#onWallEditKeyDown.bind(this);
+        this.sceneDesignFeature = new SceneDesignFeature({
+            gridCalibrationController: this.gridCalibrationController,
+            getPanelSceneId: (panel) => this.#getPanelSceneId(panel),
+            getSceneDocumentById: (sceneId) => this.#getSceneDocumentById(sceneId),
+            getActiveWallCommandPanel: () => this.#getActiveWallCommandPanel(),
+            handleWallCommandPointerDown: (event) => this.#handleWallCommandCanvasPointerDown(event),
+            previewGridCalibration: () => this.#previewGridCalibrationOnCanvas(),
+            render: (options) => this.render(options),
+            onKeyDown: (event) => this.#onWallEditKeyDown(event),
+            notifications: globalThis.ui?.notifications
+        });
+        this.registerFeature(this.sceneDesignFeature);
         this._gmAssistantState = {
             elementType: "campaign",
             actorType: "pawn",
@@ -817,7 +795,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
         this._wallSelectionRefreshHandler = () => {
             const scene = canvas?.scene ?? game.scenes?.viewed ?? game.scenes?.active ?? null;
-            this.#syncSelectedWallsFromCanvas(scene, { clearWhenEmpty: true });
+            this.sceneDesignFeature.syncSelectedWallsFromCanvas(scene, { clearWhenEmpty: true });
             if (scene) this.#refreshSceneWallOverlay(scene);
             if (this.rendered) this.render({ force: false });
         };
@@ -1224,7 +1202,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 actors: worldActors,
                 gridCalibrationState: this.gridCalibrationController.state,
                 sceneToolsState: scenePropertiesScene
-                    ? this.#getMapPanelToolbarState({
+                    ? this.sceneDesignFeature.getMapPanelToolbarState({
                         id: `map:${scenePropertiesScene.id ?? scenePropertiesScene._id}`,
                         baseId: "map",
                         sceneId: scenePropertiesScene.id ?? scenePropertiesScene._id
@@ -1366,7 +1344,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         await super._onRender(context, options);
         this.hooksController.bindAll();
         this.#syncNativeCanvasScene();
-        this.#syncGridCalibrationCanvasListener();
+        this.sceneDesignFeature.syncGridCalibrationCanvasListener();
 
         this.#wireRollLockGuard();
         this.#wireDieRollRequestHandlers();
@@ -1521,9 +1499,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (!game.user?.isGM) return;
                 const panelId = String(button.dataset.mapPanelId ?? "").trim();
                 const mode = String(button.dataset.mode ?? "").trim();
-                const current = this.#getMapPanelToolbarState(this.panelRegistry?.get?.(panelId) ?? { id: panelId });
+                const current = this.sceneDesignFeature.getMapPanelToolbarState(this.panelRegistry?.get?.(panelId) ?? { id: panelId });
                 const nextMode = current.mode === mode ? null : mode;
-                this.#patchMapPanelToolbarState(panelId, {
+                this.sceneDesignFeature.patchMapPanelToolbarState(panelId, {
                     mode: nextMode,
                     ...(nextMode === "walls" ? { wallCommand: "add" } : {})
                 });
@@ -1532,7 +1510,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 } else if (mode === "walls") {
                     await this.#deactivateWallModeForPanel(panelId);
                 }
-                this.#syncWallCommandCanvasListener();
+                this.sceneDesignFeature.syncWallCommandCanvasListener();
                 this.render({ force: false });
             });
         });
@@ -1544,25 +1522,25 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (!game.user?.isGM) return;
                 const panelId = String(button.dataset.mapPanelId ?? "").trim();
                 const command = String(button.dataset.command ?? "").trim();
-                this.#cancelWallAddSequence({ notify: false });
+                this.sceneDesignFeature.cancelWallAddSequence({ notify: false });
                 if (command === "remove") {
-                    this.#patchMapPanelToolbarState(panelId, { wallCommand: "add" });
-                    this.#syncWallCommandCanvasListener();
+                    this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallCommand: "add" });
+                    this.sceneDesignFeature.syncWallCommandCanvasListener();
                     await this.#deleteSelectedWallsForPanel(panelId);
                     return;
                 }
                 if (command === "join") {
-                    this.#patchMapPanelToolbarState(panelId, { wallCommand: "add" });
-                    this.#syncWallCommandCanvasListener();
+                    this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallCommand: "add" });
+                    this.sceneDesignFeature.syncWallCommandCanvasListener();
                     await this.#joinSelectedWallsForPanel(panelId);
                     return;
                 }
-                this.#patchMapPanelToolbarState(panelId, { wallCommand: command });
+                this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallCommand: command });
                 if (command === "detect") {
                     await this.#executeDesignAction("scene.detectWalls", { panelId });
-                    this.#patchMapPanelToolbarState(panelId, { wallCommand: "add" });
+                    this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallCommand: "add" });
                 }
-                this.#syncWallCommandCanvasListener();
+                this.sceneDesignFeature.syncWallCommandCanvasListener();
                 this.render({ force: false });
             });
         });
@@ -1574,8 +1552,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (!game.user?.isGM) return;
                 const panelId = String(button.dataset.mapPanelId ?? "").trim();
                 const wallType = String(button.dataset.wallType ?? "").trim();
-                this.#patchMapPanelToolbarState(panelId, { wallType, wallCommand: "add" });
-                this.#syncWallCommandCanvasListener();
+                this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallType, wallCommand: "add" });
+                this.sceneDesignFeature.syncWallCommandCanvasListener();
                 this.render({ force: false });
             });
         });
@@ -1594,7 +1572,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.stopPropagation();
                 this.gridCalibrationController.close();
                 this.#clearGridCalibrationPreviewTimer();
-                this.#clearGridCalibrationCanvasListener();
+                this.sceneDesignFeature.clearGridCalibrationCanvasListener();
                 this.render({ force: false });
             });
         });
@@ -1617,7 +1595,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 const result = await this.gridCalibrationController.apply();
                 if (result?.ok) {
                     this.#clearGridCalibrationPreviewTimer();
-                    this.#clearGridCalibrationCanvasListener();
+                    this.sceneDesignFeature.clearGridCalibrationCanvasListener();
                 }
                 this.render({ force: false });
             });
@@ -2216,7 +2194,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
-        document.addEventListener("keydown", this._onWallEditKeyDown);
         this.#wireScenePropertiesHandlers();
         this.#wireLoggingPanelHandlers();
 
@@ -2244,10 +2221,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.compendiumCacheController.dispose();
         this.sceneActorDropController.clearDragImage();
         this.gridCalibrationController.close();
-        this.#clearGridCalibrationCanvasListener();
-        this.#clearWallCommandCanvasListener();
-        this.#clearEncounterMovementNativeOverlay();
-        this.#clearEncounterTargetingCanvasListener();
         this._loggerUnsubscribe?.();
         return await super.close?.(options);
     }
@@ -2401,59 +2374,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return this.panelHost.renderPanelBodyContent(panel, context);
     }
 
-    #readEncounterActionData(element = null) {
-        if (!element) return null;
-        const apMin = Math.max(1, Number(element.dataset.apMin ?? element.dataset.apCost ?? 1));
-        const apMax = Math.max(apMin, Number(element.dataset.apMax ?? element.dataset.apCost ?? apMin));
-        const apCost = Math.max(apMin, Math.min(apMax, Number(element.dataset.apCost ?? apMin)));
-        return {
-            id: String(element.dataset.id ?? element.dataset.actionId ?? "").trim(),
-            actionId: String(element.dataset.actionId ?? element.dataset.id ?? "").trim(),
-            type: String(element.dataset.type ?? "action").trim(),
-            label: String(element.dataset.label ?? element.value ?? "Action").trim(),
-            apCost,
-            apMin,
-            apMax,
-            variableAp: element.dataset.variableAp === "true",
-            requiresToHit: element.dataset.requiresToHit === "true",
-            requiresTarget: element.dataset.requiresTarget === "true",
-            rangeType: String(element.dataset.rangeType ?? "melee").trim().toLowerCase(),
-            toHitBonus: Number(element.dataset.toHitBonus ?? 0),
-            targetingRangeFeet: Number(element.dataset.targetingRangeFeet ?? 0),
-            movementFeet: Number(element.dataset.movementFeet ?? 0),
-            movementFeetPerAp: Number(element.dataset.movementFeetPerAp ?? 0),
-            itemId: String(element.dataset.itemId ?? "").trim() || null,
-            img: String(element.dataset.img ?? "").trim()
-        };
-    }
-
-    #findEncounterActionOption(input = null) {
-        const value = String(input?.value ?? "").trim();
-        if (!value || !input?.list?.options) return null;
-        return Array.from(input.list.options).find((option) => String(option.value ?? "").trim() === value) ?? null;
-    }
-
-    #findEncounterActionOptionWithSearch(input = null) {
-        const value = String(input?.value ?? "").trim().toLowerCase();
-        if (!value || !input?.list?.options) return null;
-        const options = Array.from(input.list.options);
-
-        const exact = options.find((opt) => String(opt.value ?? "").trim().toLowerCase() === value);
-        if (exact) return exact;
-
-        const prefix = options.find((opt) => String(opt.value ?? "").trim().toLowerCase().startsWith(value));
-        if (prefix) return prefix;
-
-        const contains = options.find((opt) => String(opt.value ?? "").trim().toLowerCase().includes(value));
-        if (contains) return contains;
-
-        return null;
-    }
-
-    #getEncounterPanelCombatantId(element = null) {
-        return String(element?.closest?.(".totc-v2-encounter-panel")?.dataset?.combatantId ?? "").trim();
-    }
-
     #getEncounterCombatById(combatId = "") {
         return this.#collectionGet(game.combats, combatId)
             ?? (String(game.combats?.active?.id ?? "") === String(combatId ?? "") ? game.combats.active : null)
@@ -2515,17 +2435,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
     }
 
-    async #moveEncounterAction(combat = null, combatantId = "", fromIndex = -1, toIndex = -1) {
-        if (!combatantId || !combat?.setCombatantPlan) return;
-        const plan = [...(combat.getCombatantPlan?.(combatantId) ?? [])];
-        if (fromIndex < 0 || fromIndex >= plan.length) return;
-        const [moved] = plan.splice(fromIndex, 1);
-        const target = Math.max(0, Math.min(plan.length, toIndex));
-        plan.splice(target, 0, moved);
-        await combat.setCombatantPlan(combatantId, plan);
-        this.render({ force: false });
-    }
-
     #collectionContents(collection) {
         if (!collection) return [];
         if (Array.isArray(collection)) return collection;
@@ -2542,859 +2451,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             String(entry?.id ?? entry?._id ?? entry?.document?.id ?? "").trim() === key
         )) ?? null;
     }
-
-    #getEncounterCombatants(combat = null, actor = null) {
-        const actorIds = [
-            actor?.id,
-            actor?._id,
-            actor?.baseActor?.id,
-            actor?.baseActor?._id
-        ].filter(Boolean);
-        const entries = [
-            ...this.#collectionContents(combat?.combatants),
-            ...this.#collectionContents(combat?.turns),
-            ...actorIds.flatMap((actorId) => this.#collectionContents(combat?.getCombatantsByActor?.(actorId))),
-            combat?.combatant
-        ].filter(Boolean);
-
-        return entries.filter((entry, index, list) => {
-            const id = String(entry?.id ?? entry?._id ?? "");
-            if (!id) return true;
-            return list.findIndex((candidate) => String(candidate?.id ?? candidate?._id ?? "") === id) === index;
-        });
-    }
-
-    #getEncounterCombatant(combat = null, combatantId = "") {
-        const key = String(combatantId ?? "").trim();
-        if (!key) return null;
-        return this.#collectionGet(combat?.combatants, key)
-            ?? this.#getEncounterCombatants(combat).find((entry) => String(entry?.id ?? entry?._id ?? "") === key)
-            ?? null;
-    }
-
-    #getTokenCombatant(token = null) {
-        return token?.combatant ?? token?.object?.combatant ?? null;
-    }
-
-    #getEncounterCombatantForToken(combat = null, token = null) {
-        if (!combat || !token) return null;
-        const tokenCombatant = this.#getTokenCombatant(token);
-        if (tokenCombatant && (tokenCombatant.combat === combat || tokenCombatant.parent === combat || tokenCombatant.combat?.id === combat.id || tokenCombatant.parent?.id === combat.id)) {
-            return tokenCombatant;
-        }
-        const actor = this.#resolveTokenActor(token);
-        return findCombatantForToken({
-            combatants: this.#getEncounterCombatants(combat, actor),
-            token,
-            actor
-        });
-    }
-
-    #getEncounterCombatForToken(token = null) {
-        const tokenCombatant = this.#getTokenCombatant(token);
-        const tokenCombat = tokenCombatant?.combat ?? tokenCombatant?.parent;
-        if (tokenCombat) {
-            return tokenCombat;
-        }
-
-        const candidates = [
-            ui.combat?.viewed,
-            game.combat,
-            game.combats?.active,
-            ...this.#collectionContents(game.combats)
-        ]
-            .filter(Boolean)
-            .filter((combat, index, list) => list.findIndex((entry) => entry?.id === combat?.id) === index);
-
-        return candidates.find((combat) => (
-            this.#getEncounterCombatantForToken(combat, token)
-        )) ?? null;
-    }
-
-    #isEncounterPlanningAvailable(combat = null) {
-        return Boolean(combat?.getCombatantPlan && combat?.getAvailableActionsForCombatant && (combat?.encounterState?.initialized ?? combat?.encounter?.state?.initialized));
-    }
-
-    #canPlanEncounterToken({ combat = null, token = null, actor = null } = {}) {
-        if (!combat) return false;
-        const combatant = this.#getEncounterCombatantForToken(combat, token);
-        if (!combatant) return false;
-        const resolvedActor = actor ?? combatant.actor ?? this.#resolveTokenActor(token);
-        const isOwner = game.user?.isGM || resolvedActor?.isOwner;
-        if (!isOwner) return false;
-
-        const initialized = Boolean(combat?.encounterState?.initialized ?? combat?.encounter?.state?.initialized);
-        if (!initialized && !game.user?.isGM) return false;
-
-        return true;
-    }
-
-    #canViewEncounterToken({ token = null, actor = null, combatant = null } = {}) {
-        if (!token && !combatant) return false;
-        const resolvedActor = actor ?? combatant?.actor ?? this.#resolveTokenActor(token);
-        return Boolean(game.user?.isGM || resolvedActor?.isOwner);
-    }
-
-    #resolveTokenActor(token = null) {
-        return token?.actor ?? token?.object?.actor ?? game.actors?.get?.(token?.actorId ?? token?.document?.actorId) ?? null;
-    }
-
-    #getSelectedEncounterToken(scene = null) {
-        if (this.selectedTokenIds.size !== 1) return null;
-        const tokenId = [...this.selectedTokenIds][0];
-        return this.#collectionGet(scene?.tokens, tokenId);
-    }
-
-    #buildEncounterPlannerSelectionForToken({ combat = null, token = null, actor = null, source = "" } = {}) {
-        // Prefer the token-resolved encounter combat so player planning remains interactive
-        // when the viewed/active combat differs from the token's combat.
-        const tokenCombat = this.#getEncounterCombatForToken(token);
-        const selectedCombat = tokenCombat ?? combat ?? this.#getEncounterCombat();
-        const combatant = selectedCombat ? this.#getEncounterCombatantForToken(selectedCombat, token) : null;
-        const resolvedActor = actor ?? combatant?.actor ?? this.#resolveTokenActor(token);
-        if (!this.#canViewEncounterToken({ token, actor: resolvedActor, combatant })) return null;
-        return {
-            actor: resolvedActor ?? null,
-            token,
-            combat: selectedCombat,
-            combatant,
-            source
-        };
-    }
-
-    #resolveEncounterPlannerSelection({ combat = null, scene = null } = {}) {
-        const selection = this._encounterPlannerSelection;
-        if (selection) {
-            const selectedCombat = this.#collectionGet(game.combats, selection.combatId) ?? selection.combat ?? combat;
-            const selectedScene = this.#collectionGet(game.scenes, selection.sceneId) ?? selection.scene ?? scene;
-            const token = selection.token ?? this.#collectionGet(selectedScene?.tokens, selection.tokenId);
-            const resolved = this.#buildEncounterPlannerSelectionForToken({
-                combat: selectedCombat,
-                token,
-                actor: selection.actor ?? this.#resolveTokenActor(token),
-                source: "pinned"
-            });
-            if (resolved) return resolved;
-            this._encounterPlannerSelection = null;
-        }
-
-        const selectedToken = this.#getSelectedEncounterToken(scene);
-        const resolved = this.#buildEncounterPlannerSelectionForToken({
-            combat,
-            token: selectedToken,
-            actor: this.#resolveTokenActor(selectedToken),
-            source: "selected-token"
-        });
-        if (resolved) return resolved;
-
-        return null;
-    }
-
-    async #showEncounterPanelForToken({ combat = null, scene = null, token = null, actor = null } = {}) {
-        const combatant = this.#getEncounterCombatantForToken(combat, token);
-        const canView = this.#canViewEncounterToken({ token, actor, combatant });
-        const canPlan = this.#canPlanEncounterToken({ combat, token, actor });
-        if (!canView) return false;
-        this._encounterPlannerSelection = {
-            combatId: String(combat?.id ?? ""),
-            combatantId: String(combatant?.id ?? ""),
-            sceneId: String(scene?.id ?? scene?._id ?? ""),
-            tokenId: String(token?.id ?? token?._id ?? token?.document?.id ?? ""),
-            actorId: String(actor?.id ?? actor?._id ?? combatant?.actor?.id ?? ""),
-            combat,
-            scene,
-            token,
-            actor
-        };
-        await this.#showEncounterPanel();
-        return true;
-    }
-
-    #getEncounterMovementToken({ combat = null, combatantId = "", scene = canvas?.scene ?? game.scenes?.viewed ?? null } = {}) {
-        const combatant = this.#getEncounterCombatant(combat, combatantId);
-        const tokenId = String(combatant?.tokenId ?? combatant?.token?.id ?? "").trim();
-        const directToken = this.#collectionGet(scene?.tokens, tokenId);
-        if (directToken) return directToken;
-
-        const actorId = String(combatant?.actorId ?? combatant?.actor?.id ?? combatant?.token?.actorId ?? "").trim();
-        if (!actorId) return null;
-        return this.#collectionContents(scene?.tokens).find((token) => (
-            String(token?.actorId ?? token?.actor?.id ?? token?.document?.actorId ?? "").trim() === actorId
-        )) ?? null;
-    }
-
-    #projectEncounterTokenForPlan({ token = null, combat = null, combatantId = "", beforeActionIndex = Infinity } = {}) {
-        if (!token || !combatantId) return token;
-
-        const plan = this.#collectionContents(combat?.getCombatantPlan?.(combatantId));
-        const limit = Number.isFinite(Number(beforeActionIndex)) ? Math.max(0, Number(beforeActionIndex)) : plan.length;
-        let projectedX = Number(token?.x ?? token?.document?.x ?? 0);
-        let projectedY = Number(token?.y ?? token?.document?.y ?? 0);
-        let changed = false;
-
-        for (let index = 0; index < Math.min(limit, plan.length); index += 1) {
-            const action = plan[index];
-            if (String(action?.type ?? "") !== "movement") continue;
-            const x = Number(action?.movementTargetX);
-            const y = Number(action?.movementTargetY);
-            if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-            projectedX = x;
-            projectedY = y;
-            changed = true;
-        }
-
-        if (!changed) return token;
-        return {
-            ...token,
-            x: projectedX,
-            y: projectedY,
-            document: token.document
-                ? {
-                    ...token.document,
-                    x: projectedX,
-                    y: projectedY
-                }
-                : token.document
-        };
-    }
-
-    #beginEncounterMovementInteraction({ combat = null, combatantId = "", actionIndex = -1, maxAp = 0, feetPerAp = 10 } = {}) {
-        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
-        const token = this.#getEncounterMovementToken({ combat, combatantId, scene });
-        if (!scene || !token || Number(maxAp) <= 0) {
-            this._encounterMovementInteraction = null;
-            this.#clearEncounterMovementNativeOverlay();
-            return;
-        }
-
-        this._encounterMovementInteraction = {
-            combatId: String(combat?.id ?? ""),
-            combatantId: String(combatantId ?? ""),
-            actionIndex: Number(actionIndex),
-            sceneId: String(scene.id ?? scene._id ?? ""),
-            tokenId: String(token.id ?? token._id ?? token.document?.id ?? ""),
-            maxAp: Math.max(1, Math.floor(Number(maxAp) || 1)),
-            feetPerAp: Math.max(1, Number(feetPerAp) || 10)
-        };
-        this._encounterTargetingInteraction = null;
-        this.#syncEncounterMovementNativeOverlay();
-        this.#syncEncounterMovementCanvasListener();
-    }
-
-    #getNativeGridHighlightLayer() {
-        return canvas?.interface?.grid ?? canvas?.grid ?? null;
-    }
-
-    #clearEncounterMovementNativeOverlay() {
-        const gridLayer = this.#getNativeGridHighlightLayer();
-        gridLayer?.clearHighlightLayer?.(ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER);
-        this._encounterMovementCanvasCleanup?.();
-        this._encounterMovementCanvasCleanup = null;
-        this._encounterMovementCanvasRef = null;
-    }
-
-    #syncEncounterMovementNativeOverlay() {
-        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
-        const model = this.#getEncounterMovementOverlayState(scene);
-        const gridLayer = this.#getNativeGridHighlightLayer();
-        if (!model?.active || !gridLayer) {
-            this.#clearEncounterMovementNativeOverlay();
-            return;
-        }
-
-        gridLayer.clearHighlightLayer?.(ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER);
-        gridLayer.addHighlightLayer?.(ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER);
-        for (const cell of model.cells ?? []) {
-            gridLayer.highlightPosition?.(ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER, {
-                x: cell.left,
-                y: cell.top,
-                color: cell.origin ? 0x38bdf8 : 0x22c55e,
-                border: cell.origin ? 0x0ea5e9 : 0x16a34a,
-                alpha: cell.origin ? 0.28 : 0.18
-            });
-        }
-    }
-
-    #syncEncounterMovementCanvasListener() {
-        if (!this._encounterMovementInteraction) {
-            this.#clearEncounterMovementNativeOverlay();
-            return;
-        }
-        if (this._encounterMovementCanvasRef === canvas && this._encounterMovementCanvasCleanup) return;
-
-        this._encounterMovementCanvasCleanup?.();
-        this._encounterMovementCanvasRef = canvas;
-        this._encounterMovementCanvasCleanup = listenForNativeCanvasPointerDown(canvas, (event) => {
-            void this.#handleEncounterMovementCanvasPointerDown(event);
-        });
-    }
-
-    async #handleEncounterMovementCanvasPointerDown(event = {}) {
-        if (!this._encounterMovementInteraction) return;
-        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
-        const model = this.#getEncounterMovementOverlayState(scene);
-        const point = getNativeCanvasEventScenePoint(event, canvas);
-        const cell = findEncounterMovementOverlayCellAtPoint(model, point);
-        if (!cell) {
-            await this.#cancelEncounterMovementInteraction();
-            return;
-        }
-
-        event?.preventDefault?.();
-        event?.stopPropagation?.();
-        await this.#finishEncounterMovementInteraction(cell);
-    }
-
-    #resolveEncounterActionRangeFeet(action = null, actor = null) {
-        const explicitRangeFeet = Number(action?.targetingRangeFeet ?? 0);
-        if (Number.isFinite(explicitRangeFeet) && explicitRangeFeet > 0) {
-            return explicitRangeFeet;
-        }
-
-        const rangeType = String(action?.rangeType ?? "melee").toLowerCase();
-        const item = action?.itemId ? actor?.items?.get?.(action.itemId) : null;
-        const normal = Number(item?.system?.physical?.range?.normal ?? (rangeType === "melee" ? 5 : 30));
-        const long = Number(item?.system?.physical?.range?.long ?? Math.max(normal, 60));
-
-        if (rangeType === "long") return Math.max(5, long || normal || 60);
-        if (rangeType === "normal") return Math.max(5, normal || 30);
-        return 5;
-    }
-
-    #beginEncounterTargetingInteraction({ combat = null, combatantId = "", actionIndex = -1, action = null } = {}) {
-        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
-        const token = this.#getEncounterMovementToken({ combat, combatantId, scene });
-        const combatant = this.#getEncounterCombatant(combat, combatantId);
-        const rangeFeet = this.#resolveEncounterActionRangeFeet(action, combatant?.actor ?? null);
-        const rangeType = String(action?.rangeType ?? "melee").toLowerCase();
-
-        if (!scene || !token || !combat || Number(actionIndex) < 0 || !Number.isFinite(rangeFeet) || rangeFeet <= 0) {
-            this._encounterTargetingInteraction = null;
-            this.#clearEncounterTargetingCanvasListener();
-            return;
-        }
-
-        this._encounterTargetingInteraction = {
-            combatId: String(combat?.id ?? ""),
-            combatantId: String(combatantId ?? ""),
-            actionIndex: Number(actionIndex),
-            sceneId: String(scene?.id ?? scene?._id ?? ""),
-            tokenId: String(token?.id ?? token?._id ?? token?.document?.id ?? ""),
-            rangeFeet: Math.max(1, Math.round(rangeFeet)),
-            rangeType
-        };
-        this._encounterMovementInteraction = null;
-        this.#clearEncounterMovementNativeOverlay();
-        this.#syncEncounterTargetingCanvasListener();
-        ui.notifications?.info?.(`Select a target token for ${String(action?.label ?? "this movement")}. Right-click or click empty ground to cancel.`);
-    }
-
-    #clearEncounterTargetingCanvasListener() {
-        this._encounterTargetingCanvasCleanup?.();
-        this._encounterTargetingCanvasCleanup = null;
-        this._encounterTargetingCanvasRef = null;
-    }
-
-    #syncEncounterTargetingCanvasListener() {
-        if (!this._encounterTargetingInteraction) {
-            this.#clearEncounterTargetingCanvasListener();
-            return;
-        }
-        if (this._encounterTargetingCanvasRef === canvas && this._encounterTargetingCanvasCleanup) return;
-        this.#clearEncounterTargetingCanvasListener();
-        this._encounterTargetingCanvasRef = canvas;
-        this._encounterTargetingCanvasCleanup = listenForNativeCanvasPointerDown(canvas, (event) => {
-            void this.#handleEncounterTargetingCanvasPointerDown(event);
-        }, { preferView: true, capture: true });
-    }
-
-    async #handleEncounterTargetingCanvasPointerDown(event = {}) {
-        if (!this._encounterTargetingInteraction) return;
-        event?.preventDefault?.();
-        event?.stopPropagation?.();
-        event?.stopImmediatePropagation?.();
-        event?.nativeEvent?.stopImmediatePropagation?.();
-        if (!isPrimaryPointerButton(event)) {
-            await this.#cancelEncounterTargetingInteraction();
-            return;
-        }
-
-        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
-        const overlay = this.#getEncounterTargetOverlayState(scene);
-        const point = getNativeCanvasEventScenePoint(event, canvas);
-        const token = findEncounterTargetTokenAtPoint({
-            tokens: canvas?.tokens?.placeables ?? this.#collectionContents(scene?.tokens),
-            targetTokenIds: overlay?.targetTokenIds ?? [],
-            point,
-            gridSize: Number(scene?.grid?.size ?? 100) || 100
-        });
-        const tokenId = String(token?.id ?? token?.document?.id ?? "").trim();
-        if (!tokenId) {
-            await this.#cancelEncounterTargetingInteraction();
-            return;
-        }
-        await this.#finishEncounterTargetingInteraction(tokenId);
-    }
-
-    #getEncounterMovementOverlayState(scene = null) {
-        const interaction = this._encounterMovementInteraction;
-        if (!interaction || !scene) return null;
-        const sceneId = String(scene.id ?? scene._id ?? "").trim();
-        if (sceneId && interaction.sceneId && sceneId !== interaction.sceneId) return null;
-        const token = this.#collectionGet(scene.tokens, interaction.tokenId);
-        if (!token) return null;
-        const projectedToken = this.#projectEncounterTokenForPlan({
-            token,
-            combat: this.#getEncounterCombatById(interaction.combatId) ?? this.#getEncounterCombat(),
-            combatantId: interaction.combatantId,
-            beforeActionIndex: interaction.actionIndex
-        });
-        return buildEncounterMovementOverlayModel({
-            token: projectedToken,
-            scene,
-            maxAp: interaction.maxAp,
-            feetPerAp: interaction.feetPerAp || 10,
-            feetPerSquare: Number(scene.grid?.distance ?? 5) || 5,
-            gridSize: Number(scene.grid?.size ?? 100) || 100
-        });
-    }
-
-    #getEncounterTargetOverlayState(scene = null) {
-        const interaction = this._encounterTargetingInteraction;
-        if (!interaction || !scene) return null;
-        const sceneId = String(scene.id ?? scene._id ?? "").trim();
-        if (sceneId && interaction.sceneId && sceneId !== interaction.sceneId) return null;
-
-        const combat = this.#getEncounterCombatById(interaction.combatId) ?? this.#getEncounterCombat();
-        if (!combat) return null;
-
-        const sourceToken = this.#collectionGet(scene.tokens, interaction.tokenId);
-        if (!sourceToken) return null;
-        const projectedSourceToken = this.#projectEncounterTokenForPlan({
-            token: sourceToken,
-            combat,
-            combatantId: interaction.combatantId,
-            beforeActionIndex: interaction.actionIndex
-        });
-
-        const targetTokens = this.#collectionContents(scene.tokens).filter((token) => {
-            const tokenId = String(token?.id ?? token?._id ?? token?.document?.id ?? "").trim();
-            if (!tokenId || tokenId === interaction.tokenId) return false;
-            const targetCombatant = this.#getEncounterCombatantForToken(combat, token);
-            if (!targetCombatant?.id) return false;
-            return String(targetCombatant.id) !== String(interaction.combatantId);
-        });
-
-        return buildEncounterTargetingOverlayModel({
-            scene,
-            sourceToken: projectedSourceToken,
-            targetTokens,
-            maxRangeFeet: interaction.rangeFeet,
-            rangeType: interaction.rangeType
-        });
-    }
-
-    async #finishEncounterMovementInteraction(selectedCell = null) {
-        const interaction = this._encounterMovementInteraction;
-        if (!interaction) return;
-        const combat = this.#getEncounterCombatById(interaction.combatId) ?? this.#getEncounterCombat();
-        const scene = game.scenes?.get?.(interaction.sceneId) ?? canvas?.scene ?? game.scenes?.viewed ?? null;
-        const token = this.#collectionGet(scene?.tokens, interaction.tokenId);
-        this._encounterMovementInteraction = null;
-        this.#clearEncounterMovementNativeOverlay();
-        if (!combat?.setCombatantPlan || !token) {
-            this.render({ force: false });
-            return;
-        }
-
-        const requiredAp = Number(selectedCell?.requiredAp ?? selectedCell);
-        const cost = Math.max(1, Number.isFinite(requiredAp) ? requiredAp : 1);
-        const plan = [...(combat.getCombatantPlan?.(interaction.combatantId) ?? [])];
-        const index = Number(interaction.actionIndex);
-        const entry = plan[index];
-        if (!entry) {
-            this.render({ force: false });
-            return;
-        }
-
-        const gridSize = Number(scene?.grid?.size ?? 100) || 100;
-        const offsetX = -Number(scene?.shiftX ?? 0);
-        const offsetY = -Number(scene?.shiftY ?? 0);
-        const row = Number(selectedCell?.row ?? 0);
-        const col = Number(selectedCell?.col ?? 0);
-        const cellLeft = Number(selectedCell?.left);
-        const cellTop = Number(selectedCell?.top);
-        const targetX = Number.isFinite(cellLeft) ? cellLeft : (col * gridSize) + offsetX;
-        const targetY = Number.isFinite(cellTop) ? cellTop : (row * gridSize) + offsetY;
-        const originX = Number(token?.x ?? token?.document?.x ?? 0);
-        const originY = Number(token?.y ?? token?.document?.y ?? 0);
-        const projectedToken = this.#projectEncounterTokenForPlan({
-            token,
-            combat,
-            combatantId: interaction.combatantId,
-            beforeActionIndex: index
-        });
-        const movementPath = buildEncounterPlanningMovementPath({
-            start: {
-                x: Number(projectedToken?.x ?? projectedToken?.document?.x ?? originX),
-                y: Number(projectedToken?.y ?? projectedToken?.document?.y ?? originY)
-            },
-            target: { x: targetX, y: targetY },
-            scene
-        });
-
-        const movementFeetPerAp = Math.max(1, Number(entry.movementFeetPerAp ?? interaction.feetPerAp ?? 10) || 10);
-        plan[index] = {
-            ...entry,
-            apCost: cost,
-            movementFeet: movementFeetPerAp * cost,
-            movementFeetPerAp,
-            movementTargetRow: row,
-            movementTargetCol: col,
-            movementTargetX: targetX,
-            movementTargetY: targetY,
-            movementOriginX: Number.isFinite(originX) ? originX : null,
-            movementOriginY: Number.isFinite(originY) ? originY : null
-        };
-
-        await combat.setCombatantPlan(interaction.combatantId, plan);
-        await applyLocalPlanningTokenPath(token, movementPath);
-        this.render({ force: false });
-    }
-
-    async #cancelEncounterMovementInteraction() {
-        const interaction = this._encounterMovementInteraction;
-        if (!interaction) return;
-        const combat = this.#getEncounterCombatById(interaction.combatId) ?? this.#getEncounterCombat();
-        this._encounterMovementInteraction = null;
-        this.#clearEncounterMovementNativeOverlay();
-        if (combat?.removeCombatantAction) {
-            await combat.removeCombatantAction(interaction.combatantId, interaction.actionIndex);
-        }
-        this.render({ force: false });
-    }
-
-    async #finishEncounterTargetingInteraction(tokenId = "") {
-        const interaction = this._encounterTargetingInteraction;
-        if (!interaction) return;
-
-        const combat = this.#getEncounterCombatById(interaction.combatId) ?? this.#getEncounterCombat();
-        const scene = game.scenes?.get?.(interaction.sceneId) ?? canvas?.scene ?? game.scenes?.viewed ?? null;
-        const token = this.#collectionGet(scene?.tokens, tokenId);
-        const targetCombatant = token ? this.#getEncounterCombatantForToken(combat, token) : null;
-        if (!combat || !targetCombatant?.id || String(targetCombatant.id) === String(interaction.combatantId)) {
-            await this.#cancelEncounterTargetingInteraction();
-            return;
-        }
-
-        const plan = [...(combat.getCombatantPlan?.(interaction.combatantId) ?? [])];
-        const index = Number(interaction.actionIndex);
-        const entry = plan[index];
-        if (!entry || (!entry.requiresToHit && !entry.requiresTarget) || !combat.setCombatantPlan) {
-            await this.#cancelEncounterTargetingInteraction();
-            return;
-        }
-
-        plan[index] = {
-            ...entry,
-            targetId: targetCombatant.id
-        };
-
-        this._encounterTargetingInteraction = null;
-        this.#clearEncounterTargetingCanvasListener();
-        await combat.setCombatantPlan(interaction.combatantId, plan);
-        this.render({ force: false });
-    }
-
-    async #cancelEncounterTargetingInteraction() {
-        const interaction = this._encounterTargetingInteraction;
-        if (!interaction) return;
-        const combat = this.#getEncounterCombatById(interaction.combatId) ?? this.#getEncounterCombat();
-        this._encounterTargetingInteraction = null;
-        this.#clearEncounterTargetingCanvasListener();
-        if (combat?.removeCombatantAction) {
-            await combat.removeCombatantAction(interaction.combatantId, interaction.actionIndex);
-        }
-        this.render({ force: false });
-    }
-
-    #wirePlayerEncounterPanelHandlers() {
-        if (this._wiredElement === this.element) {
-            return;
-        }
-        this._wiredElement = this.element;
-
-        // Click interaction capture guard for cancelling movement/targeting
-        this.element?.addEventListener("click", (event) => {
-            if (!this._encounterMovementInteraction) return;
-            if (event.target?.closest?.("[data-action='encounter-move-square']")) return;
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation?.();
-            void this.#cancelEncounterMovementInteraction();
-        }, { capture: true });
-
-        this.element?.addEventListener("click", (event) => {
-            if (!this._encounterTargetingInteraction) return;
-            const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
-            const overlay = this.#getEncounterTargetOverlayState(scene);
-            const tokenEl = event.target?.closest?.("[data-action='map-token']");
-            const tokenId = String(tokenEl?.dataset?.tokenId ?? "").trim();
-            const valid = tokenId && (overlay?.targetTokenIds ?? []).includes(tokenId);
-            if (valid) return;
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation?.();
-            void this.#cancelEncounterTargetingInteraction();
-        }, { capture: true });
-
-        // Delegated clicks for panel actions
-        this.element?.addEventListener("click", async (event) => {
-            const target = event.target;
-            // Click plan segments or empty slots to open action popup
-            const el = event.target?.closest?.("[data-action='encounter-plan-segment'], [data-action='encounter-edit-plan-slot']");
-            if (el) {
-                if (event.target?.closest?.("[data-action='encounter-remove-action'], [data-action='encounter-resize-action']")) {
-                    return;
-                }
-                event.preventDefault();
-                event.stopPropagation();
-
-                const combatantId = this.#getEncounterPanelCombatantId(el);
-                const combat = this.#getEncounterCombat(el);
-                if (!combatantId || !combat) return;
-
-                const startTick = Number(el.dataset.startTick ?? 1);
-                const actionIndex = Number(el.dataset.actionIndex ?? 0);
-                const apBudget = Number(combat.apBudget ?? 6);
-                const remainingAp = apBudget - startTick + 1;
-
-                this._activePlanEditSlot = {
-                    index: actionIndex,
-                    startTick,
-                    remainingAp
-                };
-                this.render({ force: false });
-                return;
-            }
-
-            // Close popup
-            const buttonClose = event.target?.closest?.("[data-action='encounter-close-popup']");
-            if (buttonClose) {
-                event.preventDefault();
-                event.stopPropagation();
-                this._activePlanEditSlot = null;
-                this.render({ force: false });
-                return;
-            }
-
-            // Select popup action
-            const button = event.target?.closest?.("[data-action='encounter-select-popup-action']");
-            if (button) {
-                event.preventDefault();
-                event.stopPropagation();
-
-                const combatantId = this.#getEncounterPanelCombatantId(button);
-                const combat = this.#getEncounterCombat(button);
-                if (!combatantId || !combat?.setCombatantPlan) return;
-
-                const actionData = this.#readEncounterActionData(button);
-                if (!actionData) return;
-
-                const actionIndex = Number(button.dataset.actionIndex);
-                if (Number.isNaN(actionIndex)) return;
-
-                const remainingSlotAp = Math.max(1, Math.floor(Number(this._activePlanEditSlot?.remainingAp ?? (Number(combat.apBudget ?? 6) - actionIndex)) || 1));
-                const movementFeetPerAp = Math.max(1, Number(actionData.movementFeetPerAp ?? 10) || 10);
-                const planAction = actionData.type === "movement"
-                    ? {
-                        ...actionData,
-                        apCost: remainingSlotAp,
-                        apMax: Math.max(Number(actionData.apMax ?? 1), remainingSlotAp),
-                        movementFeet: movementFeetPerAp * remainingSlotAp,
-                        movementFeetPerAp
-                    }
-                    : actionData;
-                const currentPlan = combat.getCombatantPlan?.(combatantId) ?? [];
-                const nextPlan = [...currentPlan.slice(0, actionIndex), planAction];
-                await combat.setCombatantPlan(combatantId, nextPlan);
-
-                if (planAction.requiresTarget) {
-                    this.#beginEncounterTargetingInteraction({
-                        combat,
-                        combatantId,
-                        actionIndex,
-                        action: planAction
-                    });
-                } else if (planAction.type === "movement") {
-                    this.#beginEncounterMovementInteraction({
-                        combat,
-                        combatantId,
-                        actionIndex,
-                        maxAp: remainingSlotAp,
-                        feetPerAp: movementFeetPerAp
-                    });
-                } else if (planAction.requiresToHit && ["melee", "normal", "long"].includes(String(planAction.rangeType ?? "").toLowerCase())) {
-                    this.#beginEncounterTargetingInteraction({
-                        combat,
-                        combatantId,
-                        actionIndex,
-                        action: planAction
-                    });
-                } else {
-                    this._encounterMovementInteraction = null;
-                    this._encounterTargetingInteraction = null;
-                }
-
-                this._activePlanEditSlot = null;
-                this.render({ force: false });
-                return;
-            }
-
-            // Remove action button on plan segments
-            const buttonRemove = event.target?.closest?.("[data-action='encounter-remove-action']");
-            if (buttonRemove) {
-                event.preventDefault();
-                event.stopPropagation();
-                const combatantId = this.#getEncounterPanelCombatantId(buttonRemove);
-                const actionIndex = Number(buttonRemove.dataset.actionIndex);
-                const combat = this.#getEncounterCombat(buttonRemove);
-                if (!combatantId || Number.isNaN(actionIndex) || !combat?.removeCombatantAction) return;
-                if (this._encounterTargetingInteraction && String(this._encounterTargetingInteraction.combatantId) === String(combatantId)) {
-                    this._encounterTargetingInteraction = null;
-                }
-                await combat.removeCombatantAction(combatantId, actionIndex);
-                this.render({ force: false });
-                return;
-            }
-
-            // Clear plan
-            const buttonClear = event.target?.closest?.("[data-action='encounter-clear-plan']");
-            if (buttonClear) {
-                event.preventDefault();
-                event.stopPropagation();
-                const combatantId = this.#getEncounterPanelCombatantId(buttonClear);
-                const combat = this.#getEncounterCombat(buttonClear);
-                if (!combatantId || !combat?.clearCombatantPlan) return;
-                if (this._encounterTargetingInteraction && String(this._encounterTargetingInteraction.combatantId) === String(combatantId)) {
-                    this._encounterTargetingInteraction = null;
-                }
-                await combat.clearCombatantPlan(combatantId);
-                this.render({ force: false });
-                return;
-            }
-
-            // Toggle ready state
-            const buttonReady = event.target?.closest?.("[data-action='encounter-toggle-ready']");
-            if (buttonReady) {
-                event.preventDefault();
-                event.stopPropagation();
-                const combatantId = this.#getEncounterPanelCombatantId(buttonReady);
-                const combat = this.#getEncounterCombat(buttonReady);
-                if (!combatantId || !combat?.setCombatantReady) return;
-                if (this._encounterTargetingInteraction && String(this._encounterTargetingInteraction.combatantId) === String(combatantId)) {
-                    this._encounterTargetingInteraction = null;
-                }
-                await combat.setCombatantReady(combatantId, buttonReady.dataset.ready !== "true");
-                this.render({ force: false });
-                return;
-            }
-        });
-
-        // Delegated drag and drop events
-        this.element?.addEventListener("dragstart", (event) => {
-            const segment = event.target?.closest?.("[data-action='encounter-plan-segment']");
-            if (!segment) return;
-            if (!event.dataTransfer) return;
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("application/x-totc-encounter-action-index", String(segment.dataset.actionIndex ?? ""));
-        });
-
-        this.element?.addEventListener("dragover", (event) => {
-            const segment = event.target?.closest?.("[data-action='encounter-plan-segment']");
-            const bar = event.target?.closest?.("[data-action='encounter-plan-bar']");
-            if (segment || bar) {
-                event.preventDefault();
-                if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-            }
-        });
-
-        this.element?.addEventListener("drop", async (event) => {
-            const segment = event.target?.closest?.("[data-action='encounter-plan-segment']");
-            if (segment) {
-                event.preventDefault();
-                event.stopPropagation();
-                const combatantId = this.#getEncounterPanelCombatantId(segment);
-                const combat = this.#getEncounterCombat(segment);
-                const fromIndex = Number(event.dataTransfer?.getData("application/x-totc-encounter-action-index"));
-                const toIndex = Number(segment.dataset.actionIndex);
-                await this.#moveEncounterAction(combat, combatantId, fromIndex, toIndex);
-                return;
-            }
-
-            const bar = event.target?.closest?.("[data-action='encounter-plan-bar']");
-            if (bar) {
-                event.preventDefault();
-                event.stopPropagation();
-                if (event.target?.closest?.("[data-action='encounter-plan-segment']")) return;
-                const combatantId = this.#getEncounterPanelCombatantId(bar);
-                const fromIndex = Number(event.dataTransfer?.getData("application/x-totc-encounter-action-index"));
-                const combat = this.#getEncounterCombat(bar);
-                const planLength = combat?.getCombatantPlan?.(combatantId)?.length ?? 0;
-                await this.#moveEncounterAction(combat, combatantId, fromIndex, planLength);
-                return;
-            }
-        });
-
-        // Delegated resize pointers
-        this.element?.addEventListener("pointerdown", (event) => {
-            const handle = event.target?.closest?.("[data-action='encounter-resize-action']");
-            if (!handle) return;
-
-            event.preventDefault();
-            event.stopPropagation();
-            const segment = handle.closest("[data-action='encounter-plan-segment']");
-            const bar = handle.closest("[data-action='encounter-plan-bar']");
-            const combatantId = this.#getEncounterPanelCombatantId(handle);
-            const actionIndex = Number(handle.dataset.actionIndex);
-            const combat = this.#getEncounterCombat(handle);
-            const plan = combat?.getCombatantPlan?.(combatantId) ?? [];
-            const action = plan[actionIndex];
-            if (!segment || !bar || !combatantId || !combat?.setCombatantActionApCost || !action) return;
-
-            const apBudget = Math.max(1, Number(bar.dataset.apBudget ?? 1));
-            const rect = bar.getBoundingClientRect();
-            const cellWidth = rect.width / apBudget;
-            const priorAp = plan.slice(0, actionIndex).reduce((sum, entry) => sum + Math.max(1, Number(entry.apCost ?? 1)), 0);
-            const apMin = Math.max(1, Number(action.apMin ?? action.apCost ?? 1));
-            const apMax = Math.max(apMin, Number(action.apMax ?? action.apCost ?? apMin));
-            const remainingAfter = plan.slice(actionIndex + 1).reduce((sum, entry) => sum + Math.max(1, Number(entry.apCost ?? 1)), 0);
-            const maxByBudget = Math.max(apMin, apBudget - priorAp - remainingAfter);
-            const upper = Math.min(apMax, maxByBudget);
-            let nextCost = Math.max(apMin, Math.min(upper, Number(action.apCost ?? apMin)));
-
-            const onPointerMove = (moveEvent) => {
-                const relativeX = Math.max(0, Math.min(rect.width, moveEvent.clientX - rect.left));
-                const endBoundary = Math.round(relativeX / cellWidth);
-                nextCost = Math.max(apMin, Math.min(upper, endBoundary - priorAp));
-                segment.style.gridColumn = `span ${nextCost}`;
-                const detail = segment.querySelector("small");
-                if (detail) detail.textContent = `${nextCost} AP`;
-            };
-
-            const onPointerUp = async () => {
-                document.removeEventListener("pointermove", onPointerMove);
-                document.removeEventListener("pointerup", onPointerUp);
-                await combat.setCombatantActionApCost(combatantId, actionIndex, nextCost);
-                this.render({ force: false });
-            };
-
-            document.addEventListener("pointermove", onPointerMove);
-            document.addEventListener("pointerup", onPointerUp);
-        });
-    }
-
-
 
     #getViewedScene() {
         return this.sceneWorkspaceController.getViewedSceneDocument();
@@ -4586,9 +3642,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (event.key === "Escape" && game.user?.isGM && activeWallsPanel) {
             event.preventDefault();
             event.stopPropagation();
-            this.#cancelWallAddSequence({ notify: false });
-            this.#patchMapPanelToolbarState(activeWallsPanel.panel.id, { wallCommand: "add" });
-            this.#syncWallCommandCanvasListener();
+            this.sceneDesignFeature.cancelWallAddSequence({ notify: false });
+            this.sceneDesignFeature.patchMapPanelToolbarState(activeWallsPanel.panel.id, { wallCommand: "add" });
+            this.sceneDesignFeature.syncWallCommandCanvasListener();
             ui.notifications?.info?.("Wall placement reset. Click to set a new starting point.");
             this.render({ force: false });
             return;
@@ -4605,15 +3661,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const panelId = String(panel?.id ?? "").trim();
         if (!panelId) return;
 
-        const state = this.#getMapPanelToolbarState(panel);
+        const state = this.sceneDesignFeature.getMapPanelToolbarState(panel);
         const key = String(event.key ?? "").toLowerCase();
         const wallsActive = state.mode === "walls";
 
         if (key === "w" && !wallsActive) {
             event.preventDefault();
-            this.#patchMapPanelToolbarState(panelId, { mode: "walls", wallCommand: "add" });
+            this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { mode: "walls", wallCommand: "add" });
             await this.#executeDesignAction("scene.walls", { panelId });
-            this.#syncWallCommandCanvasListener();
+            this.sceneDesignFeature.syncWallCommandCanvasListener();
             this.render({ force: false });
             return;
         }
@@ -4622,9 +3678,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         if (key === "s") {
             event.preventDefault();
-            this.#cancelWallAddSequence();
-            this.#patchMapPanelToolbarState(panelId, { wallCommand: "split" });
-            this.#syncWallCommandCanvasListener();
+            this.sceneDesignFeature.cancelWallAddSequence();
+            this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallCommand: "split" });
+            this.sceneDesignFeature.syncWallCommandCanvasListener();
             this.render({ force: false });
             return;
         }
@@ -4646,20 +3702,20 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (!wallType) return;
 
         event.preventDefault();
-        this.#patchMapPanelToolbarState(panelId, { wallType, wallCommand: "add" });
-        this.#syncWallCommandCanvasListener();
+        this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallType, wallCommand: "add" });
+        this.sceneDesignFeature.syncWallCommandCanvasListener();
         this.render({ force: false });
     }
 
     async #deactivateWallModeForPanel(panelId = "") {
         const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
         const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
-        this.#cancelWallAddSequence({ notify: false });
-        this.#clearWallCommandCanvasListener();
+        this.sceneDesignFeature.cancelWallAddSequence({ notify: false });
+        this.sceneDesignFeature.clearWallCommandCanvasListener();
         if (scene) {
-            this.#setSelectedWallIds(scene, []);
-            this.#setJoinableWallIds(scene, []);
-            this.#setSceneDetectedWallOverlayState(scene, null);
+            this.sceneDesignFeature.setSelectedWallIds(scene, []);
+            this.sceneDesignFeature.setJoinableWallIds(scene, []);
+            this.sceneDesignFeature.setSceneDetectedWallOverlayState(scene, null);
         }
 
         try {
@@ -4680,8 +3736,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async #deleteSelectedWallsForPanel(panelId = "") {
         const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
         const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
-        this.#syncSelectedWallsFromCanvas(scene);
-        const selectedIds = this.#getSelectedWallIds(scene);
+        this.sceneDesignFeature.syncSelectedWallsFromCanvas(scene);
+        const selectedIds = this.sceneDesignFeature.getSelectedWallIds(scene);
         if (!scene || !selectedIds.size) {
             ui.notifications?.warn?.("Select wall segments before deleting them.");
             return;
@@ -4689,8 +3745,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         const result = await removeWallSegmentsById({ scene, ids: selectedIds });
         if (result?.ok) {
-            this.#setSelectedWallIds(scene, []);
-            this.#setJoinableWallIds(scene, []);
+            this.sceneDesignFeature.setSelectedWallIds(scene, []);
+            this.sceneDesignFeature.setJoinableWallIds(scene, []);
             this.#refreshSceneWallOverlay(scene);
         }
         this.#reportWallEditResult("remove", result);
@@ -4699,8 +3755,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async #joinSelectedWallsForPanel(panelId = "") {
         const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
         const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
-        this.#syncSelectedWallsFromCanvas(scene);
-        const joinableIds = this.#getJoinableWallIds(scene);
+        this.sceneDesignFeature.syncSelectedWallsFromCanvas(scene);
+        const joinableIds = this.sceneDesignFeature.getJoinableWallIds(scene);
         if (!scene || joinableIds.size < 2) {
             ui.notifications?.warn?.("Select two or more aligned adjacent wall segments before joining them.");
             return;
@@ -4708,25 +3764,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         const result = await joinWallSegmentsById({ scene, ids: joinableIds });
         if (result?.ok) {
-            this.#setSelectedWallIds(scene, []);
-            this.#setJoinableWallIds(scene, []);
+            this.sceneDesignFeature.setSelectedWallIds(scene, []);
+            this.sceneDesignFeature.setJoinableWallIds(scene, []);
             this.#refreshSceneWallOverlay(scene);
         }
         this.#reportWallEditResult("join", result);
     }
 
-
-    #cancelWallAddSequence({ notify = true } = {}) {
-        if (!this._wallAddSequence) return;
-        this._wallAddSequence = null;
-        if (notify) ui.notifications?.info?.("Wall add cancelled.");
-    }
-
-    #clearWallCommandCanvasListener() {
-        this._wallCommandCanvasCleanup?.();
-        this._wallCommandCanvasCleanup = null;
-        this._wallCommandCanvasRef = null;
-    }
 
     #getActiveWallsPanel() {
         const panels = [
@@ -4736,7 +3780,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         for (const panel of panels) {
             if (!this.#isMapPanel(panel)) continue;
-            const state = this.#getMapPanelToolbarState(panel);
+            const state = this.sceneDesignFeature.getMapPanelToolbarState(panel);
             if (state.mode === "walls") return { panel, state };
         }
 
@@ -4748,22 +3792,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (!active) return null;
         const command = String(active.state.wallCommand ?? "").trim();
         return ["add", "split"].includes(command) ? { ...active, command } : null;
-    }
-
-    #syncWallCommandCanvasListener() {
-        const active = this.#getActiveWallCommandPanel();
-        if (!active) {
-            this.#clearWallCommandCanvasListener();
-            return;
-        }
-
-        if (this._wallCommandCanvasRef === canvas && this._wallCommandCanvasCleanup) return;
-
-        this.#clearWallCommandCanvasListener();
-        this._wallCommandCanvasRef = canvas;
-        this._wallCommandCanvasCleanup = listenForNativeCanvasPointerDown(canvas, (event) => {
-            void this.#handleWallCommandCanvasPointerDown(event);
-        });
     }
 
     async #handleWallCommandCanvasPointerDown(event = {}) {
@@ -4803,12 +3831,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async #handleWallAddCanvasPoint({ scene = null, point = null, state = {} } = {}) {
         if (!scene || !point) return;
 
-        const previousSequence = this._wallAddSequence;
+        const previousSequence = this.sceneDesignFeature.wallAddSequence;
         const step = advanceWallPlacementSequence(previousSequence, {
             sceneId: String(scene.id ?? scene._id ?? ""),
             point
         });
-        this._wallAddSequence = step.sequence;
+        this.sceneDesignFeature.wallAddSequence = step.sequence;
         if (!step.segment) {
             ui.notifications?.info?.("Wall start set. Each left click adds the next segment. Press Esc to reset the origin.");
             return;
@@ -4823,7 +3851,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (result?.ok) {
             this.#refreshSceneWallOverlay(scene);
         } else {
-            this._wallAddSequence = previousSequence;
+            this.sceneDesignFeature.wallAddSequence = previousSequence;
         }
         this.#reportWallEditResult("add", result);
     }
@@ -4867,11 +3895,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                         ? Array.from(walls)
                         : [];
         const existingWallIds = new Set(wallDocuments.map((wall) => wallDocumentId(wall)).filter(Boolean));
-        const selectedWallIds = [...this.#getSelectedWallIds(scene)].filter((id) => existingWallIds.has(id));
-        const joinableWallIds = [...this.#getJoinableWallIds(scene)].filter((id) => existingWallIds.has(id));
-        this.#setSelectedWallIds(scene, selectedWallIds);
-        this.#setJoinableWallIds(scene, joinableWallIds);
-        this.#setSceneDetectedWallOverlayState(scene, buildSceneWallOverlayState(scene, {
+        const selectedWallIds = [...this.sceneDesignFeature.getSelectedWallIds(scene)].filter((id) => existingWallIds.has(id));
+        const joinableWallIds = [...this.sceneDesignFeature.getJoinableWallIds(scene)].filter((id) => existingWallIds.has(id));
+        this.sceneDesignFeature.setSelectedWallIds(scene, selectedWallIds);
+        this.sceneDesignFeature.setJoinableWallIds(scene, joinableWallIds);
+        this.sceneDesignFeature.setSceneDetectedWallOverlayState(scene, buildSceneWallOverlayState(scene, {
             selectedWallIds
         }));
     }
@@ -4936,10 +3964,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     // Grid calibration
     // -----------------------------------------------------------------------
 
-    #getSceneGridOverlayState() {
-        return null;
-    }
-
     async #startGridCalibrationFromSceneProperties() {
         const activePanel = this.#getPrimaryActivePanel();
         const viewedScene = this.#getViewedScene();
@@ -4957,157 +3981,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }
 
         this.gridCalibrationController.open({ scene });
-        this.#syncGridCalibrationCanvasListener();
+        this.sceneDesignFeature.syncGridCalibrationCanvasListener();
         ui.notifications?.info?.("Grid calibration started. Click two corners of the same visible grid cell on the scene.");
         this.render({ force: false });
-    }
-
-    #clearGridCalibrationCanvasListener() {
-        this._gridCalibrationCanvasCleanup?.();
-        this._gridCalibrationCanvasCleanup = null;
-        this._gridCalibrationCanvasRef = null;
-    }
-
-    #syncGridCalibrationCanvasListener() {
-        if (!this.gridCalibrationController.active) {
-            this.#clearGridCalibrationCanvasListener();
-            return;
-        }
-
-        const targetSceneId = String(this.gridCalibrationController.state?.sceneId ?? "").trim();
-        const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
-        if (targetSceneId && canvasSceneId && targetSceneId !== canvasSceneId) return;
-        if (this._gridCalibrationCanvasRef === canvas && this._gridCalibrationCanvasCleanup) return;
-
-        this.#clearGridCalibrationCanvasListener();
-        this._gridCalibrationCanvasRef = canvas;
-        this._gridCalibrationCanvasCleanup = listenForNativeCanvasPointerDown(canvas, (event) => {
-            if (!this.gridCalibrationController.active) return;
-            const point = getNativeCanvasEventScenePoint(event, canvas);
-            if (!point) {
-                ui.notifications?.warn?.("That canvas click could not be converted to scene coordinates.");
-                return;
-            }
-
-            event?.stopPropagation?.();
-            event?.preventDefault?.();
-            const picked = this.gridCalibrationController.pickCorner({
-                x: Math.round(point.x),
-                y: Math.round(point.y)
-            });
-            if (picked.phase === "pick-second") {
-                ui.notifications?.info?.("First grid corner set. Click the opposite corner of the same cell.");
-            }
-            if (picked.phase === "adjust") {
-                ui.notifications?.info?.("Grid sample captured. Review the values and apply when ready.");
-                void this.#previewGridCalibrationOnCanvas();
-            }
-            this.render({ force: false });
-        });
-    }
-
-    #getSceneDetectedWallOverlayState(scene = null) {
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        return sceneId ? (this._detectedWallOverlayStates.get(sceneId) ?? null) : null;
-    }
-
-    #syncSelectedWallsFromCanvas(scene = null, { clearWhenEmpty = false } = {}) {
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        if (!sceneId) return false;
-
-        const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
-        if (canvasSceneId && canvasSceneId !== sceneId) return false;
-
-        const selectedIds = getControlledWallIds(canvas?.walls);
-        if (selectedIds.length) {
-            this.#setSelectedWallIds(scene, selectedIds);
-            this.#setJoinableWallIds(scene, getJoinableWallIds(scene, selectedIds));
-            return true;
-        }
-
-        if (clearWhenEmpty) {
-            this.#setSelectedWallIds(scene, []);
-            this.#setJoinableWallIds(scene, []);
-        }
-        return false;
-    }
-
-    #getSelectedWallIds(scene = null) {
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        return sceneId ? (this._selectedWallIdsByScene.get(sceneId) ?? new Set()) : new Set();
-    }
-
-    #setSelectedWallIds(scene = null, ids = []) {
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        if (!sceneId) return;
-        const selectedIds = new Set(Array.from(ids ?? []).map((id) => String(id ?? "").trim()).filter(Boolean));
-        if (selectedIds.size) this._selectedWallIdsByScene.set(sceneId, selectedIds);
-        else this._selectedWallIdsByScene.delete(sceneId);
-    }
-
-    #getJoinableWallIds(scene = null) {
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        return sceneId ? (this._joinableWallIdsByScene.get(sceneId) ?? new Set()) : new Set();
-    }
-
-    #setJoinableWallIds(scene = null, ids = []) {
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        if (!sceneId) return;
-        const joinableIds = new Set(Array.from(ids ?? []).map((id) => String(id ?? "").trim()).filter(Boolean));
-        if (joinableIds.size) this._joinableWallIdsByScene.set(sceneId, joinableIds);
-        else this._joinableWallIdsByScene.delete(sceneId);
-    }
-
-    #getMapPanelToolbarState(panel = null) {
-        const panelId = String(panel?.id ?? "").trim();
-        const sceneId = this.#getPanelSceneId(panel);
-        if (sceneId) this.#syncSelectedWallsFromCanvas(this.#getSceneDocumentById(sceneId));
-        const selectedWallCount = sceneId ? (this._selectedWallIdsByScene.get(sceneId)?.size ?? 0) : 0;
-        const joinableWallCount = sceneId ? (this._joinableWallIdsByScene.get(sceneId)?.size ?? 0) : 0;
-        const defaults = { mode: null, wallCommand: "detect", wallType: "wall", selectedWallCount, joinableWallCount };
-        if (!panelId) return defaults;
-        return { ...defaults, ...(this._mapPanelToolbarStates.get(panelId) ?? {}), selectedWallCount, joinableWallCount };
-    }
-
-    #patchMapPanelToolbarState(panelId = "", patch = {}) {
-        const current = this._mapPanelToolbarStates.get(panelId) ?? { mode: null, wallCommand: "detect", wallType: "wall" };
-        this._mapPanelToolbarStates.set(panelId, { ...current, ...patch });
-    }
-
-    #setSceneDetectedWallOverlayState(scene = null, overlayState = null) {
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        if (!sceneId) return;
-
-        const segments = Array.isArray(overlayState?.segments)
-            ? overlayState.segments.filter((segment) => {
-                const values = [segment?.x1, segment?.y1, segment?.x2, segment?.y2].map((value) => Number(value));
-                return values.every(Number.isFinite);
-            }).map((segment) => ({
-                id: String(segment.id ?? "").trim(),
-                wallKind: ["door", "window", "transparent"].includes(String(segment.wallKind ?? "").trim().toLowerCase())
-                    ? String(segment.wallKind ?? "").trim().toLowerCase()
-                    : "wall",
-                x1: Math.round(Number(segment.x1)),
-                y1: Math.round(Number(segment.y1)),
-                x2: Math.round(Number(segment.x2)),
-                y2: Math.round(Number(segment.y2)),
-                selected: Boolean(segment.selected)
-            }))
-            : [];
-
-        if (!segments.length) {
-            this._detectedWallOverlayStates.delete(sceneId);
-            return;
-        }
-
-        const intersections = Array.isArray(overlayState?.intersections)
-            ? overlayState.intersections.filter((point) => [point?.x, point?.y].every((value) => Number.isFinite(Number(value)))).map((point) => ({
-                x: Math.round(Number(point.x)),
-                y: Math.round(Number(point.y))
-            }))
-            : [];
-
-        this._detectedWallOverlayStates.set(sceneId, { segments, intersections });
     }
 
     #syncGridCalibrationStateFromInputs() {
@@ -5418,7 +4294,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             if (actionId === "scene.walls" && result?.ok && actionScene) this.#refreshSceneWallOverlay(actionScene);
 
             if (actionId === "scene.detectWalls" && result?.ok && actionScene) {
-                this.#setSceneDetectedWallOverlayState(actionScene, result.detectedWallOverlay ?? null);
+                this.sceneDesignFeature.setSceneDetectedWallOverlayState(actionScene, result.detectedWallOverlay ?? null);
                 }
 
             if (result?.level === "warn") {
@@ -5630,15 +4506,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             selectedPaths: Array.isArray(selectedPaths) ? selectedPaths.map(String) : []
         };
         this._mediaBrowserSelectCallback = typeof onSelect === "function" ? onSelect : null;
-
-        const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
-        await this.stateStore?.setUserLayout?.(nextLayout);
-        this.render({ force: false });
-    }
-
-    async #showEncounterPanel() {
-        const panelDef = this.panelRegistry.get("encounter");
-        if (!panelDef) return;
 
         const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
         await this.stateStore?.setUserLayout?.(nextLayout);

@@ -11,13 +11,13 @@ As of 2026-06-21, implementation has begun with the first recommended vertical e
 | Plan area | Current state |
 | --- | --- |
 | Workspace feature contract | Implemented. The root routes context preparation, binding, panel rendering, and disposal through registered `WorkspaceFeature` instances. |
-| Encounter planning | In progress. `EncounterPlanningFeature` is registered by default and owns the live player-planner context, rendering, DOM handlers, movement/targeting sessions, canvas listeners, overlays, and disposal. |
-| Workspace root cleanup | Pending. The former encounter-planning private methods remain temporarily as unreachable compatibility code and should be deleted after broader characterization coverage is moved to the feature. |
-| Scene design consolidation | Not started. Ownership remains distributed across the modules listed below. |
+| Encounter planning | Implemented. `EncounterPlanningFeature` is registered by default and owns the player-planner context, rendering, DOM handlers, movement/targeting sessions, canvas listeners, overlays, and disposal. The former root implementation has been removed. |
+| Workspace root cleanup | In progress. Removing the obsolete encounter-planning implementation reduced `WorkspaceRootApp` by roughly 950 lines; other feature orchestration remains to be extracted. |
+| Scene design consolidation | In progress. `SceneDesignFeature` now owns wall selection and joinability, toolbar state, detection overlays, wall-placement session state, keyboard binding, grid-calibration input listeners, wall-command canvas listeners, and disposal. Scene command orchestration still delegates through the root while repository boundaries are introduced. |
 | Pure encounter resolution engine | Not started. `combat.mjs` remains a combined Foundry adapter and domain engine. |
 | Content/publication split | Not started. `sample-content.mjs` remains monolithic. |
 
-The next implementation slice should remove the unreachable encounter-planning implementation from `WorkspaceRootApp`, replace its remaining source-text characterization checks with feature-level behavioral tests, and then begin the scene-design coordinator boundary.
+The next implementation slice should move scene wall/grid command orchestration behind the `SceneDesignFeature` API and repositories, then move scene-properties presentation assembly out of `WorkspaceRootApp`.
 
 ## Purpose
 
