@@ -22,6 +22,7 @@ import { renderGMAssistantPanel } from "../panels/gm-assistant-panel.mjs";
 
 export class WorkspacePanelHost {
     constructor({
+        getFeatures = () => [],
         designActionRegistry,
         escapeHTML = (value) => String(value ?? ""),
         isGM = () => false,
@@ -39,6 +40,7 @@ export class WorkspacePanelHost {
         renderGamemasterPanel = () => "",
         getSelectedTokenIds = () => new Set()
     } = {}) {
+        this.getFeatures = getFeatures;
         this.designActionRegistry = designActionRegistry;
         this.escapeHTML = escapeHTML;
         this.isGM = isGM;
@@ -80,6 +82,16 @@ export class WorkspacePanelHost {
     renderPanelBodyContent(panel, context = {}) {
         if (!panel) {
             return `<div class="totc-v2-panel-placeholder">Empty</div>`;
+        }
+
+        const features = this.getFeatures?.() ?? [];
+        for (const feature of features) {
+            if (typeof feature.render === "function") {
+                const result = feature.render(panel, context);
+                if (result !== undefined && result !== null) {
+                    return result;
+                }
+            }
         }
 
         if (this.isMapPanel(panel)) {

@@ -206,9 +206,6 @@ import {
     buildEncounterManagerPanelModel
 } from "./panels/encounter-manager-panel.mjs";
 import {
-    buildPlayerEncounterPanelModel
-} from "./panels/player-encounter-panel.mjs";
-import {
     buildCampaignViewDeletePlan,
     buildCampaignViewMovePlan,
     buildCampaignViewPanelModel,
@@ -220,9 +217,6 @@ import {
 } from "./panels/gm-assistant-panel.mjs";
 import { LLMService } from "../../services/llm-service.mjs";
 import {
-    buildEncounterPlannerForCombatant
-} from "../../encounters/planner-context.mjs";
-import {
     findCombatantForToken
 } from "../../encounters/combatant-token-matching.mjs";
 import {
@@ -232,6 +226,8 @@ import {
     requireCombatDocumentClass,
     requireItemDocumentClass
 } from "../../foundry-v14-runtime.mjs";
+import { WorkspaceFeature } from "./workspace-feature.mjs";
+import { EncounterPlanningFeature } from "./controllers/encounter-planning-feature.mjs";
 
 const ApplicationV2Base = requireApplicationV2();
 const CombatDocumentClass = requireCombatDocumentClass();
@@ -583,6 +579,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     constructor({ stateStore, governor } = {}) {
         super();
+        this.features = [];
         this.stateStore = stateStore;
         this.governor = governor;
         this.panelRegistry = new WorkspacePanelRegistry();
@@ -680,6 +677,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             logger: totcLogger
         });
         this.panelHost = new WorkspacePanelHost({
+            getFeatures: () => this.features,
             designActionRegistry: this.designActionRegistry,
             escapeHTML: (value) => this.#escapeHTML(value),
             isGM: () => Boolean(game.user?.isGM),
@@ -690,13 +688,22 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             gridCalibrationState: () => this.gridCalibrationController.state,
             getSceneGridOverlayState: (scene) => this.#getSceneGridOverlayState(scene),
             getSceneWallOverlayState: (scene) => this.#getSceneDetectedWallOverlayState(scene),
-            getEncounterMovementOverlayState: (scene) => this.#getEncounterMovementOverlayState(scene),
-            getEncounterTargetOverlayState: (scene) => this.#getEncounterTargetOverlayState(scene),
+            getEncounterMovementOverlayState: (scene) => this.encounterPlanningFeature?.getMovementOverlayState(scene),
+            getEncounterTargetOverlayState: (scene) => this.encounterPlanningFeature?.getTargetOverlayState(scene),
             getMapPanelToolbarState: (panel) => this.#getMapPanelToolbarState(panel),
             renderMarketPanel: (marketPanel) => this.#renderMarketPanel(marketPanel),
             renderGamemasterPanel: (gmPanel, gmSnapshot, dieRollRequestPanel) => this.#renderGamemasterPanel(gmPanel, gmSnapshot, dieRollRequestPanel),
             getSelectedTokenIds: () => this.selectedTokenIds
         });
+        this.encounterPlanningFeature = new EncounterPlanningFeature({
+            panelRegistry: this.panelRegistry,
+            layoutEngine: this.layoutEngine,
+            stateStore: this.stateStore,
+            render: (options) => this.render(options),
+            escapeHTML: (value) => this.#escapeHTML(value),
+            getSelectedTokenIds: () => this.selectedTokenIds
+        });
+        this.registerFeature(this.encounterPlanningFeature);
         this.marketController = new MarketController({
             getScene: () => canvas?.scene ?? game.scenes?.viewed ?? null,
             getActors: () => game.actors?.contents ?? [],
@@ -1009,6 +1016,21 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
     }
 
+    /**
+     * Register a new Workspace feature.
+     *
+     * @param {WorkspaceFeature} feature - The feature to register.
+     */
+    registerFeature(feature) {
+        if (!(feature instanceof WorkspaceFeature)) {
+            throw new TypeError("feature must be an instance of WorkspaceFeature");
+        }
+        this.features.push(feature);
+        if (this.rendered && this.element) {
+            feature.bind(this.element);
+        }
+    }
+
     #wireRollLockGuard() {
         this.element?.addEventListener("click", (event) => {
             if (!dieRollRequestManager.hasOutstandingRequests()) return;
@@ -1039,7 +1061,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const scenePropertiesState = this.sceneWorkspaceController.propertiesState;
         const combat = game.combats?.active ?? game.combat ?? null;
         const controlledTokens = canvas?.tokens?.controlled ?? [];
-        const pinnedEncounterSceneId = String(this._encounterPlannerSelection?.sceneId ?? "").trim();
+        const pinnedEncounterSceneId = this.encounterPlanningFeature?.selectedSceneId ?? "";
         const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
         const isCanvasSceneMatch = canvas?.ready && canvasSceneId && canvasSceneId === String(scene?.id ?? scene?._id ?? "").trim();
         const canSyncTokenSelectionFromCanvas = isCanvasSceneMatch && (!pinnedEncounterSceneId || !canvasSceneId || pinnedEncounterSceneId === canvasSceneId);
@@ -1100,28 +1122,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             panelState: marketPanelState,
             compendiumItems
         });
-        const encounterPlannerSelection = this.#resolveEncounterPlannerSelection({
-            combat,
-            scene
-        });
-
-        const selectedEncounterActor = encounterPlannerSelection?.actor ?? null;
-        const selectedEncounterToken = encounterPlannerSelection?.token ?? null;
-        const playerEncounterPlanner = encounterPlannerSelection?.combatant?.id
-            ? buildEncounterPlannerForCombatant({
-                actor: selectedEncounterActor,
-                tokenDocument: selectedEncounterToken,
-                combat: encounterPlannerSelection.combat ?? combat,
-                combatantId: encounterPlannerSelection.combatant.id
-            })
-            : null;
-        const playerEncounterPanel = buildPlayerEncounterPanelModel({
-            actor: selectedEncounterActor,
-            planner: playerEncounterPlanner,
-            combat,
-            activePlanEditSlot: this._activePlanEditSlot
-        });
-
         // GM panel highlight tracking (groups)
         const gmVisibleGroupIds = gmPanel.groups?.map((g) => g.id) ?? [];
         const gmHighlightedGroupIds = this.#trackPanelSectionHighlights("gm", gmVisibleGroupIds);
@@ -1156,7 +1156,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             combat
         });
 
-        return {
+        const context = {
             enabled: policy.enabled,
             debugGovernance: policy.debugGovernance,
             hasUserLayout: Boolean(this.stateStore?.getUserLayout?.()),
@@ -1217,7 +1217,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             gm: gmSnapshot,
             gmPanel: highlightedGmPanel,
             marketPanel,
-            playerEncounterPanel,
+            playerEncounterPanel: null,
             designIssuesPanel,
             scenePropertiesPanel: buildScenePropertiesPanelModel({
                 scene: scenePropertiesScene,
@@ -1262,6 +1262,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     .sort((a, b) => a.label.localeCompare(b.label))
             })
         };
+
+        for (const feature of this.features) {
+            if (typeof feature.prepareContext === "function") {
+                await feature.prepareContext(context);
+            }
+        }
+
+        return context;
     }
 
     async _renderHTML(context) {
@@ -1401,7 +1409,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.sceneActorDropController.wireActorListDragHandlers(this.element);
 
-        this.#wirePlayerEncounterPanelHandlers();
         this.#wireEncounterManagerPanelHandlers();
 
         this.element?.querySelectorAll("[data-action='media-browser-filter-type']")?.forEach((select) => {
@@ -2215,9 +2222,24 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.#wireInteractionHandlers();
         this.#wireResizeHandlers();
+
+        for (const feature of this.features) {
+            if (typeof feature.bind === "function") {
+                feature.bind(this.element);
+            }
+        }
     }
 
     async close(options = {}) {
+        for (const feature of this.features) {
+            if (typeof feature.dispose === "function") {
+                try {
+                    feature.dispose();
+                } catch (e) {
+                    console.error("[turn-of-the-century] Error disposing feature:", e);
+                }
+            }
+        }
         this.hooksController.unbindAll();
         this.compendiumCacheController.dispose();
         this.sceneActorDropController.clearDragImage();
@@ -4554,9 +4576,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     async #onWallEditKeyDown(event) {
-        if (event.key === "Escape" && this._encounterTargetingInteraction) {
+        if (event.key === "Escape" && this.encounterPlanningFeature?.hasActiveTargetingInteraction) {
             event.preventDefault();
-            await this.#cancelEncounterTargetingInteraction();
+            await this.encounterPlanningFeature.cancelActiveTargetingInteraction();
             return;
         }
 

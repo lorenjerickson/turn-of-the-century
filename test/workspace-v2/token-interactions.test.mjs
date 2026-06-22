@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 
 const rootDir = new URL("../..", import.meta.url).pathname;
 const workspaceRootSource = readFileSync(join(rootDir, "module/ui/workspace-v2/workspace-root-app.mjs"), "utf8");
+const encounterPlanningFeatureSource = readFileSync(join(rootDir, "module/ui/workspace-v2/controllers/encounter-planning-feature.mjs"), "utf8");
 const workspacePanelHostSource = readFileSync(join(rootDir, "module/ui/workspace-v2/controllers/workspace-panel-host.mjs"), "utf8");
 const styles = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
@@ -24,7 +25,7 @@ describe("workspace token interactions", () => {
         assert.match(workspaceRootSource, /#syncSelectionToCanvas\(scene = null\)/);
         assert.match(workspaceRootSource, /canvas\?\.animatePan/);
         assert.match(workspaceRootSource, /canvas\?\.pan/);
-        assert.match(workspaceRootSource, /#showEncounterPanelForToken\(\{ combat = null, scene = null, token = null, actor = null \}/);
+        assert.match(encounterPlanningFeatureSource, /showEncounterPanelForToken\(\{ combat = null, scene = null, token = null, actor = null \}/);
     });
 
     it("activates native wall tools instead of workspace map pointer handlers", () => {

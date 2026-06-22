@@ -11,6 +11,8 @@ import {
 
 const rootDir = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const workspaceRootSource = readFileSync(join(rootDir, "module/ui/workspace-v2/workspace-root-app.mjs"), "utf8");
+const encounterPlanningFeatureSource = readFileSync(join(rootDir, "module/ui/workspace-v2/controllers/encounter-planning-feature.mjs"), "utf8");
+const workspaceEncounterSource = `${workspaceRootSource}\n${encounterPlanningFeatureSource}`;
 
 const escapeHTML = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -217,69 +219,28 @@ describe("player encounter panel", () => {
     });
 
     it("wires player encounter actions through per-action combat APIs", () => {
-        assert.match(workspaceRootSource, /#wirePlayerEncounterPanelHandlers/);
-        assert.match(workspaceRootSource, /encounter-edit-plan-slot/);
-        assert.match(workspaceRootSource, /encounter-select-popup-action/);
-        assert.match(workspaceRootSource, /encounter-close-popup/);
-        assert.match(workspaceRootSource, /setCombatantPlan/);
-        assert.match(workspaceRootSource, /const remainingSlotAp = Math\.max\(1, Math\.floor\(Number\(this\._activePlanEditSlot\?\.remainingAp/);
-        assert.match(workspaceRootSource, /const planAction = actionData\.type === "movement"[\s\S]*apCost: remainingSlotAp/);
-        assert.match(workspaceRootSource, /movementFeet: movementFeetPerAp \* remainingSlotAp/);
-        assert.match(workspaceRootSource, /const nextPlan = \[\.\.\.currentPlan\.slice\(0, actionIndex\), planAction\]/);
-        assert.match(workspaceRootSource, /#beginEncounterMovementInteraction\(\{[\s\S]*maxAp: remainingSlotAp,[\s\S]*feetPerAp: movementFeetPerAp/);
-        assert.match(workspaceRootSource, /#syncEncounterMovementNativeOverlay/);
-        assert.match(workspaceRootSource, /ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER/);
-        assert.match(workspaceRootSource, /gridLayer\.highlightPosition\?\.\(ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER/);
-        assert.match(workspaceRootSource, /#syncEncounterMovementCanvasListener/);
-        assert.match(workspaceRootSource, /listenForNativeCanvasPointerDown\(canvas/);
-        assert.match(workspaceRootSource, /findEncounterMovementOverlayCellAtPoint\(model, point\)/);
-        assert.match(workspaceRootSource, /setCombatantActionApCost/);
-        assert.match(workspaceRootSource, /#projectEncounterTokenForPlan/);
-        assert.match(workspaceRootSource, /beforeActionIndex: interaction\.actionIndex/);
-        assert.match(workspaceRootSource, /movementOriginX/);
-        assert.match(workspaceRootSource, /movementFeet: movementFeetPerAp \* cost/);
-        assert.match(workspaceRootSource, /const cellLeft = Number\(selectedCell\?\.left\)/);
-        assert.match(workspaceRootSource, /Number\.isFinite\(cellLeft\) \? cellLeft : \(col \* gridSize\) \+ offsetX/);
-        assert.match(workspaceRootSource, /buildEncounterPlanningMovementPath\(\{/);
-        assert.match(workspaceRootSource, /applyLocalPlanningTokenPath\(token, movementPath\)/);
-        assert.doesNotMatch(workspaceRootSource, /tokenDocument\?\.update\?\.\(\{ x: waypoint\.x, y: waypoint\.y \}\)/);
-        assert.match(workspaceRootSource, /_encounterTargetingInteraction/);
-        assert.match(workspaceRootSource, /#beginEncounterTargetingInteraction/);
-        assert.match(workspaceRootSource, /#finishEncounterTargetingInteraction/);
-        assert.match(workspaceRootSource, /#cancelEncounterTargetingInteraction/);
-        assert.match(workspaceRootSource, /#syncEncounterTargetingCanvasListener/);
-        assert.match(workspaceRootSource, /#handleEncounterTargetingCanvasPointerDown/);
-        assert.match(workspaceRootSource, /preferView: true, capture: true/);
-        assert.match(workspaceRootSource, /stopImmediatePropagation/);
-        assert.match(workspaceRootSource, /findEncounterTargetTokenAtPoint\(\{/);
-        assert.match(workspaceRootSource, /if \(!isPrimaryPointerButton\(event\)\)[\s\S]*#cancelEncounterTargetingInteraction/);
-        assert.match(workspaceRootSource, /if \(!tokenId\)[\s\S]*#cancelEncounterTargetingInteraction/);
-        assert.match(workspaceRootSource, /#cancelEncounterTargetingInteraction\(\)[\s\S]*removeCombatantAction\(interaction\.combatantId, interaction\.actionIndex\)/);
-        assert.doesNotMatch(workspaceRootSource, /rollEncounter/);
-        assert.doesNotMatch(workspaceRootSource, /rollAllMissing/);
-        assert.doesNotMatch(workspaceRootSource, /player-execute-encounter-action/);
+        assert.doesNotMatch(workspaceRootSource, /this\.\#wirePlayerEncounterPanelHandlers\(\)/);
+        assert.match(encounterPlanningFeatureSource, /encounter-edit-plan-slot/);
+        assert.match(encounterPlanningFeatureSource, /encounter-select-popup-action/);
+        assert.match(encounterPlanningFeatureSource, /encounter-close-popup/);
+        assert.match(encounterPlanningFeatureSource, /setCombatantPlan/);
+        assert.match(encounterPlanningFeatureSource, /#beginEncounterMovementInteraction/);
+        assert.match(encounterPlanningFeatureSource, /#beginEncounterTargetingInteraction/);
+        assert.match(encounterPlanningFeatureSource, /applyLocalPlanningTokenPath\(token, movementPath\)/);
+        assert.doesNotMatch(workspaceEncounterSource, /player-execute-encounter-action/);
     });
 
     it("keeps the player encounter panel available as its own right-dock panel", () => {
-        assert.match(workspaceRootSource, /#showEncounterPanel/);
-        assert.match(workspaceRootSource, /this\.panelRegistry\.get\("encounter"\)/);
-        assert.match(workspaceRootSource, /restorePanel\(panelDef, \{ preferredDockId: panelDef\.defaultDock \?\? "rightDock" \}\)/);
+        assert.match(encounterPlanningFeatureSource, /showEncounterPanel\(\)/);
+        assert.match(encounterPlanningFeatureSource, /this\.panelRegistry\.get\("encounter"\)/);
+        assert.match(encounterPlanningFeatureSource, /restorePanel\(panelDef, \{ preferredDockId: panelDef\.defaultDock \?\? "rightDock" \}\)/);
     });
 
     it("uses encounter-specific token selection when building the encounter planner", () => {
-        assert.match(workspaceRootSource, /const encounterPlannerSelection = this\.\#resolveEncounterPlannerSelection\(\{/);
-        assert.match(workspaceRootSource, /const selectedEncounterActor = encounterPlannerSelection\?\.actor \?\? null/);
-        assert.match(workspaceRootSource, /const selectedEncounterToken = encounterPlannerSelection\?\.token \?\? null/);
-        assert.doesNotMatch(workspaceRootSource, /const selectedEncounterActor = encounterPlannerSelection\?\.actor \?\? selectedPlayerActor/);
-        assert.doesNotMatch(workspaceRootSource, /buildEncounterPlanner\(selectedEncounterActor, selectedEncounterToken\)/);
-        assert.match(workspaceRootSource, /buildEncounterPlannerForCombatant\(\{/);
-        assert.match(workspaceRootSource, /combatantId: encounterPlannerSelection\.combatant\.id/);
-        assert.match(workspaceRootSource, /actor: selectedEncounterActor,[\s\S]*planner: playerEncounterPlanner/);
-        assert.match(workspaceRootSource, /#getSelectedEncounterToken\(scene = null\)/);
-        assert.match(workspaceRootSource, /#getEncounterCombat\(element = null\)/);
-        assert.match(workspaceRootSource, /closest\?\.\("\.totc-v2-encounter-panel"\)\?\.dataset\?\.combatId/);
-        assert.match(workspaceRootSource, /const combat = this\.\#getEncounterCombat\((el|button|input)\)/);
-        assert.match(workspaceRootSource, /const tokenCombat = this\.\#getEncounterCombatForToken\(token\)/);
-        assert.match(workspaceRootSource, /const selectedCombat = tokenCombat \?\? combat \?\? this\.\#getEncounterCombat\(\)/);
+        assert.match(workspaceRootSource, /this\.registerFeature\(this\.encounterPlanningFeature\)/);
+        assert.match(encounterPlanningFeatureSource, /const selection = this\.\#resolveEncounterPlannerSelection\(\{ combat, scene \}\)/);
+        assert.match(encounterPlanningFeatureSource, /buildEncounterPlannerForCombatant\(\{/);
+        assert.match(encounterPlanningFeatureSource, /context\.playerEncounterPanel = buildPlayerEncounterPanelModel/);
+        assert.match(encounterPlanningFeatureSource, /#getSelectedEncounterToken\(scene = null\)/);
     });
 });

@@ -4,6 +4,21 @@ Date: 2026-06-21
 Status: Recommended architecture direction  
 Related review: [JavaScript Architecture Review](./JAVASCRIPT_ARCHITECTURE_REVIEW.md)
 
+## Implementation Status
+
+As of 2026-06-21, implementation has begun with the first recommended vertical extraction:
+
+| Plan area | Current state |
+| --- | --- |
+| Workspace feature contract | Implemented. The root routes context preparation, binding, panel rendering, and disposal through registered `WorkspaceFeature` instances. |
+| Encounter planning | In progress. `EncounterPlanningFeature` is registered by default and owns the live player-planner context, rendering, DOM handlers, movement/targeting sessions, canvas listeners, overlays, and disposal. |
+| Workspace root cleanup | Pending. The former encounter-planning private methods remain temporarily as unreachable compatibility code and should be deleted after broader characterization coverage is moved to the feature. |
+| Scene design consolidation | Not started. Ownership remains distributed across the modules listed below. |
+| Pure encounter resolution engine | Not started. `combat.mjs` remains a combined Foundry adapter and domain engine. |
+| Content/publication split | Not started. `sample-content.mjs` remains monolithic. |
+
+The next implementation slice should remove the unreachable encounter-planning implementation from `WorkspaceRootApp`, replace its remaining source-text characterization checks with feature-level behavioral tests, and then begin the scene-design coordinator boundary.
+
 ## Purpose
 
 This document records the highest-value opportunities to make the system easier to understand, test, and extend. The priorities are:
@@ -330,4 +345,3 @@ The modularization should be considered successful when:
 - Feature tests call public feature APIs instead of inspecting source text.
 - A typical feature change can be understood by reading one feature directory and a small number of contracts.
 - Large-file growth is replaced by new cohesive modules rather than additional methods in central classes.
-
