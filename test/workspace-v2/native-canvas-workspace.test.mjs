@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 
 const rootDir = new URL("../..", import.meta.url).pathname;
 const workspaceRootSource = readFileSync(join(rootDir, "module/ui/workspace-v2/workspace-root-app.mjs"), "utf8");
+const sceneDesignFeatureSource = readFileSync(join(rootDir, "module/ui/workspace-v2/controllers/scene-design-feature.mjs"), "utf8");
 const styles = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
 describe("native canvas workspace integration", () => {
@@ -23,19 +24,21 @@ describe("native canvas workspace integration", () => {
     });
 
     it("keeps grid calibration input keys from escaping to the native canvas", () => {
-        assert.match(workspaceRootSource, /gridCalibrationInputSelector/);
-        assert.match(workspaceRootSource, /input\.addEventListener\("keydown"[\s\S]*event\.stopPropagation\(\);/);
-        assert.match(workspaceRootSource, /event\.key === "Tab"[\s\S]*event\.preventDefault\(\);/);
-        assert.match(workspaceRootSource, /this\.\#syncGridCalibrationStateFromInputs\(\);[\s\S]*await this\.\#flushGridCalibrationPreview\(\);/);
-        assert.match(workspaceRootSource, /#focusAdjacentGridCalibrationInput/);
+        assert.match(sceneDesignFeatureSource, /gridCalInputSelector/);
+        assert.match(sceneDesignFeatureSource, /input\?\.matches\?\.\(gridCalInputSelector\)/);
+        assert.match(sceneDesignFeatureSource, /event\.stopPropagation\(\);/);
+        assert.match(sceneDesignFeatureSource, /event\.key === "Tab"[\s\S]*event\.preventDefault\(\);/);
+        assert.match(sceneDesignFeatureSource, /this\.syncGridCalibrationStateFromInputs\([\s\S]*\);[\s\S]*await this\.flushGridCalibrationPreview\(\);/);
+        assert.match(sceneDesignFeatureSource, /focusAdjacentGridCalibrationInput/);
     });
 
     it("debounces grid calibration previews while keeping boundary events immediate", () => {
-        assert.match(workspaceRootSource, /GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS = 100/);
-        assert.match(workspaceRootSource, /GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS = 500/);
-        assert.match(workspaceRootSource, /input\.addEventListener\("input"[\s\S]*this\.\#scheduleGridCalibrationPreview\(\{ geometry: input\.dataset\.action !== "grid-cal-color" \}\);/);
-        assert.match(workspaceRootSource, /#scheduleGridCalibrationPreview\(\{ geometry = true \} = \{\}\)[\s\S]*GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS[\s\S]*GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS[\s\S]*setTimeout\(\(\) => \{[\s\S]*#previewGridCalibrationOnCanvas\(\);[\s\S]*delay/);
-        assert.match(workspaceRootSource, /#flushGridCalibrationPreview\(\)[\s\S]*this\.\#clearGridCalibrationPreviewTimer\(\);[\s\S]*return this\.\#previewGridCalibrationOnCanvas\(\);/);
+        assert.match(sceneDesignFeatureSource, /GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS = 100/);
+        assert.match(sceneDesignFeatureSource, /GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS = 500/);
+        assert.match(sceneDesignFeatureSource, /input\?\.matches\?\.\(gridCalInputSelector\)/);
+        assert.match(sceneDesignFeatureSource, /this\.scheduleGridCalibrationPreview\(\{ geometry: input\.dataset\.action !== "grid-cal-color" \}\);/);
+        assert.match(sceneDesignFeatureSource, /scheduleGridCalibrationPreview\(\{ geometry = true \} = \{\}\)[\s\S]*GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS[\s\S]*GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS[\s\S]*setTimeout\(\(\) => \{[\s\S]*this\.previewGridCalibrationOnCanvas\(\);[\s\S]*delay/);
+        assert.match(sceneDesignFeatureSource, /flushGridCalibrationPreview\(\)[\s\S]*this\.clearGridCalibrationPreviewTimer\(\);[\s\S]*return this\.previewGridCalibrationOnCanvas\(\);/);
     });
 
     it("lets pointer events pass through the workspace canvas aperture", () => {

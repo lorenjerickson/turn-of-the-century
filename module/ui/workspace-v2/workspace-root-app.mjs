@@ -104,11 +104,6 @@ import {
     buildMediaBrowserPanelModel
 } from "./panels/media-browser-panel.mjs";
 import { getSceneBackgroundSource } from "./scene-background-source.mjs";
-import {
-    getNativeCanvasEventScenePoint,
-    isPrimaryPointerButton,
-    previewNativeCanvasGrid
-} from "./native-canvas-grid-calibration.mjs";
 import { totcLogger } from "./logger.mjs";
 import {
     buildLoggingPanelModel,
@@ -122,22 +117,6 @@ import {
 import {
     buildDesignIssuesPanelModel
 } from "./panels/design-issues-panel.mjs";
-import {
-    addWallSegmentToScene,
-    advanceWallPlacementSequence,
-    buildWallEditingGrid,
-    findWallsIntersectingBounds,
-    findWallsWithinBounds,
-    joinWallSegmentsById,
-    removeWallSegmentsById,
-    snapPointToGridIntersection,
-    splitWallSegmentAtPoint,
-    wallTypeForShortcut,
-    wallDocumentId
-} from "./scene-wall-editing.mjs";
-import {
-    buildSceneWallOverlayState
-} from "./scene-wall-detection.mjs";
 
 const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
 import {
@@ -715,13 +694,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
         this.sceneDesignFeature = new SceneDesignFeature({
             gridCalibrationController: this.gridCalibrationController,
-            getPanelSceneId: (panel) => this.#getPanelSceneId(panel),
-            getSceneDocumentById: (sceneId) => this.#getSceneDocumentById(sceneId),
-            getActiveWallCommandPanel: () => this.#getActiveWallCommandPanel(),
-            handleWallCommandPointerDown: (event) => this.#handleWallCommandCanvasPointerDown(event),
-            previewGridCalibration: () => this.#previewGridCalibrationOnCanvas(),
+            sceneWorkspaceController: this.sceneWorkspaceController,
+            encounterPlanningFeature: this.encounterPlanningFeature,
+            executeDesignAction: (actionId, options) => this.#executeDesignAction(actionId, options),
             render: (options) => this.render(options),
-            onKeyDown: (event) => this.#onWallEditKeyDown(event),
             notifications: globalThis.ui?.notifications
         });
         this.registerFeature(this.sceneDesignFeature);
@@ -796,7 +772,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._wallSelectionRefreshHandler = () => {
             const scene = canvas?.scene ?? game.scenes?.viewed ?? game.scenes?.active ?? null;
             this.sceneDesignFeature.syncSelectedWallsFromCanvas(scene, { clearWhenEmpty: true });
-            if (scene) this.#refreshSceneWallOverlay(scene);
+            if (scene) this.sceneDesignFeature.refreshSceneWallOverlay(scene);
             if (this.rendered) this.render({ force: false });
         };
         this._dieRollRequestUnsubscribe = dieRollRequestManager.onChange((change) => {
@@ -1344,7 +1320,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         await super._onRender(context, options);
         this.hooksController.bindAll();
         this.#syncNativeCanvasScene();
-        this.sceneDesignFeature.syncGridCalibrationCanvasListener();
 
         this.#wireRollLockGuard();
         this.#wireDieRollRequestHandlers();
@@ -1492,145 +1467,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
-        this.element?.querySelectorAll("[data-action='map-mode-select']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (!game.user?.isGM) return;
-                const panelId = String(button.dataset.mapPanelId ?? "").trim();
-                const mode = String(button.dataset.mode ?? "").trim();
-                const current = this.sceneDesignFeature.getMapPanelToolbarState(this.panelRegistry?.get?.(panelId) ?? { id: panelId });
-                const nextMode = current.mode === mode ? null : mode;
-                this.sceneDesignFeature.patchMapPanelToolbarState(panelId, {
-                    mode: nextMode,
-                    ...(nextMode === "walls" ? { wallCommand: "add" } : {})
-                });
-                if (nextMode === "walls") {
-                    await this.#executeDesignAction("scene.walls", { panelId });
-                } else if (mode === "walls") {
-                    await this.#deactivateWallModeForPanel(panelId);
-                }
-                this.sceneDesignFeature.syncWallCommandCanvasListener();
-                this.render({ force: false });
-            });
-        });
 
-        this.element?.querySelectorAll("[data-action='map-wall-command']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (!game.user?.isGM) return;
-                const panelId = String(button.dataset.mapPanelId ?? "").trim();
-                const command = String(button.dataset.command ?? "").trim();
-                this.sceneDesignFeature.cancelWallAddSequence({ notify: false });
-                if (command === "remove") {
-                    this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallCommand: "add" });
-                    this.sceneDesignFeature.syncWallCommandCanvasListener();
-                    await this.#deleteSelectedWallsForPanel(panelId);
-                    return;
-                }
-                if (command === "join") {
-                    this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallCommand: "add" });
-                    this.sceneDesignFeature.syncWallCommandCanvasListener();
-                    await this.#joinSelectedWallsForPanel(panelId);
-                    return;
-                }
-                this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallCommand: command });
-                if (command === "detect") {
-                    await this.#executeDesignAction("scene.detectWalls", { panelId });
-                    this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallCommand: "add" });
-                }
-                this.sceneDesignFeature.syncWallCommandCanvasListener();
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='map-wall-type']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (!game.user?.isGM) return;
-                const panelId = String(button.dataset.mapPanelId ?? "").trim();
-                const wallType = String(button.dataset.wallType ?? "").trim();
-                this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallType, wallCommand: "add" });
-                this.sceneDesignFeature.syncWallCommandCanvasListener();
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='grid-cal-start']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.#startGridCalibrationFromSceneProperties();
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='grid-cal-cancel']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this.gridCalibrationController.close();
-                this.#clearGridCalibrationPreviewTimer();
-                this.sceneDesignFeature.clearGridCalibrationCanvasListener();
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='grid-cal-reset']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this.gridCalibrationController.resetCorners();
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='grid-cal-confirm']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this.#syncGridCalibrationStateFromInputs();
-                await this.#flushGridCalibrationPreview();
-                const result = await this.gridCalibrationController.apply();
-                if (result?.ok) {
-                    this.#clearGridCalibrationPreviewTimer();
-                    this.sceneDesignFeature.clearGridCalibrationCanvasListener();
-                }
-                this.render({ force: false });
-            });
-        });
-
-        const gridCalibrationInputSelector = "[data-action='grid-cal-cell-w'], [data-action='grid-cal-cell-h'], [data-action='grid-cal-offset-x'], [data-action='grid-cal-offset-y'], [data-action='grid-cal-color']";
-        this.element?.querySelectorAll(gridCalibrationInputSelector)?.forEach((input) => {
-            input.addEventListener("keydown", async (event) => {
-                event.stopPropagation();
-                if (event.key === "Tab" || event.key === "Enter") {
-                    this.#syncGridCalibrationStateFromInputs();
-                    await this.#flushGridCalibrationPreview();
-                }
-                if (event.key === "Tab") {
-                    event.preventDefault();
-                    this.#focusAdjacentGridCalibrationInput(input, { backwards: event.shiftKey });
-                }
-            }, { capture: true });
-            input.addEventListener("keyup", (event) => {
-                event.stopPropagation();
-            }, { capture: true });
-            input.addEventListener("input", async () => {
-                this.#syncGridCalibrationStateFromInputs();
-                this.#scheduleGridCalibrationPreview({ geometry: input.dataset.action !== "grid-cal-color" });
-            });
-            input.addEventListener("change", async () => {
-                this.#syncGridCalibrationStateFromInputs();
-                await this.#flushGridCalibrationPreview();
-                this.render({ force: false });
-            });
-            input.addEventListener("focusout", async () => {
-                this.#syncGridCalibrationStateFromInputs();
-                await this.#flushGridCalibrationPreview();
-            });
-        });
 
         this.element?.querySelectorAll("[data-action='toggle-design-command-palette']")?.forEach((button) => {
             button.addEventListener("click", (event) => {
@@ -3631,436 +3468,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     }
 
-    async #onWallEditKeyDown(event) {
-        if (event.key === "Escape" && this.encounterPlanningFeature?.hasActiveTargetingInteraction) {
-            event.preventDefault();
-            await this.encounterPlanningFeature.cancelActiveTargetingInteraction();
-            return;
-        }
 
-        const activeWallsPanel = this.#getActiveWallsPanel();
-        if (event.key === "Escape" && game.user?.isGM && activeWallsPanel) {
-            event.preventDefault();
-            event.stopPropagation();
-            this.sceneDesignFeature.cancelWallAddSequence({ notify: false });
-            this.sceneDesignFeature.patchMapPanelToolbarState(activeWallsPanel.panel.id, { wallCommand: "add" });
-            this.sceneDesignFeature.syncWallCommandCanvasListener();
-            ui.notifications?.info?.("Wall placement reset. Click to set a new starting point.");
-            this.render({ force: false });
-            return;
-        }
-
-        if (!game.user?.isGM) return;
-        if (event.altKey || event.ctrlKey || event.metaKey) return;
-        const target = event.target;
-        if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target?.isContentEditable) return;
-
-        const panel = this.#getPrimaryActivePanel();
-        if (!this.#isMapPanel(panel)) return;
-
-        const panelId = String(panel?.id ?? "").trim();
-        if (!panelId) return;
-
-        const state = this.sceneDesignFeature.getMapPanelToolbarState(panel);
-        const key = String(event.key ?? "").toLowerCase();
-        const wallsActive = state.mode === "walls";
-
-        if (key === "w" && !wallsActive) {
-            event.preventDefault();
-            this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { mode: "walls", wallCommand: "add" });
-            await this.#executeDesignAction("scene.walls", { panelId });
-            this.sceneDesignFeature.syncWallCommandCanvasListener();
-            this.render({ force: false });
-            return;
-        }
-
-        if (!wallsActive) return;
-
-        if (key === "s") {
-            event.preventDefault();
-            this.sceneDesignFeature.cancelWallAddSequence();
-            this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallCommand: "split" });
-            this.sceneDesignFeature.syncWallCommandCanvasListener();
-            this.render({ force: false });
-            return;
-        }
-
-        if (key === "j") {
-            event.preventDefault();
-            await this.#joinSelectedWallsForPanel(panelId);
-            return;
-        }
-
-        if (key === "delete") {
-            if (Number(state.selectedWallCount ?? 0) <= 0) return;
-            event.preventDefault();
-            await this.#deleteSelectedWallsForPanel(panelId);
-            return;
-        }
-
-        const wallType = wallTypeForShortcut(key);
-        if (!wallType) return;
-
-        event.preventDefault();
-        this.sceneDesignFeature.patchMapPanelToolbarState(panelId, { wallType, wallCommand: "add" });
-        this.sceneDesignFeature.syncWallCommandCanvasListener();
-        this.render({ force: false });
-    }
-
-    async #deactivateWallModeForPanel(panelId = "") {
-        const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
-        const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
-        this.sceneDesignFeature.cancelWallAddSequence({ notify: false });
-        this.sceneDesignFeature.clearWallCommandCanvasListener();
-        if (scene) {
-            this.sceneDesignFeature.setSelectedWallIds(scene, []);
-            this.sceneDesignFeature.setJoinableWallIds(scene, []);
-            this.sceneDesignFeature.setSceneDetectedWallOverlayState(scene, null);
-        }
-
-        try {
-            if (typeof ui?.controls?.activate === "function") {
-                await ui.controls.activate({ control: "tokens", tool: "select" });
-                return;
-            }
-            if (typeof ui?.controls?.initialize === "function") {
-                await ui.controls.initialize({ control: "tokens", tool: "select" });
-                return;
-            }
-            await canvas?.tokens?.activate?.();
-        } catch (error) {
-            console.warn("[turn-of-the-century] Failed to deactivate native wall controls", error);
-        }
-    }
-
-    async #deleteSelectedWallsForPanel(panelId = "") {
-        const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
-        const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
-        this.sceneDesignFeature.syncSelectedWallsFromCanvas(scene);
-        const selectedIds = this.sceneDesignFeature.getSelectedWallIds(scene);
-        if (!scene || !selectedIds.size) {
-            ui.notifications?.warn?.("Select wall segments before deleting them.");
-            return;
-        }
-
-        const result = await removeWallSegmentsById({ scene, ids: selectedIds });
-        if (result?.ok) {
-            this.sceneDesignFeature.setSelectedWallIds(scene, []);
-            this.sceneDesignFeature.setJoinableWallIds(scene, []);
-            this.#refreshSceneWallOverlay(scene);
-        }
-        this.#reportWallEditResult("remove", result);
-    }
-
-    async #joinSelectedWallsForPanel(panelId = "") {
-        const panel = this.#resolvePanelDefinition(panelId) ?? { id: panelId };
-        const scene = this.#getDesignActionScene(panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
-        this.sceneDesignFeature.syncSelectedWallsFromCanvas(scene);
-        const joinableIds = this.sceneDesignFeature.getJoinableWallIds(scene);
-        if (!scene || joinableIds.size < 2) {
-            ui.notifications?.warn?.("Select two or more aligned adjacent wall segments before joining them.");
-            return;
-        }
-
-        const result = await joinWallSegmentsById({ scene, ids: joinableIds });
-        if (result?.ok) {
-            this.sceneDesignFeature.setSelectedWallIds(scene, []);
-            this.sceneDesignFeature.setJoinableWallIds(scene, []);
-            this.#refreshSceneWallOverlay(scene);
-        }
-        this.#reportWallEditResult("join", result);
-    }
-
-
-    #getActiveWallsPanel() {
-        const panels = [
-            this.#getPrimaryActivePanel(),
-            this.#getActiveCenterMapPanel()
-        ].filter(Boolean);
-
-        for (const panel of panels) {
-            if (!this.#isMapPanel(panel)) continue;
-            const state = this.sceneDesignFeature.getMapPanelToolbarState(panel);
-            if (state.mode === "walls") return { panel, state };
-        }
-
-        return null;
-    }
-
-    #getActiveWallCommandPanel() {
-        const active = this.#getActiveWallsPanel();
-        if (!active) return null;
-        const command = String(active.state.wallCommand ?? "").trim();
-        return ["add", "split"].includes(command) ? { ...active, command } : null;
-    }
-
-    async #handleWallCommandCanvasPointerDown(event = {}) {
-        const active = this.#getActiveWallCommandPanel();
-        if (!active || !game.user?.isGM) return;
-        if (!isPrimaryPointerButton(event)) return;
-
-        const point = getNativeCanvasEventScenePoint(event, canvas);
-        if (!point) {
-            ui.notifications?.warn?.("That wall click could not be converted to scene coordinates.");
-            return;
-        }
-
-        event?.stopPropagation?.();
-        event?.preventDefault?.();
-
-        const scene = this.#getDesignActionScene(active.panel, canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null);
-        const grid = buildWallEditingGrid(scene);
-        const snapped = snapPointToGridIntersection(point, grid);
-        if (!scene || !snapped) {
-            ui.notifications?.warn?.("Wall editing requires a calibrated square grid.");
-            return;
-        }
-
-        if (active.command === "add") {
-            await this.#handleWallAddCanvasPoint({ scene, point: snapped, state: active.state });
-            return;
-        }
-
-        if (active.command === "split") {
-            const result = await splitWallSegmentAtPoint({ scene, point: snapped, grid });
-            if (result?.ok) this.#refreshSceneWallOverlay(scene);
-            this.#reportWallEditResult("split", result);
-        }
-    }
-
-    async #handleWallAddCanvasPoint({ scene = null, point = null, state = {} } = {}) {
-        if (!scene || !point) return;
-
-        const previousSequence = this.sceneDesignFeature.wallAddSequence;
-        const step = advanceWallPlacementSequence(previousSequence, {
-            sceneId: String(scene.id ?? scene._id ?? ""),
-            point
-        });
-        this.sceneDesignFeature.wallAddSequence = step.sequence;
-        if (!step.segment) {
-            ui.notifications?.info?.("Wall start set. Each left click adds the next segment. Press Esc to reset the origin.");
-            return;
-        }
-
-        const result = await addWallSegmentToScene({
-            scene,
-            start: step.segment.start,
-            end: step.segment.end,
-            wallType: state.wallType
-        });
-        if (result?.ok) {
-            this.#refreshSceneWallOverlay(scene);
-        } else {
-            this.sceneDesignFeature.wallAddSequence = previousSequence;
-        }
-        this.#reportWallEditResult("add", result);
-    }
-
-    #reportWallEditResult(command, result = null) {
-        if (result?.ok) {
-            const deletedCount = Array.isArray(result.deleted) ? result.deleted.length : 0;
-            const messages = {
-                add: "Wall segment added.",
-                remove: deletedCount > 1 ? `${deletedCount} wall segments removed.` : "Wall segment removed.",
-                split: "Wall segment split.",
-                join: "Wall segments joined."
-            };
-            ui.notifications?.info?.(messages[command] ?? "Wall edit applied.");
-            this.render({ force: false });
-            return;
-        }
-
-        const reasonMessages = {
-            "wall-not-found": "No wall segment was found near that point.",
-            "join-not-found": "No aligned wall segments were found near that join point.",
-            "invalid-split-point": "That wall cannot be split at the selected grid point.",
-            "invalid-wall-segment": "Choose two different grid intersections for a wall segment.",
-            "wall-creation-unavailable": "This scene cannot create walls in the current Foundry session.",
-            "wall-deletion-unavailable": "This scene cannot delete walls in the current Foundry session.",
-            "wall-update-unavailable": "This scene cannot update walls in the current Foundry session."
-        };
-        ui.notifications?.warn?.(reasonMessages[result?.reason] ?? "Wall edit could not be applied.");
-    }
-
-    #refreshSceneWallOverlay(scene = null) {
-        if (!scene) return;
-        const walls = scene?.walls;
-        const wallDocuments = Array.isArray(walls)
-            ? walls
-            : Array.isArray(walls?.contents)
-                ? walls.contents
-                : typeof walls?.values === "function"
-                    ? Array.from(walls.values())
-                    : typeof walls?.[Symbol.iterator] === "function"
-                        ? Array.from(walls)
-                        : [];
-        const existingWallIds = new Set(wallDocuments.map((wall) => wallDocumentId(wall)).filter(Boolean));
-        const selectedWallIds = [...this.sceneDesignFeature.getSelectedWallIds(scene)].filter((id) => existingWallIds.has(id));
-        const joinableWallIds = [...this.sceneDesignFeature.getJoinableWallIds(scene)].filter((id) => existingWallIds.has(id));
-        this.sceneDesignFeature.setSelectedWallIds(scene, selectedWallIds);
-        this.sceneDesignFeature.setJoinableWallIds(scene, joinableWallIds);
-        this.sceneDesignFeature.setSceneDetectedWallOverlayState(scene, buildSceneWallOverlayState(scene, {
-            selectedWallIds
-        }));
-    }
-
-    #isDesignLensActive(panelId) {
-        return Boolean(panelId && this.activeDesignLensPanelIds.has(panelId));
-    }
-
-    #getPrimaryActivePanel(layout = this.layoutEngine.getLayout()) {
-        const centerDock = layout?.root?.centerDock;
-        const centerStack = centerDock?.stacks?.[0];
-        const activePanelId = centerStack?.activePanelId;
-        const activePanel = centerStack?.panels?.find((panel) => panel.id === activePanelId) ?? centerStack?.panels?.[0];
-        if (activePanel) return activePanel;
-
-        for (const dockId of WORKSPACE_V2_DOCK_IDS) {
-            const stack = layout?.root?.[dockId]?.stacks?.[0];
-            const fallbackActiveId = stack?.activePanelId;
-            const fallbackPanel = stack?.panels?.find((panel) => panel.id === fallbackActiveId) ?? stack?.panels?.[0];
-            if (fallbackPanel) return fallbackPanel;
-        }
-
-        return null;
-    }
-
-    #getActiveCenterMapPanel(layout = this.layoutEngine.getLayout()) {
-        const centerDock = layout?.root?.centerDock;
-        for (const stack of centerDock?.stacks ?? []) {
-            const activePanel = (stack?.panels ?? []).find((panel) => panel.id === stack.activePanelId) ?? stack?.panels?.[0];
-            if (this.#isMapPanel(activePanel)) return activePanel;
-        }
-        return null;
-    }
-
-    #syncNativeCanvasScene() {
-        const panel = this.#getActiveCenterMapPanel();
-        const sceneId = this.#getPanelSceneId(panel);
-        if (!sceneId) {
-            this._nativeCanvasViewSceneId = "";
-            return;
-        }
-
-        const currentSceneId = String(canvas?.scene?.id ?? game.scenes?.viewed?.id ?? "").trim();
-        if (currentSceneId === sceneId) {
-            this._nativeCanvasViewSceneId = sceneId;
-            return;
-        }
-
-        if (this._nativeCanvasViewSceneId === sceneId) return;
-
-        const scene = this.#getSceneDocumentById(sceneId);
-        if (!scene?.view) return;
-
-        this._nativeCanvasViewSceneId = sceneId;
-        void scene.view().catch((error) => {
-            this._nativeCanvasViewSceneId = "";
-            console.error("[turn-of-the-century] Failed to view workspace scene", error);
-        });
-    }
-
-    // -----------------------------------------------------------------------
-    // Grid calibration
-    // -----------------------------------------------------------------------
-
-    async #startGridCalibrationFromSceneProperties() {
-        const activePanel = this.#getPrimaryActivePanel();
-        const viewedScene = this.#getViewedScene();
-        const defaultScene = canvas?.scene ?? game.scenes?.active ?? viewedScene ?? null;
-        const scene = this.#getScenePropertiesScene(activePanel, { viewedScene, defaultScene });
-        if (!scene) {
-            ui.notifications?.warn?.("Open a scene before calibrating its grid.");
-            return;
-        }
-
-        const sceneId = String(scene.id ?? scene._id ?? "").trim();
-        const currentSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? game.scenes?.viewed?.id ?? "").trim();
-        if (sceneId && currentSceneId !== sceneId && typeof scene.view === "function") {
-            await scene.view();
-        }
-
-        this.gridCalibrationController.open({ scene });
-        this.sceneDesignFeature.syncGridCalibrationCanvasListener();
-        ui.notifications?.info?.("Grid calibration started. Click two corners of the same visible grid cell on the scene.");
-        this.render({ force: false });
-    }
-
-    #syncGridCalibrationStateFromInputs() {
-        const root = this.element?.querySelector("[data-grid-calibration='true']");
-        if (!root) return;
-
-        const readNumber = (action) => root.querySelector(`[data-action='${action}']`)?.value;
-        const cellW = readNumber("grid-cal-cell-w");
-        const cellH = readNumber("grid-cal-cell-h");
-        const offsetX = readNumber("grid-cal-offset-x");
-        const offsetY = readNumber("grid-cal-offset-y");
-        const color = root.querySelector("[data-action='grid-cal-color']")?.value;
-
-        if (cellW !== undefined) this.gridCalibrationController.setCellWidth(cellW);
-        if (cellH !== undefined) this.gridCalibrationController.setCellHeight(cellH);
-        if (offsetX !== undefined) this.gridCalibrationController.setOffsetX(offsetX);
-        if (offsetY !== undefined) this.gridCalibrationController.setOffsetY(offsetY);
-        if (color !== undefined) this.gridCalibrationController.setColor(color);
-    }
-
-    #focusAdjacentGridCalibrationInput(currentInput, { backwards = false } = {}) {
-        const root = this.element?.querySelector("[data-grid-calibration='true']");
-        if (!root) return false;
-
-        const inputs = Array.from(root.querySelectorAll("[data-action='grid-cal-cell-w'], [data-action='grid-cal-cell-h'], [data-action='grid-cal-offset-x'], [data-action='grid-cal-offset-y'], [data-action='grid-cal-color']"))
-            .filter((input) => !input.disabled && input.offsetParent !== null);
-        const currentIndex = inputs.indexOf(currentInput);
-        if (!inputs.length || currentIndex < 0) return false;
-
-        const delta = backwards ? -1 : 1;
-        const nextInput = inputs[(currentIndex + delta + inputs.length) % inputs.length];
-        nextInput?.focus?.();
-        nextInput?.select?.();
-        return Boolean(nextInput);
-    }
-
-    #scheduleGridCalibrationPreview({ geometry = true } = {}) {
-        if (this._gridCalibrationPreviewTimer) clearTimeout(this._gridCalibrationPreviewTimer);
-        const delay = geometry
-            ? GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS
-            : GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS;
-        this._gridCalibrationPreviewTimer = setTimeout(() => {
-            this._gridCalibrationPreviewTimer = null;
-            void this.#previewGridCalibrationOnCanvas();
-        }, delay);
-    }
-
-    #clearGridCalibrationPreviewTimer() {
-        if (!this._gridCalibrationPreviewTimer) return;
-        clearTimeout(this._gridCalibrationPreviewTimer);
-        this._gridCalibrationPreviewTimer = null;
-    }
-
-    async #flushGridCalibrationPreview() {
-        this.#clearGridCalibrationPreviewTimer();
-        return this.#previewGridCalibrationOnCanvas();
-    }
-
-    async #previewGridCalibrationOnCanvas() {
-        const state = this.gridCalibrationController.state;
-        const updateData = this.gridCalibrationController.buildUpdateData();
-        if (!state?.active || !updateData) return false;
-
-        const scene = state.sceneId
-            ? game.scenes?.get(state.sceneId)
-            : (canvas?.scene ?? game.scenes?.viewed ?? null);
-        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
-        if (!scene || (sceneId && canvasSceneId && sceneId !== canvasSceneId)) return false;
-
-        try {
-            return await previewNativeCanvasGrid({ canvasRef: canvas, scene, updateData });
-        } catch (error) {
-            console.warn("[turn-of-the-century] Grid calibration preview failed", error);
-            return false;
-        }
-    }
 
     #wireDebouncedTextInputHandlers() {
         this.element?.addEventListener("input", (event) => {
@@ -4291,7 +3699,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 controlledTokens: canvas?.tokens?.controlled ?? []
             });
 
-            if (actionId === "scene.walls" && result?.ok && actionScene) this.#refreshSceneWallOverlay(actionScene);
+            if (actionId === "scene.walls" && result?.ok && actionScene) this.sceneDesignFeature.refreshSceneWallOverlay(actionScene);
 
             if (actionId === "scene.detectWalls" && result?.ok && actionScene) {
                 this.sceneDesignFeature.setSceneDetectedWallOverlayState(actionScene, result.detectedWallOverlay ?? null);
@@ -4569,5 +3977,61 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         ghost.style.removeProperty("top");
         ghost.style.removeProperty("width");
         ghost.style.removeProperty("height");
+    }
+
+    #isDesignLensActive(panelId) {
+        return Boolean(panelId && this.activeDesignLensPanelIds.has(panelId));
+    }
+
+    #getPrimaryActivePanel(layout = this.layoutEngine.getLayout()) {
+        const centerDock = layout?.root?.centerDock;
+        const centerStack = centerDock?.stacks?.[0];
+        const activePanelId = centerStack?.activePanelId;
+        const activePanel = centerStack?.panels?.find((panel) => panel.id === activePanelId) ?? centerStack?.panels?.[0];
+        if (activePanel) return activePanel;
+
+        for (const dockId of WORKSPACE_V2_DOCK_IDS) {
+            const stack = layout?.root?.[dockId]?.stacks?.[0];
+            const fallbackActiveId = stack?.activePanelId;
+            const fallbackPanel = stack?.panels?.find((panel) => fallbackActiveId === panel.id) ?? stack?.panels?.[0];
+            if (fallbackPanel) return fallbackPanel;
+        }
+
+        return null;
+    }
+
+    #getActiveCenterMapPanel(layout = this.layoutEngine.getLayout()) {
+        const centerDock = layout?.root?.centerDock;
+        for (const stack of centerDock?.stacks ?? []) {
+            const activePanel = (stack?.panels ?? []).find((panel) => panel.id === stack.activePanelId) ?? stack?.panels?.[0];
+            if (this.#isMapPanel(activePanel)) return activePanel;
+        }
+        return null;
+    }
+
+    #syncNativeCanvasScene() {
+        const panel = this.#getActiveCenterMapPanel();
+        const sceneId = this.#getPanelSceneId(panel);
+        if (!sceneId) {
+            this._nativeCanvasViewSceneId = "";
+            return;
+        }
+
+        const currentSceneId = String(canvas?.scene?.id ?? game.scenes?.viewed?.id ?? "").trim();
+        if (currentSceneId === sceneId) {
+            this._nativeCanvasViewSceneId = sceneId;
+            return;
+        }
+
+        if (this._nativeCanvasViewSceneId === sceneId) return;
+
+        const scene = this.#getSceneDocumentById(sceneId);
+        if (!scene?.view) return;
+
+        this._nativeCanvasViewSceneId = sceneId;
+        void scene.view().catch((error) => {
+            this._nativeCanvasViewSceneId = "";
+            console.error("[turn-of-the-century] Failed to view workspace scene", error);
+        });
     }
 }
