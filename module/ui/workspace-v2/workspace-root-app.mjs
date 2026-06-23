@@ -99,10 +99,7 @@ import {
 import {
     buildInspectorPanelModel
 } from "./panels/inspector-panel.mjs";
-import {
-    browseAssetMedia,
-    buildMediaBrowserPanelModel
-} from "./panels/media-browser-panel.mjs";
+import { MediaFeature } from "./controllers/media-feature.mjs";
 import { getSceneBackgroundSource } from "./scene-background-source.mjs";
 import { totcLogger } from "./logger.mjs";
 import {
@@ -531,19 +528,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.designCommandPaletteOpen = false;
         this.designCommandPaletteQuery = "";
         this.compendiumSearchQuery = "";
-        this._mediaBrowserEntries = null;
-        this._mediaBrowserEntriesPromise = null;
-        this._mediaBrowserSelectCallback = null;
-        this._mediaBrowserState = {
-            query: "",
-            type: "all",
-            view: "list",
-            sortKey: "filename",
-            sortDirection: "asc",
-            mode: "browse",
-            selectedPaths: [],
-            error: ""
-        };
+
         this._resizeSession = null;
         this._textInputDebounceTimers = new Map();
         this._gridCalibrationPreviewTimer = null;
@@ -641,6 +626,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             announce: (message) => this.#announceGamemasterGeneratedContent(message)
         });
         this.registerFeature(this.marketFeature);
+        this.mediaFeature = new MediaFeature({
+            layoutEngine: this.layoutEngine,
+            panelRegistry: this.panelRegistry,
+            stateStore: this.stateStore,
+            render: (options) => this.render(options)
+        });
+        this.registerFeature(this.mediaFeature);
         this.gridCalibrationController = new GridCalibrationController({
             sceneResolver: (state) => state.sceneId
                 ? game.scenes?.get(state.sceneId)
@@ -997,9 +989,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             users: workspaceUsers
         });
         const compendiumItems = await this.compendiumCacheController.getItems();
-        const mediaBrowserEntries = visiblePanels.has("media-browser")
-            ? await this.#getMediaBrowserEntries()
-            : (this._mediaBrowserEntries ?? []);
         const diceRollFeedPanel = buildDiceRollFeedPanelModel({
             messages: game.messages?.contents ?? game.messages ?? [],
             rollRequests: dieRollRequestManager.getVisibleRequests({
@@ -1069,10 +1058,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             compendiumItems,
 
             compendiumLoadingState: this.compendiumCacheController.loadingFailureMessage,
-            mediaBrowserPanel: buildMediaBrowserPanelModel({
-                entries: mediaBrowserEntries,
-                state: this._mediaBrowserState
-            }),
+            mediaBrowserPanel: null,
             diceRollFeedPanel,
             dieRollRequestPanel,
             inspectorPanel,
@@ -1230,85 +1216,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.#wireEncounterManagerPanelHandlers();
 
-        this.element?.querySelectorAll("[data-action='media-browser-filter-type']")?.forEach((select) => {
-            select.addEventListener("change", () => {
-                this._mediaBrowserState = {
-                    ...this._mediaBrowserState,
-                    type: String(select.value ?? "all")
-                };
-                this.render({ force: false });
-            });
-        });
 
-        this.element?.querySelectorAll("[data-action='media-browser-view']")?.forEach((select) => {
-            select.addEventListener("change", () => {
-                this._mediaBrowserState = {
-                    ...this._mediaBrowserState,
-                    view: String(select.value ?? "list")
-                };
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='media-browser-refresh']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this._mediaBrowserEntries = null;
-                this._mediaBrowserEntriesPromise = null;
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='media-browser-sort']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this._mediaBrowserState = {
-                    ...this._mediaBrowserState,
-                    sortKey: String(button.dataset.sortKey ?? "filename"),
-                    sortDirection: String(button.dataset.sortDirection ?? "asc")
-                };
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='media-browser-toggle-selection']")?.forEach((checkbox) => {
-            checkbox.addEventListener("change", (event) => {
-                event.stopPropagation();
-                const mediaPath = String(checkbox.dataset.mediaPath ?? "").trim();
-                if (!mediaPath) return;
-
-                const selected = new Set(this._mediaBrowserState.selectedPaths ?? []);
-                if (checkbox.checked) selected.add(mediaPath);
-                else selected.delete(mediaPath);
-                this._mediaBrowserState = {
-                    ...this._mediaBrowserState,
-                    selectedPaths: [...selected]
-                };
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='media-browser-clear-selection']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this._mediaBrowserState = {
-                    ...this._mediaBrowserState,
-                    selectedPaths: []
-                };
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='media-browser-confirm-selection']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.#confirmMediaBrowserSelection();
-            });
-        });
 
         this.element?.querySelectorAll("[data-action='toggle-design-lens']")?.forEach((button) => {
             button.addEventListener("click", (event) => {
@@ -2726,10 +2634,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
             const value = String(input.value ?? "");
             if (action === "media-browser-search") {
-                this._mediaBrowserState = {
-                    ...this._mediaBrowserState,
-                    query: value
-                };
+                this.mediaFeature.setSearchQuery(value);
             }
 
 
@@ -2769,10 +2674,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }
 
             case "media-browser-search": {
-                this._mediaBrowserState = {
-                    ...this._mediaBrowserState,
-                    query: value
-                };
+                this.mediaFeature.setSearchQuery(value);
                 await this.render({ force: false });
                 focusWorkspaceTextInputAtEnd(this.element, "media-browser-search");
                 break;
@@ -3103,56 +3005,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return visible;
     }
 
-    async #getMediaBrowserEntries() {
-        if (Array.isArray(this._mediaBrowserEntries)) return this._mediaBrowserEntries;
-        if (this._mediaBrowserEntriesPromise) return await this._mediaBrowserEntriesPromise;
-
-        this._mediaBrowserEntriesPromise = this.#loadMediaBrowserEntries();
-        try {
-            const result = await this._mediaBrowserEntriesPromise;
-            this._mediaBrowserEntries = Array.isArray(result?.entries) ? result.entries : [];
-            if (!result?.ok) {
-                this._mediaBrowserState = {
-                    ...this._mediaBrowserState,
-                    error: result?.error ?? "Media browsing failed."
-                };
-            } else if (this._mediaBrowserState.error) {
-                this._mediaBrowserState = {
-                    ...this._mediaBrowserState,
-                    error: ""
-                };
-            }
-            return this._mediaBrowserEntries;
-        } finally {
-            this._mediaBrowserEntriesPromise = null;
-        }
-    }
-
-    async #loadMediaBrowserEntries() {
-        return browseAssetMedia({
-            FilePickerClass: this.#getFilePickerClass()
-        });
-    }
-
-    #getFilePickerClass() {
-        return foundry?.applications?.apps?.FilePicker?.implementation
-            ?? null;
-    }
-
     async _openMediaBrowserPanel({ mode = "browse", selectedPaths = [], onSelect = null } = {}) {
-        const panelDef = this.panelRegistry.get("media-browser");
-        if (!panelDef) return;
-
-        this._mediaBrowserState = {
-            ...this._mediaBrowserState,
-            mode: mode === "select" ? "select" : "browse",
-            selectedPaths: Array.isArray(selectedPaths) ? selectedPaths.map(String) : []
-        };
-        this._mediaBrowserSelectCallback = typeof onSelect === "function" ? onSelect : null;
-
-        const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
-        await this.stateStore?.setUserLayout?.(nextLayout);
-        this.render({ force: false });
+        await this.mediaFeature.openMediaBrowserPanel({ mode, selectedPaths, onSelect });
     }
 
     async #showEncounterManagerPanel() {
@@ -3162,27 +3016,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "leftDock" });
         await this.stateStore?.setUserLayout?.(nextLayout);
         this.render({ force: false });
-    }
-
-    async #confirmMediaBrowserSelection() {
-        const selectedPaths = new Set(this._mediaBrowserState.selectedPaths ?? []);
-        const entries = (await this.#getMediaBrowserEntries()).filter((entry) => selectedPaths.has(entry.path));
-
-        try {
-            await this._mediaBrowserSelectCallback?.(entries);
-            globalThis.Hooks?.callAll?.("totcMediaBrowserSelected", entries);
-        } finally {
-            this._mediaBrowserSelectCallback = null;
-            this._mediaBrowserState = {
-                ...this._mediaBrowserState,
-                mode: "browse",
-                selectedPaths: []
-            };
-
-            const nextLayout = this.layoutEngine.closePanel("media-browser");
-            await this.stateStore?.setUserLayout?.(nextLayout);
-            this.render({ force: false });
-        }
     }
 
 

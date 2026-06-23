@@ -4,7 +4,6 @@ import {
 } from "../panels/design-lens-panel.mjs";
 import { renderDiceRollFeedPanel } from "../panels/dice-roll-feed-panel.mjs";
 import { renderInspectorPanel } from "../panels/inspector-panel.mjs";
-import { renderMediaBrowserPanel } from "../panels/media-browser-panel.mjs";
 import { renderLoggingPanel } from "../panels/logging-panel.mjs";
 import { renderDesignIssuesPanel } from "../panels/design-issues-panel.mjs";
 
@@ -110,14 +109,7 @@ export class WorkspacePanelHost {
             });
         }
 
-        if (panel.id === "media-browser") {
-            if (!context.gm?.isGM) {
-                return `<section class="totc-v2-media-browser"><p class="totc-v2-media-browser__error">This panel is only available to the active Gamemaster.</p></section>`;
-            }
-            return renderMediaBrowserPanel(context.mediaBrowserPanel ?? {}, {
-                escapeHTML: (value) => this.escapeHTML(value)
-            });
-        }
+
 
         if (panel.id === "encounter-manager") {
             if (!context.gm?.isGM) {
