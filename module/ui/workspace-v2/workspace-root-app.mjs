@@ -121,20 +121,11 @@ import {
 const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
 
 import {
-    buildActorEditorPanelModel,
-    buildActorListPanelModel,
-    buildActorUpdateDataFromFormData,
-    buildGeneratedActorDocumentData
-} from "./panels/actor-management-panel.mjs";
-import {
     CompendiumCacheController
 } from "./controllers/compendium-cache-controller.mjs";
 import {
     SceneActorDropController
 } from "./controllers/scene-actor-drop-controller.mjs";
-import {
-    ActorWorkspaceController
-} from "./controllers/actor-workspace-controller.mjs";
 import {
     SceneWorkspaceController
 } from "./controllers/scene-workspace-controller.mjs";
@@ -173,6 +164,7 @@ import { WorkspaceFeature } from "./workspace-feature.mjs";
 import { EncounterPlanningFeature } from "./controllers/encounter-planning-feature.mjs";
 import { SceneDesignFeature } from "./controllers/scene-design-feature.mjs";
 import { CampaignFeature } from "./controllers/campaign-feature.mjs";
+import { ActorManagementFeature } from "./controllers/actor-management-feature.mjs";
 
 const ApplicationV2Base = requireApplicationV2();
 const CombatDocumentClass = requireCombatDocumentClass();
@@ -573,15 +565,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 }
             }
         });
-        this.actorWorkspaceController = new ActorWorkspaceController({
-            getActorById: (id) => game.actors?.get?.(id) ?? null,
-            createActor: (data) => ActorDocumentClass.create(data),
-            generate: (prompt, options) => LLMService.generate(prompt, options),
-            buildGeneratedActorDocumentData,
-            buildActorUpdateDataFromFormData,
-            openActorEditor: () => this.#openActorEditorPanel(),
-            render: () => this.render({ force: false }),
-            logger: console
+        this.actorManagementFeature = new ActorManagementFeature({
+            layoutEngine: this.layoutEngine,
+            panelRegistry: this.panelRegistry,
+            stateStore: this.stateStore,
+            render: (options) => this.render(options),
+            getSelectedTokenIds: () => this.selectedTokenIds
         });
         this.sceneWorkspaceController = new SceneWorkspaceController({
             layoutEngine: this.layoutEngine,
@@ -609,7 +598,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
         this.sceneActorDropController = new SceneActorDropController({
             getRoot: () => this.element,
-            getSelectedActorIds: () => this.actorWorkspaceController.getSelectedActorIds(),
+            getSelectedActorIds: () => this.actorManagementFeature.getSelectedActorIds(),
             getActorById: (id) => this.#getActorDocumentByReference(id),
             getSceneById: (id) => this.#getSceneDocumentById(id),
             getFallbackScene: () => this.sceneWorkspaceController.getScenePropertiesScene(),
@@ -691,6 +680,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             announce: (message) => this.#announceGamemasterGeneratedContent(message)
         });
         this.registerFeature(this.campaignFeature);
+        this.registerFeature(this.actorManagementFeature);
         this._playerPanelSectionSnapshotInitialized = false;
         this._playerPanelVisibleSectionIds = new Set();
         this._sceneRefreshHandler = (scene, changes) => {
@@ -1006,7 +996,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.selectedTokenIds = controlledIds;
             }
         }
-        this.#syncActorDetailsToTokenSelection(scene);
+
         const gmPanelState = this.#getGamemasterPanelState();
         const gmSnapshot = buildGamemasterContextSnapshot({ scene, combat, controlledTokens });
         const gmPanel = buildGamemasterPanelModel({
@@ -1060,8 +1050,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         };
 
         const worldActors = Array.from(game.actors?.contents ?? []);
-        const actorWorkspaceState = this.actorWorkspaceController.state;
-        const selectedActor = this.actorWorkspaceController.getSelectedActor();
+
         const isGMUser = Boolean(game.user?.isGM);
         const panelVisibility = this.panelRegistry.getVisibilityModel(visiblePanels, { isGM: isGMUser });
         if (!isGMUser) {
@@ -1099,20 +1088,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             dockWeights: this.layoutEngine.getDockWeightLayout(),
             compendiumSearchQuery: this.compendiumSearchQuery,
             compendiumItems,
-            actorListPanel: buildActorListPanelModel({
-                actors: worldActors,
-                query: actorWorkspaceState.searchQuery,
-                typeFilter: actorWorkspaceState.typeFilter,
-                selectedActorId: actorWorkspaceState.editorState.actorId,
-                selectedActorIds: actorWorkspaceState.selectedActorIds,
-                showCreate: actorWorkspaceState.editorState.mode === "create"
-            }),
-            actorEditorPanel: buildActorEditorPanelModel({
-                actor: selectedActor,
-                state: actorWorkspaceState.editorState,
-                users: game.users,
-                isGM: isGMUser
-            }),
+
             compendiumLoadingState: this.compendiumCacheController.loadingFailureMessage,
             mediaBrowserPanel: buildMediaBrowserPanelModel({
                 entries: mediaBrowserEntries,
@@ -1273,7 +1249,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.marketController.wireHandlers(this.element);
 
-        this.actorWorkspaceController.wireHandlers(this.element);
+
 
         this.sceneActorDropController.wireActorListDragHandlers(this.element);
 
@@ -2236,26 +2212,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }
     }
 
-    #resolveActorFromSelectedSceneTokens(scene = canvas?.scene ?? null) {
-        if (this.selectedTokenIds.size !== 1) return null;
-        const tokenId = [...this.selectedTokenIds][0];
-        const tokenDoc = scene?.tokens?.get?.(tokenId) ?? null;
-        const actor = tokenDoc?.actor ?? game.actors?.get?.(tokenDoc?.actorId) ?? null;
-        if (!actor) return null;
-        if (game.user?.isGM || actor.isOwner) return actor;
-        return null;
-    }
 
-    #syncActorDetailsToTokenSelection(scene = canvas?.scene ?? null) {
-        if (this.actorWorkspaceController.state.editorState.mode === "create") return;
-        if (!this.selectedTokenIds.size) return;
-        const actor = this.#resolveActorFromSelectedSceneTokens(scene);
-        if (actor?.id) {
-            this.actorWorkspaceController.openDetails(actor.id);
-        } else {
-            this.actorWorkspaceController.clearDetails();
-        }
-    }
 
     #renderGamemasterPanel(gmPanel = {}, gmSnapshot = {}, dieRollRequestPanel = {}) {
         const combat = gmSnapshot.combat;
@@ -2982,7 +2939,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 break;
             }
             case "actor-list-search": {
-                this.actorWorkspaceController.setSearchQuery(value);
+                this.actorManagementFeature.actorWorkspaceController.setSearchQuery(value);
                 await this.render({ force: false });
                 focusWorkspaceTextInputAtEnd(this.element, "actor-list-search");
                 break;

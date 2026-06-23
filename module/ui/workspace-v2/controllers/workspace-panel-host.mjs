@@ -7,10 +7,7 @@ import { renderInspectorPanel } from "../panels/inspector-panel.mjs";
 import { renderMediaBrowserPanel } from "../panels/media-browser-panel.mjs";
 import { renderLoggingPanel } from "../panels/logging-panel.mjs";
 import { renderDesignIssuesPanel } from "../panels/design-issues-panel.mjs";
-import {
-    renderActorEditorPanel,
-    renderActorListPanel
-} from "../panels/actor-management-panel.mjs";
+
 import { renderEncounterManagerPanel } from "../panels/encounter-manager-panel.mjs";
 import { renderPlayerEncounterPanel } from "../panels/player-encounter-panel.mjs";
 
@@ -96,20 +93,7 @@ export class WorkspacePanelHost {
             return this.#renderCompendiumPanel(context);
         }
 
-        if (panel.id === "actors") {
-            if (!context.gm?.isGM) {
-                return `<section class="totc-v2-actor-list-panel"><p class="totc-v2-actor-list-panel__empty">This panel is only available to the active Gamemaster.</p></section>`;
-            }
-            return renderActorListPanel(context.actorListPanel ?? {}, {
-                escapeHTML: (value) => this.escapeHTML(value)
-            });
-        }
 
-        if (panel.id === "actor-editor") {
-            return renderActorEditorPanel(context.actorEditorPanel ?? {}, {
-                escapeHTML: (value) => this.escapeHTML(value)
-            });
-        }
 
         if (panel.id === "market") {
             return this.renderMarketPanel(context.marketPanel ?? {});

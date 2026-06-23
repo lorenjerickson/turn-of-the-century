@@ -113,9 +113,25 @@ describe("WorkspacePanelHost", () => {
     });
 
     it("keeps actor list GM-gated while allowing actor details for players", () => {
+        const mockActorFeature = {
+            render(panel, context) {
+                if (panel.id === "actors") {
+                    if (!context.gm?.isGM) {
+                        return `<section class="totc-v2-actor-list-panel"><p class="totc-v2-actor-list-panel__empty">This panel is only available to the active Gamemaster.</p></section>`;
+                    }
+                    return "rendered-actor-list";
+                }
+                if (panel.id === "actor-editor") {
+                    return "Select an actor or create a new one";
+                }
+                return undefined;
+            }
+        };
+
         const host = new WorkspacePanelHost({
             escapeHTML,
-            isGM: () => false
+            isGM: () => false,
+            getFeatures: () => [mockActorFeature]
         });
 
         const actorsHtml = host.renderPanelBodyContent({ id: "actors", title: "Actors" }, { gm: { isGM: false } });
