@@ -148,9 +148,7 @@ import {
     MarketController,
     normalizeMarketPanelState
 } from "./controllers/market-controller.mjs";
-import {
-    buildCampaignBuilderPanelModel
-} from "./panels/campaign-builder-panel.mjs";
+
 
 const WORKSPACE_PANEL_DRAG_MIME = "application/x-totc-workspace-panel";
 
@@ -161,21 +159,8 @@ function dataTransferHasType(dataTransfer, mimeType) {
 }
 
 import {
-    buildScenarioBuilderPanelModel
-} from "./panels/scenario-builder-panel.mjs";
-import {
     buildEncounterManagerPanelModel
 } from "./panels/encounter-manager-panel.mjs";
-import {
-    buildCampaignViewDeletePlan,
-    buildCampaignViewMovePlan,
-    buildCampaignViewPanelModel,
-    getCampaignViewDropMode
-} from "./panels/campaign-view-panel.mjs";
-import {
-    buildGMAssistantDocumentSystemData,
-    buildGMAssistantPanelModel
-} from "./panels/gm-assistant-panel.mjs";
 import { LLMService } from "../../services/llm-service.mjs";
 import {
     requireActorDocumentClass,
@@ -187,6 +172,7 @@ import {
 import { WorkspaceFeature } from "./workspace-feature.mjs";
 import { EncounterPlanningFeature } from "./controllers/encounter-planning-feature.mjs";
 import { SceneDesignFeature } from "./controllers/scene-design-feature.mjs";
+import { CampaignFeature } from "./controllers/campaign-feature.mjs";
 
 const ApplicationV2Base = requireApplicationV2();
 const CombatDocumentClass = requireCombatDocumentClass();
@@ -697,22 +683,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             notifications: globalThis.ui?.notifications
         });
         this.registerFeature(this.sceneDesignFeature);
-        this._gmAssistantState = {
-            elementType: "campaign",
-            actorType: "pawn",
-            prompt: "",
-            promptTextareaHeight: 0,
-            parentLocationId: "",
-            campaignId: "",
-            scenarioId: "",
-            isGenerating: false,
-            result: null,
-            error: null
-        };
-        this._campaignViewState = {
-            selectedId: "",
-            expandedIds: new Set()
-        };
+        this.campaignFeature = new CampaignFeature({
+            layoutEngine: this.layoutEngine,
+            panelRegistry: this.panelRegistry,
+            stateStore: this.stateStore,
+            render: (options) => this.render(options),
+            announce: (message) => this.#announceGamemasterGeneratedContent(message)
+        });
+        this.registerFeature(this.campaignFeature);
         this._playerPanelSectionSnapshotInitialized = false;
         this._playerPanelVisibleSectionIds = new Set();
         this._sceneRefreshHandler = (scene, changes) => {
@@ -1149,26 +1127,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             playerEncounterPanel: null,
             designIssuesPanel,
             loggingPanel: buildLoggingPanelModel({ entries: totcLogger.getEntries() }),
-            campaignBuilderPanel: buildCampaignBuilderPanelModel({
-                campaigns: Array.from(game.items?.contents || []).filter(i => i.type === "campaign")
-            }),
-            scenarioBuilderPanel: buildScenarioBuilderPanelModel({
-                scenarios: Array.from(game.items?.contents || []).filter(i => i.type === "scenario")
-            }),
             encounterManagerPanel: buildEncounterManagerPanelModel({
                 combat
-            }),
-            campaignViewPanel: buildCampaignViewPanelModel({
-                items: Array.from(game.items?.contents || []),
-                selectedId: this._campaignViewState.selectedId,
-                expandedIds: this._campaignViewState.expandedIds
-            }),
-            gmAssistantPanel: buildGMAssistantPanelModel({
-                ...this._gmAssistantState,
-                parentLocationOptions: Array.from(game.items?.contents || [])
-                    .filter((item) => item.type === "location")
-                    .map((item) => ({ value: item.id, label: item.name }))
-                    .sort((a, b) => a.label.localeCompare(b.label))
             })
         };
 
@@ -1586,293 +1546,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         this.sceneWorkspaceController.wireSceneListHandlers(this.element);
 
-        this.element?.querySelectorAll("[data-action='create-campaign']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const item = await ItemDocumentClass.create({ name: "New Campaign", type: "campaign" });
-                if (item?.sheet) item.sheet.render(true);
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='create-scenario']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const item = await ItemDocumentClass.create({ name: "New Scenario", type: "scenario" });
-                if (item?.sheet) item.sheet.render(true);
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='create-encounter']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const item = await ItemDocumentClass.create({ name: "New Encounter", type: "encounter-design" });
-                if (item?.sheet) item.sheet.render(true);
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='campaign-view-toggle']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const itemId = String(button.dataset.itemId ?? "").trim();
-                if (!itemId) return;
-                if (this._campaignViewState.expandedIds.has(itemId)) {
-                    this._campaignViewState.expandedIds.delete(itemId);
-                } else {
-                    this._campaignViewState.expandedIds.add(itemId);
-                }
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='campaign-view-select']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this._campaignViewState.selectedId = String(button.dataset.itemId ?? "").trim();
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='campaign-view-create-root']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.#createCampaignViewItem({ type: "campaign" });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='campaign-view-generate-root']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.#prepareCampaignViewGeneration({ type: "campaign" });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='campaign-view-create-child']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.#createCampaignViewItem({
-                    type: String(button.dataset.childType ?? "").trim(),
-                    parentId: String(button.dataset.parentId ?? "").trim()
-                });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='campaign-view-generate-child']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.#prepareCampaignViewGeneration({
-                    type: String(button.dataset.childType ?? "").trim(),
-                    parentId: String(button.dataset.parentId ?? "").trim()
-                });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='campaign-view-delete']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.#deleteCampaignViewItem(String(button.dataset.itemId ?? "").trim());
-            });
-        });
-
-        this.element?.querySelectorAll("[data-campaign-view-draggable='true']")?.forEach((row) => {
-            row.addEventListener("dragstart", (event) => {
-                event.stopPropagation();
-                const itemId = String(row.dataset.campaignViewItemId ?? "").trim();
-                const itemType = String(row.dataset.campaignViewItemType ?? "").trim();
-                if (!itemId || !itemType) return;
-                this._campaignViewDragState = { itemId, itemType };
-                if (event.dataTransfer) {
-                    event.dataTransfer.setData("application/x-totc-campaign-view-item", JSON.stringify({ itemId, itemType }));
-                    event.dataTransfer.setData("text/plain", itemId);
-                    event.dataTransfer.effectAllowed = "move";
-                }
-                row.classList.add("is-dragging");
-            });
-            row.addEventListener("dragend", () => {
-                row.classList.remove("is-dragging");
-                this._campaignViewDragState = null;
-                this.#clearCampaignViewDropTargets();
-            });
-            row.addEventListener("dragover", (event) => {
-                const dragged = this._campaignViewDragState;
-                if (!dragged?.itemId || dragged.itemId === row.dataset.campaignViewItemId) return;
-                const rect = row.getBoundingClientRect();
-                const pointerRatio = rect.height > 0 ? (event.clientY - rect.top) / rect.height : 0.5;
-                const dropMode = getCampaignViewDropMode({
-                    draggedType: dragged.itemType,
-                    targetType: String(row.dataset.campaignViewItemType ?? "").trim(),
-                    pointerRatio
-                });
-                if (!dropMode) return;
-                event.preventDefault();
-                event.stopPropagation();
-                this.#clearCampaignViewDropTargets(row);
-                row.dataset.campaignViewDropMode = dropMode;
-                if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-            });
-            row.addEventListener("dragleave", (event) => {
-                const related = event.relatedTarget;
-                if (related && row.contains(related)) return;
-                delete row.dataset.campaignViewDropMode;
-            });
-            row.addEventListener("drop", async (event) => {
-                const dragged = this._campaignViewDragState;
-                if (!dragged?.itemId) return;
-                event.preventDefault();
-                event.stopPropagation();
-                const rect = row.getBoundingClientRect();
-                const pointerRatio = rect.height > 0 ? (event.clientY - rect.top) / rect.height : 0.5;
-                const dropMode = row.dataset.campaignViewDropMode || getCampaignViewDropMode({
-                    draggedType: dragged.itemType,
-                    targetType: String(row.dataset.campaignViewItemType ?? "").trim(),
-                    pointerRatio
-                });
-                await this.#moveCampaignViewItem({
-                    draggedId: dragged.itemId,
-                    targetId: String(row.dataset.campaignViewItemId ?? "").trim(),
-                    dropMode
-                });
-                this._campaignViewDragState = null;
-                this.#clearCampaignViewDropTargets();
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='gm-assistant-set-type']")?.forEach((select) => {
-            select.addEventListener("change", (event) => {
-                this._gmAssistantState.elementType = event.target.value;
-                if (this._gmAssistantState.elementType !== "location") {
-                    this._gmAssistantState.parentLocationId = "";
-                }
-                this._gmAssistantState.campaignId = "";
-                this._gmAssistantState.scenarioId = "";
-                this._gmAssistantState.result = null;
-                this._gmAssistantState.error = null;
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='gm-assistant-set-actor-type']")?.forEach((select) => {
-            select.addEventListener("change", (event) => {
-                this._gmAssistantState.actorType = event.target.value;
-                this._gmAssistantState.result = null;
-                this._gmAssistantState.error = null;
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='gm-assistant-set-parent-location']")?.forEach((select) => {
-            select.addEventListener("change", (event) => {
-                this._gmAssistantState.parentLocationId = event.target.value;
-                this._gmAssistantState.result = null;
-                this._gmAssistantState.error = null;
-                this.render({ force: false });
-            });
-        });
-
-        const handleGenerate = async () => {
-            if (this._gmAssistantState.isGenerating || !this._gmAssistantState.prompt) return;
-            const promptInput = this.element?.querySelector("[data-action='gm-assistant-set-prompt']");
-            if (promptInput instanceof HTMLTextAreaElement) {
-                this._gmAssistantState.promptTextareaHeight = promptInput.offsetHeight || promptInput.clientHeight || 0;
-            }
-            this._gmAssistantState.isGenerating = true;
-            this._gmAssistantState.error = null;
-            this._gmAssistantState.result = null;
-            this.render({ force: false });
-
-            try {
-                const parentLocation = this._gmAssistantState.elementType === "location" && this._gmAssistantState.parentLocationId
-                    ? game.items?.get?.(this._gmAssistantState.parentLocationId)
-                    : null;
-                const generationContext = {};
-                if (this._gmAssistantState.elementType === "actor") {
-                    generationContext.actorType = this._gmAssistantState.actorType;
-                }
-                if (parentLocation) {
-                    generationContext.parentLocation = {
-                        id: parentLocation.id,
-                        name: parentLocation.name,
-                        locationType: parentLocation.system?.locationType ?? "",
-                        description: parentLocation.system?.description ?? "",
-                        notes: parentLocation.system?.notes ?? ""
-                    };
-                }
-
-                const result = await LLMService.generate(this._gmAssistantState.prompt, {
-                    elementType: this._gmAssistantState.elementType,
-                    generationContext
-                });
-                this._gmAssistantState.result = result;
-            } catch (err) {
-                this._gmAssistantState.error = err.message;
-            } finally {
-                this._gmAssistantState.isGenerating = false;
-                this.render({ force: false });
-            }
-        };
-
-        this.element?.querySelectorAll("[data-action='gm-assistant-generate']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                await handleGenerate();
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='gm-assistant-regenerate']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                await handleGenerate();
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='gm-assistant-accept']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                const { result, elementType, actorType } = this._gmAssistantState;
-                if (!result) return;
-
-                const isActor = elementType === "actor";
-                const documentData = {
-                    name: result.name || "Generated Element",
-                    type: isActor ? actorType : elementType,
-                    system: buildGMAssistantDocumentSystemData(result.system || {}, elementType)
-                };
-                if (elementType === "location" && this._gmAssistantState.parentLocationId) {
-                    documentData.system.parentLocationId = this._gmAssistantState.parentLocationId;
-                }
-                if (elementType === "scenario" && this._gmAssistantState.campaignId) {
-                    documentData.system.campaignId = this._gmAssistantState.campaignId;
-                }
-                if (elementType === "encounter-design" && this._gmAssistantState.scenarioId) {
-                    documentData.system.scenarioId = this._gmAssistantState.scenarioId;
-                }
-
-                const doc = await (isActor ? ActorDocumentClass : ItemDocumentClass).create(documentData);
-                if (doc?.sheet) doc.sheet.render(true);
-
-                const docId = String(doc?.id ?? doc?._id ?? "").trim();
-                if (docId && (elementType === "scenario" || elementType === "encounter-design")) {
-                    this._campaignViewState.selectedId = docId;
-                }
-                if (this._gmAssistantState.campaignId) this._campaignViewState.expandedIds.add(this._gmAssistantState.campaignId);
-                if (this._gmAssistantState.scenarioId) this._campaignViewState.expandedIds.add(this._gmAssistantState.scenarioId);
-                this._gmAssistantState.result = null;
-                this._gmAssistantState.prompt = "";
-                this._gmAssistantState.campaignId = "";
-                this._gmAssistantState.scenarioId = "";
-                this.render({ force: false });
-            });
-        });
-
         this.element?.querySelectorAll("[data-action='float-panel']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
@@ -2272,152 +1945,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             ?? null;
     }
 
-    #clearCampaignViewDropTargets(except = null) {
-        this.element?.querySelectorAll("[data-campaign-view-drop-mode]")?.forEach((row) => {
-            if (row !== except) delete row.dataset.campaignViewDropMode;
-        });
-    }
 
-    async #moveCampaignViewItem({ draggedId = "", targetId = "", dropMode = "" } = {}) {
-        const safeDraggedId = String(draggedId ?? "").trim();
-        const safeTargetId = String(targetId ?? "").trim();
-        const safeDropMode = String(dropMode ?? "").trim();
-        if (!safeDraggedId || !safeTargetId || !safeDropMode) return null;
-
-        const items = Array.from(game.items?.contents || []);
-        const plan = buildCampaignViewMovePlan({
-            items,
-            draggedId: safeDraggedId,
-            targetId: safeTargetId,
-            dropMode: safeDropMode
-        });
-        if (!plan) return null;
-
-        const movedItem = this.#getItemDocumentById(plan.itemId);
-        const parent = this.#getItemDocumentById(plan.parentId);
-        const previousParent = plan.previousParentId ? this.#getItemDocumentById(plan.previousParentId) : null;
-        if (!movedItem || !parent) return null;
-
-        const previousParentId = String(previousParent?.id ?? previousParent?._id ?? "").trim();
-        const parentId = String(parent?.id ?? parent?._id ?? "").trim();
-        if (previousParent && plan.previousParentUpdate && previousParentId !== parentId) {
-            await previousParent.update(plan.previousParentUpdate);
-        }
-        await parent.update(plan.parentUpdate);
-        await movedItem.update(plan.itemUpdate);
-
-        this._campaignViewState.selectedId = plan.itemId;
-        this._campaignViewState.expandedIds.add(plan.parentId);
-        this.render({ force: false });
-        return plan;
-    }
-
-    async #deleteCampaignViewItem(itemId = "") {
-        const safeItemId = String(itemId ?? "").trim();
-        if (!safeItemId) return null;
-
-        const items = Array.from(game.items?.contents || []);
-        const plan = buildCampaignViewDeletePlan({ items, itemId: safeItemId });
-        if (!plan?.deleteIds?.length) return null;
-
-        const childParts = [];
-        if (plan.scenarioCount) childParts.push(`${plan.scenarioCount} scenario${plan.scenarioCount === 1 ? "" : "s"}`);
-        if (plan.encounterCount) childParts.push(`${plan.encounterCount} encounter${plan.encounterCount === 1 ? "" : "s"}`);
-        const childWarning = childParts.length
-            ? `\n\nThis will also permanently delete ${childParts.join(" and ")} beneath it.`
-            : "";
-        const confirmed = globalThis.confirm?.(
-            `Permanently delete ${plan.itemTypeLabel.toLowerCase()} "${plan.itemName}"?${childWarning}\n\nThis cannot be undone.`
-        ) ?? false;
-        if (!confirmed) return null;
-
-        for (const parentUpdate of plan.parentUpdates) {
-            const parent = this.#getItemDocumentById(parentUpdate.itemId);
-            if (parent && typeof parent.update === "function") await parent.update(parentUpdate.update);
-        }
-
-        for (const deleteId of plan.deleteIds) {
-            const item = this.#getItemDocumentById(deleteId);
-            if (item && typeof item.delete === "function") await item.delete();
-        }
-
-        if (plan.deleteIds.includes(this._campaignViewState.selectedId)) {
-            this._campaignViewState.selectedId = "";
-        }
-        for (const deleteId of plan.deleteIds) {
-            this._campaignViewState.expandedIds.delete(deleteId);
-        }
-        this.render({ force: false });
-        return plan;
-    }
-
-    async #createCampaignViewItem({ type = "", parentId = "" } = {}) {
-        const safeType = String(type ?? "").trim();
-        const safeParentId = String(parentId ?? "").trim();
-        const parent = this.#getItemDocumentById(safeParentId);
-        const isScenario = safeType === "scenario";
-        const isEncounter = safeType === "encounter-design";
-        const isCampaign = safeType === "campaign";
-        if (!isCampaign && !isScenario && !isEncounter) return null;
-
-        const documentData = {
-            name: isCampaign ? "New Campaign" : isScenario ? "New Scenario" : "New Encounter",
-            type: safeType,
-            system: {}
-        };
-        if (isScenario && parent?.type === "campaign") {
-            documentData.system.campaignId = safeParentId;
-        }
-        if (isEncounter && parent?.type === "scenario") {
-            documentData.system.scenarioId = safeParentId;
-        }
-
-        const item = await ItemDocumentClass.create(documentData);
-        const itemId = String(item?.id ?? item?._id ?? "").trim();
-        if (itemId) {
-            this._campaignViewState.selectedId = itemId;
-            if (safeParentId) this._campaignViewState.expandedIds.add(safeParentId);
-        }
-        if (item?.sheet) item.sheet.render(true);
-        this.render({ force: false });
-        return item;
-    }
-
-    async #prepareCampaignViewGeneration({ type = "", parentId = "" } = {}) {
-        const safeType = String(type ?? "").trim();
-        const safeParentId = String(parentId ?? "").trim();
-        const parent = this.#getItemDocumentById(safeParentId);
-        const isCampaign = safeType === "campaign";
-        const isScenario = safeType === "scenario";
-        const isEncounter = safeType === "encounter-design";
-        if (!isCampaign && !isScenario && !isEncounter) return;
-
-        this._gmAssistantState = {
-            ...this._gmAssistantState,
-            elementType: safeType,
-            actorType: "pawn",
-            campaignId: isScenario && parent?.type === "campaign" ? safeParentId : "",
-            scenarioId: isEncounter && parent?.type === "scenario" ? safeParentId : "",
-            parentLocationId: "",
-            result: null,
-            error: null,
-            prompt: isCampaign
-                ? "Generate a campaign for Turn of the Century."
-                : isScenario
-                ? `Generate a scenario for the campaign "${parent?.name ?? "Untitled Campaign"}".`
-                : `Generate an encounter for the scenario "${parent?.name ?? "Untitled Scenario"}".`
-        };
-
-        let nextLayout = this.layoutEngine.getLayout();
-        const panelDef = this.panelRegistry.get("gm-assistant");
-        if (panelDef) {
-            nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "rightDock" });
-            await this.stateStore?.setUserLayout?.(nextLayout);
-        }
-
-        if (safeParentId) this._campaignViewState.expandedIds.add(safeParentId);
-        this.render({ force: false });
-    }
 
     #buildSceneViewModel(scene, fallback = {}) {
         return this.sceneWorkspaceController.buildSceneViewModel(scene, fallback);
@@ -3435,10 +2963,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                     query: value
                 };
             }
-            if (action === "gm-assistant-set-prompt") {
-                this._gmAssistantState.prompt = value;
-                this._gmAssistantState.promptTextareaHeight = input.offsetHeight || input.clientHeight || 0;
-            }
+
 
             const timer = setTimeout(async () => {
                 this._textInputDebounceTimers.delete(action);
@@ -3474,12 +2999,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 focusWorkspaceTextInputAtEnd(this.element, "gm-search-actions");
                 break;
             }
-            case "gm-assistant-set-prompt": {
-                this._gmAssistantState.prompt = value;
-                await this.render({ force: false });
-                focusWorkspaceTextInputAtEnd(this.element, "gm-assistant-set-prompt");
-                break;
-            }
+
             case "media-browser-search": {
                 this._mediaBrowserState = {
                     ...this._mediaBrowserState,

@@ -11,12 +11,8 @@ import {
     renderActorEditorPanel,
     renderActorListPanel
 } from "../panels/actor-management-panel.mjs";
-import { renderCampaignBuilderPanel } from "../panels/campaign-builder-panel.mjs";
-import { renderScenarioBuilderPanel } from "../panels/scenario-builder-panel.mjs";
 import { renderEncounterManagerPanel } from "../panels/encounter-manager-panel.mjs";
 import { renderPlayerEncounterPanel } from "../panels/player-encounter-panel.mjs";
-import { renderCampaignViewPanel } from "../panels/campaign-view-panel.mjs";
-import { renderGMAssistantPanel } from "../panels/gm-assistant-panel.mjs";
 
 export class WorkspacePanelHost {
     constructor({
@@ -143,27 +139,11 @@ export class WorkspacePanelHost {
             });
         }
 
-        if (panel.id === "campaign-builder") {
-            return renderCampaignBuilderPanel(context.campaignBuilderPanel ?? {}, { escapeHTML: (v) => this.escapeHTML(v) });
-        }
-
-        if (panel.id === "scenario-builder") {
-            return renderScenarioBuilderPanel(context.scenarioBuilderPanel ?? {}, { escapeHTML: (v) => this.escapeHTML(v) });
-        }
-
         if (panel.id === "encounter-manager") {
             if (!context.gm?.isGM) {
                 return `<section class="totc-v2-encounter-manager"><p class="totc-v2-encounter-manager__empty">This panel is only available to the active Gamemaster.</p></section>`;
             }
             return renderEncounterManagerPanel(context.encounterManagerPanel ?? {}, { escapeHTML: (v) => this.escapeHTML(v) });
-        }
-
-        if (panel.id === "campaign-view") {
-            return renderCampaignViewPanel(context.campaignViewPanel ?? {}, { escapeHTML: (v) => this.escapeHTML(v) });
-        }
-
-        if (panel.id === "gm-assistant") {
-            return renderGMAssistantPanel(context.gmAssistantPanel ?? {}, { escapeHTML: (v) => this.escapeHTML(v) });
         }
 
         if (panel.id === "roll-feed") {
