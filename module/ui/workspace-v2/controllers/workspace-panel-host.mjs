@@ -7,8 +7,6 @@ import { renderInspectorPanel } from "../panels/inspector-panel.mjs";
 import { renderMediaBrowserPanel } from "../panels/media-browser-panel.mjs";
 import { renderLoggingPanel } from "../panels/logging-panel.mjs";
 import { renderDesignIssuesPanel } from "../panels/design-issues-panel.mjs";
-import { renderScenePropertiesPanel } from "../panels/scene-properties-panel.mjs";
-import { renderScenesPanel } from "../panels/scenes-panel.mjs";
 import {
     renderActorEditorPanel,
     renderActorListPanel
@@ -102,12 +100,6 @@ export class WorkspacePanelHost {
             return this.#renderCompendiumPanel(context);
         }
 
-        if (panel.id === "scenes") {
-            return renderScenesPanel(context.scenesPanel ?? {}, {
-                escapeHTML: (value) => this.escapeHTML(value)
-            });
-        }
-
         if (panel.id === "actors") {
             if (!context.gm?.isGM) {
                 return `<section class="totc-v2-actor-list-panel"><p class="totc-v2-actor-list-panel__empty">This panel is only available to the active Gamemaster.</p></section>`;
@@ -138,15 +130,6 @@ export class WorkspacePanelHost {
                 return `<section class="totc-v2-issues-panel"><p class="totc-v2-issues-panel__access-denied">This panel is only available to the active Gamemaster.</p></section>`;
             }
             return renderDesignIssuesPanel(context.designIssuesPanel ?? {}, {
-                escapeHTML: (value) => this.escapeHTML(value)
-            });
-        }
-
-        if (panel.id === "scene-properties") {
-            if (!context.gm?.isGM) {
-                return `<section class="totc-v2-scene-properties-panel"><p class="totc-v2-scene-properties-panel__error">This panel is only available to the active Gamemaster.</p></section>`;
-            }
-            return renderScenePropertiesPanel(context.scenePropertiesPanel ?? {}, {
                 escapeHTML: (value) => this.escapeHTML(value)
             });
         }

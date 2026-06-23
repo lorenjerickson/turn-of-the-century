@@ -126,4 +126,80 @@ describe("SceneDesignFeature", () => {
 
         assert.equal(designActionExecuted, "scene.walls");
     });
+
+    it("prepares context for scenes and scene-properties panels", async () => {
+        globalThis.canvas = null;
+        const viewedScene = {
+            id: "scene-1",
+            name: "Rookery Yard",
+            width: 1200,
+            height: 800,
+            shiftX: 10,
+            shiftY: 20,
+            grid: { type: 1, size: 100, distance: 5, units: "ft" }
+        };
+        const mockWorkspaceController = {
+            getViewedSceneDocument: () => viewedScene,
+            getScenePropertiesScene: () => viewedScene,
+            propertiesState: { status: "Success", error: "" },
+            layoutEngine: {
+                getLayout: () => ({
+                    root: {
+                        centerDock: {
+                            stacks: [{
+                                activePanelId: "map:scene-1",
+                                panels: [{ id: "map:scene-1" }]
+                            }]
+                        }
+                    }
+                })
+            }
+        };
+
+        const feature = new SceneDesignFeature({
+            sceneWorkspaceController: mockWorkspaceController,
+            gridCalibrationController: { state: { active: false } },
+            designActionRegistry: {
+                getApplicableActions: () => []
+            }
+        });
+
+        globalThis.game = {
+            scenes: [],
+            actors: { contents: [] },
+            user: { isGM: true }
+        };
+
+        const context = {};
+        await feature.prepareContext(context);
+
+        assert.ok(context.scene);
+        assert.equal(context.scene.id, "scene-1");
+        assert.equal(context.scene.name, "Rookery Yard");
+        assert.equal(context.scene.width, 1200);
+
+        assert.ok(context.scenesPanel);
+        assert.equal(context.scenesPanel.count, 0);
+
+        assert.ok(context.scenePropertiesPanel);
+        assert.equal(context.scenePropertiesPanel.status, "Success");
+    });
+
+    it("renders scenes and scene-properties panels", () => {
+        const feature = new SceneDesignFeature();
+
+        const scenesHtml = feature.render({ id: "scenes" }, {
+            scenesPanel: { count: 0, entries: [] }
+        });
+        assert.match(scenesHtml, /totc-v2-scenes-panel/);
+
+        const propertiesHtml = feature.render({ id: "scene-properties" }, {
+            gm: { isGM: true },
+            scenePropertiesPanel: {
+                scene: { name: "Rookery Yard" },
+                actors: []
+            }
+        });
+        assert.match(propertiesHtml, /totc-v2-scene-properties-panel/);
+    });
 });

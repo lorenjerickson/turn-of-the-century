@@ -119,12 +119,7 @@ import {
 } from "./panels/design-issues-panel.mjs";
 
 const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
-import {
-    buildScenePropertiesPanelModel,
-} from "./panels/scene-properties-panel.mjs";
-import {
-    buildScenesPanelModel
-} from "./panels/scenes-panel.mjs";
+
 import {
     buildActorEditorPanelModel,
     buildActorListPanelModel,
@@ -631,7 +626,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getSelectedActorIds: () => this.actorWorkspaceController.getSelectedActorIds(),
             getActorById: (id) => this.#getActorDocumentByReference(id),
             getSceneById: (id) => this.#getSceneDocumentById(id),
-            getFallbackScene: () => this.#getScenePropertiesScene(),
+            getFallbackScene: () => this.sceneWorkspaceController.getScenePropertiesScene(),
             setScenePropertiesState: (patch) => {
                 this.sceneWorkspaceController.patchState(patch);
             },
@@ -696,6 +691,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             gridCalibrationController: this.gridCalibrationController,
             sceneWorkspaceController: this.sceneWorkspaceController,
             encounterPlanningFeature: this.encounterPlanningFeature,
+            designActionRegistry: this.designActionRegistry,
             executeDesignAction: (actionId, options) => this.#executeDesignAction(actionId, options),
             render: (options) => this.render(options),
             notifications: globalThis.ui?.notifications
@@ -1009,10 +1005,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const activeLayout = this.layoutEngine.getLayout();
         const visiblePanels = this.#getVisiblePanelIds(activeLayout);
         const activeWorkspacePanel = this.#getPrimaryActivePanel(activeLayout);
-        const viewedScene = this.#getViewedScene();
+        const viewedScene = this.sceneWorkspaceController.getViewedSceneDocument();
         const scene = canvas?.scene ?? game.scenes?.active ?? viewedScene;
-        const scenePropertiesScene = this.#getScenePropertiesScene(activeWorkspacePanel, { viewedScene, defaultScene: scene });
-        const scenePropertiesState = this.sceneWorkspaceController.propertiesState;
         const combat = game.combats?.active ?? game.combat ?? null;
         const controlledTokens = canvas?.tokens?.controlled ?? [];
         const pinnedEncounterSceneId = this.encounterPlanningFeature?.selectedSceneId ?? "";
@@ -1149,50 +1143,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             diceRollFeedPanel,
             dieRollRequestPanel,
             inspectorPanel,
-            scene: {
-                id: scene?.id ?? null,
-                name: scene?.name ?? game.scenes?.viewed?.name ?? "Current Scene",
-                width: Number(scene?.width ?? canvas?.dimensions?.sceneWidth ?? 0),
-                height: Number(scene?.height ?? canvas?.dimensions?.sceneHeight ?? 0),
-                shiftX: Number(scene?.shiftX ?? 0),
-                shiftY: Number(scene?.shiftY ?? 0),
-                grid: {
-                    type: Number(scene?.grid?.type ?? 1),
-                    size: Number(scene?.grid?.size ?? 100),
-                    distance: Number(scene?.grid?.distance ?? 5),
-                    units: String(scene?.grid?.units ?? "ft")
-                }
-            },
-            scenesPanel: buildScenesPanelModel({
-                scenes: game.scenes,
-                currentScene: scene,
-                viewedScene: game.scenes?.viewed ?? null
-            }),
             gm: gmSnapshot,
             gmPanel: highlightedGmPanel,
             marketPanel,
             playerEncounterPanel: null,
             designIssuesPanel,
-            scenePropertiesPanel: buildScenePropertiesPanelModel({
-                scene: scenePropertiesScene,
-                actors: worldActors,
-                gridCalibrationState: this.gridCalibrationController.state,
-                sceneToolsState: scenePropertiesScene
-                    ? this.sceneDesignFeature.getMapPanelToolbarState({
-                        id: `map:${scenePropertiesScene.id ?? scenePropertiesScene._id}`,
-                        baseId: "map",
-                        sceneId: scenePropertiesScene.id ?? scenePropertiesScene._id
-                    })
-                    : {},
-                sceneToolActions: scenePropertiesScene
-                    ? this.designActionRegistry.getApplicableActions({
-                        panelId: `map:${scenePropertiesScene.id ?? scenePropertiesScene._id}`,
-                        isGM: isGMUser
-                    })
-                    : [],
-                status: scenePropertiesState.status,
-                error: scenePropertiesState.error
-            }),
             loggingPanel: buildLoggingPanelModel({ entries: totcLogger.getEntries() }),
             campaignBuilderPanel: buildCampaignBuilderPanelModel({
                 campaigns: Array.from(game.items?.contents || []).filter(i => i.type === "campaign")
@@ -2287,14 +2242,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return collection?.get?.(key) ?? this.#collectionContents(collection).find((entry) => (
             String(entry?.id ?? entry?._id ?? entry?.document?.id ?? "").trim() === key
         )) ?? null;
-    }
-
-    #getViewedScene() {
-        return this.sceneWorkspaceController.getViewedSceneDocument();
-    }
-
-    #getScenePropertiesScene() {
-        return this.sceneWorkspaceController.getScenePropertiesScene();
     }
 
     #isMapPanel(panel) {
