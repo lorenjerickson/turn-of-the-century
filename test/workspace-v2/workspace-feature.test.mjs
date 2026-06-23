@@ -211,7 +211,6 @@ describe("WorkspaceFeature and composition shell", () => {
             wireScenePropertiesHandlers: () => {}
         };
         app.actorWorkspaceController = { wireHandlers: () => {} };
-        app.marketController = { wireHandlers: () => {} };
         app.sceneActorDropController = { wireActorListDragHandlers: () => {} };
 
         // Execute render hooks

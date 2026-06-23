@@ -27,7 +27,6 @@ export class WorkspacePanelHost {
         getEncounterMovementOverlayState = () => null,
         getEncounterTargetOverlayState = () => null,
         getMapPanelToolbarState = () => ({}),
-        renderMarketPanel = () => "",
         renderGamemasterPanel = () => "",
         getSelectedTokenIds = () => new Set()
     } = {}) {
@@ -45,7 +44,6 @@ export class WorkspacePanelHost {
         this.getEncounterMovementOverlayState = getEncounterMovementOverlayState;
         this.getEncounterTargetOverlayState = getEncounterTargetOverlayState;
         this.getMapPanelToolbarState = getMapPanelToolbarState;
-        this.renderMarketPanel = renderMarketPanel;
         this.renderGamemasterPanel = renderGamemasterPanel;
         this.getSelectedTokenIds = getSelectedTokenIds;
     }
@@ -95,9 +93,7 @@ export class WorkspacePanelHost {
 
 
 
-        if (panel.id === "market") {
-            return this.renderMarketPanel(context.marketPanel ?? {});
-        }
+
 
         if (panel.id === "inspector") {
             return renderInspectorPanel(context.inspectorPanel ?? {}, {

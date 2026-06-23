@@ -135,10 +135,7 @@ import {
 import {
     WorkspaceHooksController
 } from "./controllers/workspace-hooks-controller.mjs";
-import {
-    MarketController,
-    normalizeMarketPanelState
-} from "./controllers/market-controller.mjs";
+import { MarketFeature } from "./controllers/market-feature.mjs";
 
 
 const WORKSPACE_PANEL_DRAG_MIME = "application/x-totc-workspace-panel";
@@ -189,8 +186,7 @@ const TEXT_INPUT_DEBOUNCE_MS = 300;
 const GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS = 100;
 const GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS = 500;
 const GM_PANEL_STATE_KEY = "gmPanelState";
-const MARKET_PANEL_STATE_KEY = "marketPanelState";
-const MARKET_SCENE_FLAG_KEY = "workspaceV2Market";
+
 
 const GM_PANEL_DEFAULT_STATE = Object.freeze({
     collapsedGroupIds: [],
@@ -624,7 +620,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getEncounterMovementOverlayState: (scene) => this.encounterPlanningFeature?.getMovementOverlayState(scene),
             getEncounterTargetOverlayState: (scene) => this.encounterPlanningFeature?.getTargetOverlayState(scene),
             getMapPanelToolbarState: (panel) => this.sceneDesignFeature?.getMapPanelToolbarState(panel),
-            renderMarketPanel: (marketPanel) => this.#renderMarketPanel(marketPanel),
             renderGamemasterPanel: (gmPanel, gmSnapshot, dieRollRequestPanel) => this.#renderGamemasterPanel(gmPanel, gmSnapshot, dieRollRequestPanel),
             getSelectedTokenIds: () => this.selectedTokenIds
         });
@@ -637,24 +632,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getSelectedTokenIds: () => this.selectedTokenIds
         });
         this.registerFeature(this.encounterPlanningFeature);
-        this.marketController = new MarketController({
-            getScene: () => canvas?.scene ?? game.scenes?.viewed ?? null,
-            getActors: () => game.actors?.contents ?? [],
-            getControlledTokens: () => canvas?.tokens?.controlled ?? [],
-            getUser: () => game.user,
-            getSystemId: () => game.system?.id ?? "turn-of-the-century",
-            getPanelState: () => this.#getMarketPanelState(),
-            setPanelStatePatch: (patch) => this.#setMarketPanelStatePatch(patch),
-            getCompendiumItems: () => this.compendiumCacheController.getItems(),
-            getSeedsApi: () => game.turnOfTheCentury?.seeds,
-            fromUuid: (uuid) => fromUuid(uuid),
-            foundryRef: () => foundry,
-            uiRef: () => ui,
-            render: () => this.render({ force: false }),
-            announce: (message) => this.#announceGamemasterGeneratedContent(message),
-            random: () => Math.random(),
-            logger: console
+        this.marketFeature = new MarketFeature({
+            layoutEngine: this.layoutEngine,
+            panelRegistry: this.panelRegistry,
+            stateStore: this.stateStore,
+            compendiumCacheController: this.compendiumCacheController,
+            render: (options) => this.render(options),
+            announce: (message) => this.#announceGamemasterGeneratedContent(message)
         });
+        this.registerFeature(this.marketFeature);
         this.gridCalibrationController = new GridCalibrationController({
             sceneResolver: (state) => state.sceneId
                 ? game.scenes?.get(state.sceneId)
@@ -1031,13 +1017,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             isGM: Boolean(game.user?.isGM),
             registry: this.designActionRegistry
         });
-        const marketPanelState = this.#getMarketPanelState();
-        const marketPanel = await this.#buildMarketPanelModel({
-            scene,
-            controlledTokens,
-            panelState: marketPanelState,
-            compendiumItems
-        });
         // GM panel highlight tracking (groups)
         const gmVisibleGroupIds = gmPanel.groups?.map((g) => g.id) ?? [];
         const gmHighlightedGroupIds = this.#trackPanelSectionHighlights("gm", gmVisibleGroupIds);
@@ -1099,7 +1078,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             inspectorPanel,
             gm: gmSnapshot,
             gmPanel: highlightedGmPanel,
-            marketPanel,
+            marketPanel: null,
             playerEncounterPanel: null,
             designIssuesPanel,
             loggingPanel: buildLoggingPanelModel({ entries: totcLogger.getEntries() }),
@@ -1246,10 +1225,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
 
         this.#wireDebouncedTextInputHandlers();
-
-        this.marketController.wireHandlers(this.element);
-
-
 
         this.sceneActorDropController.wireActorListDragHandlers(this.element);
 
@@ -2023,122 +1998,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             .replaceAll("'", "&#39;");
     }
 
-    #renderMarketPanel(marketPanel = {}) {
-        const actorOptionsMarkup = (marketPanel.actors ?? []).map((actor) => `
-            <option value="${this.#escapeHTML(actor.id)}" ${actor.selected ? "selected" : ""}>${this.#escapeHTML(actor.name)}</option>`).join("");
 
-        if (!marketPanel.hasMarket) {
-            return `
-            <section class="totc-v2-market-panel">
-                <article class="totc-v2-market-panel__state">
-                    <h3>Market</h3>
-                    <p>No generated market is active for this scene.</p>
-                    ${marketPanel.canGenerate ? `
-                    <button type="button" data-action="gm-execute-action" data-gm-action-id="gm-generate-market">Generate Market</button>` : ""}
-                </article>
-            </section>`;
-        }
-
-        const offersMarkup = (marketPanel.offers ?? []).map((offer) => `
-            <article class="totc-v2-market-panel__entry">
-                <div class="totc-v2-market-panel__entry-main">
-                    <img class="totc-v2-market-panel__entry-img" src="${this.#escapeHTML(offer.img || DEFAULT_ITEM_ICON)}" alt="">
-                    <div class="totc-v2-market-panel__entry-copy">
-                        <div class="totc-v2-market-panel__entry-name">${this.#escapeHTML(offer.name)}</div>
-                        <div class="totc-v2-market-panel__entry-meta">${this.#escapeHTML(offer.type)} · ${this.#escapeHTML(offer.stockLabel)} · ${this.#escapeHTML(offer.packLabel)}</div>
-                        ${offer.description ? `<div class="totc-v2-market-panel__entry-description">${this.#escapeHTML(offer.description)}</div>` : ""}
-                    </div>
-                </div>
-                <div class="totc-v2-market-panel__entry-actions">
-                    <span class="totc-v2-market-panel__price">${this.#escapeHTML(offer.priceLabel)}</span>
-                    <div class="totc-v2-market-panel__trade-controls">
-                        <input
-                            type="number"
-                            class="totc-v2-market-panel__quantity-input"
-                            data-action="market-buy-quantity"
-                            min="1"
-                            max="${Math.max(1, Number(offer.maxBuyQty ?? 1))}"
-                            value="1"
-                            step="1"
-                            ${offer.canBuy ? "" : "disabled"}
-                            aria-label="Buy quantity for ${this.#escapeHTML(offer.name)}">
-                        <button
-                            type="button"
-                            data-action="market-buy-item"
-                            data-offer-id="${this.#escapeHTML(offer.id)}"
-                            data-max-quantity="${Math.max(1, Number(offer.maxBuyQty ?? 1))}"
-                            ${offer.canBuy ? "" : "disabled"}
-                            title="${this.#escapeHTML(offer.buyHint)}">Buy</button>
-                    </div>
-                </div>
-            </article>`).join("");
-
-        const sellMarkup = (marketPanel.sellableItems ?? []).map((entry) => `
-            <article class="totc-v2-market-panel__entry">
-                <div class="totc-v2-market-panel__entry-main">
-                    <img class="totc-v2-market-panel__entry-img" src="${this.#escapeHTML(entry.img || DEFAULT_ITEM_ICON)}" alt="">
-                    <div class="totc-v2-market-panel__entry-copy">
-                        <div class="totc-v2-market-panel__entry-name">${this.#escapeHTML(entry.name)}</div>
-                        <div class="totc-v2-market-panel__entry-meta">${this.#escapeHTML(entry.type)} · Qty ${entry.quantity} · Base ${this.#escapeHTML(entry.basePriceLabel)}</div>
-                        ${entry.description ? `<div class="totc-v2-market-panel__entry-description">${this.#escapeHTML(entry.description)}</div>` : ""}
-                    </div>
-                </div>
-                <div class="totc-v2-market-panel__entry-actions">
-                    <span class="totc-v2-market-panel__price">${this.#escapeHTML(entry.sellPriceLabel)}</span>
-                    <div class="totc-v2-market-panel__trade-controls">
-                        <input
-                            type="number"
-                            class="totc-v2-market-panel__quantity-input"
-                            data-action="market-sell-quantity"
-                            min="1"
-                            max="${Math.max(1, Number(entry.maxSellQty ?? 1))}"
-                            value="1"
-                            step="1"
-                            ${entry.canSell ? "" : "disabled"}
-                            aria-label="Sell quantity for ${this.#escapeHTML(entry.name)}">
-                        <button
-                            type="button"
-                            data-action="market-sell-item"
-                            data-item-id="${this.#escapeHTML(entry.id)}"
-                            data-max-quantity="${Math.max(1, Number(entry.maxSellQty ?? 1))}"
-                            ${entry.canSell ? "" : "disabled"}
-                            title="${this.#escapeHTML(entry.sellHint)}">Sell</button>
-                    </div>
-                </div>
-            </article>`).join("");
-
-        return `
-        <section class="totc-v2-market-panel">
-            <article class="totc-v2-market-panel__state">
-                <h3>${this.#escapeHTML(marketPanel.title ?? "Market")}</h3>
-                <p>${this.#escapeHTML(marketPanel.summary ?? "")}</p>
-                <p><strong>Updated:</strong> ${this.#escapeHTML(marketPanel.updatedLabel ?? "")}</p>
-            </article>
-            <section class="totc-v2-market-panel__controls">
-                <label class="totc-v2-market-panel__buyer-select">
-                    <span>Buyer/Seller</span>
-                    <select data-action="market-select-buyer" ${marketPanel.actors?.length ? "" : "disabled"}>
-                        ${actorOptionsMarkup || `<option value="">No eligible actor</option>`}
-                    </select>
-                </label>
-                <div class="totc-v2-market-panel__wallet">Wallet: ${this.#escapeHTML(marketPanel.walletLabel ?? "-")}</div>
-            </section>
-            <section class="totc-v2-market-panel__columns">
-                <article class="totc-v2-market-panel__column">
-                    <h3>Buy</h3>
-                    <div class="totc-v2-market-panel__list">
-                        ${offersMarkup || `<div class="totc-v2-market-panel__empty">No market offers available.</div>`}
-                    </div>
-                </article>
-                <article class="totc-v2-market-panel__column">
-                    <h3>Sell</h3>
-                    <div class="totc-v2-market-panel__list">
-                        ${sellMarkup || `<div class="totc-v2-market-panel__empty">No sellable inventory on selected actor.</div>`}
-                    </div>
-                </article>
-            </section>
-        </section>`;
-    }
 
     #bindSceneHooks() {
         this.hooksController.bindFamily("scene");
@@ -2178,18 +2038,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             ?? normalizeGamemasterPanelState();
     }
 
-    #getMarketPanelState() {
-        return this.stateStore?.getUserScopedState?.(MARKET_PANEL_STATE_KEY, normalizeMarketPanelState)
-            ?? normalizeMarketPanelState();
-    }
+
 
     async #setGamemasterPanelStatePatch(patch = {}) {
         return await this.stateStore?.setUserScopedStatePatch?.(GM_PANEL_STATE_KEY, patch, normalizeGamemasterPanelState);
     }
 
-    async #setMarketPanelStatePatch(patch = {}) {
-        return await this.stateStore?.setUserScopedStatePatch?.(MARKET_PANEL_STATE_KEY, patch, normalizeMarketPanelState);
-    }
+
 
     #syncSelectionToCanvas(scene = null) {
         if (!canvas?.ready || !canvas?.tokens) return;
@@ -2431,7 +2286,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     async #generateMarketOfferBoard() {
-        await this.marketController.generateOfferBoard();
+        await this.marketFeature.generateOfferBoard();
     }
 
     async #setGamemasterAtmospherePreset(preset) {
@@ -2487,50 +2342,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (!Array.isArray(items) || !items.length) return null;
         const index = Math.floor(Math.random() * items.length);
         return items[index];
-    }
-
-    async #buildMarketPanelModel({ scene = null, controlledTokens = [], panelState = {}, compendiumItems = [] } = {}) {
-        return await this.marketController.buildPanelModel({ scene, controlledTokens, panelState, compendiumItems });
-    }
-
-    #getMarketEligibleActors(controlledTokens = []) {
-        return this.marketController.getEligibleActors(controlledTokens);
-    }
-
-    #normalizeSceneMarketState(value) {
-        return this.marketController.normalizeSceneMarketState(value);
-    }
-
-    #formatCurrency(value, currency = "pounds") {
-        return this.marketController.formatCurrency(value, currency);
-    }
-
-    #getMarketSellableItems(actor, marketState) {
-        return this.marketController.getSellableItems(actor, marketState);
-    }
-
-    #parseMarketQuantityInput(input, { fallback = 1, max = 1 } = {}) {
-        return this.marketController.parseQuantityInput(input, { fallback, max });
-    }
-
-    async #buildGeneratedMarketOffers() {
-        return await this.marketController.buildGeneratedOffers();
-    }
-
-    #resolveSelectedMarketActor() {
-        return this.marketController.resolveSelectedActor();
-    }
-
-    #canUserManageMarketActor(actor) {
-        return this.marketController.canManageActor(actor);
-    }
-
-    async #handleMarketBuy(offerId, requestedQuantity = 1) {
-        await this.marketController.handleBuy(offerId, requestedQuantity);
-    }
-
-    async #handleMarketSell(itemId, requestedQuantity = 1) {
-        await this.marketController.handleSell(itemId, requestedQuantity);
     }
 
     #wireInteractionHandlers() {
@@ -3374,9 +3185,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }
     }
 
-    #isMarketTradableItemType(itemType) {
-        return this.marketController.isTradableItemType(itemType);
-    }
 
     #showGhost(rect, label) {
         const ghost = this.element?.querySelector("[data-drop-ghost='true']");
