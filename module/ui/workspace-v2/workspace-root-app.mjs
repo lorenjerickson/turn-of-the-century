@@ -1,101 +1,12 @@
-// --- Compendium Preflight Check ---
-import { migrateTotcStarterCompendiums } from "../../migrations/starter-compendiums.mjs";
-// Utility: Check if any system compendium pack has entries.
-// Scoped to this system's own packs so that content from installed modules
-// does not mask a genuinely empty system compendium set.
-async function hasAnyCompendiumData() {
-    if (!game?.ready) return false;
-    const systemId = game.system?.id ?? "turn-of-the-century";
-    const allPacks = Array.from(game.packs.values?.() ?? game.packs ?? []);
-    const systemPacks = allPacks.filter((p) => {
-        const collection = String(p.collection ?? p.metadata?.id ?? "");
-        const packageName = String(p.metadata?.packageName ?? p.metadata?.package ?? "");
-        return collection.startsWith(`${systemId}.`) || packageName === systemId;
-    });
-    if (!systemPacks.length) return false;
-    for (const pack of systemPacks) {
-        try {
-            const index = await pack.getIndex();
-            const count = Array.isArray(index) ? index.length : (index?.size ?? 0);
-            if (count > 0) return true;
-        } catch { /* ignore individual pack errors */ }
-    }
-    return false;
-}
-
-// Utility: Show a modal dialog to the GM with a repair button
-function showCompendiumRepairModal(onRepair) {
-    if (!game.user?.isGM) return;
-    const safeOnRepair = typeof onRepair === "function" ? onRepair : () => {};
-    // DialogV2 (Foundry v13+) requires buttons as an array and title under window:{title}.
-    const DialogV2 = globalThis.foundry?.applications?.api?.DialogV2;
-    if (DialogV2) {
-        new DialogV2({
-            window: { title: "Compendium Data Missing" },
-            content: `<p>No compendium data was found for this system. This can break core features.</p>`
-                + `<p><strong>Repair will repopulate the starter compendiums. Existing world data will not be affected.</strong></p>`,
-            buttons: [
-                {
-                    action: "repair",
-                    label: "Repair Compendiums",
-                    default: true,
-                    callback: () => safeOnRepair()
-                },
-                {
-                    action: "cancel",
-                    label: "Cancel"
-                }
-            ]
-        }).render(true);
-    } else {
-        // Foundry version too old to support DialogV2 — surface a notification instead.
-        ui.notifications?.error(
-            "Turn of the Century: compendium data is missing. Please reload and allow the repair prompt, or contact your system maintainer."
-        );
-    }
-}
-
-// Main preflight: Run after game.ready, before UI panels.
-// On a fresh install all packs are empty LevelDB databases; auto-populate from
-// the bundled sample content so the compendium panel works immediately.
-Hooks.once("ready", async () => {
-    if (await hasAnyCompendiumData()) return;
-    if (!game.user?.isGM) return;
-
-    ui.notifications?.info("Turn of the Century: Populating starter content…");
-    try {
-        await migrateTotcStarterCompendiums({ overwrite: false, notify: false });
-        ui.notifications?.info("Turn of the Century: Starter content ready.");
-        Hooks.callAll?.("totcStarterCompendiumsReady");
-    } catch (e) {
-        ui.notifications?.error("Turn of the Century: Starter content population failed — " + (e?.message ?? e));
-        console.error("[turn-of-the-century] Starter compendium population error", e);
-    }
-});
-import { dieRollRequestManager } from "../../die-roll-request-manager.mjs";
-import { acceptCompletedPlanningRoll } from "../../encounters/planning-roll-lock.mjs";
 import { WORKSPACE_V2_DOCK_IDS } from "./constants.mjs";
-import { InteractionController } from "./interaction-controller.mjs";
 import { GridCalibrationController } from "./grid-calibration-controller.mjs";
 import { LayoutEngine } from "./layout-engine.mjs";
 import { WorkspacePanelRegistry } from "./panel-registry.mjs";
-import { getDieRollRequestHostPanelId } from "./die-roll-request-routing.mjs";
 import { openFoundrySettingsView } from "./workspace-system-menu.mjs";
 import {
     focusWorkspaceTextInputAtEnd,
     isWorkspaceDebouncedTextInputTarget
 } from "./workspace-text-inputs.mjs";
-import {
-    buildDiceRollFeedPanelModel
-} from "./panels/dice-roll-feed-panel.mjs";
-import {
-    buildDieRollRequestPanelModel,
-    renderDieRollRequestPanel
-} from "./panels/die-roll-request-panel.mjs";
-import {
-    buildDesignCommandPaletteModel,
-    renderDesignCommandPalette
-} from "./panels/design-command-palette.mjs";
 import {
     buildInspectorPanelModel
 } from "./panels/inspector-panel.mjs";
@@ -111,10 +22,6 @@ import {
     getCompendiumPacks,
     loadUnifiedCompendiumItems
 } from "./compendium-items.mjs";
-import {
-    buildDesignIssuesPanelModel
-} from "./panels/design-issues-panel.mjs";
-
 const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
 
 import {
@@ -135,14 +42,6 @@ import {
 import { MarketFeature } from "./controllers/market-feature.mjs";
 
 
-const WORKSPACE_PANEL_DRAG_MIME = "application/x-totc-workspace-panel";
-
-function dataTransferHasType(dataTransfer, mimeType) {
-    const types = dataTransfer?.types;
-    if (typeof types?.contains === "function") return types.contains(mimeType);
-    return Array.from(types ?? []).includes(mimeType);
-}
-
 import {
     buildEncounterManagerPanelModel
 } from "./panels/encounter-manager-panel.mjs";
@@ -159,26 +58,14 @@ import { EncounterPlanningFeature } from "./controllers/encounter-planning-featu
 import { SceneDesignFeature } from "./controllers/scene-design-feature.mjs";
 import { CampaignFeature } from "./controllers/campaign-feature.mjs";
 import { ActorManagementFeature } from "./controllers/actor-management-feature.mjs";
+import { RollRequestFeature } from "./controllers/roll-request-feature.mjs";
+import { WorkspaceLayoutFeature } from "./controllers/workspace-layout-feature.mjs";
 
 const ApplicationV2Base = requireApplicationV2();
 const CombatDocumentClass = requireCombatDocumentClass();
 const ActorDocumentClass = requireActorDocumentClass();
 const ItemDocumentClass = requireItemDocumentClass();
 
-const DOCK_LABELS = Object.freeze({
-    leftDock: "Left Dock",
-    topDock: "Top Dock",
-    centerDock: "Center Dock",
-    rightDock: "Right Dock",
-    bottomDock: "Bottom Dock"
-});
-
-const MIN_FLOAT_WIDTH = 240;
-const MIN_FLOAT_HEIGHT = 160;
-const MIN_TOP_BOTTOM_DOCK_HEIGHT = 128;
-const MIN_LEFT_RIGHT_DOCK_WIDTH = 240;
-const COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT = 38;
-const COLLAPSED_LEFT_RIGHT_DOCK_WIDTH = 42;
 const TEXT_INPUT_DEBOUNCE_MS = 300;
 const GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS = 100;
 const GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS = 500;
@@ -518,18 +405,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             layout: this.stateStore?.getUserLayout?.(),
             panels: this.panels
         });
-        this.interactionController = new InteractionController();
-        this.ghostIntent = null;
-        this.activeDesignLensPanelIds = new Set();
         this.selectedTokenIds = new Set();
         this._nativeCanvasViewSceneId = "";
         this._activePlanEditSlot = null;
         this._wiredElement = null;
-        this.designCommandPaletteOpen = false;
-        this.designCommandPaletteQuery = "";
         this.compendiumSearchQuery = "";
 
-        this._resizeSession = null;
         this._textInputDebounceTimers = new Map();
         this._gridCalibrationPreviewTimer = null;
         this.compendiumCacheController = new CompendiumCacheController({
@@ -567,7 +448,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getActors: () => Array.from(game.actors?.contents ?? []),
             addActorsToScene: (actors) => this.#addActorsToScene(actors),
             centerSceneMapOnToken: ({ sceneId, x, y }) => this.#centerSceneMapOnToken({ sceneId, x, y }),
-            executeDesignAction: (actionId, options) => this.#executeDesignAction(actionId, options),
+            executeDesignAction: (actionId, options) => this.sceneDesignFeature.executeDesignAction(actionId, options),
             render: () => {
                 if (this.rendered) this.render({ force: false });
             },
@@ -595,7 +476,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             designActionRegistry: this.designActionRegistry,
             escapeHTML: (value) => this.#escapeHTML(value),
             isGM: () => Boolean(game.user?.isGM),
-            isDesignLensActive: (panelId) => this.#isDesignLensActive(panelId),
+            isDesignLensActive: (panelId) => this.workspaceLayoutFeature?.isDesignLensActive(panelId) ?? false,
             isMapPanel: (panel) => this.#isMapPanel(panel),
             getMapPanelScene: (panel, context) => this.#getMapPanelScene(panel, context),
             getPanelSceneId: (panel, context) => this.#getPanelSceneId(panel, context),
@@ -633,6 +514,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             render: (options) => this.render(options)
         });
         this.registerFeature(this.mediaFeature);
+        this.rollRequestFeature = new RollRequestFeature({
+            layoutEngine: this.layoutEngine,
+            panelRegistry: this.panelRegistry,
+            stateStore: this.stateStore,
+            render: (options) => this.render(options)
+        });
+        this.registerFeature(this.rollRequestFeature);
         this.gridCalibrationController = new GridCalibrationController({
             sceneResolver: (state) => state.sceneId
                 ? game.scenes?.get(state.sceneId)
@@ -645,7 +533,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             sceneWorkspaceController: this.sceneWorkspaceController,
             encounterPlanningFeature: this.encounterPlanningFeature,
             designActionRegistry: this.designActionRegistry,
-            executeDesignAction: (actionId, options) => this.#executeDesignAction(actionId, options),
+            hooksController: this.hooksController,
             render: (options) => this.render(options),
             notifications: globalThis.ui?.notifications
         });
@@ -659,6 +547,22 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
         this.registerFeature(this.campaignFeature);
         this.registerFeature(this.actorManagementFeature);
+        this.workspaceLayoutFeature = new WorkspaceLayoutFeature({
+            layoutEngine: this.layoutEngine,
+            stateStore: this.stateStore,
+            panelRegistry: this.panelRegistry,
+            panelHost: this.panelHost,
+            sceneWorkspaceController: this.sceneWorkspaceController,
+            designActionRegistry: this.designActionRegistry,
+            executeDesignAction: (actionId, options) => this.sceneDesignFeature.executeDesignAction(actionId, options),
+            render: (options) => this.render(options),
+            escapeHTML: (value) => this.#escapeHTML(value),
+            isGM: () => Boolean(game.user?.isGM),
+            isRollLocked: () => this.features.some((f) => typeof f.hasOutstandingRequests === "function" && f.hasOutstandingRequests()),
+            openFoundrySettings: () => openFoundrySettingsView({ game, ui, foundry }),
+            shutDown: async () => game.shutDown?.()
+        });
+        this.registerFeature(this.workspaceLayoutFeature);
         this._playerPanelSectionSnapshotInitialized = false;
         this._playerPanelVisibleSectionIds = new Set();
         this._sceneRefreshHandler = (scene, changes) => {
@@ -708,18 +612,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.render({ force: false });
             }
         };
-        this._designIssuesRefreshHandler = () => {
-            if (this.rendered) this.render({ force: false });
-        };
         this._wallSelectionRefreshHandler = () => {
             const scene = canvas?.scene ?? game.scenes?.viewed ?? game.scenes?.active ?? null;
             this.sceneDesignFeature.syncSelectedWallsFromCanvas(scene, { clearWhenEmpty: true });
             if (scene) this.sceneDesignFeature.refreshSceneWallOverlay(scene);
             if (this.rendered) this.render({ force: false });
         };
-        this._dieRollRequestUnsubscribe = dieRollRequestManager.onChange((change) => {
-            void this.#handleDieRollRequestChange(change);
-        });
         this._loggerUnsubscribe = totcLogger.subscribe(() => {
             if (this.rendered) this.render({ force: false });
         });
@@ -751,25 +649,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             { event: "updateCombat", handler: this._gamemasterRefreshHandler },
             { event: "controlToken", handler: this._gamemasterRefreshHandler },
             { event: "pauseGame", handler: this._gamemasterRefreshHandler }
-        ]);
-        this.hooksController.registerFamily("designIssues", [
-            { event: "updateScene", handler: this._designIssuesRefreshHandler },
-            { event: "canvasReady", handler: this._designIssuesRefreshHandler },
-            { event: "createWall", handler: this._designIssuesRefreshHandler },
-            { event: "deleteWall", handler: this._designIssuesRefreshHandler },
-            { event: "createAmbientLight", handler: this._designIssuesRefreshHandler },
-            { event: "deleteAmbientLight", handler: this._designIssuesRefreshHandler },
-            { event: "createToken", handler: this._designIssuesRefreshHandler },
-            { event: "updateToken", handler: this._designIssuesRefreshHandler },
-            { event: "deleteToken", handler: this._designIssuesRefreshHandler },
-            { event: "createActor", handler: this._designIssuesRefreshHandler },
-            { event: "updateActor", handler: this._designIssuesRefreshHandler },
-            { event: "deleteActor", handler: this._designIssuesRefreshHandler },
-            { event: "createItem", handler: this._designIssuesRefreshHandler },
-            { event: "deleteItem", handler: this._designIssuesRefreshHandler },
-            { event: "createCombatant", handler: this._designIssuesRefreshHandler },
-            { event: "updateCombatant", handler: this._designIssuesRefreshHandler },
-            { event: "deleteCombatant", handler: this._designIssuesRefreshHandler }
         ]);
     }
 
@@ -816,102 +695,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }).join("");
     }
 
-    #getWorkspaceUsers() {
-        const users = game.users?.contents
-            ?? (typeof game.users?.values === "function" ? Array.from(game.users.values()) : game.users)
-            ?? [];
-        return Array.from(users).map((user) => ({
-            id: String(user?.id ?? ""),
-            name: String(user?.name ?? user?.id ?? "Unknown User"),
-            isGM: Boolean(user?.isGM)
-        })).filter((user) => user.id);
-    }
-
-    async #handleDieRollRequestChange(change = {}) {
-        await acceptCompletedPlanningRoll({ change });
-        const userId = String(game.user?.id ?? "");
-        const isGM = Boolean(game.user?.isGM);
-        const hasRelevantPendingRequest = dieRollRequestManager
-            .getVisibleRequests({ userId, isGM })
-            .some((request) => request.isPending && (isGM || !request.hasResult(userId)));
-
-        if (hasRelevantPendingRequest) {
-            const panelDef = this.panelRegistry.get(getDieRollRequestHostPanelId({ isGM }));
-            if (panelDef) {
-                const nextLayout = this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? "bottomDock" });
-                await this.stateStore?.setUserLayout?.(nextLayout);
-            }
-        }
-
-        if (this.rendered) this.render({ force: false });
-    }
-
-    #wireDieRollRequestHandlers() {
-        this.element?.querySelectorAll("[data-action='die-roll-request-create']")?.forEach((form) => {
-            form.addEventListener("submit", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-
-                const data = new FormData(form);
-                const recipientId = String(data.get("recipientId") ?? "").trim();
-                if (!recipientId) {
-                    ui.notifications?.warn?.("Choose a player before requesting a roll.");
-                    return;
-                }
-
-                const label = String(data.get("label") ?? "Requested Roll").trim() || "Requested Roll";
-                const rollMode = String(data.get("rollMode") ?? "normal");
-                const modifier = Number(data.get("modifier") ?? 0) || 0;
-                dieRollRequestManager.sendRequest({
-                    initiatorId: game.user?.id ?? "",
-                    requestor: {
-                        id: game.user?.id ?? "",
-                        name: game.user?.name ?? "GM",
-                        type: "gm"
-                    },
-                    recipientIds: [recipientId],
-                    rollType: String(data.get("rollType") ?? "custom"),
-                    rollSubType: label,
-                    label,
-                    dice: rollMode === "advantage"
-                        ? [{ count: 2, faces: 20, keep: "highest" }]
-                        : rollMode === "disadvantage"
-                            ? [{ count: 2, faces: 20, keep: "lowest" }]
-                            : [{ count: 1, faces: 20 }],
-                    modifiers: modifier ? [{ label: "Requested modifier", value: modifier, source: "gm" }] : []
-                });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='die-roll-adjust']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                dieRollRequestManager.adjustModifier(
-                    button.dataset.requestId,
-                    game.user?.id,
-                    Number(button.dataset.delta ?? 0) || 0
-                );
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='die-roll-request-roll']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                dieRollRequestManager.rollRequestForRecipient(button.dataset.requestId, game.user?.id);
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='die-roll-request-cancel']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                dieRollRequestManager.sendCancel(button.dataset.requestId, { cancelledBy: game.user?.id ?? "" });
-            });
-        });
-    }
-
     /**
      * Register a new Workspace feature.
      *
@@ -925,19 +708,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         if (this.rendered && this.element) {
             feature.bind(this.element);
         }
-    }
-
-    #wireRollLockGuard() {
-        this.element?.addEventListener("click", (event) => {
-            if (!dieRollRequestManager.hasOutstandingRequests()) return;
-            const target = event.target?.closest?.("[data-action]");
-            const action = String(target?.dataset?.action ?? "");
-            if (!ROLL_LOCKED_ACTIONS.has(action)) return;
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation?.();
-            ui.notifications?.warn?.("Resolve or cancel outstanding roll requests before changing combat, scenes, or actors.");
-        }, { capture: true });
     }
 
     async _prepareContext(options) {
@@ -981,23 +751,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             snapshot: gmSnapshot,
             panelState: gmPanelState
         });
-        const workspaceUsers = this.#getWorkspaceUsers();
-        // Die Roll Request Panel context
-        const dieRollRequestPanel = buildDieRollRequestPanelModel({
-            userId: game.user?.id,
-            isGM: Boolean(game.user?.isGM),
-            users: workspaceUsers
-        });
         const compendiumItems = await this.compendiumCacheController.getItems();
-        const diceRollFeedPanel = buildDiceRollFeedPanelModel({
-            messages: game.messages?.contents ?? game.messages ?? [],
-            rollRequests: dieRollRequestManager.getVisibleRequests({
-                userId: game.user?.id,
-                isGM: Boolean(game.user?.isGM)
-            }),
-            users: workspaceUsers,
-            limit: 20
-        });
         const inspectorPanel = buildInspectorPanelModel({
             activePanel: activeWorkspacePanel,
             scene,
@@ -1033,25 +787,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 });
             }
         }
-        const designIssuesPanel = buildDesignIssuesPanelModel({
-            scene,
-            actors: worldActors,
-            combat
-        });
-
         const context = {
             enabled: policy.enabled,
             debugGovernance: policy.debugGovernance,
             hasUserLayout: Boolean(this.stateStore?.getUserLayout?.()),
             panels: this.panels,
             panelVisibility,
-            designCommandPalette: buildDesignCommandPaletteModel({
-                active: this.designCommandPaletteOpen,
-                activePanel: activeWorkspacePanel,
-                isGM: isGMUser,
-                query: this.designCommandPaletteQuery,
-                registry: this.designActionRegistry
-            }),
             layout: activeLayout,
             dockWeights: this.layoutEngine.getDockWeightLayout(),
             compendiumSearchQuery: this.compendiumSearchQuery,
@@ -1059,14 +800,14 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
             compendiumLoadingState: this.compendiumCacheController.loadingFailureMessage,
             mediaBrowserPanel: null,
-            diceRollFeedPanel,
-            dieRollRequestPanel,
+            diceRollFeedPanel: null,
+            dieRollRequestPanel: null,
             inspectorPanel,
             gm: gmSnapshot,
             gmPanel: highlightedGmPanel,
             marketPanel: null,
             playerEncounterPanel: null,
-            designIssuesPanel,
+            designIssuesPanel: null,
             loggingPanel: buildLoggingPanelModel({ entries: totcLogger.getEntries() }),
             encounterManagerPanel: buildEncounterManagerPanelModel({
                 combat
@@ -1083,89 +824,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     async _renderHTML(context) {
-        const root = document.createElement("section");
-        root.classList.add("totc-workspace-v2-root");
-        if (dieRollRequestManager.hasOutstandingRequests()) {
-            root.classList.add("is-roll-locked");
-            root.setAttribute("data-roll-lock", "true");
-        }
-        root.setAttribute("data-drag-host", "true");
-        const dockWeights = context.dockWeights ?? { left: 0.18, centerX: 0.64, right: 0.18, top: 0.18, centerY: 0.64, bottom: 0.18 };
-        const layoutRoot = context.layout?.root ?? {};
-        const leftOccupied = this.#isDockOccupied(layoutRoot.leftDock);
-        const rightOccupied = this.#isDockOccupied(layoutRoot.rightDock);
-        const topOccupied = this.#isDockOccupied(layoutRoot.topDock);
-        const bottomOccupied = this.#isDockOccupied(layoutRoot.bottomDock);
-        const leftTrack = leftOccupied && layoutRoot.leftDock?.collapsed
-            ? `${COLLAPSED_LEFT_RIGHT_DOCK_WIDTH}px`
-            : `minmax(${leftOccupied ? `${MIN_LEFT_RIGHT_DOCK_WIDTH}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.left * 100))}fr)`;
-        const rightTrack = rightOccupied && layoutRoot.rightDock?.collapsed
-            ? `${COLLAPSED_LEFT_RIGHT_DOCK_WIDTH}px`
-            : `minmax(${rightOccupied ? `${MIN_LEFT_RIGHT_DOCK_WIDTH}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.right * 100))}fr)`;
-        const topTrack = topOccupied && layoutRoot.topDock?.collapsed
-            ? `${COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT}px`
-            : `minmax(${topOccupied ? `${MIN_TOP_BOTTOM_DOCK_HEIGHT}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.top * 100))}fr)`;
-        const bottomTrack = bottomOccupied && layoutRoot.bottomDock?.collapsed
-            ? `${COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT}px`
-            : `minmax(${bottomOccupied ? `${MIN_TOP_BOTTOM_DOCK_HEIGHT}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.bottom * 100))}fr)`;
-        const columnTemplate = `${leftTrack} minmax(0, ${Math.max(1, Math.round((dockWeights.centerX ?? 0.64) * 100))}fr) ${rightTrack}`;
-        const rowTemplate = `${topTrack} minmax(0, ${Math.max(1, Math.round((dockWeights.centerY ?? 0.64) * 100))}fr) ${bottomTrack}`;
-
-        const docksMarkup = WORKSPACE_V2_DOCK_IDS
-            .map((dockId) => this.#renderDockMarkup(dockId, context.layout.root[dockId], context))
-            .join("\n");
-        const nativeCanvasShellClass = this.#getActiveCenterMapPanel(context.layout) ? " has-native-canvas-aperture" : "";
-        const panelToggleMarkup = (context.panelVisibility ?? []).map((panel) => `
-            <label class="totc-v2-command-menu__panel-toggle">
-                <input
-                    type="checkbox"
-                    data-action="toggle-panel-visibility"
-                    data-panel-id="${this.#escapeHTML(panel.id)}"
-                    ${panel.visible ? "checked" : ""}>
-                <span>${this.#escapeHTML(panel.title)}</span>
-            </label>`).join("");
-
-        root.innerHTML = `
-<section class="totc-workspace-v2-shell${nativeCanvasShellClass}">
-    <div class="totc-workspace-v2-shell__emergency">
-        <div class="totc-v2-floating-control">
-            <button type="button" class="totc-v2-emergency-button" data-action="totc-v2-panel-menu-toggle" title="Show visible panels" aria-label="Show visible panels" aria-expanded="false">
-                <i class="fa-solid fa-window-maximize" aria-hidden="true"></i>
-            </button>
-            <div class="totc-v2-command-menu totc-v2-panel-menu" data-panel-menu="true" hidden>
-                <section class="totc-v2-command-menu__panel-list" aria-label="Visible panels">
-                    ${panelToggleMarkup}
-                </section>
-            </div>
-        </div>
-        ${game.user?.isGM ? `<div class="totc-v2-floating-control">
-            <button type="button" class="totc-v2-emergency-button" data-action="toggle-design-command-palette" title="Open design command palette" aria-label="Open design command palette" aria-expanded="${context.designCommandPalette?.active ? "true" : "false"}">
-                <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-            </button>
-            ${renderDesignCommandPalette(context.designCommandPalette ?? {}, { escapeHTML: (value) => this.#escapeHTML(value) })}
-        </div>` : ""}
-        <div class="totc-v2-floating-control">
-            <button type="button" class="totc-v2-emergency-button" data-action="totc-v2-command-menu-toggle" title="Open workspace menu" aria-label="Open workspace menu" aria-expanded="false">
-                <i class="fas fa-gear" aria-hidden="true"></i>
-            </button>
-            <div class="totc-v2-command-menu" data-command-menu="true" hidden>
-                <button type="button" class="totc-v2-command-menu__item" data-action="totc-v2-open-foundry-settings">Foundry Settings</button>
-                <button type="button" class="totc-v2-command-menu__item" data-action="totc-v2-exit-world">Return to Setup</button>
-            </div>
-        </div>
-    </div>
-    <main class="totc-workspace-v2-shell__main">
-        <section class="totc-v2-layout${nativeCanvasShellClass}" data-layout-root="true" style="grid-template-columns:${columnTemplate};grid-template-rows:${rowTemplate};">
-            ${docksMarkup}
-            ${this.#renderDockSplittersMarkup(dockWeights, layoutRoot)}
-            ${this.#renderFloatingWindowsMarkup(context.layout.root.floatingWindows ?? [])}
-            <div class="totc-v2-ghost" data-drop-ghost="true" hidden>
-                <span data-drop-label="true"></span>
-            </div>
-        </section>
-    </main>
-</section>`;
-        return root;
+        return this.workspaceLayoutFeature.renderShell(context);
     }
 
     _replaceHTML(result, content) {
@@ -1177,59 +836,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.hooksController.bindAll();
         this.#syncNativeCanvasScene();
 
-        this.#wireRollLockGuard();
-        this.#wireDieRollRequestHandlers();
-
-        this.element?.querySelectorAll("[data-action='totc-v2-exit-world']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-
-                if (!game.user?.isGM) {
-                    ui.notifications?.warn("Only a GM can exit the world to setup.");
-                    return;
-                }
-
-                await game.shutDown?.();
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='totc-v2-open-foundry-settings']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                openFoundrySettingsView({ game, ui, foundry });
-                const menu = this.element?.querySelector("[data-command-menu='true']");
-                const panelMenu = this.element?.querySelector("[data-panel-menu='true']");
-                const toggleButton = this.element?.querySelector("[data-action='totc-v2-command-menu-toggle']");
-                const panelToggleButton = this.element?.querySelector("[data-action='totc-v2-panel-menu-toggle']");
-                if (menu) menu.hidden = true;
-                if (panelMenu) panelMenu.hidden = true;
-                toggleButton?.setAttribute("aria-expanded", "false");
-                panelToggleButton?.setAttribute("aria-expanded", "false");
-            });
-        });
-
         this.#wireDebouncedTextInputHandlers();
 
         this.sceneActorDropController.wireActorListDragHandlers(this.element);
 
         this.#wireEncounterManagerPanelHandlers();
-
-
-
-        this.element?.querySelectorAll("[data-action='toggle-design-lens']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const panelId = String(button.dataset.panelId ?? "").trim();
-                if (!panelId || !game.user?.isGM) return;
-
-                if (this.activeDesignLensPanelIds.has(panelId)) this.activeDesignLensPanelIds.delete(panelId);
-                else this.activeDesignLensPanelIds.add(panelId);
-                this.render({ force: false });
-            });
-        });
 
         this.element?.querySelectorAll("[data-action='design-lens-action']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
@@ -1237,40 +848,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.stopPropagation();
                 const actionId = String(button.dataset.designActionId ?? "").trim();
                 const panelId = String(button.dataset.panelId ?? "").trim();
-                await this.#executeDesignAction(actionId, { panelId });
-            });
-        });
-
-
-
-        this.element?.querySelectorAll("[data-action='toggle-design-command-palette']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const menu = this.element?.querySelector("[data-command-menu='true']");
-                const panelMenu = this.element?.querySelector("[data-panel-menu='true']");
-                const menuToggleButton = this.element?.querySelector("[data-action='totc-v2-command-menu-toggle']");
-                const panelToggleButton = this.element?.querySelector("[data-action='totc-v2-panel-menu-toggle']");
-                if (menu) menu.hidden = true;
-                if (panelMenu) panelMenu.hidden = true;
-                menuToggleButton?.setAttribute("aria-expanded", "false");
-                panelToggleButton?.setAttribute("aria-expanded", "false");
-                this.designCommandPaletteOpen = !this.designCommandPaletteOpen;
-                if (!this.designCommandPaletteOpen) this.designCommandPaletteQuery = "";
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='design-command-palette-execute']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const actionId = String(button.dataset.designActionId ?? "").trim();
-                const panelId = String(button.dataset.panelId ?? "").trim();
-                await this.#executeDesignAction(actionId, { panelId });
-                this.designCommandPaletteOpen = false;
-                this.designCommandPaletteQuery = "";
-                this.render({ force: false });
+                await this.sceneDesignFeature.executeDesignAction(actionId, { panelId });
             });
         });
 
@@ -1280,202 +858,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 event.stopPropagation();
                 const actionId = String(button.dataset.designActionId ?? "").trim();
                 const panelId = String(button.dataset.panelId ?? "").trim();
-                await this.#executeDesignAction(actionId, { panelId });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='navigate-design-issue']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const navigateAction = String(button.dataset.navigateAction ?? "").trim();
-                const subjectId = String(button.dataset.subjectId ?? "").trim();
-                const subjectType = String(button.dataset.subjectType ?? "").trim();
-                await this.#executeDesignIssueNavigation(navigateAction, { subjectId, subjectType });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='totc-v2-command-menu-toggle']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const menu = this.element?.querySelector("[data-command-menu='true']");
-                const panelMenu = this.element?.querySelector("[data-panel-menu='true']");
-                const panelToggleButton = this.element?.querySelector("[data-action='totc-v2-panel-menu-toggle']");
-                if (!menu) return;
-
-                const expanded = !menu.hidden;
-                menu.hidden = expanded;
-                button.setAttribute("aria-expanded", expanded ? "false" : "true");
-                if (!expanded && panelMenu) {
-                    panelMenu.hidden = true;
-                    panelToggleButton?.setAttribute("aria-expanded", "false");
-                }
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='totc-v2-panel-menu-toggle']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const panelMenu = this.element?.querySelector("[data-panel-menu='true']");
-                const menu = this.element?.querySelector("[data-command-menu='true']");
-                const commandToggleButton = this.element?.querySelector("[data-action='totc-v2-command-menu-toggle']");
-                if (!panelMenu) return;
-
-                const expanded = !panelMenu.hidden;
-                panelMenu.hidden = expanded;
-                button.setAttribute("aria-expanded", expanded ? "false" : "true");
-                if (!expanded && menu) {
-                    menu.hidden = true;
-                    commandToggleButton?.setAttribute("aria-expanded", "false");
-                }
-            });
-        });
-
-        this.element?.addEventListener("click", (event) => {
-            const menu = this.element?.querySelector("[data-command-menu='true']");
-            const panelMenu = this.element?.querySelector("[data-panel-menu='true']");
-            const toggleButton = this.element?.querySelector("[data-action='totc-v2-command-menu-toggle']");
-            const panelToggleButton = this.element?.querySelector("[data-action='totc-v2-panel-menu-toggle']");
-            const commandPalette = this.element?.querySelector("[data-design-command-palette='true']");
-            const commandPaletteToggle = this.element?.querySelector("[data-action='toggle-design-command-palette']");
-
-            const target = event.target;
-            if (!(target instanceof Node)) return;
-
-            if (menu && !menu.hidden && !menu.contains(target) && !toggleButton?.contains(target)) {
-                menu.hidden = true;
-                toggleButton?.setAttribute("aria-expanded", "false");
-            }
-
-            if (panelMenu && !panelMenu.hidden && !panelMenu.contains(target) && !panelToggleButton?.contains(target)) {
-                panelMenu.hidden = true;
-                panelToggleButton?.setAttribute("aria-expanded", "false");
-            }
-
-            if (this.designCommandPaletteOpen && commandPalette && !commandPalette.contains(target) && !commandPaletteToggle?.contains(target)) {
-                this.designCommandPaletteOpen = false;
-                this.designCommandPaletteQuery = "";
-                this.render({ force: false });
-            }
-        });
-
-        this.element?.querySelectorAll("[data-action='toggle-panel-visibility']")?.forEach((checkbox) => {
-            checkbox.addEventListener("change", async (event) => {
-                event.stopPropagation();
-                const panelId = checkbox.dataset.panelId;
-                if (!panelId) return;
-
-                const panelDef = this.panelRegistry.get(panelId);
-                if (!panelDef) return;
-
-                const nextLayout = checkbox.checked
-                    ? this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? null })
-                    : this.layoutEngine.closePanel(panelId);
-                await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='toggle-dock-collapse']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const dockId = button.dataset.dockId;
-                if (!dockId) return;
-
-                const nextLayout = this.layoutEngine.toggleDockCollapsed(dockId);
-                await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='activate-tab']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                const { dockId, stackId, panelId } = button.dataset;
-                if (!dockId || !stackId || !panelId) return;
-
-                const nextLayout = this.layoutEngine.setActivePanel(dockId, stackId, panelId);
-                await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render({ force: false });
-            });
-        });
-
-        this.sceneWorkspaceController.wireSceneListHandlers(this.element);
-
-        this.element?.querySelectorAll("[data-action='float-panel']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                const panelId = button.dataset.panelId;
-                const panelDef = this.#resolvePanelDefinition(panelId);
-                if (!panelDef) return;
-
-                const nextLayout = this.layoutEngine.floatPanel(panelDef);
-                await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='close-panel']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const panelId = button.dataset.panelId;
-                if (!panelId) return;
-
-                const nextLayout = this.layoutEngine.closePanel(panelId);
-                await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='undock-panel']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const dockId = button.dataset.dockId;
-                const stackId = button.dataset.stackId;
-                const panelId = button.dataset.panelId;
-                if (!dockId || !stackId || !panelId) return;
-
-                const nextLayout = this.layoutEngine.undockPanel({ dockId, stackId, panelId });
-                await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='redock-panel']")?.forEach((button) => {
-            button.addEventListener("pointerdown", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-            });
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const floatingId = button.dataset.floatingId;
-                if (!floatingId) return;
-
-                const nextLayout = this.layoutEngine.redockFloatingWindow(floatingId);
-                await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render({ force: false });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='floating-close']")?.forEach((button) => {
-            button.addEventListener("pointerdown", (event) => {
-                event.stopPropagation();
-            });
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const windowId = button.dataset.floatingId;
-                if (!windowId) return;
-
-                const nextLayout = this.layoutEngine.removeFloatingWindow(windowId);
-                await this.stateStore?.setUserLayout?.(nextLayout);
-                this.render({ force: false });
+                await this.sceneDesignFeature.executeDesignAction(actionId, { panelId });
             });
         });
 
@@ -1521,8 +904,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#wireScenePropertiesHandlers();
         this.#wireLoggingPanelHandlers();
 
-        this.#wireInteractionHandlers();
-        this.#wireResizeHandlers();
+        this.sceneWorkspaceController.wireSceneListHandlers(this.element);
 
         for (const feature of this.features) {
             if (typeof feature.bind === "function") {
@@ -1547,155 +929,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.gridCalibrationController.close();
         this._loggerUnsubscribe?.();
         return await super.close?.(options);
-    }
-
-    #renderDockMarkup(dockId, dock = { stacks: [] }, context = {}) {
-        const collapsed = dockId !== "centerDock" && Boolean(dock?.collapsed);
-        const stackItemsMarkup = (dock?.stacks ?? [])
-            .map((stack, index, stacks) => {
-                const stackMarkup = this.#renderStackMarkup(dockId, stack, context, {
-                    includeDockLabel: false,
-                    dockLabel: DOCK_LABELS[dockId] ?? dockId,
-                    dockCollapsed: collapsed
-                });
-                const splitterMarkup = !collapsed && index < stacks.length - 1
-                    ? this.#renderStackSplitterMarkup(dockId, stack.id, stacks[index + 1]?.id, dock?.orientation)
-                    : "";
-                return `${stackMarkup}${splitterMarkup}`;
-            })
-            .join("");
-        const orientationClass = dock?.orientation === "horizontal" ? "is-horizontal" : "is-vertical";
-        const collapsedClass = collapsed ? "is-collapsed" : "";
-        const nativeCanvasClass = dockId === "centerDock" && (dock?.stacks ?? []).some((stack) => {
-            const activePanel = (stack?.panels ?? []).find((panel) => panel.id === stack.activePanelId) ?? stack?.panels?.[0];
-            return this.#isMapPanel(activePanel);
-        }) ? " is-native-canvas-aperture" : "";
-
-        return `
-        <section class="totc-v2-dock totc-v2-dock--${dockId} ${orientationClass} ${collapsedClass}${nativeCanvasClass}" data-dock-id="${dockId}" data-collapsed="${collapsed ? "true" : "false"}">
-            <div class="totc-v2-dock__stacks ${orientationClass}" data-dock-stacks="${dockId}">
-                ${stackItemsMarkup || `<div class='totc-v2-dock__empty' data-dock-drop-target='${dockId}'>Drop panel here</div>`}
-            </div>
-        </section>`;
-    }
-
-    #renderStackMarkup(dockId, stack, context = {}, options = {}) {
-        const tabsMarkup = (stack?.panels ?? [])
-            .map((panel) => `
-            <button
-                type="button"
-                data-action="activate-tab"
-                data-dock-id="${dockId}"
-                data-stack-id="${stack.id}"
-                data-panel-id="${panel.id}"
-                draggable="true"
-                data-drag-panel-id="${panel.id}"
-                class="totc-v2-stack__tab ${panel.id === stack.activePanelId ? "is-active" : ""}">
-                ${this.#renderPanelTabIcon(panel, context)}
-                <span>${this.#escapeHTML(this.#getPanelTitle(panel, context))}</span>
-            </button>`)
-            .join("");
-
-        const activePanel = (stack?.panels ?? []).find((panel) => panel.id === stack.activePanelId) ?? stack?.panels?.[0];
-        const collapsed = Boolean(options.dockCollapsed);
-        const nativeCanvasAperture = dockId === "centerDock" && this.#isMapPanel(activePanel);
-        const panelContent = collapsed || nativeCanvasAperture ? "" : this.#renderPanelContent(activePanel, context);
-        const designLensActive = this.#isDesignLensActive(activePanel?.id);
-        const designButtonTitle = designLensActive ? "Close design lens" : "Open design lens";
-        const canCollapseDock = dockId !== "centerDock";
-        const collapseTitle = collapsed ? "Restore dock" : "Minimize dock";
-        const nativeCanvasClass = nativeCanvasAperture ? " is-native-canvas-aperture" : "";
-
-        return `
-        <article class="totc-v2-stack ${collapsed ? "is-collapsed" : ""}${nativeCanvasClass}" data-dock-id="${dockId}" data-stack-id="${stack.id}" style="flex-grow:${Number(stack.size) || 1};">
-            <div class="totc-v2-stack__header">
-                <div class="totc-v2-stack__tabs">
-                    ${options.includeDockLabel ? `<span class="totc-v2-dock-label-inline">${this.#escapeHTML(options.dockLabel ?? dockId)}</span>` : ""}
-                    ${tabsMarkup}
-                </div>
-                <div class="totc-v2-stack__actions">
-                    ${canCollapseDock ? `<button type="button" data-action="toggle-dock-collapse" data-dock-id="${dockId}" title="${collapseTitle}" aria-label="${collapseTitle}" aria-pressed="${collapsed ? "true" : "false"}"><i class="fa-solid ${collapsed ? "fa-expand" : "fa-compress"}" aria-hidden="true"></i></button>` : ""}
-                    ${game.user?.isGM ? `<button type="button" class="${designLensActive ? "is-active" : ""}" data-action="toggle-design-lens" data-panel-id="${activePanel?.id ?? ""}" title="${designButtonTitle}" aria-label="${designButtonTitle}" aria-pressed="${designLensActive ? "true" : "false"}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>` : ""}
-                    <button type="button" data-action="undock-panel" data-dock-id="${dockId}" data-stack-id="${stack.id}" data-panel-id="${activePanel?.id ?? ""}" title="Undock panel" aria-label="Undock panel"><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i></button>
-                    <button type="button" data-action="close-panel" data-dock-id="${dockId}" data-stack-id="${stack.id}" data-panel-id="${activePanel?.id ?? ""}" title="Close panel" aria-label="Close panel"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
-                </div>
-            </div>
-            <div class="totc-v2-stack__content" ${collapsed ? "hidden" : ""}>${panelContent}</div>
-        </article>`;
-    }
-
-    #renderStackSplitterMarkup(dockId, leadingStackId, trailingStackId, orientation = "vertical") {
-        const orientationClass = orientation === "horizontal" ? "is-horizontal" : "is-vertical";
-        return `
-        <div
-            class="totc-v2-stack-splitter ${orientationClass}"
-            data-action="stack-splitter"
-            data-dock-id="${dockId}"
-            data-leading-stack-id="${leadingStackId}"
-            data-trailing-stack-id="${trailingStackId}"
-            title="Resize stack"></div>`;
-    }
-
-    #renderDockSplittersMarkup(dockWeights = {}, layoutRoot = {}) {
-        const left = Number(dockWeights.left) || 0.18;
-        const centerX = Number(dockWeights.centerX) || Math.max(0.2, 1 - left - (Number(dockWeights.right) || 0.18));
-        const right = Number(dockWeights.right) || 0.18;
-        const top = Number(dockWeights.top) || 0.18;
-        const centerY = Number(dockWeights.centerY) || Math.max(0.2, 1 - top - (Number(dockWeights.bottom) || 0.18));
-        const bottom = Number(dockWeights.bottom) || 0.18;
-        const totalX = Math.max(0.0001, left + centerX + right);
-        const totalY = Math.max(0.0001, top + centerY + bottom);
-        const leftBoundary = (left / totalX) * 100;
-        const rightBoundary = ((left + centerX) / totalX) * 100;
-        const topBoundary = (top / totalY) * 100;
-        const bottomBoundary = ((top + centerY) / totalY) * 100;
-        const centerLeftBoundary = `${leftBoundary}%`;
-        const centerRightBoundary = `${100 - rightBoundary}%`;
-
-        return `
-        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--left ${layoutRoot.leftDock?.collapsed ? "is-hidden" : ""}" style="left:${leftBoundary}%;" data-action="dock-resizer" data-dock-id="leftDock" data-axis="x" title="Resize dock"></div>
-        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--right ${layoutRoot.rightDock?.collapsed ? "is-hidden" : ""}" style="left:${rightBoundary}%;" data-action="dock-resizer" data-dock-id="rightDock" data-axis="x" title="Resize dock"></div>
-        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--top ${layoutRoot.topDock?.collapsed ? "is-hidden" : ""}" style="top:${topBoundary}%;--totc-v2-center-left:${centerLeftBoundary};--totc-v2-center-right:${centerRightBoundary};" data-action="dock-resizer" data-dock-id="topDock" data-axis="y" title="Resize dock"></div>
-        <div class="totc-v2-dock-resizer totc-v2-dock-resizer--bottom ${layoutRoot.bottomDock?.collapsed ? "is-hidden" : ""}" style="top:${bottomBoundary}%;--totc-v2-center-left:${centerLeftBoundary};--totc-v2-center-right:${centerRightBoundary};" data-action="dock-resizer" data-dock-id="bottomDock" data-axis="y" title="Resize dock"></div>`;
-    }
-
-    #renderFloatingWindowsMarkup(floatingWindows = []) {
-        return floatingWindows.map((floatingWindow) => {
-            const floatingContext = {
-                scene: {
-                    name: game.scenes?.viewed?.name ?? "Current Scene"
-                }
-            };
-            const title = this.#escapeHTML(this.#getPanelTitle(floatingWindow.panel, floatingContext) ?? "Floating Panel");
-            const designLensActive = this.#isDesignLensActive(floatingWindow.panel?.id);
-            const designButtonTitle = designLensActive ? "Close design lens" : "Open design lens";
-            const content = this.#renderPanelContent(floatingWindow.panel, floatingContext);
-
-            return `
-            <article
-                class="totc-v2-floating"
-                data-floating-id="${floatingWindow.id}"
-                style="left:${floatingWindow.x}px;top:${floatingWindow.y}px;width:${floatingWindow.width}px;height:${floatingWindow.height}px;z-index:${floatingWindow.zIndex};">
-                <header class="totc-v2-floating__header" data-action="floating-move-handle" data-floating-id="${floatingWindow.id}">
-                    <span>${title}</span>
-                    <div class="totc-v2-floating__buttons">
-                        ${game.user?.isGM ? `<button type="button" class="${designLensActive ? "is-active" : ""}" data-action="toggle-design-lens" data-panel-id="${floatingWindow.panel?.id ?? ""}" title="${designButtonTitle}" aria-label="${designButtonTitle}" aria-pressed="${designLensActive ? "true" : "false"}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>` : ""}
-                        <button type="button" data-action="redock-panel" data-floating-id="${floatingWindow.id}" title="Redock panel" aria-label="Redock panel"><i class="fa-solid fa-compress" aria-hidden="true"></i></button>
-                        <button type="button" data-action="floating-close" data-floating-id="${floatingWindow.id}" title="Close panel" aria-label="Close panel"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
-                    </div>
-                </header>
-                <section class="totc-v2-floating__body">${content}</section>
-                <div class="totc-v2-floating__resize-handle" data-action="floating-resize-handle" data-floating-id="${floatingWindow.id}" title="Resize"></div>
-            </article>`;
-        }).join("");
-    }
-
-    #renderPanelContent(panel, context = {}) {
-        return this.panelHost.renderPanelContent(panel, context);
-    }
-
-    #renderPanelBodyContent(panel, context = {}) {
-        return this.panelHost.renderPanelBodyContent(panel, context);
     }
 
     #getEncounterCombatById(combatId = "") {
@@ -1818,48 +1051,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return this.sceneWorkspaceController.getDesignActionScene(sourcePanel, currentScene);
     }
 
-    #getPanelTitle(panel, context = {}) {
-        if (this.#isMapPanel(panel)) {
-            return this.#getMapPanelScene(panel, context)?.name ?? panel?.title ?? "Map";
-        }
-
-        return panel?.title ?? "";
-    }
-
     #getPanelSceneId(panel, context = {}) {
         return this.sceneWorkspaceController.getPanelSceneId(panel, context);
     }
 
-    #getActiveSceneId() {
-        return String(game.scenes?.active?.id
-            ?? (game.scenes?.contents ?? []).find((scene) => scene?.active)?.id
-            ?? ""
-        ).trim();
-    }
-
-    #renderPanelTabIcon(panel, context = {}) {
-        const sceneId = this.#getPanelSceneId(panel, context);
-        if (!sceneId || sceneId !== this.#getActiveSceneId()) return "";
-        return `<i class="fa-solid fa-star totc-v2-stack__tab-icon" aria-hidden="true"></i>`;
-    }
-
     #makeSceneMapPanelDef(scene) {
         return this.sceneWorkspaceController.makeSceneMapPanelDef(scene);
-    }
-
-    #resolvePanelDefinition(panelId) {
-        const id = String(panelId ?? "").trim();
-        if (!id) return null;
-
-        const registered = this.panelRegistry.get(id);
-        if (registered) return registered;
-
-        if (id.startsWith("map:")) {
-            const scene = this.#getSceneDocumentById(id.slice(4));
-            return this.#makeSceneMapPanelDef(scene);
-        }
-
-        return null;
     }
 
     #findPanelLocation(panelId) {
@@ -1933,14 +1130,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.hooksController.unbindFamily("gamemaster");
     }
 
-    #bindDesignIssuesHooks() {
-        this.hooksController.bindFamily("designIssues");
-    }
-
-    #unbindDesignIssuesHooks() {
-        this.hooksController.unbindFamily("designIssues");
-    }
-
     #getGamemasterPanelState() {
         return this.stateStore?.getUserScopedState?.(GM_PANEL_STATE_KEY, normalizeGamemasterPanelState)
             ?? normalizeGamemasterPanelState();
@@ -2012,9 +1201,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 <span>${this.#escapeHTML(row.label)}</span>
                 <span>${this.#escapeHTML(row.value)}</span>
             </div>`).join("");
-        const dieRollRequestsMarkup = renderDieRollRequestPanel(dieRollRequestPanel, {
-            escapeHTML: (value) => this.#escapeHTML(value)
-        });
+        const dieRollRequestsMarkup = this.rollRequestFeature.renderRollRequests(dieRollRequestPanel);
 
         return `
         <section class="totc-v2-gm-panel">
@@ -2071,7 +1258,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 break;
             }
             case "gm-create-scene": {
-                await this.#executeDesignAction("scene.create", { panelId: "gamemaster" });
+                await this.sceneDesignFeature.executeDesignAction("scene.create", { panelId: "gamemaster" });
                 break;
             }
             case "gm-open-combat-tracker": {
@@ -2252,375 +1439,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return items[index];
     }
 
-    #wireInteractionHandlers() {
-        const host = this.element?.querySelector("[data-layout-root='true']");
-        if (!host) return;
-
-        this.element?.querySelectorAll("[data-panel-id], [data-drag-panel-id]")?.forEach((panelButton) => {
-            panelButton.addEventListener("dragstart", (event) => {
-                const panelId = panelButton.dataset.panelId || panelButton.dataset.dragPanelId;
-                event.dataTransfer?.setData(WORKSPACE_PANEL_DRAG_MIME, panelId ?? "");
-                event.dataTransfer?.setData("text/plain", panelId ?? "");
-                event.dataTransfer.effectAllowed = "move";
-            });
-            panelButton.addEventListener("dragend", () => {
-                this.interactionController.clearIntent();
-                this.#hideGhost();
-            });
-        });
-
-        host.addEventListener("dragover", (event) => {
-            if (!dataTransferHasType(event.dataTransfer, WORKSPACE_PANEL_DRAG_MIME)) return;
-            event.preventDefault();
-            const stackElements = [...host.querySelectorAll("[data-stack-id]")];
-            const intent = this.interactionController.computeIntent({
-                event,
-                rootElement: host,
-                stackElements
-            });
-            if (!intent) return;
-
-            this.ghostIntent = intent;
-            const ghostRect = this.interactionController.computeGhostRect({ intent, rootElement: host });
-            this.#showGhost(ghostRect, intent.label);
-            event.dataTransfer.dropEffect = "move";
-        });
-
-        host.addEventListener("dragleave", (event) => {
-            const related = event.relatedTarget;
-            if (related && host.contains(related)) return;
-            this.interactionController.clearIntent();
-            this.#hideGhost();
-        });
-
-        host.addEventListener("drop", async (event) => {
-            if (!dataTransferHasType(event.dataTransfer, WORKSPACE_PANEL_DRAG_MIME)) return;
-            event.preventDefault();
-            const panelId = event.dataTransfer?.getData(WORKSPACE_PANEL_DRAG_MIME);
-            const panelDef = this.#resolvePanelDefinition(panelId);
-            if (!panelDef) {
-                this.#hideGhost();
-                return;
-            }
-
-            const intent = this.interactionController.getIntent();
-            const nextLayout = this.layoutEngine.applyDropIntent(panelDef, intent ?? { kind: "edge", dockId: "centerDock" });
-            await this.stateStore?.setUserLayout?.(nextLayout);
-
-            this.interactionController.clearIntent();
-            this.#hideGhost();
-            this.render({ force: false });
-        });
-    }
-
-    #wireResizeHandlers() {
-        this.element?.querySelectorAll("[data-action='dock-resizer']")?.forEach((handle) => {
-            handle.addEventListener("pointerdown", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this.#beginResizeSession({
-                    type: "dock",
-                    dockId: handle.dataset.dockId,
-                    axis: handle.dataset.axis,
-                    startX: event.clientX,
-                    startY: event.clientY,
-                    startWeights: this.layoutEngine.getDockWeightLayout()
-                });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='floating-move-handle']")?.forEach((handle) => {
-            handle.addEventListener("pointerdown", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const floatingId = handle.dataset.floatingId;
-                const floatingWindow = this.layoutEngine.getLayout().root.floatingWindows.find((entry) => entry.id === floatingId);
-                if (!floatingWindow) return;
-
-                this.#beginResizeSession({
-                    type: "floating-move",
-                    floatingId,
-                    panelDef: floatingWindow.panel ? { ...floatingWindow.panel } : null,
-                    startX: event.clientX,
-                    startY: event.clientY,
-                    original: { x: floatingWindow.x, y: floatingWindow.y }
-                });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='floating-resize-handle']")?.forEach((handle) => {
-            handle.addEventListener("pointerdown", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const floatingId = handle.dataset.floatingId;
-                const floatingWindow = this.layoutEngine.getLayout().root.floatingWindows.find((entry) => entry.id === floatingId);
-                if (!floatingWindow) return;
-
-                this.#beginResizeSession({
-                    type: "floating-resize",
-                    floatingId,
-                    startX: event.clientX,
-                    startY: event.clientY,
-                    original: {
-                        x: floatingWindow.x,
-                        y: floatingWindow.y,
-                        width: floatingWindow.width,
-                        height: floatingWindow.height
-                    }
-                });
-            });
-        });
-
-        this.element?.querySelectorAll("[data-action='stack-splitter']")?.forEach((handle) => {
-            handle.addEventListener("pointerdown", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                this.#beginResizeSession({
-                    type: "stack",
-                    dockId: handle.dataset.dockId,
-                    leadingStackId: handle.dataset.leadingStackId,
-                    trailingStackId: handle.dataset.trailingStackId,
-                    startX: event.clientX,
-                    startY: event.clientY
-                });
-            });
-        });
-    }
-
-    #beginResizeSession(session) {
-        this._resizeSession = {
-            ...session,
-            accumulatedDeltaX: 0,
-            accumulatedDeltaY: 0
-        };
-        this._onResizePointerMove = this._onResizePointerMove?.bind(this) ?? this.#onResizePointerMove.bind(this);
-        this._onResizePointerUp = this._onResizePointerUp?.bind(this) ?? this.#onResizePointerUp.bind(this);
-        document.addEventListener("pointermove", this._onResizePointerMove);
-        document.addEventListener("pointerup", this._onResizePointerUp, { once: true });
-    }
-
-    async #onResizePointerUp() {
-        document.removeEventListener("pointermove", this._onResizePointerMove);
-        const session = this._resizeSession;
-        this._resizeSession = null;
-
-        if (session?.type === "floating-move" && session.panelDef?.id && session.panelDef?.title) {
-            const intent = this.interactionController.getIntent();
-            if (intent) {
-                const droppedLayout = this.layoutEngine.applyDropIntent(session.panelDef, intent);
-                await this.stateStore?.setUserLayout?.(droppedLayout);
-                this.interactionController.clearIntent();
-                this.#hideGhost();
-                this.render({ force: false });
-                return;
-            }
-        }
-
-        await this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
-        this.interactionController.clearIntent();
-        this.#hideGhost();
-        this.render({ force: false });
-    }
-
-    #onResizePointerMove(event) {
-        if (!this._resizeSession) return;
-        const deltaX = event.clientX - this._resizeSession.startX;
-        const deltaY = event.clientY - this._resizeSession.startY;
-        const hostBounds = this.element?.querySelector("[data-layout-root='true']")?.getBoundingClientRect();
-
-        if (this._resizeSession.type === "dock") {
-            const current = this._resizeSession.startWeights;
-            const viewportWidth = Math.max(hostBounds?.width ?? window.innerWidth, 1);
-            const viewportHeight = Math.max(hostBounds?.height ?? window.innerHeight, 1);
-            const accumulatedX = this._resizeSession.accumulatedDeltaX + deltaX;
-            const accumulatedY = this._resizeSession.accumulatedDeltaY + deltaY;
-
-            if (this._resizeSession.dockId === "leftDock" || this._resizeSession.dockId === "rightDock") {
-                const pixelThreshold = 1;
-                if (Math.abs(accumulatedX) >= pixelThreshold) {
-                    const appliedDeltaX = Math.floor(accumulatedX);
-                    const stepX = appliedDeltaX / viewportWidth;
-                    if (this._resizeSession.dockId === "leftDock") {
-                        this.layoutEngine.setDockWeight("leftDock", current.left + stepX);
-                    } else {
-                        this.layoutEngine.setDockWeight("rightDock", current.right - stepX);
-                    }
-                    this._resizeSession.accumulatedDeltaX = accumulatedX - appliedDeltaX;
-                    void this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
-                    this.#syncDockGridAndSplitters();
-                }
-            } else if (this._resizeSession.dockId === "topDock" || this._resizeSession.dockId === "bottomDock") {
-                const pixelThreshold = 1;
-                if (Math.abs(accumulatedY) >= pixelThreshold) {
-                    const appliedDeltaY = Math.floor(accumulatedY);
-                    const stepY = appliedDeltaY / viewportHeight;
-                    if (this._resizeSession.dockId === "topDock") {
-                        this.layoutEngine.setDockWeight("topDock", current.top + stepY);
-                    } else {
-                        this.layoutEngine.setDockWeight("bottomDock", current.bottom - stepY);
-                    }
-                    this._resizeSession.accumulatedDeltaY = accumulatedY - appliedDeltaY;
-                    void this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
-                    this.#syncDockGridAndSplitters();
-                }
-            }
-            return;
-        }
-
-        if (this._resizeSession.type === "stack") {
-            const dock = this.layoutEngine.getLayout().root[this._resizeSession.dockId] ?? { stacks: [] };
-            const leading = dock.stacks.find((stack) => stack.id === this._resizeSession.leadingStackId);
-            const trailing = dock.stacks.find((stack) => stack.id === this._resizeSession.trailingStackId);
-            if (!leading || !trailing) return;
-
-            const orientation = dock.orientation ?? "vertical";
-            const accumulatedDelta = orientation === "horizontal" ? this._resizeSession.accumulatedDeltaX + deltaX : this._resizeSession.accumulatedDeltaY + deltaY;
-            const pixelThreshold = 1;
-            if (Math.abs(accumulatedDelta) >= pixelThreshold) {
-                const appliedDelta = Math.floor(accumulatedDelta);
-                const delta = appliedDelta / 100;
-                this.layoutEngine.resizeStack(this._resizeSession.dockId, leading.id, delta, trailing.id);
-                if (orientation === "horizontal") {
-                    this._resizeSession.accumulatedDeltaX = accumulatedDelta - appliedDelta;
-                } else {
-                    this._resizeSession.accumulatedDeltaY = accumulatedDelta - appliedDelta;
-                }
-                void this.stateStore?.setUserLayout?.(this.layoutEngine.getLayout());
-                this.render({ force: false });
-            }
-            return;
-        }
-
-        if (this._resizeSession.type === "floating-move") {
-            const accumulatedX = this._resizeSession.accumulatedDeltaX + deltaX;
-            const accumulatedY = this._resizeSession.accumulatedDeltaY + deltaY;
-            const pixelThreshold = 1;
-            if (Math.abs(accumulatedX) >= pixelThreshold || Math.abs(accumulatedY) >= pixelThreshold) {
-                const appliedDeltaX = Math.abs(accumulatedX) >= pixelThreshold ? Math.floor(accumulatedX) : 0;
-                const appliedDeltaY = Math.abs(accumulatedY) >= pixelThreshold ? Math.floor(accumulatedY) : 0;
-                const nextLayout = this.layoutEngine.updateFloatingWindow(this._resizeSession.floatingId, {
-                    x: this._resizeSession.original.x + appliedDeltaX,
-                    y: this._resizeSession.original.y + appliedDeltaY
-                });
-                this._resizeSession.accumulatedDeltaX = accumulatedX - appliedDeltaX;
-                this._resizeSession.accumulatedDeltaY = accumulatedY - appliedDeltaY;
-                void this.stateStore?.setUserLayout?.(nextLayout);
-                this.#syncFloatingElementStyle(this._resizeSession.floatingId, nextLayout.root.floatingWindows.find((entry) => entry.id === this._resizeSession.floatingId));
-            }
-
-            const host = this.element?.querySelector("[data-layout-root='true']");
-            const rootBounds = host?.getBoundingClientRect();
-            const pointerInsideRoot = Boolean(rootBounds)
-                && event.clientX >= rootBounds.left
-                && event.clientX <= rootBounds.right
-                && event.clientY >= rootBounds.top
-                && event.clientY <= rootBounds.bottom;
-
-            if (host && pointerInsideRoot) {
-                const stackElements = [...host.querySelectorAll("[data-stack-id]")];
-                const intent = this.interactionController.computeIntent({
-                    event,
-                    rootElement: host,
-                    stackElements
-                });
-                if (intent) {
-                    const ghostRect = this.interactionController.computeGhostRect({ intent, rootElement: host });
-                    this.#showGhost(ghostRect, intent.label);
-                } else {
-                    this.interactionController.clearIntent();
-                    this.#hideGhost();
-                }
-            } else {
-                this.interactionController.clearIntent();
-                this.#hideGhost();
-            }
-            return;
-        }
-
-        if (this._resizeSession.type === "floating-resize") {
-            const accumulatedX = this._resizeSession.accumulatedDeltaX + deltaX;
-            const accumulatedY = this._resizeSession.accumulatedDeltaY + deltaY;
-            const pixelThreshold = 1;
-            if (Math.abs(accumulatedX) >= pixelThreshold || Math.abs(accumulatedY) >= pixelThreshold) {
-                const appliedDeltaX = Math.abs(accumulatedX) >= pixelThreshold ? Math.floor(accumulatedX) : 0;
-                const appliedDeltaY = Math.abs(accumulatedY) >= pixelThreshold ? Math.floor(accumulatedY) : 0;
-                const nextLayout = this.layoutEngine.updateFloatingWindow(this._resizeSession.floatingId, {
-                    width: Math.max(MIN_FLOAT_WIDTH, this._resizeSession.original.width + appliedDeltaX),
-                    height: Math.max(MIN_FLOAT_HEIGHT, this._resizeSession.original.height + appliedDeltaY)
-                });
-                this._resizeSession.accumulatedDeltaX = accumulatedX - appliedDeltaX;
-                this._resizeSession.accumulatedDeltaY = accumulatedY - appliedDeltaY;
-                void this.stateStore?.setUserLayout?.(nextLayout);
-                this.#syncFloatingElementStyle(this._resizeSession.floatingId, nextLayout.root.floatingWindows.find((entry) => entry.id === this._resizeSession.floatingId));
-            }
-        }
-    }
-
-    #syncFloatingElementStyle(floatingId, floatingWindow) {
-        const element = this.element?.querySelector(`[data-floating-id='${floatingId}']`);
-        if (!element || !floatingWindow) return;
-
-        element.style.left = `${floatingWindow.x}px`;
-        element.style.top = `${floatingWindow.y}px`;
-        element.style.width = `${floatingWindow.width}px`;
-        element.style.height = `${floatingWindow.height}px`;
-        element.style.zIndex = `${floatingWindow.zIndex}`;
-    }
-
-    #syncDockGridAndSplitters() {
-        const host = this.element?.querySelector("[data-layout-root='true']");
-        if (!host) return;
-
-        const layout = this.layoutEngine.getLayout();
-        const dockWeights = this.layoutEngine.getDockWeightLayout();
-        const leftOccupied = this.#isDockOccupied(layout.root.leftDock);
-        const rightOccupied = this.#isDockOccupied(layout.root.rightDock);
-        const topOccupied = this.#isDockOccupied(layout.root.topDock);
-        const bottomOccupied = this.#isDockOccupied(layout.root.bottomDock);
-
-        const leftTrack = leftOccupied && layout.root.leftDock?.collapsed
-            ? `${COLLAPSED_LEFT_RIGHT_DOCK_WIDTH}px`
-            : `minmax(${leftOccupied ? `${MIN_LEFT_RIGHT_DOCK_WIDTH}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.left * 100))}fr)`;
-        const rightTrack = rightOccupied && layout.root.rightDock?.collapsed
-            ? `${COLLAPSED_LEFT_RIGHT_DOCK_WIDTH}px`
-            : `minmax(${rightOccupied ? `${MIN_LEFT_RIGHT_DOCK_WIDTH}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.right * 100))}fr)`;
-        const topTrack = topOccupied && layout.root.topDock?.collapsed
-            ? `${COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT}px`
-            : `minmax(${topOccupied ? `${MIN_TOP_BOTTOM_DOCK_HEIGHT}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.top * 100))}fr)`;
-        const bottomTrack = bottomOccupied && layout.root.bottomDock?.collapsed
-            ? `${COLLAPSED_TOP_BOTTOM_DOCK_HEIGHT}px`
-            : `minmax(${bottomOccupied ? `${MIN_TOP_BOTTOM_DOCK_HEIGHT}px` : "0px"}, ${Math.max(1, Math.round(dockWeights.bottom * 100))}fr)`;
-
-        host.style.gridTemplateColumns = `${leftTrack} minmax(0, ${Math.max(1, Math.round((dockWeights.centerX ?? 0.64) * 100))}fr) ${rightTrack}`;
-        host.style.gridTemplateRows = `${topTrack} minmax(0, ${Math.max(1, Math.round((dockWeights.centerY ?? 0.64) * 100))}fr) ${bottomTrack}`;
-
-        const left = Number(dockWeights.left) || 0.18;
-        const centerX = Number(dockWeights.centerX) || Math.max(0.2, 1 - left - (Number(dockWeights.right) || 0.18));
-        const right = Number(dockWeights.right) || 0.18;
-        const top = Number(dockWeights.top) || 0.18;
-        const centerY = Number(dockWeights.centerY) || Math.max(0.2, 1 - top - (Number(dockWeights.bottom) || 0.18));
-        const bottom = Number(dockWeights.bottom) || 0.18;
-        const totalX = Math.max(0.0001, left + centerX + right);
-        const totalY = Math.max(0.0001, top + centerY + bottom);
-
-        const leftBoundary = (left / totalX) * 100;
-        const rightBoundary = ((left + centerX) / totalX) * 100;
-        const topBoundary = (top / totalY) * 100;
-        const bottomBoundary = ((top + centerY) / totalY) * 100;
-
-        const leftHandle = host.querySelector(".totc-v2-dock-resizer--left");
-        const rightHandle = host.querySelector(".totc-v2-dock-resizer--right");
-        const topHandle = host.querySelector(".totc-v2-dock-resizer--top");
-        const bottomHandle = host.querySelector(".totc-v2-dock-resizer--bottom");
-        if (leftHandle) leftHandle.style.left = `${leftBoundary}%`;
-        if (rightHandle) rightHandle.style.left = `${rightBoundary}%`;
-        if (topHandle) topHandle.style.top = `${topBoundary}%`;
-        if (bottomHandle) bottomHandle.style.top = `${bottomBoundary}%`;
-
-    }
-
-
-
     #wireDebouncedTextInputHandlers() {
         this.element?.addEventListener("input", (event) => {
             const input = event.target;
@@ -2660,12 +1478,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 focusWorkspaceTextInputAtEnd(this.element, "actor-list-search");
                 break;
             }
-            case "design-command-palette-search": {
-                this.designCommandPaletteQuery = value;
-                await this.render({ force: false });
-                focusWorkspaceTextInputAtEnd(this.element, "design-command-palette-search");
-                break;
-            }
             case "gm-search-actions": {
                 await this.#setGamemasterPanelStatePatch({ actionSearchQuery: value });
                 await this.render({ force: false });
@@ -2697,34 +1509,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         await this.stateStore?.setUserLayout?.(nextLayout);
         this.render({ force: false });
-    }
-
-    async _openScenePropertiesPanel() {
-        await this.sceneWorkspaceController.openScenePropertiesPanel();
-    }
-
-    async _openSceneGridConfiguration({ scene = null } = {}) {
-        const targetScene = scene ?? canvas?.scene ?? game.scenes?.viewed ?? null;
-        if (!targetScene) {
-            ui.notifications?.warn?.("Open a scene before editing the grid.");
-            return;
-        }
-
-        const targetSceneId = String(targetScene?.id ?? targetScene?._id ?? "").trim();
-        const currentSceneId = String(canvas?.scene?.id ?? game.scenes?.viewed?.id ?? "").trim();
-        if (targetSceneId && currentSceneId !== targetSceneId) {
-            await targetScene.view?.();
-        }
-
-        if (targetScene.sheet?.render) {
-            targetScene.sheet.render(true);
-        } else {
-            ui.notifications?.warn?.("Scene configuration is not available in this Foundry session.");
-        }
-    }
-
-    async _createSceneDesignScene() {
-        return await this.sceneWorkspaceController.createSceneDesignScene();
     }
 
     #wireLoggingPanelHandlers() {
@@ -2814,89 +1598,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             canvas.pan({ x: tokenX, y: tokenY });
         }
         return true;
-    }
-
-    async #executeDesignAction(actionId, { panelId = "" } = {}) {
-        const action = this.designActionRegistry.get(actionId);
-        if (!action) return;
-        const sourcePanel = panelId ? this.#resolvePanelDefinition(panelId) : this.#getPrimaryActivePanel();
-        const currentScene = canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null;
-        const actionScene = this.#getDesignActionScene(sourcePanel, currentScene);
-
-        try {
-            const result = await action.execute({
-                app: this,
-                panel: this.#getPrimaryActivePanel(),
-                sourcePanel,
-                scene: actionScene,
-                currentScene,
-                canvas,
-                ui,
-                combat: game.combats?.active ?? game.combat ?? null,
-                controlledTokens: canvas?.tokens?.controlled ?? []
-            });
-
-            if (actionId === "scene.walls" && result?.ok && actionScene) this.sceneDesignFeature.refreshSceneWallOverlay(actionScene);
-
-            if (actionId === "scene.detectWalls" && result?.ok && actionScene) {
-                this.sceneDesignFeature.setSceneDetectedWallOverlayState(actionScene, result.detectedWallOverlay ?? null);
-                }
-
-            if (result?.level === "warn") {
-                ui.notifications?.warn(result.message ?? `${action.label} is not available right now.`);
-            } else if (result?.silent) {
-                // Action handled its own UI (e.g. opened a dialog) — no notification needed.
-            } else if (result?.message) {
-                ui.notifications?.info(result.message);
-            } else if (result?.name) {
-                ui.notifications?.info(`Created ${result.name}.`);
-            } else {
-                ui.notifications?.info(`${action.label} design action is not wired yet.`);
-            }
-        } catch (error) {
-            console.error("[turn-of-the-century] Design action failed", { actionId, error });
-            ui.notifications?.error(error?.message ?? `${action.label} failed.`);
-        }
-    }
-
-    /**
-     * Navigate the GM to the entity or layer implicated by a design issue.
-     * Each navigateAction key maps to a lightweight Foundry API call.
-     */
-    async #executeDesignIssueNavigation(navigateAction, { subjectId = "", subjectType = "" } = {}) {
-        try {
-            switch (navigateAction) {
-                case "navigate.actor": {
-                    const actor = subjectId ? game.actors?.get(subjectId) : null;
-                    if (actor) renderFoundryApplication(actor.sheet, { force: true });
-                    else ui.notifications?.warn("Actor not found.");
-                    break;
-                }
-                case "navigate.scene.config": {
-                    const scene = subjectId ? game.scenes?.get(subjectId) : (canvas?.scene ?? null);
-                    if (scene) renderFoundryApplication(scene.sheet, { force: true });
-                    else ui.notifications?.warn("Scene not found.");
-                    break;
-                }
-                case "navigate.scene.walls":
-                    canvas?.walls?.activate?.();
-                    break;
-                case "navigate.scene.lights":
-                    canvas?.lighting?.activate?.();
-                    break;
-                case "navigate.scene.tokens":
-                    canvas?.tokens?.activate?.();
-                    break;
-                case "navigate.combat":
-                    renderFoundryApplication(ui.combat, { force: true });
-                    break;
-                default:
-                    console.warn("[turn-of-the-century] Unknown navigate action:", navigateAction);
-            }
-        } catch (error) {
-            console.error("[turn-of-the-century] Design issue navigation failed", { navigateAction, subjectId, error });
-            ui.notifications?.error("Navigation failed — see console for details.");
-        }
     }
 
     #isDockOccupied(dock) {
@@ -3019,35 +1720,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
 
-    #showGhost(rect, label) {
-        const ghost = this.element?.querySelector("[data-drop-ghost='true']");
-        const ghostLabel = this.element?.querySelector("[data-drop-label='true']");
-        if (!ghost || !rect) return;
-
-        ghost.hidden = false;
-        ghost.style.left = `${rect.left}px`;
-        ghost.style.top = `${rect.top}px`;
-        ghost.style.width = `${rect.width}px`;
-        ghost.style.height = `${rect.height}px`;
-        if (ghostLabel) {
-            ghostLabel.textContent = label ?? "Drop Target";
-        }
-    }
-
-    #hideGhost() {
-        const ghost = this.element?.querySelector("[data-drop-ghost='true']");
-        if (!ghost) return;
-        ghost.hidden = true;
-        ghost.style.removeProperty("left");
-        ghost.style.removeProperty("top");
-        ghost.style.removeProperty("width");
-        ghost.style.removeProperty("height");
-    }
-
-    #isDesignLensActive(panelId) {
-        return Boolean(panelId && this.activeDesignLensPanelIds.has(panelId));
-    }
-
     #getPrimaryActivePanel(layout = this.layoutEngine.getLayout()) {
         const centerDock = layout?.root?.centerDock;
         const centerStack = centerDock?.stacks?.[0];
@@ -3065,17 +1737,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         return null;
     }
 
-    #getActiveCenterMapPanel(layout = this.layoutEngine.getLayout()) {
-        const centerDock = layout?.root?.centerDock;
-        for (const stack of centerDock?.stacks ?? []) {
-            const activePanel = (stack?.panels ?? []).find((panel) => panel.id === stack.activePanelId) ?? stack?.panels?.[0];
-            if (this.#isMapPanel(activePanel)) return activePanel;
-        }
-        return null;
-    }
-
     #syncNativeCanvasScene() {
-        const panel = this.#getActiveCenterMapPanel();
+        const panel = this.workspaceLayoutFeature.getActiveCenterMapPanel();
         const sceneId = this.#getPanelSceneId(panel);
         if (!sceneId) {
             this._nativeCanvasViewSceneId = "";

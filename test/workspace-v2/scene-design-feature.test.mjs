@@ -72,9 +72,14 @@ describe("SceneDesignFeature", () => {
             removeEventListener: (type, listener) => calls.push(["remove", type, listener])
         };
         const feature = new SceneDesignFeature();
+        const stubElement = {
+            ownerDocument,
+            addEventListener: () => {},
+            querySelectorAll: () => []
+        };
 
-        feature.bind({ ownerDocument });
-        feature.bind({ ownerDocument });
+        feature.bind(stubElement);
+        feature.bind(stubElement);
         feature.dispose();
 
         assert.equal(calls.filter(([action]) => action === "add").length, 1);
@@ -91,20 +96,33 @@ describe("SceneDesignFeature", () => {
             },
             addEventListener: (event, handler) => {
                 if (event === "click") clickHandlers.push(handler);
-            }
+            },
+            querySelectorAll: () => []
         };
 
         let designActionExecuted = null;
         const feature = new SceneDesignFeature({
-            sceneWorkspaceController: mockController,
-            executeDesignAction: (actionId) => {
-                designActionExecuted = actionId;
-                return { ok: true };
+            sceneWorkspaceController: {
+                ...mockController,
+                panelRegistry: { get: (id) => ({ id }) },
+                makeSceneMapPanelDef: () => null,
+                getDesignActionScene: () => null
+            },
+            designActionRegistry: {
+                get: (id) => ({
+                    label: id,
+                    execute: async () => {
+                        designActionExecuted = id;
+                        return { ok: true, silent: true };
+                    }
+                })
             },
             gridCalibrationController: { active: false }
         });
 
-        globalThis.game = { user: { isGM: true } };
+        globalThis.game = { user: { isGM: true }, scenes: { active: null, viewed: null }, combats: null, combat: null };
+        globalThis.canvas = { tokens: { controlled: [] } };
+        globalThis.ui = { notifications: { info: () => {}, warn: () => {}, error: () => {} } };
 
         feature.bind(rootElement);
 
@@ -183,6 +201,117 @@ describe("SceneDesignFeature", () => {
 
         assert.ok(context.scenePropertiesPanel);
         assert.equal(context.scenePropertiesPanel.status, "Success");
+
+        assert.ok(context.designIssuesPanel, "prepareContext should build designIssuesPanel");
+    });
+
+    it("registers designIssues hook family on hooksController during construction", () => {
+        const registered = {};
+        const hooksController = {
+            registerFamily: (name, entries) => { registered[name] = entries; }
+        };
+        new SceneDesignFeature({ hooksController });
+        assert.ok(registered.designIssues, "designIssues family should be registered");
+        assert.ok(registered.designIssues.length > 0, "designIssues family should have entries");
+        const events = registered.designIssues.map((e) => e.event);
+        assert.ok(events.includes("updateScene"));
+        assert.ok(events.includes("createWall"));
+        assert.ok(events.includes("createActor"));
+        assert.ok(events.includes("deleteCombatant"));
+    });
+
+    it("executeDesignAction dispatches via registry and posts success notification", async () => {
+        const notifications = { infoMessages: [], warnMessages: [], errorMessages: [] };
+        globalThis.ui = {
+            notifications: {
+                info: (m) => notifications.infoMessages.push(m),
+                warn: (m) => notifications.warnMessages.push(m),
+                error: (m) => notifications.errorMessages.push(m)
+            }
+        };
+        globalThis.game = { scenes: { active: null, viewed: null }, combats: null, combat: null };
+        globalThis.canvas = { tokens: { controlled: [] } };
+
+        let executedWith = null;
+        const feature = new SceneDesignFeature({
+            sceneWorkspaceController: {
+                panelRegistry: { get: () => null },
+                makeSceneMapPanelDef: () => null,
+                getDesignActionScene: (panel, fallback) => fallback,
+                layoutEngine: {
+                    getLayout: () => ({ root: { centerDock: { stacks: [] } } })
+                }
+            },
+            designActionRegistry: {
+                get: (id) => id === "scene.create" ? {
+                    label: "Create Scene",
+                    execute: async (ctx) => { executedWith = ctx; return { message: "Scene created." }; }
+                } : null
+            }
+        });
+
+        await feature.executeDesignAction("scene.create", { panelId: "" });
+
+        assert.ok(executedWith, "action.execute should have been called");
+        assert.equal(typeof executedWith.app.openScenePropertiesPanel, "function",
+            "app should expose openScenePropertiesPanel");
+        assert.ok(notifications.infoMessages.some((m) => m.includes("Scene created")));
+    });
+
+    it("executeDesignAction emits warn notification on warn-level result", async () => {
+        const warnMessages = [];
+        globalThis.ui = { notifications: { info: () => {}, warn: (m) => warnMessages.push(m), error: () => {} } };
+        globalThis.game = { scenes: { active: null, viewed: null }, combats: null, combat: null };
+        globalThis.canvas = { tokens: { controlled: [] } };
+
+        const feature = new SceneDesignFeature({
+            sceneWorkspaceController: {
+                panelRegistry: { get: () => null },
+                makeSceneMapPanelDef: () => null,
+                getDesignActionScene: () => null,
+                layoutEngine: { getLayout: () => ({ root: { centerDock: { stacks: [] } } }) }
+            },
+            designActionRegistry: {
+                get: () => ({
+                    label: "Some Action",
+                    execute: async () => ({ level: "warn", message: "Not available." })
+                })
+            }
+        });
+
+        await feature.executeDesignAction("some.action");
+        assert.ok(warnMessages.some((m) => m.includes("Not available")));
+    });
+
+    it("executeDesignAction does nothing when action is not in registry", async () => {
+        const feature = new SceneDesignFeature({
+            designActionRegistry: { get: () => null }
+        });
+        // Should not throw
+        await feature.executeDesignAction("nonexistent.action");
+    });
+
+    it("executeDesignIssueNavigation warns when actor not found", async () => {
+        const warnMessages = [];
+        globalThis.ui = { notifications: { warn: (m) => warnMessages.push(m), error: () => {}, info: () => {} } };
+        globalThis.game = { actors: { get: () => null } };
+
+        const feature = new SceneDesignFeature();
+        await feature.executeDesignIssueNavigation("navigate.actor", { subjectId: "missing-id" });
+
+        assert.ok(warnMessages.some((m) => m.includes("Actor not found")));
+    });
+
+    it("executeDesignIssueNavigation warns on unknown action", async () => {
+        const warnLogs = [];
+        const original = console.warn;
+        console.warn = (...args) => warnLogs.push(args);
+
+        const feature = new SceneDesignFeature();
+        await feature.executeDesignIssueNavigation("navigate.unknown", {});
+
+        console.warn = original;
+        assert.ok(warnLogs.some((args) => args.join(" ").includes("Unknown navigate action")));
     });
 
     it("renders scenes and scene-properties panels", () => {

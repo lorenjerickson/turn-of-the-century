@@ -9,6 +9,7 @@ import {
 
 const rootDir = new URL("../..", import.meta.url).pathname;
 const workspaceRootSource = readFileSync(join(rootDir, "module/ui/workspace-v2/workspace-root-app.mjs"), "utf8");
+const workspaceLayoutFeatureSource = readFileSync(join(rootDir, "module/ui/workspace-v2/controllers/workspace-layout-feature.mjs"), "utf8");
 const sceneActorDropControllerSource = readFileSync(
     join(rootDir, "module/ui/workspace-v2/controllers/scene-actor-drop-controller.mjs"),
     "utf8"
@@ -103,9 +104,9 @@ describe("workspace actor drag and drop", () => {
     });
 
     it("separates actor drops from workspace panel docking drags", () => {
-        assert.match(workspaceRootSource, /const WORKSPACE_PANEL_DRAG_MIME = "application\/x-totc-workspace-panel";/);
-        assert.match(workspaceRootSource, /event\.dataTransfer\?\.setData\(WORKSPACE_PANEL_DRAG_MIME, panelId \?\? ""\)/);
-        assert.match(workspaceRootSource, /if \(!dataTransferHasType\(event\.dataTransfer, WORKSPACE_PANEL_DRAG_MIME\)\) return;[\s\S]*event\.preventDefault\(\);/);
+        assert.match(workspaceLayoutFeatureSource, /const WORKSPACE_PANEL_DRAG_MIME = "application\/x-totc-workspace-panel";/);
+        assert.match(workspaceLayoutFeatureSource, /event\.dataTransfer\?\.setData\(WORKSPACE_PANEL_DRAG_MIME, panelId \?\? ""\)/);
+        assert.match(workspaceLayoutFeatureSource, /if \(!dataTransferHasType\(event\.dataTransfer, WORKSPACE_PANEL_DRAG_MIME\)\) return;[\s\S]*event\.preventDefault\(\);/);
         assert.doesNotMatch(sceneActorDropControllerSource, /Workspace actor drop captured/);
     });
 

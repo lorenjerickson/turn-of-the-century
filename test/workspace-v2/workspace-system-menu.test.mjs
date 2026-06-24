@@ -10,6 +10,7 @@ import {
 
 const rootDir = new URL("../..", import.meta.url).pathname;
 const workspaceRootSource = readFileSync(join(rootDir, "module/ui/workspace-v2/workspace-root-app.mjs"), "utf8");
+const workspaceLayoutFeatureSource = readFileSync(join(rootDir, "module/ui/workspace-v2/controllers/workspace-layout-feature.mjs"), "utf8");
 const styles = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
 function makeElement() {
@@ -190,13 +191,13 @@ describe("workspace system menu", () => {
     });
 
     it("renders visible panel toggles in a separate floating panel menu", () => {
-        assert.match(workspaceRootSource, /data-action="totc-v2-panel-menu-toggle"[\s\S]*fa-window-maximize/);
-        assert.match(workspaceRootSource, /data-panel-menu="true"[\s\S]*aria-label="Visible panels"[\s\S]*\$\{panelToggleMarkup\}/);
+        assert.match(workspaceLayoutFeatureSource, /data-action="totc-v2-panel-menu-toggle"[\s\S]*fa-window-maximize/);
+        assert.match(workspaceLayoutFeatureSource, /data-panel-menu="true"[\s\S]*aria-label="Visible panels"[\s\S]*\$\{panelToggleMarkup\}/);
         assert.match(workspaceRootSource, /const panelVisibility = this\.panelRegistry\.getVisibilityModel\(visiblePanels, \{ isGM: isGMUser \}\);/);
         assert.match(workspaceRootSource, /if \(!isGMUser\) \{[\s\S]*for \(const panelId of visiblePanels\)/);
-        assert.match(workspaceRootSource, /data-action="totc-v2-command-menu-toggle"[\s\S]*data-command-menu="true"[\s\S]*totc-v2-open-foundry-settings[\s\S]*totc-v2-exit-world/);
+        assert.match(workspaceLayoutFeatureSource, /data-action="totc-v2-command-menu-toggle"[\s\S]*data-command-menu="true"[\s\S]*totc-v2-open-foundry-settings[\s\S]*totc-v2-exit-world/);
 
-        const commandMenuBlock = workspaceRootSource.match(/<div class="totc-v2-command-menu" data-command-menu="true" hidden>[\s\S]*?<\/div>/)?.[0] ?? "";
+        const commandMenuBlock = workspaceLayoutFeatureSource.match(/<div class="totc-v2-command-menu" data-command-menu="true" hidden>[\s\S]*?<\/div>/)?.[0] ?? "";
         assert.doesNotMatch(commandMenuBlock, /toggle-panel-visibility/);
         assert.doesNotMatch(commandMenuBlock, /totc-v2-command-menu__panel-list/);
     });

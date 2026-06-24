@@ -5,16 +5,17 @@ import { describe, it } from "node:test";
 
 const rootDir = new URL("../..", import.meta.url).pathname;
 const workspaceRootSource = readFileSync(join(rootDir, "module/ui/workspace-v2/workspace-root-app.mjs"), "utf8");
+const workspaceLayoutFeatureSource = readFileSync(join(rootDir, "module/ui/workspace-v2/controllers/workspace-layout-feature.mjs"), "utf8");
 const sceneDesignFeatureSource = readFileSync(join(rootDir, "module/ui/workspace-v2/controllers/scene-design-feature.mjs"), "utf8");
 const styles = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
 describe("native canvas workspace integration", () => {
     it("uses center map panels as a native Foundry canvas aperture", () => {
-        assert.match(workspaceRootSource, /#getActiveCenterMapPanel/);
+        assert.match(workspaceLayoutFeatureSource, /getActiveCenterMapPanel/);
         assert.match(workspaceRootSource, /#syncNativeCanvasScene/);
         assert.match(workspaceRootSource, /scene\.view\(\)/);
-        assert.match(workspaceRootSource, /dockId === "centerDock" && this\.\#isMapPanel\(activePanel\)/);
-        assert.match(workspaceRootSource, /is-native-canvas-aperture/);
+        assert.match(workspaceLayoutFeatureSource, /dockId === "centerDock" && this\.\#isMapPanel\(activePanel\)/);
+        assert.match(workspaceLayoutFeatureSource, /is-native-canvas-aperture/);
     });
 
     it("centers tokens with native canvas pan controls", () => {
@@ -56,15 +57,15 @@ describe("native canvas workspace integration", () => {
         assert.match(styles, /\.turn-of-the-century \.totc-v2-floating__header\s*\{[\s\S]*touch-action:\s*none;[\s\S]*user-select:\s*none;/);
         assert.match(styles, /\.turn-of-the-century \.totc-v2-floating__resize-handle\s*\{[\s\S]*touch-action:\s*none;[\s\S]*user-select:\s*none;/);
         assert.match(styles, /\.turn-of-the-century \.totc-v2-layout \[data-action='dock-resizer'\]\s*\{[\s\S]*pointer-events:\s*auto;[\s\S]*touch-action:\s*none;[\s\S]*z-index:\s*3;/);
-        assert.match(workspaceRootSource, /\[data-action='floating-move-handle'\][\s\S]*addEventListener\("pointerdown"/);
-        assert.match(workspaceRootSource, /\[data-action='dock-resizer'\][\s\S]*addEventListener\("pointerdown"/);
+        assert.match(workspaceLayoutFeatureSource, /\[data-action='floating-move-handle'\][\s\S]*addEventListener\("pointerdown"/);
+        assert.match(workspaceLayoutFeatureSource, /\[data-action='dock-resizer'\][\s\S]*addEventListener\("pointerdown"/);
     });
 
     it("keeps move, close, and resize controls interactive without a theme wrapper", () => {
         assert.match(styles, /\.totc-workspace-v2-root-app \.totc-v2-floating,[\s\S]*\.totc-workspace-v2-root-app \[data-action='dock-resizer'\]\s*\{[\s\S]*pointer-events:\s*auto !important;/);
         assert.match(styles, /\.totc-workspace-v2-root-app \.totc-v2-stack-splitter/);
-        assert.match(workspaceRootSource, /\[data-action='floating-close'\][\s\S]*pointerdown[\s\S]*event\.stopPropagation\(\)/);
-        assert.doesNotMatch(workspaceRootSource, /\[data-action='floating-close'\][\s\S]{0,180}pointerdown[\s\S]{0,120}event\.preventDefault\(\)/);
+        assert.match(workspaceLayoutFeatureSource, /\[data-action='floating-close'\][\s\S]*pointerdown[\s\S]*event\.stopPropagation\(\)/);
+        assert.doesNotMatch(workspaceLayoutFeatureSource, /\[data-action='floating-close'\][\s\S]{0,180}pointerdown[\s\S]{0,120}event\.preventDefault\(\)/);
     });
 
     it("keeps Victorian theme surfaces from repainting the native canvas aperture", () => {

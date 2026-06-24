@@ -1,3 +1,4 @@
+import { runStarterCompendiumBootstrap } from "./module/bootstrap.mjs";
 import {
     ArmorDataModel,
     ConsumableDataModel,
@@ -536,6 +537,8 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", async () => {
+    await runStarterCompendiumBootstrap({ systemId: "turn-of-the-century" });
+
     await ensureTotcLocalizationLoaded();
     applyTotcTheme(game.settings.get("turn-of-the-century", TOTC_THEME_SETTING));
 

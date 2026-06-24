@@ -30,7 +30,7 @@ describe("workspace token interactions", () => {
     });
 
     it("activates native wall tools instead of workspace map pointer handlers", () => {
-        assert.match(sceneDesignFeatureSource, /this\.executeDesignActionCallback\("scene\.walls", \{ panelId \}\)/);
+        assert.match(sceneDesignFeatureSource, /this\.executeDesignAction\("scene\.walls", \{ panelId \}\)/);
         assert.match(sceneDesignFeatureSource, /deactivateWallModeForPanel\(panelId\)/);
         assert.match(sceneDesignFeatureSource, /globalThis\.ui\.controls\.activate\(\{ control: "tokens", tool: "select" \}\)/);
         assert.match(sceneDesignFeatureSource, /globalThis\.canvas\?\.tokens\?\.activate\?\.\(\)/);
