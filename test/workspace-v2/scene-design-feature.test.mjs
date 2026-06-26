@@ -331,4 +331,164 @@ describe("SceneDesignFeature", () => {
         });
         assert.match(propertiesHtml, /totc-v2-scene-properties-panel/);
     });
+
+    it("centers map on token when token entry is double-clicked", async () => {
+        const listeners = {};
+        const tokenEntry = {
+            dataset: { sceneId: "scene-1", tokenCenterX: "250", tokenCenterY: "350" },
+            addEventListener(type, handler) { listeners[type] = handler; }
+        };
+        const root = {
+            ownerDocument: { addEventListener: () => {}, removeEventListener: () => {} },
+            addEventListener: () => {},
+            querySelectorAll: (selector) => {
+                if (selector === "[data-action='scene-token-center']") return [tokenEntry];
+                return [];
+            }
+        };
+        const centered = [];
+        const feature = new SceneDesignFeature({
+            sceneWorkspaceController: {
+                ...mockController,
+                getSceneDocumentById: () => null,
+                stateStore: null
+            },
+            centerSceneMapOnToken: async (payload) => { centered.push(payload); return true; }
+        });
+
+        feature.bind(root);
+        await listeners.dblclick({ preventDefault() {}, stopPropagation() {} });
+
+        assert.deepEqual(centered, [{ sceneId: "scene-1", x: 250, y: 350 }]);
+    });
+
+    it("deletes token when delete button is clicked", async () => {
+        const listeners = {};
+        const deleteBtn = {
+            dataset: { sceneId: "scene-1", tokenId: "token-abc" },
+            addEventListener(type, handler) { listeners[type] = handler; }
+        };
+        const root = {
+            ownerDocument: { addEventListener: () => {}, removeEventListener: () => {} },
+            addEventListener: () => {},
+            querySelectorAll: (selector) => {
+                if (selector === "[data-action='scene-token-delete']") return [deleteBtn];
+                return [];
+            }
+        };
+        const deletedIds = [];
+        let renderCalled = false;
+        const mockScene = {
+            deleteEmbeddedDocuments: async (type, ids) => {
+                if (type === "Token") deletedIds.push(...ids);
+            }
+        };
+        const feature = new SceneDesignFeature({
+            sceneWorkspaceController: {
+                ...mockController,
+                getSceneDocumentById: (id) => id === "scene-1" ? mockScene : null,
+                stateStore: null
+            },
+            render: () => { renderCalled = true; }
+        });
+
+        feature.bind(root);
+        await listeners.click({ preventDefault() {}, stopPropagation() {} });
+
+        assert.deepEqual(deletedIds, ["token-abc"]);
+        assert.equal(renderCalled, true);
+    });
+
+    it("syncs background dimensions through the scene properties sync action", async () => {
+        const previousImage = globalThis.Image;
+        class TestImage {
+            set src(value) {
+                this._src = value;
+                this.naturalWidth = 2400;
+                this.naturalHeight = 1600;
+                this.onload();
+            }
+        }
+        globalThis.Image = TestImage;
+
+        try {
+            const listeners = {};
+            const syncButton = {
+                addEventListener(type, handler) { listeners[type] = handler; }
+            };
+            const root = {
+                ownerDocument: { addEventListener: () => {}, removeEventListener: () => {} },
+                addEventListener: () => {},
+                querySelectorAll: (selector) => {
+                    if (selector === "[data-action='scene-properties-sync-background-dimensions']") return [syncButton];
+                    return [];
+                }
+            };
+            let receivedUpdate = null;
+            let renderCount = 0;
+            const scene = {
+                id: "scene-1",
+                name: "Rookery Yard",
+                img: "assets/images/scenes/rookery.webp",
+                update: async (data) => { receivedUpdate = data; return scene; }
+            };
+            const patchedState = {};
+            const feature = new SceneDesignFeature({
+                sceneWorkspaceController: {
+                    ...mockController,
+                    getScenePropertiesScene: () => scene,
+                    patchState: (patch) => Object.assign(patchedState, patch),
+                    propertiesState: patchedState,
+                    stateStore: null
+                },
+                render: () => { renderCount += 1; },
+                activityLogger: { info: () => {} }
+            });
+
+            feature.bind(root);
+            await listeners.click({ preventDefault() {}, stopPropagation() {} });
+
+            assert.deepEqual(receivedUpdate, {
+                img: "assets/images/scenes/rookery.webp",
+                "background.src": "assets/images/scenes/rookery.webp",
+                "texture.src": "assets/images/scenes/rookery.webp",
+                width: 2400,
+                height: 1600
+            });
+            assert.equal(patchedState.status, "Background fitted to 2400 x 1600.");
+            assert.equal(patchedState.error, "");
+            assert.ok(renderCount >= 2);
+        } finally {
+            if (previousImage === undefined) {
+                delete globalThis.Image;
+            } else {
+                globalThis.Image = previousImage;
+            }
+        }
+    });
+
+    it("saveSceneName persists the name and triggers a render", async () => {
+        let savedName = null;
+        let renderCalled = false;
+        const scene = {
+            id: "scene-1",
+            name: "Old Name",
+            update: async (data) => { savedName = data.name; }
+        };
+        const feature = new SceneDesignFeature({
+            sceneWorkspaceController: {
+                ...mockController,
+                getScenePropertiesScene: () => scene,
+                patchState: () => {},
+                stateStore: null
+            },
+            render: () => { renderCalled = true; },
+            activityLogger: { info: () => {} }
+        });
+
+        await feature.saveSceneName("New Name");
+
+        assert.equal(savedName, "New Name");
+        assert.equal(renderCalled, true);
+    });
 });

@@ -1,4 +1,4 @@
-import { TOTC_SAMPLE_COMPENDIUMS } from "../sample-content.mjs";
+import { TOTC_SAMPLE_COMPENDIUMS } from "../compendiums/manifest.mjs";
 import { withUnlockedCompendiumPack } from "./compendium-locking.mjs";
 
 const STARTER_ACTOR_PACK_NAMES = [

@@ -1,8 +1,8 @@
+import { TOTC_SAMPLE_COMPENDIUMS } from "../compendiums/manifest.mjs";
 import {
-    TOTC_SAMPLE_COMPENDIUMS,
     createTotcSampleContent,
     publishTotcSampleCompendiums
-} from "../sample-content.mjs";
+} from "../compendiums/publisher.mjs";
 
 async function getStarterCompendiumDocumentCount() {
     const systemId = game.system?.id;

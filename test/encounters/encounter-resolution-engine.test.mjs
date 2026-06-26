@@ -93,6 +93,7 @@ function makeEngine({
         getState: () => currentState,
         setState: async (next) => { currentState = next; stateLog.push(next); },
         getApBudget: () => apBudget,
+        getMovementFeetPerAp: () => 10,
         getCurrentRound: () => round,
         getCombatants: () => combatants,
         resolveCombatant: (id) => combatants.find((c) => c.id === id) ?? null,

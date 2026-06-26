@@ -6,7 +6,7 @@ import {
     buildDiceBearAvatarUrl,
     migrateTotcStarterActorAvatars
 } from "../../module/migrations/starter-actor-avatars.mjs";
-import { TOTC_SAMPLE_COMPENDIUMS } from "../../module/sample-content.mjs";
+import { TOTC_SAMPLE_COMPENDIUMS } from "../../module/compendiums/manifest.mjs";
 
 function makeActor({
     id = "A1",

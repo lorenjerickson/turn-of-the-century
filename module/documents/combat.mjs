@@ -425,6 +425,7 @@ export class TurnOfTheCenturyEncounter {
             getState: () => this.state,
             setState: (state) => this.#setState(state),
             getApBudget: () => this.apBudget,
+            getMovementFeetPerAp: () => getMovementFeetPerAp(),
             getCurrentRound: () => this.#combat.round || this.state.round || 1,
             getCombatants: () => this.#combat.combatants?.contents ?? [],
             resolveCombatant: (id) => this.#combat.combatants?.get(id) ?? null,

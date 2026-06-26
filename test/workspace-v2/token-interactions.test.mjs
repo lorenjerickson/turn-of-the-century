@@ -32,8 +32,7 @@ describe("workspace token interactions", () => {
     it("activates native wall tools instead of workspace map pointer handlers", () => {
         assert.match(sceneDesignFeatureSource, /this\.executeDesignAction\("scene\.walls", \{ panelId \}\)/);
         assert.match(sceneDesignFeatureSource, /deactivateWallModeForPanel\(panelId\)/);
-        assert.match(sceneDesignFeatureSource, /globalThis\.ui\.controls\.activate\(\{ control: "tokens", tool: "select" \}\)/);
-        assert.match(sceneDesignFeatureSource, /globalThis\.canvas\?\.tokens\?\.activate\?\.\(\)/);
+        assert.match(sceneDesignFeatureSource, /deactivateWallControls\(\{ uiRef: this\.uiRef, canvasRef: this\.canvasRef \}\)/);
         assert.match(sceneDesignFeatureSource, /syncWallCommandCanvasListener\(\)/);
         assert.match(sceneDesignFeatureSource, /listenForNativeCanvasPointerDown\(canvas/);
         assert.match(sceneDesignFeatureSource, /handleWallCommandPointerDown/);
@@ -51,7 +50,7 @@ describe("workspace token interactions", () => {
         assert.doesNotMatch(sceneDesignFeatureSource, /stopWallAddMode/);
         assert.doesNotMatch(sceneDesignFeatureSource, /if \(key === "a"\)/);
         assert.match(sceneDesignFeatureSource, /splitWallSegmentAtPoint/);
-        assert.match(sceneDesignFeatureSource, /getControlledWallIds\(globalThis\.canvas\?\.walls\)/);
+        assert.match(sceneDesignFeatureSource, /getControlledWallIds\(canvas\?\.walls\)/);
         assert.match(sceneDesignFeatureSource, /this\.setJoinableWallIds\(scene, getJoinableWallIds\(scene, selectedIds\)\)/);
         assert.match(sceneDesignFeatureSource, /removeWallSegmentsById/);
         assert.match(sceneDesignFeatureSource, /joinWallSegmentsById/);

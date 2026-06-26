@@ -2,24 +2,26 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-    addWallSegmentToScene,
     advanceWallPlacementSequence,
-    buildManualWallDocumentData,
     buildWallEditingGrid,
     findWallsIntersectingBounds,
     findWallsWithinBounds,
     getControlledWallIds,
+    snapPointToGridIntersection,
+    wallTypeForShortcut,
+    wallSegmentIntersectsBounds,
+    wallSegmentWithinBounds
+} from "../../module/ui/workspace-v2/scene-wall-editing.mjs";
+import {
+    addWallSegmentToScene,
+    buildManualWallDocumentData,
     getJoinableWallIds,
     joinWallSegmentsById,
     joinWallSegmentsAtPoint,
     removeWallSegmentsById,
     removeWallSegmentAtPoint,
-    snapPointToGridIntersection,
-    splitWallSegmentAtPoint,
-    wallTypeForShortcut,
-    wallSegmentIntersectsBounds,
-    wallSegmentWithinBounds
-} from "../../module/ui/workspace-v2/scene-wall-editing.mjs";
+    splitWallSegmentAtPoint
+} from "../../module/ui/workspace-v2/wall-repository.mjs";
 
 function makeScene({ walls = [] } = {}) {
     const calls = [];

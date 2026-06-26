@@ -445,18 +445,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getCurrentScene: () => canvas?.scene ?? game.scenes?.active ?? game.scenes?.viewed ?? null,
             getViewedScene: () => game.scenes?.viewed ?? canvas?.scene ?? game.scenes?.active ?? null,
             getActivePanel: () => this.#getPrimaryActivePanel(),
-            getActors: () => Array.from(game.actors?.contents ?? []),
-            addActorsToScene: (actors) => this.#addActorsToScene(actors),
-            centerSceneMapOnToken: ({ sceneId, x, y }) => this.#centerSceneMapOnToken({ sceneId, x, y }),
-            executeDesignAction: (actionId, options) => this.sceneDesignFeature.executeDesignAction(actionId, options),
             render: () => {
                 if (this.rendered) this.render({ force: false });
             },
             foundryRef: () => foundry,
-            uiRef: () => ui,
-            confirmRef: () => globalThis.confirm,
-            logger: console,
-            activityLogger: totcLogger
+            uiRef: () => ui
         });
         this.sceneActorDropController = new SceneActorDropController({
             getRoot: () => this.element,
@@ -535,7 +528,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             designActionRegistry: this.designActionRegistry,
             hooksController: this.hooksController,
             render: (options) => this.render(options),
-            notifications: globalThis.ui?.notifications
+            notifications: globalThis.ui?.notifications,
+            getActors: () => Array.from(game.actors?.contents ?? []),
+            addActorsToScene: (actors) => this.#addActorsToScene(actors),
+            centerSceneMapOnToken: ({ sceneId, x, y }) => this.#centerSceneMapOnToken({ sceneId, x, y }),
+            confirmRef: () => globalThis.confirm,
+            uiRef: () => ui,
+            foundryRef: () => foundry,
+            activityLogger: totcLogger,
+            logger: console
         });
         this.registerFeature(this.sceneDesignFeature);
         this.campaignFeature = new CampaignFeature({
@@ -901,10 +902,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             });
         });
 
-        this.#wireScenePropertiesHandlers();
         this.#wireLoggingPanelHandlers();
-
-        this.sceneWorkspaceController.wireSceneListHandlers(this.element);
 
         for (const feature of this.features) {
             if (typeof feature.bind === "function") {
@@ -1492,7 +1490,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 break;
             }
             case "scene-properties-name": {
-                await this.sceneWorkspaceController.saveSceneName(value);
+                await this.sceneDesignFeature.saveSceneName(value);
                 focusWorkspaceTextInputAtEnd(this.element, "scene-properties-name");
                 break;
             }
@@ -1567,10 +1565,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         } finally {
             textarea.remove();
         }
-    }
-
-    #wireScenePropertiesHandlers() {
-        this.sceneWorkspaceController.wireScenePropertiesHandlers(this.element);
     }
 
     async #addActorsToScene(actors = [], { scene = null, anchorPosition = null } = {}) {

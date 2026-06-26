@@ -1,4 +1,4 @@
-import { getMovementFeetPerAp } from "./action-catalog.mjs";
+import { getMovementFeetPerAp as getMovementFeetPerApDefault } from "./action-catalog.mjs";
 
 // ---------------------------------------------------------------------------
 // Pure utilities (local copies — no shared module dependency)
@@ -89,6 +89,9 @@ export class EncounterResolutionEngine {
     #getApBudget;
 
     /** @type {() => number} */
+    #getMovementFeetPerAp;
+
+    /** @type {() => number} */
     #getCurrentRound;
 
     /** @type {() => object[]} */
@@ -140,6 +143,7 @@ export class EncounterResolutionEngine {
      *   getState:                   () => object,
      *   setState:                   (state: object) => Promise<void>,
      *   getApBudget:                () => number,
+     *   getMovementFeetPerAp?:      () => number,
      *   getCurrentRound:            () => number,
      *   getCombatants:              () => object[],
      *   resolveCombatant:           (id: string) => object|null,
@@ -163,6 +167,7 @@ export class EncounterResolutionEngine {
         getState,
         setState,
         getApBudget,
+        getMovementFeetPerAp = getMovementFeetPerApDefault,
         getCurrentRound,
         getCombatants,
         resolveCombatant,
@@ -184,6 +189,7 @@ export class EncounterResolutionEngine {
         this.#getState = getState;
         this.#setState = setState;
         this.#getApBudget = getApBudget;
+        this.#getMovementFeetPerAp = getMovementFeetPerAp;
         this.#getCurrentRound = getCurrentRound;
         this.#getCombatants = getCombatants;
         this.#resolveCombatant = resolveCombatant;
@@ -306,7 +312,7 @@ export class EncounterResolutionEngine {
             tickNarratives
         });
         const tickEffects = [];
-        const movementFeetPerAp = Number(getMovementFeetPerAp() || 10);
+        const movementFeetPerAp = Number(this.#getMovementFeetPerAp() || 10);
 
         for (const combatant of orderedCombatants) {
             const state = perCombatant[combatant.id];

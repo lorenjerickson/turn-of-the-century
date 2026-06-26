@@ -2,34 +2,49 @@ import { WorkspaceFeature } from "../workspace-feature.mjs";
 import { buildDesignIssuesPanelModel } from "../panels/design-issues-panel.mjs";
 import { renderFoundryApplication } from "../../../foundry-v14-runtime.mjs";
 import {
+    deactivateWallControls,
     getNativeCanvasEventScenePoint,
     isPrimaryPointerButton,
     listenForNativeCanvasPointerDown,
     previewNativeCanvasGrid
-} from "../native-canvas-grid-calibration.mjs";
+} from "../canvas-interaction-adapter.mjs";
 import {
     getControlledWallIds,
-    getJoinableWallIds,
-    addWallSegmentToScene,
     advanceWallPlacementSequence,
     buildWallEditingGrid,
-    joinWallSegmentsById,
-    removeWallSegmentsById,
     snapPointToGridIntersection,
-    splitWallSegmentAtPoint,
     wallTypeForShortcut,
     wallDocumentId
 } from "../scene-wall-editing.mjs";
+import {
+    addWallSegmentToScene,
+    getJoinableWallIds,
+    joinWallSegmentsById,
+    removeWallSegmentsById,
+    splitWallSegmentAtPoint
+} from "../wall-repository.mjs";
 import { buildSceneWallOverlayState } from "../scene-wall-detection.mjs";
 import { WORKSPACE_V2_DOCK_IDS } from "../constants.mjs";
 import {
+    applySceneBackgroundUpdate,
+    buildSceneBackgroundUpdateData,
+    buildSceneBackgroundUploadTarget,
     buildScenePropertiesPanelModel,
+    loadImageDimensions,
     renderScenePropertiesPanel
 } from "../panels/scene-properties-panel.mjs";
 import {
     buildScenesPanelModel,
     renderScenesPanel
 } from "../panels/scenes-panel.mjs";
+import { getSceneBackgroundSource } from "../scene-background-source.mjs";
+import { uploadSceneBackgroundFile } from "../design-actions/scene-actions.mjs";
+import {
+    activateScene,
+    deleteScene,
+    updateSceneName,
+    toggleDefaultScene
+} from "../scene-repository.mjs";
 
 const GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS = 100;
 const GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS = 500;
@@ -42,7 +57,16 @@ export class SceneDesignFeature extends WorkspaceFeature {
         designActionRegistry = null,
         hooksController = null,
         render = () => {},
-        notifications = globalThis.ui?.notifications
+        notifications = globalThis.ui?.notifications,
+        getActors = () => [],
+        addActorsToScene = async () => {},
+        centerSceneMapOnToken = async () => false,
+        confirmRef = () => globalThis.confirm,
+        uiRef = () => globalThis.ui,
+        foundryRef = () => globalThis.foundry,
+        canvasRef = () => globalThis.canvas,
+        activityLogger = console,
+        logger = console
     } = {}) {
         super();
         this.gridCalibrationController = gridCalibrationController;
@@ -52,6 +76,15 @@ export class SceneDesignFeature extends WorkspaceFeature {
         this.hooksController = hooksController;
         this.renderCallback = render;
         this.notifications = notifications;
+        this.getActors = getActors;
+        this.addActorsToScene = addActorsToScene;
+        this.centerSceneMapOnToken = centerSceneMapOnToken;
+        this.confirmRef = confirmRef;
+        this.uiRef = uiRef;
+        this.foundryRef = foundryRef;
+        this.canvasRef = canvasRef;
+        this.activityLogger = activityLogger;
+        this.logger = logger;
 
         this._designIssuesRefreshHandler = () => {
             this.renderCallback({ force: false });
@@ -368,6 +401,9 @@ export class SceneDesignFeature extends WorkspaceFeature {
             });
         });
 
+        this.#wireSceneListHandlers(rootElement);
+        this.#wireScenePropertiesHandlers(rootElement);
+
         this.syncWallCommandCanvasListener();
         this.syncGridCalibrationCanvasListener();
     }
@@ -444,9 +480,10 @@ export class SceneDesignFeature extends WorkspaceFeature {
     syncSelectedWallsFromCanvas(scene = null, { clearWhenEmpty = false } = {}) {
         const sceneId = this.#sceneId(scene);
         if (!sceneId) return false;
-        const canvasSceneId = this.#sceneId(globalThis.canvas?.scene);
+        const canvas = this.canvasRef();
+        const canvasSceneId = this.#sceneId(canvas?.scene);
         if (canvasSceneId && canvasSceneId !== sceneId) return false;
-        const selectedIds = getControlledWallIds(globalThis.canvas?.walls);
+        const selectedIds = getControlledWallIds(canvas?.walls);
         if (selectedIds.length) {
             this.setSelectedWallIds(scene, selectedIds);
             this.setJoinableWallIds(scene, getJoinableWallIds(scene, selectedIds));
@@ -496,7 +533,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
             this.clearWallCommandCanvasListener();
             return;
         }
-        const canvas = globalThis.canvas;
+        const canvas = this.canvasRef();
         if (this.wallCommandCanvasRef === canvas && this.wallCommandCanvasCleanup) return;
         this.clearWallCommandCanvasListener();
         this.wallCommandCanvasRef = canvas;
@@ -516,7 +553,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
             this.clearGridCalibrationCanvasListener();
             return;
         }
-        const canvas = globalThis.canvas;
+        const canvas = this.canvasRef();
         const targetSceneId = String(this.gridCalibrationController.state?.sceneId ?? "").trim();
         const canvasSceneId = this.#sceneId(canvas?.scene);
         if (targetSceneId && canvasSceneId && targetSceneId !== canvasSceneId) return;
@@ -625,7 +662,8 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
     async deactivateWallModeForPanel(panelId = "") {
         const panel = this.sceneWorkspaceController.panelRegistry?.get?.(panelId) ?? { id: panelId };
-        const scene = this.sceneWorkspaceController.getDesignActionScene(panel, globalThis.canvas?.scene ?? globalThis.game.scenes?.active ?? globalThis.game.scenes?.viewed ?? null);
+        const canvas = this.canvasRef();
+        const scene = this.sceneWorkspaceController.getDesignActionScene(panel, canvas?.scene ?? globalThis.game.scenes?.active ?? globalThis.game.scenes?.viewed ?? null);
         this.cancelWallAddSequence({ notify: false });
         this.clearWallCommandCanvasListener();
         if (scene) {
@@ -633,20 +671,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
             this.setJoinableWallIds(scene, []);
             this.setSceneDetectedWallOverlayState(scene, null);
         }
-
-        try {
-            if (typeof globalThis.ui?.controls?.activate === "function") {
-                await globalThis.ui.controls.activate({ control: "tokens", tool: "select" });
-                return;
-            }
-            if (typeof globalThis.ui?.controls?.initialize === "function") {
-                await globalThis.ui.controls.initialize({ control: "tokens", tool: "select" });
-                return;
-            }
-            await globalThis.canvas?.tokens?.activate?.();
-        } catch (error) {
-            console.warn("[turn-of-the-century] Failed to deactivate native wall controls", error);
-        }
+        await deactivateWallControls({ uiRef: this.uiRef, canvasRef: this.canvasRef });
     }
 
     async deleteSelectedWallsForPanel(panelId = "") {
@@ -714,7 +739,8 @@ export class SceneDesignFeature extends WorkspaceFeature {
         if (!active || !globalThis.game?.user?.isGM) return;
         if (!isPrimaryPointerButton(event)) return;
 
-        const point = getNativeCanvasEventScenePoint(event, globalThis.canvas);
+        const canvas = this.canvasRef();
+        const point = getNativeCanvasEventScenePoint(event, canvas);
         if (!point) {
             this.notifications?.warn?.("That wall click could not be converted to scene coordinates.");
             return;
@@ -723,7 +749,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
         event?.stopPropagation?.();
         event?.preventDefault?.();
 
-        const scene = this.sceneWorkspaceController.getDesignActionScene(active.panel, globalThis.canvas?.scene ?? globalThis.game.scenes?.active ?? globalThis.game.scenes?.viewed ?? null);
+        const scene = this.sceneWorkspaceController.getDesignActionScene(active.panel, canvas?.scene ?? globalThis.game.scenes?.active ?? globalThis.game.scenes?.viewed ?? null);
         const grid = buildWallEditingGrid(scene);
         const snapped = snapPointToGridIntersection(point, grid);
         if (!scene || !snapped) {
@@ -915,6 +941,341 @@ export class SceneDesignFeature extends WorkspaceFeature {
             console.warn("[turn-of-the-century] Grid calibration preview failed", error);
             return false;
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Scene list and scene properties DOM wiring (moved from SceneWorkspaceController)
+    // -------------------------------------------------------------------------
+
+    #wireSceneListHandlers(root) {
+        root?.querySelectorAll("[data-action='open-scene-map']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const sceneId = String(button.dataset.sceneId ?? "").trim();
+                if (!sceneId) return;
+
+                if (event.detail > 1) {
+                    const scene = this.sceneWorkspaceController.getSceneDocumentById(sceneId);
+                    await activateScene(scene, { ui: this.uiRef(), logger: this.logger });
+                    this.renderCallback({ force: false });
+                    return;
+                }
+
+                const nextLayout = this.sceneWorkspaceController.openSceneMapPanel(sceneId);
+                this.sceneWorkspaceController.bindScene(sceneId);
+
+                const openedScene = this.sceneWorkspaceController.getSceneDocumentById(sceneId);
+                this.activityLogger?.info?.("[open-scene-map] Map panel opened", {
+                    sceneId,
+                    sceneName: openedScene?.name ?? null,
+                    "scene.img": openedScene?.img ?? null,
+                    "_source.img": openedScene?._source?.img ?? null,
+                    "_source.background.src": openedScene?._source?.background?.src ?? null,
+                    "_source.texture.src": openedScene?._source?.texture?.src ?? null,
+                    "getSceneBackgroundSource()": getSceneBackgroundSource(openedScene)
+                });
+
+                await this.sceneWorkspaceController.stateStore?.setUserLayout?.(nextLayout);
+                this.renderCallback({ force: false });
+            });
+        });
+
+        root?.querySelectorAll("[data-action='scenes-create-scene']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.executeDesignAction("scene.create", { panelId: "scenes" });
+            });
+        });
+    }
+
+    #wireScenePropertiesHandlers(root) {
+        root?.querySelectorAll("[data-action='scene-properties-background-upload']")?.forEach((input) => {
+            input.addEventListener("change", async () => {
+                await this.#handleBackgroundUpload(input);
+            });
+        });
+
+        root?.querySelectorAll("[data-action='scene-properties-sync-background-dimensions']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#handleBackgroundDimensionSync();
+            });
+        });
+
+        root?.querySelectorAll("[data-action='scene-properties-delete']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+                if (!scene) {
+                    this.sceneWorkspaceController.patchState({ status: "", error: "No scene is available to delete." });
+                    this.renderCallback({ force: false });
+                    return;
+                }
+                const sceneName = String(scene.name ?? "this scene");
+                const confirmed = this.confirmRef?.()?.(`Delete scene "${sceneName}"? This cannot be undone.`) ?? false;
+                if (!confirmed) return;
+
+                const result = await deleteScene(scene, { logger: this.logger });
+                if (!result.ok) {
+                    this.sceneWorkspaceController.patchState({ status: "", error: result.error });
+                    this.renderCallback({ force: false });
+                    return;
+                }
+                await this.sceneWorkspaceController.removeDeletedSceneMapPanel(scene);
+                this.sceneWorkspaceController.patchState({ sceneId: "", status: `Deleted ${result.name}.`, error: "" });
+                this.renderCallback({ force: false });
+            });
+        });
+
+        root?.querySelectorAll("[data-action='scene-properties-set-default']")?.forEach((checkbox) => {
+            checkbox.addEventListener("change", async (event) => {
+                event.preventDefault();
+                const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+                await toggleDefaultScene(
+                    scene,
+                    globalThis.game?.scenes,
+                    checkbox.checked,
+                    { logger: this.logger, activityLogger: this.activityLogger }
+                );
+                this.renderCallback({ force: false });
+            });
+        });
+
+        root?.querySelectorAll("[data-action='scene-properties-activate']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+                await activateScene(scene, { ui: this.uiRef(), logger: this.logger });
+                this.renderCallback({ force: false });
+            });
+        });
+
+        root?.querySelectorAll("[data-action='scene-actors-add-heroes']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const heroes = Array.from(this.getActors() ?? []).filter((actor) => actor?.type === "hero");
+                await this.addActorsToScene(heroes);
+            });
+        });
+
+        root?.querySelectorAll("[data-action='scene-actors-add-selected']")?.forEach((form) => {
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const formData = new FormData(form);
+                const actorIds = new Set(formData.getAll("actorId").map((id) => String(id ?? "").trim()).filter(Boolean));
+                const actors = Array.from(actorIds)
+                    .map((id) => this.getActors()?.find?.((actor) => String(actor?.id ?? actor?._id ?? "") === id))
+                    .filter(Boolean);
+                await this.addActorsToScene(actors);
+            });
+        });
+
+        root?.querySelectorAll("[data-action='scene-token-center']")?.forEach((entry) => {
+            entry.addEventListener("dblclick", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const sceneId = String(entry.dataset.sceneId ?? "").trim();
+                const x = Number(entry.dataset.tokenCenterX);
+                const y = Number(entry.dataset.tokenCenterY);
+                if (!sceneId || !Number.isFinite(x) || !Number.isFinite(y)) return;
+                await this.centerSceneMapOnToken({ sceneId, x, y });
+            });
+        });
+
+        root?.querySelectorAll("[data-action='scene-token-delete']")?.forEach((btn) => {
+            btn.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const sceneId = String(btn.dataset.sceneId ?? "").trim();
+                const tokenId = String(btn.dataset.tokenId ?? "").trim();
+                if (!sceneId || !tokenId) return;
+                const scene = this.sceneWorkspaceController.getSceneDocumentById(sceneId);
+                if (!scene) return;
+                try {
+                    await scene.deleteEmbeddedDocuments("Token", [tokenId]);
+                    this.renderCallback({ force: false });
+                } catch (err) {
+                    this.logger?.error?.("[scene-properties-panel] Failed to delete token", err);
+                }
+            });
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // Scene name save (called from root text input debounce handler)
+    // -------------------------------------------------------------------------
+
+    async saveSceneName(value = "") {
+        const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+        const result = await updateSceneName(scene, value, {
+            logger: this.logger,
+            activityLogger: this.activityLogger
+        });
+        if (!result.ok) {
+            this.sceneWorkspaceController.patchState({ error: result.error ?? "Scene name save failed." });
+        }
+        this.renderCallback({ force: false });
+    }
+
+    // -------------------------------------------------------------------------
+    // Background upload and dimension sync (orchestration, not pure mutations)
+    // -------------------------------------------------------------------------
+
+    async #handleBackgroundUpload(input) {
+        const file = input.files?.[0] ?? null;
+        if (!file) return;
+
+        const foundry = this.foundryRef();
+        const ui = this.uiRef();
+        const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+        const sceneName = String(scene?.name ?? "").trim();
+        const target = buildSceneBackgroundUploadTarget({ sceneName, filename: file.name });
+
+        this.activityLogger?.info?.("[bg-upload] File selected", {
+            filename: file.name,
+            size: file.size,
+            sceneId: scene?.id ?? null,
+            sceneName,
+            targetValid: target.valid,
+            targetPath: target.path || null,
+            "scene.img (before)": scene?.img ?? null,
+            "_source.img (before)": scene?._source?.img ?? null,
+            "_source.background.src (before)": scene?._source?.background?.src ?? null
+        });
+
+        this.sceneWorkspaceController.patchState({
+            status: target.valid ? `Uploading ${target.filename}...` : "",
+            error: target.valid ? "" : "Choose a supported image after entering a scene name."
+        });
+        this.renderCallback({ force: false });
+
+        if (!target.valid) {
+            this.activityLogger?.warn?.("[bg-upload] Upload target invalid - aborting", { target });
+            return;
+        }
+
+        this.activityLogger?.info?.("[bg-upload] Uploading file to server", { targetPath: target.path });
+        const result = await uploadSceneBackgroundFile({ file, target, overwrite: true, foundry, ui });
+
+        this.activityLogger?.info?.("[bg-upload] Upload result", {
+            ok: result?.ok,
+            path: result?.path ?? null,
+            filename: result?.filename ?? null,
+            message: result?.message ?? null
+        });
+
+        if (!result?.ok) {
+            this.activityLogger?.error?.("[bg-upload] Upload FAILED", { result });
+            this.sceneWorkspaceController.patchState({
+                status: "",
+                error: result?.message ?? "Scene background upload failed."
+            });
+            this.renderCallback({ force: false });
+            return;
+        }
+
+        if (scene) {
+            try {
+                const dimensions = await loadImageDimensions(result.path);
+                const updateData = buildSceneBackgroundUpdateData(result.path, { dimensions });
+                this.activityLogger?.info?.("[bg-upload] Applying scene background update", {
+                    sceneId: scene.id,
+                    sceneName: scene.name,
+                    legacySceneUpdateData: updateData,
+                    imageDimensions: dimensions,
+                    levelCount: scene?.levels?.size ?? scene?.levels?.contents?.length ?? scene?._source?.levels?.length ?? null,
+                    "scene.img (pre-update)": scene?.img ?? null,
+                    "_source.img (pre-update)": scene?._source?.img ?? null,
+                    "_source.background.src (pre-update)": scene?._source?.background?.src ?? null,
+                    "_source.levels[0].background.src (pre-update)": scene?._source?.levels?.[0]?.background?.src ?? null
+                });
+                const saveResult = await applySceneBackgroundUpdate(scene, result.path, { dimensions });
+                this.activityLogger?.info?.("[bg-upload] Background update resolved - reading back scene state", {
+                    sceneId: scene.id,
+                    saveMode: saveResult.mode,
+                    savedDocumentId: saveResult.document?.id ?? saveResult.document?._id ?? null,
+                    "scene.img (post-update)": scene?.img ?? null,
+                    "_source.img (post-update)": scene?._source?.img ?? null,
+                    "_source.background.src (post-update)": scene?._source?.background?.src ?? null,
+                    "_source.texture.src (post-update)": scene?._source?.texture?.src ?? null,
+                    "_source.levels[0].background.src (post-update)": scene?._source?.levels?.[0]?.background?.src ?? null,
+                    "getSceneBackgroundSource() (post-update)": getSceneBackgroundSource(scene)
+                });
+                this.sceneWorkspaceController.patchState({
+                    status: `Background saved: ${result.filename}.`,
+                    error: ""
+                });
+            } catch (err) {
+                this.logger?.error?.("[turn-of-the-century] Scene background auto-save failed", err);
+                this.activityLogger?.error?.("[bg-upload] scene.update() THREW AN ERROR", {
+                    sceneId: scene?.id,
+                    error: err?.message ?? String(err)
+                });
+                this.sceneWorkspaceController.patchState({
+                    status: "",
+                    error: "Background uploaded but scene save failed - see console."
+                });
+            }
+        } else {
+            this.activityLogger?.warn?.("[bg-upload] No scene available - upload saved to server but not applied to any scene");
+            this.sceneWorkspaceController.patchState({
+                status: `Uploaded ${result.filename}. Open a scene map to apply.`,
+                error: ""
+            });
+        }
+        this.renderCallback({ force: false });
+    }
+
+    async #handleBackgroundDimensionSync() {
+        const ui = this.uiRef();
+        const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+        const backgroundPath = getSceneBackgroundSource(scene);
+        if (!scene || !backgroundPath) {
+            ui?.notifications?.warn?.("Choose a scene with a background image before fitting its dimensions.");
+            return;
+        }
+
+        this.sceneWorkspaceController.patchState({ status: "Reading background dimensions...", error: "" });
+        this.renderCallback({ force: false });
+
+        const dimensions = await loadImageDimensions(backgroundPath);
+        if (!dimensions) {
+            this.sceneWorkspaceController.patchState({
+                status: "",
+                error: "Background image dimensions could not be read."
+            });
+            this.renderCallback({ force: false });
+            return;
+        }
+
+        try {
+            const result = await applySceneBackgroundUpdate(scene, backgroundPath, { dimensions });
+            this.activityLogger?.info?.("[bg-dimensions] Background dimensions synced", {
+                sceneId: scene.id,
+                backgroundPath,
+                dimensions,
+                mode: result.mode
+            });
+            this.sceneWorkspaceController.patchState({
+                status: `Background fitted to ${dimensions.width} x ${dimensions.height}.`,
+                error: ""
+            });
+        } catch (error) {
+            this.logger?.error?.("[turn-of-the-century] Background dimension sync failed", error);
+            this.sceneWorkspaceController.patchState({
+                status: "",
+                error: "Background dimension update failed."
+            });
+        }
+
+        this.renderCallback({ force: false });
     }
 
     #getPrimaryActivePanel(layout = this.sceneWorkspaceController?.layoutEngine?.getLayout()) {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { migrateLegacyExportSourceData } from "../module/sample-content.mjs";
+import { migrateLegacyExportSourceData } from "../module/compendiums/legacy-normalizer.mjs";
 
 describe("sample content exportSource migration", () => {
     it("moves nested legacy flags.exportSource into _stats before import", () => {
