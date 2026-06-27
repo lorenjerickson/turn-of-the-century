@@ -2,7 +2,7 @@
   "_id": "096e6b0a7e93fe22",
   "name": "Surgeon's Field Case",
   "type": "equipment",
-  "img": "modules/game-icons-net/blackbackground/first-aid-kit.svg",
+  "img": "icons/tools/hand/tool-scissors-orange.webp",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

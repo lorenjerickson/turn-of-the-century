@@ -409,7 +409,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._nativeCanvasViewSceneId = "";
         this._activePlanEditSlot = null;
         this._wiredElement = null;
-        this.compendiumSearchQuery = "";
+        this.codexSearchQuery = "";
+        this.codexTypeFilter = "";
 
         this._textInputDebounceTimers = new Map();
         this._gridCalibrationPreviewTimer = null;
@@ -752,7 +753,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             snapshot: gmSnapshot,
             panelState: gmPanelState
         });
-        const compendiumItems = await this.compendiumCacheController.getItems();
+        const codexItems = await this.compendiumCacheController.getItems();
         const inspectorPanel = buildInspectorPanelModel({
             activePanel: activeWorkspacePanel,
             scene,
@@ -796,10 +797,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             panelVisibility,
             layout: activeLayout,
             dockWeights: this.layoutEngine.getDockWeightLayout(),
-            compendiumSearchQuery: this.compendiumSearchQuery,
-            compendiumItems,
+            codexSearchQuery: this.codexSearchQuery,
+            codexTypeFilter: this.codexTypeFilter,
+            codexItems,
 
-            compendiumLoadingState: this.compendiumCacheController.loadingFailureMessage,
+            codexLoadingState: this.compendiumCacheController.loadingFailureMessage,
             mediaBrowserPanel: null,
             diceRollFeedPanel: null,
             dieRollRequestPanel: null,
@@ -903,6 +905,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
 
         this.#wireLoggingPanelHandlers();
+
+        this.element?.querySelectorAll("[data-action='codex-type-filter']")?.forEach((select) => {
+            select.addEventListener("change", async () => {
+                this.codexTypeFilter = select.value;
+                await this.render({ force: false });
+            });
+        });
 
         for (const feature of this.features) {
             if (typeof feature.bind === "function") {
@@ -1464,10 +1473,10 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     async #handleDebouncedTextInput(action, value) {
         switch (action) {
-            case "compendium-search": {
-                this.compendiumSearchQuery = value;
+            case "codex-search": {
+                this.codexSearchQuery = value;
                 await this.render({ force: false });
-                focusWorkspaceTextInputAtEnd(this.element, "compendium-search");
+                focusWorkspaceTextInputAtEnd(this.element, "codex-search");
                 break;
             }
             case "actor-list-search": {
@@ -1599,9 +1608,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     }
 
     #enforceRequiredDocking() {
-        const compendiumPanel = this.panelRegistry.get("compendium");
+        const codexPanel = this.panelRegistry.get("codex");
         const scenesPanel = this.panelRegistry.get("scenes");
-        if (!compendiumPanel || !scenesPanel) return null;
+        if (!codexPanel || !scenesPanel) return null;
 
         let changed = false;
         const initialLayout = this.layoutEngine.getLayout();
@@ -1620,13 +1629,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         }
 
         const layoutAfterCenterMap = this.layoutEngine.getLayout();
-        if (!this.#dockHasPanel(layoutAfterCenterMap, "rightDock", "compendium")) {
-            this.layoutEngine.applyDropIntent(compendiumPanel, { kind: "edge", dockId: "rightDock" });
+        if (!this.#dockHasPanel(layoutAfterCenterMap, "rightDock", "codex")) {
+            this.layoutEngine.applyDropIntent(codexPanel, { kind: "edge", dockId: "rightDock" });
             changed = true;
         }
 
-        const layoutAfterCompendium = this.layoutEngine.getLayout();
-        if (!this.#dockHasPanel(layoutAfterCompendium, "leftDock", "scenes")) {
+        const layoutAfterCodex = this.layoutEngine.getLayout();
+        if (!this.#dockHasPanel(layoutAfterCodex, "leftDock", "scenes")) {
             this.#dockPanelWithPanel(scenesPanel, {
                 targetPanelId: "gamemaster",
                 preferredDockId: "leftDock"

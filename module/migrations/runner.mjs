@@ -1,4 +1,4 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 16;
+export const TOTC_WORLD_SCHEMA_VERSION = 17;
 
 import { migrateTotcItems } from "./items.mjs";
 import { migrateTotcActionRecapFormats } from "./action-recap-formats.mjs";
@@ -17,6 +17,7 @@ export async function runTotcMigrations({
     migrateStarterCompendiums,
     seedMissingActors,
     migrateStarterActorAvatars,
+    migrateStarterActorTokenArt,
     notify = true
 } = {}) {
     if (!game?.ready) throw new Error("Game is not ready yet.");
@@ -55,6 +56,9 @@ export async function runTotcMigrations({
     }
     if (typeof migrateStarterActorAvatars !== "function") {
         throw new Error("runTotcMigrations requires a migrateStarterActorAvatars function.");
+    }
+    if (typeof migrateStarterActorTokenArt !== "function") {
+        throw new Error("runTotcMigrations requires a migrateStarterActorTokenArt function.");
     }
 
     let appliedVersion = Number(currentVersion) || 0;
@@ -265,6 +269,20 @@ export async function runTotcMigrations({
         appliedVersion = 16;
     }
 
+    // v17: assign generated DALL-E token art to starter compendium actors where images exist
+    if (appliedVersion < 17) {
+        const report = await migrateStarterActorTokenArt({
+            dryRun: false,
+            notify: false
+        });
+        appliedSteps.push({
+            version: 17,
+            key: "starter-actor-token-art",
+            report
+        });
+        appliedVersion = 17;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -315,6 +333,10 @@ export async function runTotcMigrations({
 
                 if (step.key === "unlock-actions") {
                     return `${step.key}: ${step.report.itemsUpdated} items updated`;
+                }
+
+                if (step.key === "starter-actor-token-art") {
+                    return `${step.key}: ${step.report.updated} token images applied`;
                 }
 
                 return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;

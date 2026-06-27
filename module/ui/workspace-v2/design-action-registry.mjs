@@ -115,27 +115,27 @@ export const DEFAULT_DESIGN_ACTIONS = Object.freeze([
         relevance: 76
     },
     {
-        id: "compendium.createItem",
+        id: "codex.createItem",
         label: "Create Item",
         description: "Draft a new item for the active library.",
-        domain: "compendium",
-        contexts: ["compendium"],
+        domain: "codex",
+        contexts: ["codex"],
         relevance: 90
     },
     {
-        id: "compendium.import",
+        id: "codex.import",
         label: "Import",
         description: "Bring selected world content into a pack.",
-        domain: "compendium",
-        contexts: ["compendium"],
+        domain: "codex",
+        contexts: ["codex"],
         relevance: 75
     },
     {
-        id: "compendium.validate",
+        id: "codex.validate",
         label: "Validate Pack",
         description: "Check required fields and period tone.",
-        domain: "compendium",
-        contexts: ["compendium"],
+        domain: "codex",
+        contexts: ["codex"],
         relevance: 70
     },
     {

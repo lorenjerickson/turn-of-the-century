@@ -86,8 +86,8 @@ export class WorkspacePanelHost {
             return this.#renderMapPanel(panel, context);
         }
 
-        if (panel.id === "compendium") {
-            return this.#renderCompendiumPanel(context);
+        if (panel.id === "codex") {
+            return this.#renderCodexPanel(context);
         }
 
 
@@ -166,46 +166,64 @@ export class WorkspacePanelHost {
         </figure>`;
     }
 
-    #renderCompendiumPanel(context = {}) {
-        const query = String(context.compendiumSearchQuery ?? "").trim().toLowerCase();
-        const allEntries = Array.isArray(context.compendiumItems) ? context.compendiumItems : [];
-        const entries = query
-            ? allEntries.filter((entry) => String(entry.name ?? "").toLowerCase().includes(query))
-            : allEntries;
+    #renderCodexPanel(context = {}) {
+        const query = String(context.codexSearchQuery ?? "").trim().toLowerCase();
+        const typeFilter = String(context.codexTypeFilter ?? "").trim().toLowerCase();
+        const allEntries = Array.isArray(context.codexItems) ? context.codexItems : [];
 
-        const loadingState = context.compendiumLoadingState ?? null;
+        let entries = allEntries;
+        if (query) entries = entries.filter((entry) => String(entry.name ?? "").toLowerCase().includes(query));
+        if (typeFilter) entries = entries.filter((entry) => String(entry.type ?? "item") === typeFilter);
+
+        const availableTypes = [...new Set(allEntries.map((e) => String(e.type ?? "item")))].sort();
+        const typeOptions = [
+            `<option value="">All types</option>`,
+            ...availableTypes.map((t) => {
+                const label = t.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                return `<option value="${this.escapeHTML(t)}"${t === typeFilter ? " selected" : ""}>${this.escapeHTML(label)}</option>`;
+            })
+        ].join("");
+
+        const loadingState = context.codexLoadingState ?? null;
         const isLoading = !loadingState && !allEntries.length;
+        const isFiltered = query || typeFilter;
         let emptyMessage;
-        if (query && !entries.length && allEntries.length) {
-            emptyMessage = `No items match "${this.escapeHTML(query)}".`;
+        if (isFiltered && !entries.length && allEntries.length) {
+            emptyMessage = `No items match the current filter.`;
         } else if (!allEntries.length && loadingState) {
-            emptyMessage = `Compendium data unavailable: ${this.escapeHTML(loadingState)}`;
+            emptyMessage = `Codex data unavailable: ${this.escapeHTML(loadingState)}`;
         } else if (!allEntries.length) {
-            emptyMessage = "Loading compendium data...";
+            emptyMessage = "Loading Codex...";
         } else {
             emptyMessage = "No items found.";
         }
 
         return `
-        <section class="totc-v2-compendium-panel">
-            <label class="totc-v2-compendium-panel__search">
-                <span>Search items</span>
-                <input type="search" data-action="compendium-search" value="${this.escapeHTML(context.compendiumSearchQuery ?? "")}" placeholder="Filter by item name">
-            </label>
-            <div class="totc-v2-compendium-panel__summary">
-                ${allEntries.length} item${allEntries.length === 1 ? "" : "s"} available
-                ${query && allEntries.length ? `&mdash; ${entries.length} match${entries.length === 1 ? "" : "es"}` : ""}
+        <section class="totc-v2-codex-panel">
+            <div class="totc-v2-codex-panel__controls">
+                <label class="totc-v2-codex-panel__search">
+                    <span>Search</span>
+                    <input type="search" data-action="codex-search" value="${this.escapeHTML(context.codexSearchQuery ?? "")}" placeholder="Filter by name">
+                </label>
+                <label class="totc-v2-codex-panel__type-filter">
+                    <span>Type</span>
+                    <select data-action="codex-type-filter">${typeOptions}</select>
+                </label>
             </div>
-            <div class="totc-v2-compendium-panel__list" role="list">
+            <div class="totc-v2-codex-panel__summary">
+                ${allEntries.length} item${allEntries.length === 1 ? "" : "s"} available
+                ${isFiltered && allEntries.length ? `&mdash; ${entries.length} shown` : ""}
+            </div>
+            <div class="totc-v2-codex-panel__list" role="list">
                 ${entries.length ? entries.map((entry) => `
-                    <article class="totc-v2-compendium-panel__entry" role="listitem" draggable="true" data-compendium-item-draggable="true" data-entry-uuid="${this.escapeHTML(entry.uuid ?? "")}">
-                        <img class="totc-v2-compendium-panel__entry-img" src="${this.escapeHTML(entry.img || "icons/svg/item-bag.svg")}" alt="">
-                        <div class="totc-v2-compendium-panel__entry-main">
-                            <div class="totc-v2-compendium-panel__entry-name">${this.escapeHTML(entry.name)}</div>
-                            <div class="totc-v2-compendium-panel__entry-pack">${this.escapeHTML(entry.type ?? "item")} · ${this.escapeHTML(entry.packLabel)}</div>
-                            ${entry.description ? `<div class="totc-v2-compendium-panel__entry-description">${this.escapeHTML(entry.description)}</div>` : ""}
+                    <article class="totc-v2-codex-panel__entry" role="listitem" draggable="true" data-codex-item-draggable="true" data-entry-uuid="${this.escapeHTML(entry.uuid ?? "")}">
+                        <img class="totc-v2-codex-panel__entry-img" src="${this.escapeHTML(entry.img || "icons/svg/item-bag.svg")}" alt="">
+                        <div class="totc-v2-codex-panel__entry-main">
+                            <div class="totc-v2-codex-panel__entry-name">${this.escapeHTML(entry.name)}</div>
+                            <div class="totc-v2-codex-panel__entry-pack">${this.escapeHTML(entry.type ?? "item")} · ${this.escapeHTML(entry.packLabel)}</div>
+                            ${entry.description ? `<div class="totc-v2-codex-panel__entry-description">${this.escapeHTML(entry.description)}</div>` : ""}
                         </div>
-                    </article>`).join("") : `<div class="totc-v2-compendium-panel__empty${isLoading ? " is-loading" : ""}">${emptyMessage}</div>`}
+                    </article>`).join("") : `<div class="totc-v2-codex-panel__empty${isLoading ? " is-loading" : ""}">${emptyMessage}</div>`}
             </div>
         </section>`;
     }

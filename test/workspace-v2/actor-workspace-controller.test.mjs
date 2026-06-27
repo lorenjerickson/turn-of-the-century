@@ -264,7 +264,7 @@ describe("ActorWorkspaceController", () => {
         };
         const root = {
             querySelectorAll: (selector) => {
-                if (selector === "[data-compendium-item-draggable='true']") return [compendiumEntry];
+                if (selector === "[data-codex-item-draggable='true']") return [compendiumEntry];
                 if (selector === "[data-action='actor-editor-save-form']") return [form];
                 return [];
             }
@@ -345,10 +345,10 @@ describe("ActorWorkspaceController", () => {
         }
     });
 
-    it("adds dropped items without equipping when no compatible slot is free", async () => {
+    it("adds dropped items to pack when no compatible equipment slot is free", async () => {
         const originalGame = globalThis.game;
         const formListeners = new Map();
-        let actorUpdateCalls = 0;
+        let packUpdate = null;
 
         const form = {
             querySelector: (selector) => selector === "[name='actorId']" ? { value: "actor-1" } : null,
@@ -374,14 +374,15 @@ describe("ActorWorkspaceController", () => {
                         legs: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
                         feet: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
                         belt: { itemIds: ["belt-1", "belt-2", "belt-3", "belt-4"], allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"], capacity: 4, quality: "standard" }
-                    }
+                    },
+                    pack: { itemIds: ["carried-1"], capacity: 20 }
                 }
             },
             async createEmbeddedDocuments() {
                 return [{ id: "item-2", name: "Heavy Rifle", type: "weapon", system: { slot: "hands" } }];
             },
-            async update() {
-                actorUpdateCalls += 1;
+            async update(patch) {
+                packUpdate = patch;
             }
         };
 
@@ -406,8 +407,8 @@ describe("ActorWorkspaceController", () => {
                 stopPropagation: () => {}
             });
 
-            assert.equal(actorUpdateCalls, 0);
-            assert.equal(controller.state.editorState.status, "Added Heavy Rifle to inventory.");
+            assert.deepEqual(packUpdate, { "system.inventory.pack.itemIds": ["carried-1", "item-2"] });
+            assert.equal(controller.state.editorState.status, "Added Heavy Rifle to pack — no free slot available.");
         } finally {
             globalThis.game = originalGame;
         }

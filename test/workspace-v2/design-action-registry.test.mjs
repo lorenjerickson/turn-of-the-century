@@ -26,7 +26,7 @@ describe("WorkspaceDesignActionRegistry", () => {
 
         const action = registry.get("test.one");
         action.label = "Changed";
-        action.contexts.push("compendium");
+        action.contexts.push("codex");
 
         assert.equal(registry.get("test.one").label, "One");
         assert.deepEqual(registry.get("test.one").contexts, ["map"]);
@@ -37,7 +37,7 @@ describe("WorkspaceDesignActionRegistry", () => {
             actions: [
                 { id: "map.gm", label: "Map GM", contexts: ["map"], requiredRole: "gm", relevance: 10 },
                 { id: "map.any", label: "Map Any", contexts: ["map"], requiredRole: "any", relevance: 8 },
-                { id: "item.any", label: "Item Any", contexts: ["compendium"], requiredRole: "any", relevance: 6 }
+                { id: "item.any", label: "Item Any", contexts: ["codex"], requiredRole: "any", relevance: 6 }
             ]
         });
 

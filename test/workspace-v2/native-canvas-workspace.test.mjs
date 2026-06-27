@@ -57,8 +57,8 @@ describe("native canvas workspace integration", () => {
         assert.match(styles, /\.turn-of-the-century \.totc-v2-floating__header\s*\{[\s\S]*touch-action:\s*none;[\s\S]*user-select:\s*none;/);
         assert.match(styles, /\.turn-of-the-century \.totc-v2-floating__resize-handle\s*\{[\s\S]*touch-action:\s*none;[\s\S]*user-select:\s*none;/);
         assert.match(styles, /\.turn-of-the-century \.totc-v2-layout \[data-action='dock-resizer'\]\s*\{[\s\S]*pointer-events:\s*auto;[\s\S]*touch-action:\s*none;[\s\S]*z-index:\s*3;/);
-        assert.match(workspaceLayoutFeatureSource, /\[data-action='floating-move-handle'\][\s\S]*addEventListener\("pointerdown"/);
-        assert.match(workspaceLayoutFeatureSource, /\[data-action='dock-resizer'\][\s\S]*addEventListener\("pointerdown"/);
+        assert.match(workspaceLayoutFeatureSource, /closest\("\[data-action='floating-move-handle'\]"\)[\s\S]*#beginResizeSession/);
+        assert.match(workspaceLayoutFeatureSource, /closest\("\[data-action='dock-resizer'\]"\)[\s\S]*#beginResizeSession/);
     });
 
     it("keeps move, close, and resize controls interactive without a theme wrapper", () => {

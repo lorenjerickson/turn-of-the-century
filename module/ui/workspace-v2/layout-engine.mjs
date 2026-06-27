@@ -112,7 +112,7 @@ export class LayoutEngine {
         const scenesPanel = findPanelById(panels, "scenes");
         const campaignViewPanel = findPanelById(panels, "campaign-view");
         const topPanel = findPanelById(panels, "chat");
-        const rightPanel = findPanelById(panels, "compendium");
+        const rightPanel = findPanelById(panels, "codex");
         const bottomPanel = findPanelById(panels, "roll-feed");
         const floatingPanel = findPanelById(panels, "camp");
 

@@ -2,7 +2,7 @@
   "_id": "7153226c38408c96",
   "name": "Clockwork Derringer",
   "type": "weapon",
-  "img": "modules/game-icons-net/blackbackground/pistol-gun.svg",
+  "img": "icons/weapons/guns/gun-pistol-doublebarrel.webp",
   "system": {
     "artwork": {
       "image": "icons/weapons/swords/sword-guard-steel.webp",

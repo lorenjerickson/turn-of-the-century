@@ -27,7 +27,7 @@ describe("workspace text input debounce routing", () => {
     it("debounces text and search inputs for registered actions", () => {
         assert.equal(isWorkspaceDebouncedTextInputTarget(input({ action: "scene-properties-name" })), true);
         assert.equal(isWorkspaceDebouncedTextInputTarget(input({ action: "actor-list-search", type: "search" })), true);
-        assert.equal(isWorkspaceDebouncedTextInputTarget(input({ action: "compendium-search", type: "search" })), true);
+        assert.equal(isWorkspaceDebouncedTextInputTarget(input({ action: "codex-search", type: "search" })), true);
         assert.equal(isWorkspaceDebouncedTextInputTarget(input({ action: "encounter-add-action", type: "search" })), true);
         assert.equal(isWorkspaceDebouncedTextInputTarget(input({ action: "media-browser-search", type: "search" })), true);
     });

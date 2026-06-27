@@ -9,4 +9,5 @@ export * from "./migrations/item-icons.mjs";
 export * from "./migrations/unlock-actions.mjs";
 export * from "./migrations/starter-compendiums.mjs";
 export * from "./migrations/starter-actor-avatars.mjs";
+export * from "./migrations/starter-actor-token-art.mjs";
 export * from "./migrations/runner.mjs";

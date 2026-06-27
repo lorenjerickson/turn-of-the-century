@@ -2,7 +2,7 @@
   "_id": "85357a28d15c3757",
   "name": "Folded Street Atlas",
   "type": "item",
-  "img": "modules/game-icons-net/blackbackground/atlas.svg",
+  "img": "icons/sundries/documents/map-folded-leather.webp",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

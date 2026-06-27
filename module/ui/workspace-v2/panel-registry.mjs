@@ -25,7 +25,7 @@ export const DEFAULT_WORKSPACE_PANELS = Object.freeze([
     { id: "travel", title: "Travel", contextTags: ["travel", "exploration"] },
     { id: "encounter", title: "Encounter Planner", defaultDock: "rightDock", contextTags: ["encounter", "combat"] },
     { id: "market", title: "Market", contextTags: ["economy", "inventory"] },
-    { id: "compendium", title: "Unified Compendium", contextTags: ["items", "search"] },
+    { id: "codex", title: "Codex", contextTags: ["items", "search"] },
     { id: "camp", title: "Camp", contextTags: ["camp", "travel"] },
     { id: "chat", title: "Chat and Messages", contextTags: ["chat", "messages"] },
     { id: "roll-feed", title: "Dice and Roll Feed", defaultDock: "bottomDock", contextTags: ["dice", "rolls", "messages"] },

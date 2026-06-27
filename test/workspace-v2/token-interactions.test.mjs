@@ -60,6 +60,16 @@ describe("workspace token interactions", () => {
         assert.doesNotMatch(workspaceRootSource, /totc-v2-grid-overlay__/);
     });
 
+    it("blocks canvas token selection during targeting by intercepting pointerdown at document level before PIXI", () => {
+        // Canvas-level capture listeners fire after PIXI (registered at Foundry init),
+        // so we must register at document level to fire first and stop propagation.
+        assert.match(encounterPlanningFeatureSource, /document\.addEventListener\("pointerdown", handler, \{ capture: true \}\)/);
+        assert.match(encounterPlanningFeatureSource, /document\.removeEventListener\("pointerdown", handler, \{ capture: true \}\)/);
+        // Only intercept events on the canvas view element — let panel UI clicks through.
+        assert.match(encounterPlanningFeatureSource, /if \(view && event\.target !== view\) return;/);
+        assert.match(encounterPlanningFeatureSource, /get hasActiveTargetingInteraction\(\)/);
+    });
+
     it("keeps map toolbar button styling without fake map layer styles", () => {
         assert.match(styles, /\.totc-v2-map-toolbar__btn\s*\{[\s\S]*background:\s*rgba\(59,\s*130,\s*246,\s*0\.2\);[\s\S]*border-radius:\s*4px;[\s\S]*color:\s*#dbeafe;/);
         assert.doesNotMatch(styles, /\.totc-v2-map-panel__movement-overlay\s*\{/);

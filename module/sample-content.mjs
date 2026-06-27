@@ -1216,7 +1216,7 @@ const WEAPON_CONFIGS = [
     },
     {
         name: "Galvanic Prod",
-        img: "icons/weapons/staves/staff-orb-sh lightning.webp",
+        img: "icons/weapons/staves/staff-orb-lightning.webp",
         system: {
             commonName: "Galvanic Prod",
             description: html("A brass baton with insulated grips and a volatile induction coil."),

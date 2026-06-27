@@ -94,12 +94,15 @@ describe("Actor management panel", () => {
         assert.match(styles, /\.totc-v2-actor-editor__section-fields \.totc-v2-actor-editor__field--textarea,[\s\S]*\.totc-v2-actor-editor__section-fields \.totc-v2-actor-editor__field--html\s*\{[\s\S]*flex-basis:\s*20rem;[\s\S]*max-width:\s*32rem;/);
     });
 
-    it("styles actor equipment as a mannequin layout with belt slots below", () => {
+    it("styles actor equipment as a mannequin layout with belt and pack slots below", () => {
         assert.match(styles, /\.totc-v2-actor-equipment__body\s*\{[\s\S]*grid-template-areas:/);
         assert.match(styles, /"\. head \."/);
         assert.match(styles, /"hand-left torso hand-right"/);
         assert.match(styles, /"\. feet \."/);
+        assert.match(styles, /\.totc-v2-actor-equipment__body\s*\{[\s\S]*position:\s*relative;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__doll\s*\{[\s\S]*position:\s*absolute;[\s\S]*pointer-events:\s*none;/);
         assert.match(styles, /\.totc-v2-actor-equipment__belt\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-wrap:\s*wrap;[\s\S]*justify-content:\s*center;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__pack\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-wrap:\s*wrap;/);
         assert.match(styles, /\.totc-v2-actor-equipment__item\s*\{[\s\S]*grid-template-columns:\s*2rem minmax\(0, 1fr\);/);
     });
 
@@ -292,7 +295,8 @@ describe("Actor management panel", () => {
                     { id: "hat", name: "Oilskin Hat", type: "armor", img: "", system: { slot: "head", description: "<p>Keeps rain out of suspicious eyes.</p>" } },
                     { id: "revolver", name: "Service Revolver", type: "weapon", img: "revolver.webp", system: { slot: "hands", description: "<p>A six-shot sidearm.</p>" } },
                     { id: "vest", name: "Mourning Silk Vest", type: "armor", img: "vest.webp", system: { slot: "torso", description: "<p>Armored formal wear.</p>" } },
-                    { id: "tonic", name: "Nightwatch Tonic", type: "consumable", img: "tonic.webp", system: { slot: "belt", description: "<p>Sharpens attention briefly.</p>" } }
+                    { id: "tonic", name: "Nightwatch Tonic", type: "consumable", img: "tonic.webp", system: { slot: "belt", description: "<p>Sharpens attention briefly.</p>" } },
+                    { id: "bandage", name: "Field Bandage", type: "consumable", img: "bandage.webp", system: { description: "<p>Stops bleeding.</p>" } }
                 ]
             },
             system: {
@@ -306,7 +310,8 @@ describe("Actor management panel", () => {
                         legs: { label: "Legs", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
                         feet: { label: "Feet", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
                         belt: { label: "Belt", capacity: 4, quality: "standard", allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"], itemIds: ["tonic"] }
-                    }
+                    },
+                    pack: { itemIds: ["bandage"], capacity: 20 }
                 }
             }
         };
@@ -318,12 +323,16 @@ describe("Actor management panel", () => {
         assert.match(html, /totc-v2-actor-equipment__slot--head/);
         assert.match(html, /totc-v2-actor-equipment__slot--hand-left/);
         assert.match(html, /totc-v2-actor-equipment__belt/);
+        assert.match(html, /totc-v2-actor-equipment__doll/);
         assert.match(html, /<img src="icons\/svg\/item-bag\.svg" alt="">/);
         assert.match(html, /<strong>Oilskin Hat<\/strong>/);
         assert.match(html, /Armor - Keeps rain out of suspicious eyes\./);
         assert.match(html, /name="system\.inventory\.equipment\.hands\.itemIds\.0"[^>]*data-action="actor-editor-field"/);
         assert.match(html, /<option value="revolver" selected >Service Revolver \(Weapon\) - A six-shot sidearm\.<\/option>/);
         assert.doesNotMatch(html, /<option value="tonic"[^>]*>Nightwatch Tonic \(Consumable\)[^<]*<\/option>[\s\S]*name="system\.inventory\.equipment\.hands/);
+        assert.match(html, /totc-v2-actor-equipment__pack/);
+        assert.match(html, /name="system\.inventory\.pack\.itemIds\.0"[^>]*data-action="actor-editor-field"/);
+        assert.match(html, /<strong>Field Bandage<\/strong>/);
     });
 
     it("renders biography and GM notes as injected HTML instead of editable textareas", () => {
@@ -356,7 +365,9 @@ describe("Actor management panel", () => {
             ["system.abilities.int.value", "15"],
             ["system.inventory.equipment.hands.itemIds.0", "revolver"],
             ["system.inventory.equipment.hands.itemIds.1", ""],
-            ["system.inventory.equipment.belt.itemIds.0", "tonic"]
+            ["system.inventory.equipment.belt.itemIds.0", "tonic"],
+            ["system.inventory.pack.itemIds.0", "bandage"],
+            ["system.inventory.pack.itemIds.1", ""]
         ]);
 
         assert.deepEqual(buildActorUpdateDataFromFormData(formData), {
@@ -369,7 +380,8 @@ describe("Actor management panel", () => {
                     equipment: {
                         hands: { itemIds: ["revolver"] },
                         belt: { itemIds: ["tonic"] }
-                    }
+                    },
+                    pack: { itemIds: ["bandage"] }
                 }
             }
         });

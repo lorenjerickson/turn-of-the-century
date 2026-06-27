@@ -2,7 +2,7 @@
   "_id": "67860fa5613c22cf",
   "name": "Ratcatcher Carbine",
   "type": "weapon",
-  "img": "modules/game-icons-net/blackbackground/winchester-rifle.svg",
+  "img": "icons/weapons/guns/gun-rifle-brown.webp",
   "system": {
     "artwork": {
       "image": "icons/weapons/swords/sword-guard-steel.webp",

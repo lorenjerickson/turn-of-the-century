@@ -2,7 +2,7 @@
   "_id": "5e5989bb50767aa3",
   "name": "Valve Key Set",
   "type": "equipment",
-  "img": "modules/game-icons-net/blackbackground/valve.svg",
+  "img": "icons/tools/hand/pliers-steel.webp",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

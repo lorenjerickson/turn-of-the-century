@@ -21,6 +21,10 @@ import {
     isPrimaryPointerButton,
     listenForNativeCanvasPointerDown
 } from "../native-canvas-grid-calibration.mjs";
+import {
+    buildEncounterTargetIconsModel,
+    renderEncounterTargetIconsToContainer
+} from "../encounter-target-icons.mjs";
 
 const ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER = "totc-encounter-movement";
 
@@ -51,6 +55,8 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         this.targetingCanvasCleanup = null;
         this.targetingCanvasRef = null;
         this.wiredElement = null;
+        this.targetIconsContainer = null;
+        this.lastTargetIconsHash = "";
     }
 
     /**
@@ -85,6 +91,13 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         context.encounterPlannerSelection = selection;
         context.selectedEncounterActor = selectedActor;
         context.selectedEncounterToken = selectedToken;
+
+        // Render target icons over any tokens named in the current player's plan
+        this.#syncEncounterTargetIconsOverlay(
+            selection?.combat ?? null,
+            selection?.combatant?.id ?? null,
+            scene
+        );
     }
 
     render(panel, context) {
@@ -803,9 +816,19 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         if (this.targetingCanvasRef === canvas && this.targetingCanvasCleanup) return;
         this.#clearEncounterTargetingCanvasListener();
         this.targetingCanvasRef = canvas;
-        this.targetingCanvasCleanup = listenForNativeCanvasPointerDown(canvas, (event) => {
+        // Register at document capture level so this fires before PIXI's canvas-level
+        // capture listener. If we register on the canvas element, PIXI (registered
+        // first at Foundry init) gets the pointerdown first and selects the token
+        // before our stopImmediatePropagation can prevent it. Document capture runs
+        // before any canvas-element listener; only handle events targeting the canvas
+        // view so clicks on workspace panels are not intercepted.
+        const view = canvas?.app?.view ?? canvas?.app?.canvas ?? null;
+        const handler = (event) => {
+            if (view && event.target !== view) return;
             void this.#handleEncounterTargetingCanvasPointerDown(event);
-        }, { preferView: true, capture: true });
+        };
+        document.addEventListener("pointerdown", handler, { capture: true });
+        this.targetingCanvasCleanup = () => document.removeEventListener("pointerdown", handler, { capture: true });
     }
 
     async #handleEncounterTargetingCanvasPointerDown(event = {}) {
@@ -958,6 +981,38 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             await combat.removeCombatantAction(interaction.combatantId, interaction.actionIndex);
         }
         this.renderCallback({ force: false });
+    }
+
+    #syncEncounterTargetIconsOverlay(combat = null, combatantId = null, scene = null) {
+        const icons = (combat && combatantId && scene)
+            ? buildEncounterTargetIconsModel({ combat, combatantId, scene })
+            : [];
+
+        // Skip expensive PIXI work when nothing has changed
+        const hash = icons.map((i) => `${i.tokenId}:${i.iconType}`).join("|");
+        if (hash === this.lastTargetIconsHash && this.targetIconsContainer && !this.targetIconsContainer.destroyed) {
+            return;
+        }
+        this.lastTargetIconsHash = hash;
+
+        // Ensure a live container in canvas.interface (the topmost canvas layer)
+        const interfaceLayer = canvas?.interface;
+        if (!interfaceLayer) return;
+
+        if (
+            !this.targetIconsContainer
+            || this.targetIconsContainer.destroyed
+            || this.targetIconsContainer.parent !== interfaceLayer
+        ) {
+            if (this.targetIconsContainer && !this.targetIconsContainer.destroyed) {
+                this.targetIconsContainer.destroy({ children: true });
+            }
+            if (typeof PIXI === "undefined") return;
+            this.targetIconsContainer = new PIXI.Container();
+            interfaceLayer.addChild(this.targetIconsContainer);
+        }
+
+        renderEncounterTargetIconsToContainer(this.targetIconsContainer, icons);
     }
 
     #projectEncounterTokenForPlan({ token = null, combat = null, combatantId = "", beforeActionIndex = Infinity } = {}) {

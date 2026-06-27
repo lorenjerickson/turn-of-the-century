@@ -36,6 +36,7 @@ import {
     migrateTotcStarterCompendiums,
     migrateSeedMissingWorldActors,
     migrateTotcStarterActorAvatars,
+    migrateTotcStarterActorTokenArt,
     migrateTotcEquipmentSlots,
     runTotcMigrations
 } from "./module/migrations.mjs";
@@ -351,6 +352,7 @@ async function maybeRunAutomatedMigrations() {
             migrateStarterCompendiums: migrateTotcStarterCompendiums,
             seedMissingActors: migrateSeedMissingWorldActors,
             migrateStarterActorAvatars: migrateTotcStarterActorAvatars,
+            migrateStarterActorTokenArt: migrateTotcStarterActorTokenArt,
             notify: true
         });
 
@@ -556,6 +558,7 @@ Hooks.once("ready", async () => {
         migrateStarterCompendiums: migrateTotcStarterCompendiums,
         seedMissingActors: migrateSeedMissingWorldActors,
         migrateStarterActorAvatars: migrateTotcStarterActorAvatars,
+        migrateStarterActorTokenArt: migrateTotcStarterActorTokenArt,
         run: async () => {
             const result = await runTotcMigrations({
                 currentVersion: game.settings.get("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING),
@@ -571,6 +574,7 @@ Hooks.once("ready", async () => {
                 migrateStarterCompendiums: migrateTotcStarterCompendiums,
                 seedMissingActors: migrateSeedMissingWorldActors,
                 migrateStarterActorAvatars: migrateTotcStarterActorAvatars,
+                migrateStarterActorTokenArt: migrateTotcStarterActorTokenArt,
                 notify: true
             });
             await game.settings.set("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING, result.toVersion);

@@ -16,6 +16,18 @@ import { TOTC_SAMPLE_ACTORS, TOTC_SAMPLE_ITEMS, TOTC_SAMPLE_SCENES } from "../mo
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PACKS_ROOT = join(__dirname, "..", "packs");
+const TOKENS_DIR = join(__dirname, "..", "assets", "images", "actors", "tokens");
+const FOUNDRY_TOKEN_PREFIX = "systems/turn-of-the-century/assets/images/actors/tokens";
+
+/**
+ * Returns the Foundry-relative path for a generated token image, or null if the
+ * image has not yet been generated (so the caller can fall back to the default).
+ */
+function resolvedActorTokenSrc(slug) {
+    return existsSync(join(TOKENS_DIR, `${slug}.png`))
+        ? `${FOUNDRY_TOKEN_PREFIX}/${slug}.png`
+        : null;
+}
 
 function stableId(type, name) {
     return createHash("sha1").update(`${type}:${name}`).digest("hex").slice(0, 16);
@@ -76,20 +88,47 @@ function writePack(packName, documentType, entries) {
     let written = 0;
 
     for (const entry of entries) {
-        const doc = documentType === "Scene"
-            ? { ...entry }
-            : {
+        const slug = uniqueSlug(slugify(entry.name), seenSlugs);
+        const tokenSrc = documentType === "Actor" ? resolvedActorTokenSrc(slug) : null;
+        const defaultImg = documentType === "Actor" ? "icons/svg/mystery-man.svg" : "icons/svg/item-bag.svg";
+
+        let doc;
+        if (documentType === "Scene") {
+            doc = { ...entry };
+        } else if (tokenSrc) {
+            // A generated token image exists — bake the paths into all four image fields.
+            const system = entry.system ?? {};
+            doc = {
                 _id: stableId(entry.type, entry.name),
                 name: entry.name,
                 type: entry.type,
-                img: entry.img ?? (documentType === "Actor" ? "icons/svg/mystery-man.svg" : "icons/svg/item-bag.svg"),
+                img: tokenSrc,
+                system: {
+                    ...system,
+                    ...(system.artwork ? { artwork: { ...system.artwork, image: tokenSrc } } : {}),
+                    ...(system.tokenArtwork ? { tokenArtwork: { ...system.tokenArtwork, image: tokenSrc } } : {})
+                },
+                prototypeToken: {
+                    ...(entry.prototypeToken ?? {}),
+                    texture: { ...(entry.prototypeToken?.texture ?? {}), src: tokenSrc }
+                },
+                ...(Array.isArray(entry.items) && entry.items.length ? { items: entry.items } : {}),
+                ...(Array.isArray(entry.effects) && entry.effects.length ? { effects: entry.effects } : {}),
+                flags: entry.flags ?? {}
+            };
+        } else {
+            doc = {
+                _id: stableId(entry.type, entry.name),
+                name: entry.name,
+                type: entry.type,
+                img: entry.img ?? defaultImg,
                 system: entry.system ?? {},
                 ...(Array.isArray(entry.items) && entry.items.length ? { items: entry.items } : {}),
                 ...(Array.isArray(entry.effects) && entry.effects.length ? { effects: entry.effects } : {}),
                 flags: entry.flags ?? {}
             };
+        }
 
-        const slug = uniqueSlug(slugify(entry.name), seenSlugs);
         const fileName = `${slug}.json`;
         writeFileSync(join(dir, fileName), JSON.stringify(doc, null, 2) + "\n", "utf8");
         writtenFiles.add(fileName);

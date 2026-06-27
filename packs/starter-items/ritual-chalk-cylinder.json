@@ -2,7 +2,7 @@
   "_id": "12fb2e48d7fa679e",
   "name": "Ritual Chalk Cylinder",
   "type": "equipment",
-  "img": "modules/game-icons-net/blackbackground/pencil.svg",
+  "img": "icons/commodities/materials/powder-white.webp",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

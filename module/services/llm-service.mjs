@@ -4,7 +4,7 @@ const TOKEN_ART_STYLE_SUFFIX = [
     "Style: gothic-steampunk 1890s–1910s aesthetic.",
     "Favour brass, iron, leather, soot, gaslight, cabinet-card portrait quality, Victorian engravings.",
     "No modern sci-fi, no fantasy tropes, no neon or plastic.",
-    "Square 1024×1024 canvas, subject centred, dark vignette border.",
+    "Transparent background — subject only, no backdrop, no ground shadow, no border.",
     "Suitable for a miniature token on a tabletop battle-map. No text or UI overlays."
 ].join(" ");
 const OPENAI_DEFAULT_MODEL = "gpt-5.5";
@@ -313,7 +313,8 @@ export class LLMService {
                 prompt,
                 n: 1,
                 size: "1024x1024",
-                quality: "auto"
+                quality: "auto",
+                background: "transparent"
             })
         });
 

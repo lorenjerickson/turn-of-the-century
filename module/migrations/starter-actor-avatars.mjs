@@ -69,6 +69,8 @@ function isDefaultActorImage(img = "") {
     if (value.includes("icons/svg/mystery-man.svg")) return true;
     if (value.includes("icons/svg/cowled.svg")) return true;
     if (value.startsWith("https://api.dicebear.com/")) return true;
+    // Generated token art stored in the system's assets directory is authoritative.
+    if (value.includes("assets/images/actors/tokens/")) return false;
     return false;
 }
 

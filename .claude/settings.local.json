@@ -16,7 +16,29 @@
       "Bash(git push *)",
       "Bash(sed -i '' 's/\"version\": \"0.0.161\"/\"version\": \"0.0.162\"/' system.json package.json)",
       "Bash(python3 -c \"import json; print\\(json.load\\(open\\('system.json'\\)\\)['version'], json.load\\(open\\('package.json'\\)\\)['version']\\)\")",
-      "Bash(sed -i '' 's/\"version\": \"0.0.162\"/\"version\": \"0.0.163\"/' system.json package.json)"
+      "Bash(sed -i '' 's/\"version\": \"0.0.162\"/\"version\": \"0.0.163\"/' system.json package.json)",
+      "Bash(npm test *)",
+      "Bash(node --test test/**/*.test.mjs)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century status --short module/ui/workspace-v2/)",
+      "Bash(git stash *)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century log --oneline -10)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century status --short)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century diff HEAD~2 HEAD -- module/ui/workspace-v2/)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century diff HEAD~2 HEAD -- module/ui/workspace-v2/workspace-root-app.mjs)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century show HEAD~2:module/ui/workspace-v2/workspace-root-app.mjs)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century show HEAD~2:module/ui/workspace-v2/controllers/scene-workspace-controller.mjs)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century show HEAD~2:module/ui/workspace-v2/controllers/workspace-layout-feature.mjs)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century show HEAD~2:module/ui/workspace-v2/controllers/scene-design-feature.mjs)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century diff HEAD~2 HEAD -- module/ui/workspace-v2/controllers/workspace-layout-feature.mjs)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century diff HEAD~2 HEAD -- module/ui/workspace-v2/controllers/scene-workspace-controller.mjs)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century diff HEAD~2 HEAD -- test/workspace-v2/token-interactions.test.mjs)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century log --oneline -20)",
+      "Bash(git -C /Users/loren/dev/foundry-vtt/turn-of-the-century show 83f7dbc:module/ui/workspace-v2/workspace-root-app.mjs)",
+      "Bash(node -e ' *)",
+      "Bash(node --test --recursive test/)",
+      "Bash(node scripts/audit-foundry-v14-compat.mjs)",
+      "Skill(run)",
+      "Skill(run:*)"
     ]
   }
 }

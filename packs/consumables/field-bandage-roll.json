@@ -2,7 +2,7 @@
   "_id": "0330a7d16b010d1d",
   "name": "Field Bandage Roll",
   "type": "consumable",
-  "img": "modules/game-icons-net/blackbackground/bandage-roll.svg",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

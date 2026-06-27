@@ -2,7 +2,7 @@
   "_id": "079ca3b2b0cb63de",
   "name": "Iron Lung Draught",
   "type": "consumable",
-  "img": "modules/game-icons-net/blackbackground/lungs.svg",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

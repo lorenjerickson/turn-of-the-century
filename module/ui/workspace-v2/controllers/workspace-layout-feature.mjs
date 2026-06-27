@@ -269,8 +269,9 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
     // -------------------------------------------------------------------------
 
     #wireShellMenuHandlers(rootElement) {
-        rootElement.querySelectorAll?.("[data-action='totc-v2-exit-world']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+        rootElement.addEventListener("click", async (event) => {
+            const exitWorldBtn = event.target?.closest("[data-action='totc-v2-exit-world']");
+            if (exitWorldBtn) {
                 event.preventDefault();
                 event.stopPropagation();
                 if (!this.isGMCallback()) {
@@ -278,11 +279,11 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
                     return;
                 }
                 await this.shutDownCallback();
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='totc-v2-open-foundry-settings']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
+            const openSettingsBtn = event.target?.closest("[data-action='totc-v2-open-foundry-settings']");
+            if (openSettingsBtn) {
                 event.preventDefault();
                 event.stopPropagation();
                 this.openFoundrySettingsCallback();
@@ -294,11 +295,11 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
                 if (panelMenu) panelMenu.hidden = true;
                 toggleButton?.setAttribute("aria-expanded", "false");
                 panelToggleButton?.setAttribute("aria-expanded", "false");
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='totc-v2-command-menu-toggle']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
+            const commandMenuToggle = event.target?.closest("[data-action='totc-v2-command-menu-toggle']");
+            if (commandMenuToggle) {
                 event.preventDefault();
                 event.stopPropagation();
                 const menu = rootElement.querySelector("[data-command-menu='true']");
@@ -307,16 +308,16 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
                 if (!menu) return;
                 const expanded = !menu.hidden;
                 menu.hidden = expanded;
-                button.setAttribute("aria-expanded", expanded ? "false" : "true");
+                commandMenuToggle.setAttribute("aria-expanded", expanded ? "false" : "true");
                 if (!expanded && panelMenu) {
                     panelMenu.hidden = true;
                     panelToggleButton?.setAttribute("aria-expanded", "false");
                 }
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='totc-v2-panel-menu-toggle']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
+            const panelMenuToggle = event.target?.closest("[data-action='totc-v2-panel-menu-toggle']");
+            if (panelMenuToggle) {
                 event.preventDefault();
                 event.stopPropagation();
                 const panelMenu = rootElement.querySelector("[data-panel-menu='true']");
@@ -325,12 +326,13 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
                 if (!panelMenu) return;
                 const expanded = !panelMenu.hidden;
                 panelMenu.hidden = expanded;
-                button.setAttribute("aria-expanded", expanded ? "false" : "true");
+                panelMenuToggle.setAttribute("aria-expanded", expanded ? "false" : "true");
                 if (!expanded && menu) {
                     menu.hidden = true;
                     commandToggleButton?.setAttribute("aria-expanded", "false");
                 }
-            });
+                return;
+            }
         });
     }
 
@@ -339,107 +341,118 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
     // -------------------------------------------------------------------------
 
     #wireLayoutButtonHandlers(rootElement) {
-        rootElement.querySelectorAll?.("[data-action='toggle-panel-visibility']")?.forEach((checkbox) => {
-            checkbox.addEventListener("change", async (event) => {
-                event.stopPropagation();
-                const panelId = checkbox.dataset.panelId;
-                if (!panelId) return;
-                const panelDef = this.panelRegistry?.get(panelId);
-                if (!panelDef) return;
-                const nextLayout = checkbox.checked
-                    ? this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? null })
-                    : this.layoutEngine.closePanel(panelId);
-                await this.stateStore?.setUserLayout?.(nextLayout);
-                this.renderCallback({ force: false });
-            });
+        rootElement.addEventListener("change", async (event) => {
+            const checkbox = event.target?.closest("[data-action='toggle-panel-visibility']");
+            if (!checkbox) return;
+            event.stopPropagation();
+            const panelId = checkbox.dataset.panelId;
+            if (!panelId) return;
+            const panelDef = this.panelRegistry?.get(panelId);
+            if (!panelDef) return;
+            const nextLayout = checkbox.checked
+                ? this.layoutEngine.restorePanel(panelDef, { preferredDockId: panelDef.defaultDock ?? null })
+                : this.layoutEngine.closePanel(panelId);
+            await this.stateStore?.setUserLayout?.(nextLayout);
+            this.renderCallback({ force: false });
         });
 
-        rootElement.querySelectorAll?.("[data-action='toggle-dock-collapse']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+        rootElement.addEventListener("pointerdown", (event) => {
+            const redockBtn = event.target?.closest("[data-action='redock-panel']");
+            if (redockBtn) {
                 event.preventDefault();
                 event.stopPropagation();
-                const dockId = button.dataset.dockId;
+                return;
+            }
+            const floatingCloseBtn = event.target?.closest("[data-action='floating-close']");
+            if (floatingCloseBtn) {
+                event.stopPropagation();
+                return;
+            }
+        });
+
+        rootElement.addEventListener("click", async (event) => {
+            const dockCollapseBtn = event.target?.closest("[data-action='toggle-dock-collapse']");
+            if (dockCollapseBtn) {
+                event.preventDefault();
+                event.stopPropagation();
+                const dockId = dockCollapseBtn.dataset.dockId;
                 if (!dockId) return;
                 const nextLayout = this.layoutEngine.toggleDockCollapsed(dockId);
                 await this.stateStore?.setUserLayout?.(nextLayout);
                 this.renderCallback({ force: false });
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='activate-tab']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+            const tabBtn = event.target?.closest("[data-action='activate-tab']");
+            if (tabBtn) {
                 event.preventDefault();
-                const { dockId, stackId, panelId } = button.dataset;
+                const { dockId, stackId, panelId } = tabBtn.dataset;
                 if (!dockId || !stackId || !panelId) return;
                 const nextLayout = this.layoutEngine.setActivePanel(dockId, stackId, panelId);
                 await this.stateStore?.setUserLayout?.(nextLayout);
                 this.renderCallback({ force: false });
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='float-panel']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+            const floatBtn = event.target?.closest("[data-action='float-panel']");
+            if (floatBtn) {
                 event.preventDefault();
-                const panelId = button.dataset.panelId;
+                const panelId = floatBtn.dataset.panelId;
                 const panelDef = this.#resolvePanelDefinition(panelId);
                 if (!panelDef) return;
                 const nextLayout = this.layoutEngine.floatPanel(panelDef);
                 await this.stateStore?.setUserLayout?.(nextLayout);
                 this.renderCallback({ force: false });
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='close-panel']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+            const closePanelBtn = event.target?.closest("[data-action='close-panel']");
+            if (closePanelBtn) {
                 event.preventDefault();
                 event.stopPropagation();
-                const panelId = button.dataset.panelId;
+                const panelId = closePanelBtn.dataset.panelId;
                 if (!panelId) return;
                 const nextLayout = this.layoutEngine.closePanel(panelId);
                 await this.stateStore?.setUserLayout?.(nextLayout);
                 this.renderCallback({ force: false });
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='undock-panel']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+            const undockBtn = event.target?.closest("[data-action='undock-panel']");
+            if (undockBtn) {
                 event.preventDefault();
                 event.stopPropagation();
-                const { dockId, stackId, panelId } = button.dataset;
+                const { dockId, stackId, panelId } = undockBtn.dataset;
                 if (!dockId || !stackId || !panelId) return;
                 const nextLayout = this.layoutEngine.undockPanel({ dockId, stackId, panelId });
                 await this.stateStore?.setUserLayout?.(nextLayout);
                 this.renderCallback({ force: false });
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='redock-panel']")?.forEach((button) => {
-            button.addEventListener("pointerdown", (event) => {
+            const redockBtn = event.target?.closest("[data-action='redock-panel']");
+            if (redockBtn) {
                 event.preventDefault();
                 event.stopPropagation();
-            });
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const floatingId = button.dataset.floatingId;
+                const floatingId = redockBtn.dataset.floatingId;
                 if (!floatingId) return;
                 const nextLayout = this.layoutEngine.redockFloatingWindow(floatingId);
                 await this.stateStore?.setUserLayout?.(nextLayout);
                 this.renderCallback({ force: false });
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='floating-close']")?.forEach((button) => {
-            button.addEventListener("pointerdown", (event) => { event.stopPropagation(); });
-            button.addEventListener("click", async (event) => {
+            const floatingCloseBtn = event.target?.closest("[data-action='floating-close']");
+            if (floatingCloseBtn) {
                 event.preventDefault();
                 event.stopPropagation();
-                const windowId = button.dataset.floatingId;
+                const windowId = floatingCloseBtn.dataset.floatingId;
                 if (!windowId) return;
                 const nextLayout = this.layoutEngine.removeFloatingWindow(windowId);
                 await this.stateStore?.setUserLayout?.(nextLayout);
                 this.renderCallback({ force: false });
-            });
+                return;
+            }
         });
     }
 
@@ -448,16 +461,16 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
     // -------------------------------------------------------------------------
 
     #wireDesignLensHandlers(rootElement) {
-        rootElement.querySelectorAll?.("[data-action='toggle-design-lens']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const panelId = String(button.dataset.panelId ?? "").trim();
-                if (!panelId || !this.isGMCallback()) return;
-                if (this.activeDesignLensPanelIds.has(panelId)) this.activeDesignLensPanelIds.delete(panelId);
-                else this.activeDesignLensPanelIds.add(panelId);
-                this.renderCallback({ force: false });
-            });
+        rootElement.addEventListener("click", (event) => {
+            const button = event.target?.closest("[data-action='toggle-design-lens']");
+            if (!button) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const panelId = String(button.dataset.panelId ?? "").trim();
+            if (!panelId || !this.isGMCallback()) return;
+            if (this.activeDesignLensPanelIds.has(panelId)) this.activeDesignLensPanelIds.delete(panelId);
+            else this.activeDesignLensPanelIds.add(panelId);
+            this.renderCallback({ force: false });
         });
     }
 
@@ -466,8 +479,9 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
     // -------------------------------------------------------------------------
 
     #wireDesignCommandPaletteHandlers(rootElement) {
-        rootElement.querySelectorAll?.("[data-action='toggle-design-command-palette']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
+        rootElement.addEventListener("click", async (event) => {
+            const toggleBtn = event.target?.closest("[data-action='toggle-design-command-palette']");
+            if (toggleBtn) {
                 event.preventDefault();
                 event.stopPropagation();
                 const menu = rootElement.querySelector("[data-command-menu='true']");
@@ -481,20 +495,21 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
                 this.#designCommandPaletteOpen = !this.#designCommandPaletteOpen;
                 if (!this.#designCommandPaletteOpen) this.#designCommandPaletteQuery = "";
                 this.renderCallback({ force: false });
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='design-command-palette-execute']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
+            const executeBtn = event.target?.closest("[data-action='design-command-palette-execute']");
+            if (executeBtn) {
                 event.preventDefault();
                 event.stopPropagation();
-                const actionId = String(button.dataset.designActionId ?? "").trim();
-                const panelId = String(button.dataset.panelId ?? "").trim();
+                const actionId = String(executeBtn.dataset.designActionId ?? "").trim();
+                const panelId = String(executeBtn.dataset.panelId ?? "").trim();
                 await this.executeDesignActionCallback(actionId, { panelId });
                 this.#designCommandPaletteOpen = false;
                 this.#designCommandPaletteQuery = "";
                 this.renderCallback({ force: false });
-            });
+                return;
+            }
         });
     }
 
@@ -537,23 +552,24 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
     // -------------------------------------------------------------------------
 
     #wireInteractionHandlers(rootElement) {
-        const host = rootElement.querySelector?.("[data-layout-root='true']");
-        if (!host) return;
-
-        rootElement.querySelectorAll?.("[data-panel-id], [data-drag-panel-id]")?.forEach((panelButton) => {
-            panelButton.addEventListener("dragstart", (event) => {
-                const panelId = panelButton.dataset.panelId || panelButton.dataset.dragPanelId;
-                event.dataTransfer?.setData(WORKSPACE_PANEL_DRAG_MIME, panelId ?? "");
-                event.dataTransfer?.setData("text/plain", panelId ?? "");
-                event.dataTransfer.effectAllowed = "move";
-            });
-            panelButton.addEventListener("dragend", () => {
-                this.interactionController.clearIntent();
-                this.#hideGhost(rootElement);
-            });
+        rootElement.addEventListener("dragstart", (event) => {
+            const panelButton = event.target?.closest("[data-panel-id], [data-drag-panel-id]");
+            if (!panelButton) return;
+            const panelId = panelButton.dataset.panelId || panelButton.dataset.dragPanelId;
+            event.dataTransfer?.setData(WORKSPACE_PANEL_DRAG_MIME, panelId ?? "");
+            event.dataTransfer?.setData("text/plain", panelId ?? "");
+            event.dataTransfer.effectAllowed = "move";
         });
 
-        host.addEventListener("dragover", (event) => {
+        rootElement.addEventListener("dragend", (event) => {
+            if (!event.target?.closest("[data-panel-id], [data-drag-panel-id]")) return;
+            this.interactionController.clearIntent();
+            this.#hideGhost(rootElement);
+        });
+
+        rootElement.addEventListener("dragover", (event) => {
+            const host = rootElement.querySelector?.("[data-layout-root='true']");
+            if (!host || !host.contains(event.target)) return;
             if (!dataTransferHasType(event.dataTransfer, WORKSPACE_PANEL_DRAG_MIME)) return;
             event.preventDefault();
             const stackElements = [...host.querySelectorAll("[data-stack-id]")];
@@ -569,14 +585,18 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
             event.dataTransfer.dropEffect = "move";
         });
 
-        host.addEventListener("dragleave", (event) => {
+        rootElement.addEventListener("dragleave", (event) => {
+            const host = rootElement.querySelector?.("[data-layout-root='true']");
+            if (!host || !host.contains(event.target)) return;
             const related = event.relatedTarget;
             if (related && host.contains(related)) return;
             this.interactionController.clearIntent();
             this.#hideGhost(rootElement);
         });
 
-        host.addEventListener("drop", async (event) => {
+        rootElement.addEventListener("drop", async (event) => {
+            const host = rootElement.querySelector?.("[data-layout-root='true']");
+            if (!host || !host.contains(event.target)) return;
             if (!dataTransferHasType(event.dataTransfer, WORKSPACE_PANEL_DRAG_MIME)) return;
             event.preventDefault();
             const panelId = event.dataTransfer?.getData(WORKSPACE_PANEL_DRAG_MIME);
@@ -599,26 +619,27 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
     // -------------------------------------------------------------------------
 
     #wireResizeHandlers(rootElement) {
-        rootElement.querySelectorAll?.("[data-action='dock-resizer']")?.forEach((handle) => {
-            handle.addEventListener("pointerdown", (event) => {
+        rootElement.addEventListener("pointerdown", (event) => {
+            const dockResizer = event.target?.closest("[data-action='dock-resizer']");
+            if (dockResizer) {
                 event.preventDefault();
                 event.stopPropagation();
                 this.#beginResizeSession({
                     type: "dock",
-                    dockId: handle.dataset.dockId,
-                    axis: handle.dataset.axis,
+                    dockId: dockResizer.dataset.dockId,
+                    axis: dockResizer.dataset.axis,
                     startX: event.clientX,
                     startY: event.clientY,
                     startWeights: this.layoutEngine.getDockWeightLayout()
                 });
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='floating-move-handle']")?.forEach((handle) => {
-            handle.addEventListener("pointerdown", (event) => {
+            const moveHandle = event.target?.closest("[data-action='floating-move-handle']");
+            if (moveHandle) {
                 event.preventDefault();
                 event.stopPropagation();
-                const floatingId = handle.dataset.floatingId;
+                const floatingId = moveHandle.dataset.floatingId;
                 const floatingWindow = this.layoutEngine.getLayout().root.floatingWindows.find((entry) => entry.id === floatingId);
                 if (!floatingWindow) return;
                 this.#beginResizeSession({
@@ -629,14 +650,14 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
                     startY: event.clientY,
                     original: { x: floatingWindow.x, y: floatingWindow.y }
                 });
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='floating-resize-handle']")?.forEach((handle) => {
-            handle.addEventListener("pointerdown", (event) => {
+            const resizeHandle = event.target?.closest("[data-action='floating-resize-handle']");
+            if (resizeHandle) {
                 event.preventDefault();
                 event.stopPropagation();
-                const floatingId = handle.dataset.floatingId;
+                const floatingId = resizeHandle.dataset.floatingId;
                 const floatingWindow = this.layoutEngine.getLayout().root.floatingWindows.find((entry) => entry.id === floatingId);
                 if (!floatingWindow) return;
                 this.#beginResizeSession({
@@ -651,22 +672,23 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
                         height: floatingWindow.height
                     }
                 });
-            });
-        });
+                return;
+            }
 
-        rootElement.querySelectorAll?.("[data-action='stack-splitter']")?.forEach((handle) => {
-            handle.addEventListener("pointerdown", (event) => {
+            const stackSplitter = event.target?.closest("[data-action='stack-splitter']");
+            if (stackSplitter) {
                 event.preventDefault();
                 event.stopPropagation();
                 this.#beginResizeSession({
                     type: "stack",
-                    dockId: handle.dataset.dockId,
-                    leadingStackId: handle.dataset.leadingStackId,
-                    trailingStackId: handle.dataset.trailingStackId,
+                    dockId: stackSplitter.dataset.dockId,
+                    leadingStackId: stackSplitter.dataset.leadingStackId,
+                    trailingStackId: stackSplitter.dataset.trailingStackId,
                     startX: event.clientX,
                     startY: event.clientY
                 });
-            });
+                return;
+            }
         });
     }
 

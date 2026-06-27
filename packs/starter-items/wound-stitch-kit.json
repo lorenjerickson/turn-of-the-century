@@ -2,7 +2,7 @@
   "_id": "fbd21c0931a8f38a",
   "name": "Wound Stitch Kit",
   "type": "consumable",
-  "img": "modules/game-icons-net/blackbackground/stitched-wound.svg",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

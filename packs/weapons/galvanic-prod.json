@@ -2,7 +2,7 @@
   "_id": "dd9b37a3058e418d",
   "name": "Galvanic Prod",
   "type": "weapon",
-  "img": "modules/game-icons-net/blackbackground/electric.svg",
+  "img": "icons/weapons/staves/staff-orb-lightning.webp",
   "system": {
     "artwork": {
       "image": "icons/weapons/swords/sword-guard-steel.webp",

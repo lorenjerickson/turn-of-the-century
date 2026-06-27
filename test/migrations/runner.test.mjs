@@ -11,8 +11,8 @@ before(() => {
 });
 
 describe("runTotcMigrations", () => {
-    it("exports TOTC_WORLD_SCHEMA_VERSION as 16", () => {
-        assert.equal(TOTC_WORLD_SCHEMA_VERSION, 16);
+    it("exports TOTC_WORLD_SCHEMA_VERSION as 17", () => {
+        assert.equal(TOTC_WORLD_SCHEMA_VERSION, 17);
     });
 
     it("throws when seedMissingActors is not a function", async () => {
@@ -31,7 +31,8 @@ describe("runTotcMigrations", () => {
                 migrateUnlockActions: noop,
                 migrateStarterCompendiums: noop,
                 seedMissingActors: undefined,
-                migrateStarterActorAvatars: noop
+                migrateStarterActorAvatars: noop,
+                migrateStarterActorTokenArt: noop
             }),
             /seedMissingActors/
         );
@@ -53,9 +54,33 @@ describe("runTotcMigrations", () => {
                 migrateUnlockActions: noop,
                 migrateStarterCompendiums: noop,
                 seedMissingActors: noop,
-                migrateStarterActorAvatars: undefined
+                migrateStarterActorAvatars: undefined,
+                migrateStarterActorTokenArt: noop
             }),
             /migrateStarterActorAvatars/
+        );
+    });
+
+    it("throws when migrateStarterActorTokenArt is not a function", async () => {
+        const noop = async () => ({});
+        await assert.rejects(
+            () => runTotcMigrations({
+                currentVersion: 100,
+                migrateActorProfiles: noop,
+                migrateActorProfessions: noop,
+                migrateActorEconomy: noop,
+                migrateEquipmentSlots: noop,
+                migrateEncounterActions: noop,
+                migrateModifiers: noop,
+                migrateActionRecapFormats: noop,
+                migrateItemIcons: noop,
+                migrateUnlockActions: noop,
+                migrateStarterCompendiums: noop,
+                seedMissingActors: noop,
+                migrateStarterActorAvatars: noop,
+                migrateStarterActorTokenArt: undefined
+            }),
+            /migrateStarterActorTokenArt/
         );
     });
 
@@ -65,6 +90,7 @@ describe("runTotcMigrations", () => {
         let recapCalled = false;
         let iconsCalled = false;
         let unlockActionsCalled = false;
+        let tokenArtCalled = false;
         const noop = async () => ({});
         const seedMissingActors = async () => {
             seedCalled = true;
@@ -86,6 +112,10 @@ describe("runTotcMigrations", () => {
             unlockActionsCalled = true;
             return { itemsScanned: 6, itemsUpdated: 3, changedDocuments: [] };
         };
+        const migrateStarterActorTokenArt = async () => {
+            tokenArtCalled = true;
+            return { scanned: 4, updated: 4, skipped: 0 };
+        };
 
         const result = await runTotcMigrations({
             currentVersion: 11,
@@ -101,6 +131,7 @@ describe("runTotcMigrations", () => {
             migrateStarterCompendiums: noop,
             seedMissingActors,
             migrateStarterActorAvatars,
+            migrateStarterActorTokenArt,
             notify: false
         });
 
@@ -109,7 +140,8 @@ describe("runTotcMigrations", () => {
         assert.equal(recapCalled, true);
         assert.equal(iconsCalled, true);
         assert.equal(unlockActionsCalled, true);
-        assert.equal(result.toVersion, 16);
+        assert.equal(tokenArtCalled, true);
+        assert.equal(result.toVersion, 17);
         const step = result.applied.find((s) => s.key === "seed-missing-actors");
         assert.ok(step, "seed-missing-actors step should be present");
         assert.equal(step.version, 12);
@@ -130,23 +162,29 @@ describe("runTotcMigrations", () => {
         assert.ok(unlockStep, "unlock-actions step should be present");
         assert.equal(unlockStep.version, 16);
         assert.equal(unlockStep.report.itemsUpdated, 3);
+        const tokenArtStep = result.applied.find((s) => s.key === "starter-actor-token-art");
+        assert.ok(tokenArtStep, "starter-actor-token-art step should be present");
+        assert.equal(tokenArtStep.version, 17);
+        assert.equal(tokenArtStep.report.updated, 4);
     });
 
-    it("skips v12 through v16 when currentVersion is already 16", async () => {
+    it("skips v12 through v17 when currentVersion is already 17", async () => {
         let seedCalled = false;
         let avatarsCalled = false;
         let recapCalled = false;
         let iconsCalled = false;
         let unlockActionsCalled = false;
+        let tokenArtCalled = false;
         const noop = async () => ({});
         const seedMissingActors = async () => { seedCalled = true; return {}; };
         const migrateActionRecapFormats = async () => { recapCalled = true; return {}; };
         const migrateStarterActorAvatars = async () => { avatarsCalled = true; return {}; };
         const migrateItemIcons = async () => { iconsCalled = true; return {}; };
         const migrateUnlockActions = async () => { unlockActionsCalled = true; return {}; };
+        const migrateStarterActorTokenArt = async () => { tokenArtCalled = true; return {}; };
 
         const result = await runTotcMigrations({
-            currentVersion: 16,
+            currentVersion: 17,
             migrateActorProfiles: noop,
             migrateActorProfessions: noop,
             migrateActorEconomy: noop,
@@ -159,6 +197,7 @@ describe("runTotcMigrations", () => {
             migrateStarterCompendiums: noop,
             seedMissingActors,
             migrateStarterActorAvatars,
+            migrateStarterActorTokenArt,
             notify: false
         });
 
@@ -167,6 +206,7 @@ describe("runTotcMigrations", () => {
         assert.equal(recapCalled, false);
         assert.equal(iconsCalled, false);
         assert.equal(unlockActionsCalled, false);
+        assert.equal(tokenArtCalled, false);
         assert.equal(result.applied.length, 0);
     });
 });

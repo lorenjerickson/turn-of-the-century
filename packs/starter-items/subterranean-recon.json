@@ -2,7 +2,7 @@
   "_id": "cd6739875a4820b6",
   "name": "Subterranean Recon",
   "type": "skill",
-  "img": "modules/game-icons-net/blackbackground/underground-cave.svg",
+  "img": "icons/environment/underground/cave-entrance.webp",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

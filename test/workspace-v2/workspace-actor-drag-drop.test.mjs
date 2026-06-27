@@ -120,15 +120,15 @@ describe("workspace actor drag and drop", () => {
         assert.match(styles, /\.totc-v2-actor-drag-image img,[\s\S]*\.totc-v2-actor-drag-image span\s*\{[\s\S]*height:\s*2\.5rem;[\s\S]*width:\s*2\.5rem;/);
     });
 
-    it("supports compendium item drags onto actor editor forms", () => {
-        assert.match(workspacePanelHostSource, /data-compendium-item-draggable="true"/);
+    it("supports codex item drags onto actor editor forms", () => {
+        assert.match(workspacePanelHostSource, /data-codex-item-draggable="true"/);
         assert.match(workspacePanelHostSource, /draggable="true"[\s\S]*data-entry-uuid=/);
-        assert.match(actorWorkspaceControllerSource, /const COMPENDIUM_ITEM_DRAG_MIME = "application\/x-totc-compendium-item";/);
-        assert.match(actorWorkspaceControllerSource, /event\.dataTransfer\.setData\(COMPENDIUM_ITEM_DRAG_MIME, payload\)/);
+        assert.match(actorWorkspaceControllerSource, /const CODEX_ITEM_DRAG_MIME = "application\/x-totc-codex-item";/);
+        assert.match(actorWorkspaceControllerSource, /event\.dataTransfer\.setData\(CODEX_ITEM_DRAG_MIME, payload\)/);
         assert.match(actorWorkspaceControllerSource, /event\.dataTransfer\.setData\(TEXT_PLAIN_MIME, payload\)/);
         assert.match(actorWorkspaceControllerSource, /form\.addEventListener\("drop", async \(event\) => \{/);
         assert.match(actorWorkspaceControllerSource, /await this\.importItemToActor\(actor, payload\)/);
-        assert.match(styles, /\.totc-v2-compendium-panel__entry\.is-dragging\s*\{[\s\S]*opacity:\s*0\.6;/);
+        assert.match(styles, /\.totc-v2-codex-panel__entry\.is-dragging\s*\{[\s\S]*opacity:\s*0\.6;/);
         assert.match(styles, /\.totc-v2-actor-editor__form\.is-item-drop-target\s*\{[\s\S]*border-color:\s*rgba\(251, 191, 36, 0\.5\);/);
     });
 });

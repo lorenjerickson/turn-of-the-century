@@ -2,7 +2,7 @@
   "_id": "7b46f8cf46d21b9e",
   "name": "Station Pass Ledger",
   "type": "item",
-  "img": "modules/game-icons-net/blackbackground/boarding-pass.svg",
+  "img": "icons/sundries/books/book-clasp-red.webp",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

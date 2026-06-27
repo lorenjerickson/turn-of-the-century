@@ -2,7 +2,7 @@
   "_id": "c3dbcd3da511678b",
   "name": "Sootproof Cloak",
   "type": "item",
-  "img": "modules/game-icons-net/blackbackground/cloak.svg",
+  "img": "icons/equipment/back/cloak-hooded-black.webp",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

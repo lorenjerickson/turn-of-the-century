@@ -21,6 +21,7 @@ const BELT_QUALITY_CAPACITY = Object.freeze({
     experimental: 8
 });
 const EQUIPMENT_ITEM_IDS_PREFIX = "system.inventory.equipment.";
+const PACK_ITEM_IDS_PREFIX = "system.inventory.pack.itemIds.";
 
 function getCollectionEntries(collection) {
     if (!collection) return [];
@@ -142,6 +143,28 @@ function applyEquipmentSlotSelections(updateData, selections) {
     }
 }
 
+function isPackItemIdPath(path) {
+    return /^system\.inventory\.pack\.itemIds\.\d+$/.test(String(path ?? ""));
+}
+
+function collectPackItemSelection(selections, path, value) {
+    const [, indexString] = String(path ?? "").match(/^system\.inventory\.pack\.itemIds\.(\d+)$/) ?? [];
+    const index = Number(indexString);
+    if (!Number.isInteger(index)) return;
+    selections[index] = String(value ?? "").trim();
+}
+
+function applyPackSelections(updateData, selections) {
+    if (!selections.length) return;
+    const seenIds = new Set();
+    const packItemIds = selections.filter((itemId) => {
+        if (!itemId || seenIds.has(itemId)) return false;
+        seenIds.add(itemId);
+        return true;
+    });
+    setPathValue(updateData, "system.inventory.pack.itemIds", packItemIds);
+}
+
 function fieldValue(actor, path, staged = {}) {
     if (Object.hasOwn(staged, path)) return staged[path];
     const source = path === "name" ? actor : actor;
@@ -228,6 +251,39 @@ function buildEquipmentViewModel(actor, staged = {}) {
         })
     ]));
 
+    const packDef = actorSystem(actor)?.inventory?.pack ?? {};
+    const packStoredIds = Array.isArray(packDef.itemIds) ? packDef.itemIds : [];
+    const packCapacity = Math.max(1, Number(packDef.capacity ?? 20));
+    const packSlotCount = Math.min(packCapacity, packStoredIds.filter(Boolean).length + 1);
+    const selectedByPackPosition = Array.from({ length: packSlotCount }, (_, index) => {
+        const path = `${PACK_ITEM_IDS_PREFIX}${index}`;
+        return Object.hasOwn(staged, path) ? String(staged[path] ?? "") : String(packStoredIds[index] ?? "");
+    });
+    const equippedIds = new Set(Object.values(selectedBySlot).flatMap((ids) => ids).filter(Boolean));
+    const packSlots = Array.from({ length: packSlotCount }, (_, position) => {
+        const selectedItemId = selectedByPackPosition[position] ?? "";
+        const selectedElsewhereInPack = new Set(selectedByPackPosition.filter((id, i) => id && i !== position));
+        const packableItems = items.filter((item) => !equippedIds.has(item.id) || item.id === selectedItemId);
+        return {
+            area: "pack",
+            slotKey: "pack",
+            position,
+            label: `Pack ${position + 1}`,
+            name: `${PACK_ITEM_IDS_PREFIX}${position}`,
+            selectedItemId,
+            selectedItem: items.find((item) => item.id === selectedItemId) ?? null,
+            options: packableItems.map((item) => ({
+                id: item.id,
+                name: item.name,
+                type: item.typeLabel,
+                img: item.img,
+                description: item.description,
+                selected: item.id === selectedItemId,
+                disabled: selectedElsewhereInPack.has(item.id)
+            }))
+        };
+    });
+
     return {
         bodySlots: [
             { area: "head", slotKey: "head", position: 0 },
@@ -241,7 +297,8 @@ function buildEquipmentViewModel(actor, staged = {}) {
         ].map((placement) => buildEquipmentSlotControl(placement, slots, selectedBySlot, items)),
         beltSlots: Array.from({ length: getSlotCapacity("belt", slots.belt) }, (_, position) => (
             buildEquipmentSlotControl({ area: "belt", slotKey: "belt", position }, slots, selectedBySlot, items)
-        ))
+        )),
+        packSlots
     };
 }
 
@@ -389,6 +446,7 @@ export function buildActorEditorPanelModel({
             selected: type === actorType
         })),
         isGenerating: Boolean(state.isGenerating),
+        isGeneratingToken: Boolean(state.isGeneratingToken),
         dirty: Boolean(state.dirty),
         status: String(state.status ?? ""),
         error: String(state.error ?? ""),
@@ -485,15 +543,21 @@ export function buildEditableActorFields(actor, staged = {}, actorType = normali
 export function buildActorUpdateDataFromFormData(formData) {
     const updateData = {};
     const equipmentSelections = new Map();
+    const packSelections = [];
     for (const [path, rawValue] of formData.entries()) {
         if (!path || path === "actorId" || String(path).startsWith("__")) continue;
         if (isEquipmentItemIdPath(path)) {
             collectEquipmentSlotSelection(equipmentSelections, path, rawValue);
             continue;
         }
+        if (isPackItemIdPath(path)) {
+            collectPackItemSelection(packSelections, path, rawValue);
+            continue;
+        }
         setPathValue(updateData, path, coerceFieldValue(path, rawValue));
     }
     applyEquipmentSlotSelections(updateData, equipmentSelections);
+    applyPackSelections(updateData, packSelections);
     return updateData;
 }
 
@@ -585,18 +649,38 @@ function renderEquipmentSlot(slot, escapeHTML) {
     </label>`;
 }
 
+const BODY_DOLL_SVG = `<svg aria-hidden="true" class="totc-v2-actor-equipment__doll" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 320" preserveAspectRatio="xMidYMid meet">
+    <circle cx="80" cy="27" r="22"/>
+    <rect x="70" y="49" width="20" height="22" rx="3"/>
+    <polygon points="55,71 105,71 112,212 48,212"/>
+    <rect x="4" y="100" width="46" height="110" rx="5"/>
+    <rect x="110" y="100" width="46" height="110" rx="5"/>
+    <polygon points="50,212 78,212 74,308 46,308"/>
+    <polygon points="82,212 110,212 114,308 86,308"/>
+    <rect x="40" y="306" width="38" height="18" rx="5"/>
+    <rect x="82" y="306" width="38" height="18" rx="5"/>
+</svg>`;
+
 function renderEquipmentSection(equipment, escapeHTML) {
     if (!equipment) return "";
+    const packSection = equipment.packSlots?.length
+        ? `<div class="totc-v2-actor-equipment__pack" aria-label="Pack slots">
+                <div class="totc-v2-actor-equipment__pack-label">Pack</div>
+                ${equipment.packSlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
+            </div>`
+        : "";
     return `
     <fieldset class="totc-v2-actor-editor__section totc-v2-actor-editor__section--equipment">
         <legend>Equipment</legend>
         <div class="totc-v2-actor-equipment">
             <div class="totc-v2-actor-equipment__body">
+                ${BODY_DOLL_SVG}
                 ${equipment.bodySlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
             </div>
             <div class="totc-v2-actor-equipment__belt" aria-label="Belt slots">
                 ${equipment.beltSlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
             </div>
+            ${packSection}
         </div>
     </fieldset>`;
 }
@@ -698,6 +782,7 @@ export function renderActorEditorPanel(model = {}, { escapeHTML = (value) => Str
             </div>
             <footer class="totc-v2-actor-editor__actions">
                 <button type="submit" class="totc-v2-actor-editor__primary" data-action="actor-editor-save" ${model.dirty ? "" : "disabled"}>Save</button>
+                <button type="button" class="totc-v2-actor-editor__secondary" data-action="actor-generate-token" ${model.isGeneratingToken ? "disabled" : ""}>${model.isGeneratingToken ? "Generating…" : "Generate Token Art"}</button>
             </footer>
         </form>
     </section>`;

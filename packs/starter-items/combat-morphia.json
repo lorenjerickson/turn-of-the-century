@@ -2,7 +2,7 @@
   "_id": "72cd83992f140198",
   "name": "Combat Morphia",
   "type": "consumable",
-  "img": "modules/game-icons-net/blackbackground/syringe.svg",
+  "img": "icons/consumables/potions/potion-vial-corked-red.webp",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

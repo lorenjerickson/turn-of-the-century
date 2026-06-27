@@ -2,7 +2,7 @@
   "_id": "0b9cb902156be8c8",
   "name": "Galvanic Stimulant",
   "type": "consumable",
-  "img": "modules/game-icons-net/blackbackground/bottled-bolt.svg",
+  "img": "icons/consumables/potions/potion-vial-corked-blue.webp",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

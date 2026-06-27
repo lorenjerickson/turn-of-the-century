@@ -2,7 +2,7 @@
   "_id": "c6fe32c41b351d02",
   "name": "Railway Legs",
   "type": "talent",
-  "img": "modules/game-icons-net/blackbackground/railway.svg",
+  "img": "icons/environment/settlement/train.webp",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",

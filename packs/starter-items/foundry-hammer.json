@@ -2,7 +2,7 @@
   "_id": "44bf0b55ca0486ff",
   "name": "Foundry Hammer",
   "type": "weapon",
-  "img": "modules/game-icons-net/blackbackground/flat-hammer.svg",
+  "img": "icons/tools/hand/hammer-mallete-steel.webp",
   "system": {
     "artwork": {
       "image": "icons/weapons/swords/sword-guard-steel.webp",

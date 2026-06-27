@@ -2,7 +2,7 @@
   "_id": "810c7d00dd884a6c",
   "name": "Aetheric Elixir",
   "type": "consumable",
-  "img": "modules/game-icons-net/blackbackground/magic-potion.svg",
+  "img": "icons/consumables/potions/potion-jug-corked-purple.webp",
   "system": {
     "artwork": {
       "image": "icons/consumables/potions/potion-vial-corked-red.webp",

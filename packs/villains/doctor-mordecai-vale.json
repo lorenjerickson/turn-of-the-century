@@ -369,7 +369,7 @@
     {
       "name": "Galvanic Prod",
       "type": "weapon",
-      "img": "icons/weapons/staves/staff-orb-sh lightning.webp",
+      "img": "icons/weapons/staves/staff-orb-lightning.webp",
       "system": {
         "artwork": {
           "image": "icons/weapons/swords/sword-guard-steel.webp",

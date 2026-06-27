@@ -2,7 +2,7 @@
   "_id": "9de70cff63ebebfd",
   "name": "Brass Calling Whistle",
   "type": "item",
-  "img": "modules/game-icons-net/blackbackground/whistle.svg",
+  "img": "icons/tools/instruments/whistle-brass.webp",
   "system": {
     "artwork": {
       "image": "icons/svg/item-bag.svg",
