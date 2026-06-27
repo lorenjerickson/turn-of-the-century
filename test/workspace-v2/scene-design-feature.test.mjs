@@ -205,6 +205,58 @@ describe("SceneDesignFeature", () => {
         assert.ok(context.designIssuesPanel, "prepareContext should build designIssuesPanel");
     });
 
+    it("prepares context through narrow scene and panel ports", async () => {
+        const viewedScene = {
+            id: "scene-ports",
+            name: "Ports Yard",
+            width: 900,
+            height: 600,
+            grid: { type: 1, size: 50, distance: 5, units: "ft" }
+        };
+        const feature = new SceneDesignFeature({
+            scenePort: {
+                getViewedScene: () => viewedScene,
+                getCurrentScene: () => viewedScene,
+                getScenes: () => [viewedScene],
+                getScenePropertiesScene: () => viewedScene,
+                getScenePropertiesState: () => ({ status: "Via ports", error: "" }),
+                getActors: () => [],
+                getCombat: () => null,
+                getCanvas: () => null,
+                getUi: () => globalThis.ui,
+                getFoundry: () => globalThis.foundry,
+                getSceneById: () => viewedScene,
+                getActorById: () => null,
+                getDesignActionScene: (_panel, fallback) => fallback,
+                isGM: () => true,
+                patchScenePropertiesState: () => {}
+            },
+            panelPort: {
+                getLayout: () => ({ root: { centerDock: { stacks: [] } } }),
+                getPrimaryActivePanel: () => null,
+                getActiveCenterMapPanel: () => null,
+                getPanelDefinition: () => null,
+                isMapPanel: () => false,
+                getPanelSceneId: () => "",
+                makeSceneMapPanelDef: () => null,
+                openSceneMapPanel: () => ({}),
+                bindScene: () => {},
+                saveUserLayout: async () => {},
+                removeDeletedSceneMapPanel: async () => {},
+                openScenePropertiesPanel: async () => {},
+                createSceneDesignScene: async () => ({ ok: true })
+            },
+            gridCalibrationController: { state: { active: false } },
+            designActionRegistry: { getApplicableActions: () => [] }
+        });
+
+        const context = {};
+        await feature.prepareContext(context);
+
+        assert.equal(context.scene.name, "Ports Yard");
+        assert.equal(context.scenePropertiesPanel.status, "Via ports");
+    });
+
     it("registers designIssues hook family on hooksController during construction", () => {
         const registered = {};
         const hooksController = {

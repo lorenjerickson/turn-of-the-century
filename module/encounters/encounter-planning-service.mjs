@@ -24,12 +24,18 @@ function clampActionCost(value) {
     return Math.max(1, Math.floor(cost));
 }
 
+function defaultClone(value) {
+    if (globalThis.foundry?.utils?.deepClone) return foundry.utils.deepClone(value);
+    if (typeof structuredClone === "function") return structuredClone(value);
+    return JSON.parse(JSON.stringify(value));
+}
+
 function optionalNumber(value) {
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
 }
 
-function clampActionData(action, index = 0) {
+function clampActionData(action, index = 0, cloneData = defaultClone) {
     const apMin = clampActionCost(action.apMin ?? action.apCost ?? 1);
     const apMax = Math.max(apMin, clampActionCost(action.apMax ?? action.apCost ?? apMin));
     const apCost = Math.max(apMin, Math.min(apMax, clampActionCost(action.apCost ?? apMin)));
@@ -61,7 +67,7 @@ function clampActionData(action, index = 0) {
         movementOriginX: optionalNumber(action.movementOriginX),
         movementOriginY: optionalNumber(action.movementOriginY),
         planningLocked: Boolean(action.planningLocked),
-        planningRollResults: toArray(action.planningRollResults).map((result) => foundry.utils.deepClone(result))
+        planningRollResults: toArray(action.planningRollResults).map((result) => cloneData(result))
     };
 }
 
@@ -90,9 +96,8 @@ function lockedThroughIndex(plan = []) {
  * functions, emits events through an injected emitter, and never accesses
  * `canvas`, `game`, or Foundry document APIs directly.
  *
- * The only Foundry globals it relies on are `foundry.utils.deepClone`
- * (for cloning plan arrays and roll results) and `game.user?.isGM`
- * (surfaced through the `isCombatantOwned` port).
+ * Cloning and current time are injected ports so this service can run in
+ * focused tests without Foundry globals.
  *
  * @example
  * ```js
@@ -113,6 +118,8 @@ export class EncounterPlanningService {
     #isInitiativeGateActive;
     #emit;
     #restorePlanningOrigin;
+    #clone;
+    #now;
 
     /**
      * @param {{
@@ -121,16 +128,20 @@ export class EncounterPlanningService {
      *   isCombatantOwned:       (combatantId: string) => boolean,
      *   isInitiativeGateActive: () => boolean,
      *   emit:                   (eventName: string, payload: object) => void,
-     *   restorePlanningOrigin:  (combatantId: string, plan: object[]) => Promise<void>
+     *   restorePlanningOrigin:  (combatantId: string, plan: object[]) => Promise<void>,
+     *   clone?:                 (value: any) => any,
+     *   now?:                   () => number
      * }} ports
      */
-    constructor({ getState, setState, isCombatantOwned, isInitiativeGateActive, emit, restorePlanningOrigin }) {
+    constructor({ getState, setState, isCombatantOwned, isInitiativeGateActive, emit, restorePlanningOrigin, clone = defaultClone, now = () => Date.now() }) {
         this.#getState = getState;
         this.#setState = setState;
         this.#isCombatantOwned = isCombatantOwned;
         this.#isInitiativeGateActive = isInitiativeGateActive;
         this.#emit = emit;
         this.#restorePlanningOrigin = restorePlanningOrigin;
+        this.#clone = clone;
+        this.#now = now;
     }
 
     // -----------------------------------------------------------------------
@@ -165,13 +176,13 @@ export class EncounterPlanningService {
         this.#requirePlanningOpen(combatantId);
 
         const state = this.#getState();
-        const perCombatant = foundry.utils.deepClone(state.perCombatant ?? {});
+        const perCombatant = this.#clone(state.perCombatant ?? {});
         if (!perCombatant[combatantId]) {
             throw new Error(`Combatant ${combatantId} is not part of this encounter.`);
         }
 
         perCombatant[combatantId].ready = Boolean(ready);
-        perCombatant[combatantId].committedAt = ready ? Date.now() : 0;
+        perCombatant[combatantId].committedAt = ready ? this.#now() : 0;
 
         if (ready) {
             await this.#restorePlanningOrigin(combatantId, perCombatant[combatantId].plan);
@@ -270,7 +281,7 @@ export class EncounterPlanningService {
         }
 
         const index = Number(actionIndex);
-        const perCombatant = foundry.utils.deepClone(state.perCombatant ?? {});
+        const perCombatant = this.#clone(state.perCombatant ?? {});
         const combatantState = perCombatant[combatantId];
         const action = combatantState?.plan?.[index];
         if (!action || !Number.isInteger(index) || index < 0) {
@@ -287,7 +298,7 @@ export class EncounterPlanningService {
         action.planningLocked = true;
         action.planningRollResults = [
             ...toArray(action.planningRollResults),
-            foundry.utils.deepClone(roll)
+            this.#clone(roll)
         ];
         await this.#setState({ ...state, perCombatant });
         this.#emit(PLAN_UPDATED, {
@@ -358,23 +369,23 @@ export class EncounterPlanningService {
 
         const state = this.#getState();
         const apBudget = Number(state.apBudget ?? 6);
-        const perCombatant = foundry.utils.deepClone(state.perCombatant ?? {});
+        const perCombatant = this.#clone(state.perCombatant ?? {});
         const combatantState = perCombatant[combatantId];
         if (!combatantState) {
             throw new Error(`Combatant ${combatantId} is not part of the encounter state.`);
         }
 
-        const normalized = toArray(actions).map((action, index) => clampActionData(action, index));
+        const normalized = toArray(actions).map((action, index) => clampActionData(action, index, this.#clone));
 
         for (const [index, existingAction] of toArray(combatantState.plan).entries()) {
             if (!existingAction?.planningLocked) continue;
             const nextAction = normalized[index];
-            const normalizedExistingAction = clampActionData(existingAction, index);
+            const normalizedExistingAction = clampActionData(existingAction, index, this.#clone);
             if (!nextAction || lockedActionComparable(normalizedExistingAction) !== lockedActionComparable(nextAction)) {
                 throw new Error("Accepted roll results lock this part of the action plan until the GM reopens planning.");
             }
             nextAction.planningLocked = true;
-            nextAction.planningRollResults = foundry.utils.deepClone(existingAction.planningRollResults ?? []);
+            nextAction.planningRollResults = this.#clone(existingAction.planningRollResults ?? []);
         }
 
         const totalCost = normalized.reduce((sum, action) => sum + action.apCost, 0);

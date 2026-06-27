@@ -24,7 +24,6 @@ import {
     splitWallSegmentAtPoint
 } from "../wall-repository.mjs";
 import { buildSceneWallOverlayState } from "../scene-wall-detection.mjs";
-import { WORKSPACE_V2_DOCK_IDS } from "../constants.mjs";
 import {
     applySceneBackgroundUpdate,
     buildSceneBackgroundUpdateData,
@@ -45,6 +44,10 @@ import {
     updateSceneName,
     toggleDefaultScene
 } from "../scene-repository.mjs";
+import {
+    createSceneDesignPanelPort,
+    createSceneDesignScenePort
+} from "../scene-design-ports.mjs";
 
 const GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS = 100;
 const GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS = 500;
@@ -53,6 +56,8 @@ export class SceneDesignFeature extends WorkspaceFeature {
     constructor({
         gridCalibrationController,
         sceneWorkspaceController,
+        scenePort = null,
+        panelPort = null,
         encounterPlanningFeature = null,
         designActionRegistry = null,
         hooksController = null,
@@ -70,7 +75,8 @@ export class SceneDesignFeature extends WorkspaceFeature {
     } = {}) {
         super();
         this.gridCalibrationController = gridCalibrationController;
-        this.sceneWorkspaceController = sceneWorkspaceController;
+        this.scenePort = scenePort ?? createSceneDesignScenePort({ controller: sceneWorkspaceController, getActors });
+        this.panelPort = panelPort ?? createSceneDesignPanelPort({ controller: sceneWorkspaceController });
         this.encounterPlanningFeature = encounterPlanningFeature;
         this.designActionRegistry = designActionRegistry;
         this.hooksController = hooksController;
@@ -125,14 +131,14 @@ export class SceneDesignFeature extends WorkspaceFeature {
     }
 
     async prepareContext(context) {
-        const viewedScene = this.sceneWorkspaceController?.getViewedSceneDocument();
-        const scene = globalThis.canvas?.scene ?? globalThis.game?.scenes?.active ?? viewedScene;
+        const viewedScene = this.scenePort.getViewedScene();
+        const scene = this.scenePort.getCurrentScene() ?? viewedScene;
 
         context.scene = {
             id: scene?.id ?? null,
-            name: scene?.name ?? globalThis.game?.scenes?.viewed?.name ?? "Current Scene",
-            width: Number(scene?.width ?? globalThis.canvas?.dimensions?.sceneWidth ?? 0),
-            height: Number(scene?.height ?? globalThis.canvas?.dimensions?.sceneHeight ?? 0),
+            name: scene?.name ?? viewedScene?.name ?? "Current Scene",
+            width: Number(scene?.width ?? this.scenePort.getCanvas()?.dimensions?.sceneWidth ?? 0),
+            height: Number(scene?.height ?? this.scenePort.getCanvas()?.dimensions?.sceneHeight ?? 0),
             shiftX: Number(scene?.shiftX ?? 0),
             shiftY: Number(scene?.shiftY ?? 0),
             grid: {
@@ -144,17 +150,17 @@ export class SceneDesignFeature extends WorkspaceFeature {
         };
 
         context.scenesPanel = buildScenesPanelModel({
-            scenes: globalThis.game?.scenes,
+            scenes: this.scenePort.getScenes(),
             currentScene: scene,
-            viewedScene: globalThis.game?.scenes?.viewed ?? null
+            viewedScene
         });
 
-        const activeLayout = context.layout ?? this.sceneWorkspaceController?.layoutEngine?.getLayout();
+        const activeLayout = context.layout ?? this.panelPort.getLayout();
         const activeWorkspacePanel = this.#getPrimaryActivePanel(activeLayout);
-        const scenePropertiesScene = this.sceneWorkspaceController?.getScenePropertiesScene() ?? scene;
-        const scenePropertiesState = this.sceneWorkspaceController?.propertiesState ?? {};
-        const worldActors = Array.from(globalThis.game?.actors?.contents ?? []);
-        const isGMUser = Boolean(globalThis.game?.user?.isGM);
+        const scenePropertiesScene = this.scenePort.getScenePropertiesScene() ?? scene;
+        const scenePropertiesState = this.scenePort.getScenePropertiesState();
+        const worldActors = Array.from(this.scenePort.getActors() ?? []);
+        const isGMUser = this.scenePort.isGM();
 
         context.scenePropertiesPanel = buildScenePropertiesPanelModel({
             scene: scenePropertiesScene,
@@ -177,7 +183,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
             error: scenePropertiesState.error ?? ""
         });
 
-        const combat = globalThis.game?.combats?.active ?? globalThis.game?.combat ?? null;
+        const combat = this.scenePort.getCombat();
         context.designIssuesPanel = buildDesignIssuesPanelModel({
             scene,
             actors: worldActors,
@@ -226,12 +232,12 @@ export class SceneDesignFeature extends WorkspaceFeature {
                 
                 // map-mode-select
                 const modeSelectBtn = target?.closest("[data-action='map-mode-select']");
-                if (modeSelectBtn && globalThis.game?.user?.isGM) {
+                if (modeSelectBtn && this.scenePort.isGM()) {
                     event.preventDefault();
                     event.stopPropagation();
                     const panelId = String(modeSelectBtn.dataset.mapPanelId ?? "").trim();
                     const mode = String(modeSelectBtn.dataset.mode ?? "").trim();
-                    const current = this.getMapPanelToolbarState(this.sceneWorkspaceController.panelRegistry?.get?.(panelId) ?? { id: panelId });
+                    const current = this.getMapPanelToolbarState(this.panelPort.getPanelDefinition(panelId) ?? { id: panelId });
                     const nextMode = current.mode === mode ? null : mode;
                     this.patchMapPanelToolbarState(panelId, {
                         mode: nextMode,
@@ -249,7 +255,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
                 // map-wall-command
                 const wallCmdBtn = target?.closest("[data-action='map-wall-command']");
-                if (wallCmdBtn && globalThis.game?.user?.isGM) {
+                if (wallCmdBtn && this.scenePort.isGM()) {
                     event.preventDefault();
                     event.stopPropagation();
                     const panelId = String(wallCmdBtn.dataset.mapPanelId ?? "").trim();
@@ -279,7 +285,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
                 // map-wall-type
                 const wallTypeBtn = target?.closest("[data-action='map-wall-type']");
-                if (wallTypeBtn && globalThis.game?.user?.isGM) {
+                if (wallTypeBtn && this.scenePort.isGM()) {
                     event.preventDefault();
                     event.stopPropagation();
                     const panelId = String(wallTypeBtn.dataset.mapPanelId ?? "").trim();
@@ -498,9 +504,9 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
     getMapPanelToolbarState(panel = null) {
         const panelId = String(panel?.id ?? "").trim();
-        const sceneId = this.sceneWorkspaceController?.getPanelSceneId?.(panel) ?? "";
-        if (sceneId && this.sceneWorkspaceController?.getSceneDocumentById) {
-            const doc = this.sceneWorkspaceController.getSceneDocumentById(sceneId);
+        const sceneId = this.panelPort.getPanelSceneId(panel) ?? "";
+        if (sceneId) {
+            const doc = this.scenePort.getSceneById(sceneId);
             if (doc) this.syncSelectedWallsFromCanvas(doc);
         }
         const selectedWallCount = sceneId ? (this.selectedWallIdsByScene.get(sceneId)?.size ?? 0) : 0;
@@ -592,7 +598,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
         }
 
         const activeWallsPanel = this.getActiveWallsPanel();
-        if (event.key === "Escape" && globalThis.game?.user?.isGM && activeWallsPanel) {
+        if (event.key === "Escape" && this.scenePort.isGM() && activeWallsPanel) {
             event.preventDefault();
             event.stopPropagation();
             this.cancelWallAddSequence({ notify: false });
@@ -603,7 +609,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
             return;
         }
 
-        if (!globalThis.game?.user?.isGM) return;
+        if (!this.scenePort.isGM()) return;
         if (event.altKey || event.ctrlKey || event.metaKey) return;
         const target = event.target;
         if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target?.isContentEditable) return;
@@ -661,9 +667,9 @@ export class SceneDesignFeature extends WorkspaceFeature {
     }
 
     async deactivateWallModeForPanel(panelId = "") {
-        const panel = this.sceneWorkspaceController.panelRegistry?.get?.(panelId) ?? { id: panelId };
+        const panel = this.panelPort.getPanelDefinition(panelId) ?? { id: panelId };
         const canvas = this.canvasRef();
-        const scene = this.sceneWorkspaceController.getDesignActionScene(panel, canvas?.scene ?? globalThis.game.scenes?.active ?? globalThis.game.scenes?.viewed ?? null);
+        const scene = this.scenePort.getDesignActionScene(panel, canvas?.scene ?? this.scenePort.getCurrentScene());
         this.cancelWallAddSequence({ notify: false });
         this.clearWallCommandCanvasListener();
         if (scene) {
@@ -675,8 +681,8 @@ export class SceneDesignFeature extends WorkspaceFeature {
     }
 
     async deleteSelectedWallsForPanel(panelId = "") {
-        const panel = this.sceneWorkspaceController.panelRegistry?.get?.(panelId) ?? { id: panelId };
-        const scene = this.sceneWorkspaceController.getDesignActionScene(panel, globalThis.canvas?.scene ?? globalThis.game.scenes?.active ?? globalThis.game.scenes?.viewed ?? null);
+        const panel = this.panelPort.getPanelDefinition(panelId) ?? { id: panelId };
+        const scene = this.scenePort.getDesignActionScene(panel, this.scenePort.getCurrentScene());
         this.syncSelectedWallsFromCanvas(scene);
         const selectedIds = this.getSelectedWallIds(scene);
         if (!scene || !selectedIds.size) {
@@ -694,8 +700,8 @@ export class SceneDesignFeature extends WorkspaceFeature {
     }
 
     async joinSelectedWallsForPanel(panelId = "") {
-        const panel = this.sceneWorkspaceController.panelRegistry?.get?.(panelId) ?? { id: panelId };
-        const scene = this.sceneWorkspaceController.getDesignActionScene(panel, globalThis.canvas?.scene ?? globalThis.game.scenes?.active ?? globalThis.game.scenes?.viewed ?? null);
+        const panel = this.panelPort.getPanelDefinition(panelId) ?? { id: panelId };
+        const scene = this.scenePort.getDesignActionScene(panel, this.scenePort.getCurrentScene());
         this.syncSelectedWallsFromCanvas(scene);
         const joinableIds = this.getJoinableWallIds(scene);
         if (!scene || joinableIds.size < 2) {
@@ -736,7 +742,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
     async handleWallCommandPointerDown(event = {}) {
         const active = this.getActiveWallCommandPanel();
-        if (!active || !globalThis.game?.user?.isGM) return;
+        if (!active || !this.scenePort.isGM()) return;
         if (!isPrimaryPointerButton(event)) return;
 
         const canvas = this.canvasRef();
@@ -749,7 +755,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
         event?.stopPropagation?.();
         event?.preventDefault?.();
 
-        const scene = this.sceneWorkspaceController.getDesignActionScene(active.panel, canvas?.scene ?? globalThis.game.scenes?.active ?? globalThis.game.scenes?.viewed ?? null);
+        const scene = this.scenePort.getDesignActionScene(active.panel, canvas?.scene ?? this.scenePort.getCurrentScene());
         const grid = buildWallEditingGrid(scene);
         const snapped = snapPointToGridIntersection(point, grid);
         if (!scene || !snapped) {
@@ -847,16 +853,15 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
     async startGridCalibrationFromSceneProperties() {
         const activePanel = this.#getPrimaryActivePanel();
-        const viewedScene = this.sceneWorkspaceController.getViewedSceneDocument();
-        const defaultScene = globalThis.canvas?.scene ?? globalThis.game.scenes?.active ?? viewedScene ?? null;
-        const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+        const scene = this.scenePort.getScenePropertiesScene();
         if (!scene) {
             this.notifications?.warn?.("Open a scene before calibrating its grid.");
             return;
         }
 
         const sceneId = String(scene.id ?? scene._id ?? "").trim();
-        const currentSceneId = String(globalThis.canvas?.scene?.id ?? globalThis.canvas?.scene?._id ?? globalThis.game.scenes?.viewed?.id ?? "").trim();
+        const canvasScene = this.scenePort.getCanvas()?.scene;
+        const currentSceneId = String(canvasScene?.id ?? canvasScene?._id ?? this.scenePort.getViewedScene()?.id ?? "").trim();
         if (sceneId && currentSceneId !== sceneId && typeof scene.view === "function") {
             await scene.view();
         }
@@ -928,15 +933,16 @@ export class SceneDesignFeature extends WorkspaceFeature {
         const updateData = this.gridCalibrationController.buildUpdateData();
         if (!state?.active || !updateData) return false;
 
+        const canvas = this.scenePort.getCanvas();
         const scene = state.sceneId
-            ? globalThis.game.scenes?.get(state.sceneId)
-            : (globalThis.canvas?.scene ?? globalThis.game.scenes?.viewed ?? null);
+            ? this.scenePort.getSceneById(state.sceneId)
+            : (canvas?.scene ?? this.scenePort.getViewedScene());
         const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-        const canvasSceneId = String(globalThis.canvas?.scene?.id ?? globalThis.canvas?.scene?._id ?? "").trim();
+        const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
         if (!scene || (sceneId && canvasSceneId && sceneId !== canvasSceneId)) return false;
 
         try {
-            return await previewNativeCanvasGrid({ canvasRef: globalThis.canvas, scene, updateData });
+            return await previewNativeCanvasGrid({ canvasRef: canvas, scene, updateData });
         } catch (error) {
             console.warn("[turn-of-the-century] Grid calibration preview failed", error);
             return false;
@@ -956,16 +962,16 @@ export class SceneDesignFeature extends WorkspaceFeature {
                 if (!sceneId) return;
 
                 if (event.detail > 1) {
-                    const scene = this.sceneWorkspaceController.getSceneDocumentById(sceneId);
+                    const scene = this.scenePort.getSceneById(sceneId);
                     await activateScene(scene, { ui: this.uiRef(), logger: this.logger });
                     this.renderCallback({ force: false });
                     return;
                 }
 
-                const nextLayout = this.sceneWorkspaceController.openSceneMapPanel(sceneId);
-                this.sceneWorkspaceController.bindScene(sceneId);
+                const nextLayout = this.panelPort.openSceneMapPanel(sceneId);
+                this.panelPort.bindScene(sceneId);
 
-                const openedScene = this.sceneWorkspaceController.getSceneDocumentById(sceneId);
+                const openedScene = this.scenePort.getSceneById(sceneId);
                 this.activityLogger?.info?.("[open-scene-map] Map panel opened", {
                     sceneId,
                     sceneName: openedScene?.name ?? null,
@@ -976,7 +982,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
                     "getSceneBackgroundSource()": getSceneBackgroundSource(openedScene)
                 });
 
-                await this.sceneWorkspaceController.stateStore?.setUserLayout?.(nextLayout);
+                await this.panelPort.saveUserLayout(nextLayout);
                 this.renderCallback({ force: false });
             });
         });
@@ -1009,9 +1015,9 @@ export class SceneDesignFeature extends WorkspaceFeature {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+                const scene = this.scenePort.getScenePropertiesScene();
                 if (!scene) {
-                    this.sceneWorkspaceController.patchState({ status: "", error: "No scene is available to delete." });
+                    this.scenePort.patchScenePropertiesState({ status: "", error: "No scene is available to delete." });
                     this.renderCallback({ force: false });
                     return;
                 }
@@ -1021,12 +1027,12 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
                 const result = await deleteScene(scene, { logger: this.logger });
                 if (!result.ok) {
-                    this.sceneWorkspaceController.patchState({ status: "", error: result.error });
+                    this.scenePort.patchScenePropertiesState({ status: "", error: result.error });
                     this.renderCallback({ force: false });
                     return;
                 }
-                await this.sceneWorkspaceController.removeDeletedSceneMapPanel(scene);
-                this.sceneWorkspaceController.patchState({ sceneId: "", status: `Deleted ${result.name}.`, error: "" });
+                await this.panelPort.removeDeletedSceneMapPanel(scene);
+                this.scenePort.patchScenePropertiesState({ sceneId: "", status: `Deleted ${result.name}.`, error: "" });
                 this.renderCallback({ force: false });
             });
         });
@@ -1034,10 +1040,10 @@ export class SceneDesignFeature extends WorkspaceFeature {
         root?.querySelectorAll("[data-action='scene-properties-set-default']")?.forEach((checkbox) => {
             checkbox.addEventListener("change", async (event) => {
                 event.preventDefault();
-                const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+                const scene = this.scenePort.getScenePropertiesScene();
                 await toggleDefaultScene(
                     scene,
-                    globalThis.game?.scenes,
+                    this.scenePort.getScenes(),
                     checkbox.checked,
                     { logger: this.logger, activityLogger: this.activityLogger }
                 );
@@ -1049,7 +1055,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+                const scene = this.scenePort.getScenePropertiesScene();
                 await activateScene(scene, { ui: this.uiRef(), logger: this.logger });
                 this.renderCallback({ force: false });
             });
@@ -1096,7 +1102,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
                 const sceneId = String(btn.dataset.sceneId ?? "").trim();
                 const tokenId = String(btn.dataset.tokenId ?? "").trim();
                 if (!sceneId || !tokenId) return;
-                const scene = this.sceneWorkspaceController.getSceneDocumentById(sceneId);
+                const scene = this.scenePort.getSceneById(sceneId);
                 if (!scene) return;
                 try {
                     await scene.deleteEmbeddedDocuments("Token", [tokenId]);
@@ -1113,13 +1119,13 @@ export class SceneDesignFeature extends WorkspaceFeature {
     // -------------------------------------------------------------------------
 
     async saveSceneName(value = "") {
-        const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+        const scene = this.scenePort.getScenePropertiesScene();
         const result = await updateSceneName(scene, value, {
             logger: this.logger,
             activityLogger: this.activityLogger
         });
         if (!result.ok) {
-            this.sceneWorkspaceController.patchState({ error: result.error ?? "Scene name save failed." });
+            this.scenePort.patchScenePropertiesState({ error: result.error ?? "Scene name save failed." });
         }
         this.renderCallback({ force: false });
     }
@@ -1134,7 +1140,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
         const foundry = this.foundryRef();
         const ui = this.uiRef();
-        const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+        const scene = this.scenePort.getScenePropertiesScene();
         const sceneName = String(scene?.name ?? "").trim();
         const target = buildSceneBackgroundUploadTarget({ sceneName, filename: file.name });
 
@@ -1150,7 +1156,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
             "_source.background.src (before)": scene?._source?.background?.src ?? null
         });
 
-        this.sceneWorkspaceController.patchState({
+        this.scenePort.patchScenePropertiesState({
             status: target.valid ? `Uploading ${target.filename}...` : "",
             error: target.valid ? "" : "Choose a supported image after entering a scene name."
         });
@@ -1173,7 +1179,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
         if (!result?.ok) {
             this.activityLogger?.error?.("[bg-upload] Upload FAILED", { result });
-            this.sceneWorkspaceController.patchState({
+            this.scenePort.patchScenePropertiesState({
                 status: "",
                 error: result?.message ?? "Scene background upload failed."
             });
@@ -1208,7 +1214,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
                     "_source.levels[0].background.src (post-update)": scene?._source?.levels?.[0]?.background?.src ?? null,
                     "getSceneBackgroundSource() (post-update)": getSceneBackgroundSource(scene)
                 });
-                this.sceneWorkspaceController.patchState({
+                this.scenePort.patchScenePropertiesState({
                     status: `Background saved: ${result.filename}.`,
                     error: ""
                 });
@@ -1218,14 +1224,14 @@ export class SceneDesignFeature extends WorkspaceFeature {
                     sceneId: scene?.id,
                     error: err?.message ?? String(err)
                 });
-                this.sceneWorkspaceController.patchState({
+                this.scenePort.patchScenePropertiesState({
                     status: "",
                     error: "Background uploaded but scene save failed - see console."
                 });
             }
         } else {
             this.activityLogger?.warn?.("[bg-upload] No scene available - upload saved to server but not applied to any scene");
-            this.sceneWorkspaceController.patchState({
+            this.scenePort.patchScenePropertiesState({
                 status: `Uploaded ${result.filename}. Open a scene map to apply.`,
                 error: ""
             });
@@ -1235,19 +1241,19 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
     async #handleBackgroundDimensionSync() {
         const ui = this.uiRef();
-        const scene = this.sceneWorkspaceController.getScenePropertiesScene();
+        const scene = this.scenePort.getScenePropertiesScene();
         const backgroundPath = getSceneBackgroundSource(scene);
         if (!scene || !backgroundPath) {
             ui?.notifications?.warn?.("Choose a scene with a background image before fitting its dimensions.");
             return;
         }
 
-        this.sceneWorkspaceController.patchState({ status: "Reading background dimensions...", error: "" });
+        this.scenePort.patchScenePropertiesState({ status: "Reading background dimensions...", error: "" });
         this.renderCallback({ force: false });
 
         const dimensions = await loadImageDimensions(backgroundPath);
         if (!dimensions) {
-            this.sceneWorkspaceController.patchState({
+            this.scenePort.patchScenePropertiesState({
                 status: "",
                 error: "Background image dimensions could not be read."
             });
@@ -1263,13 +1269,13 @@ export class SceneDesignFeature extends WorkspaceFeature {
                 dimensions,
                 mode: result.mode
             });
-            this.sceneWorkspaceController.patchState({
+            this.scenePort.patchScenePropertiesState({
                 status: `Background fitted to ${dimensions.width} x ${dimensions.height}.`,
                 error: ""
             });
         } catch (error) {
             this.logger?.error?.("[turn-of-the-century] Background dimension sync failed", error);
-            this.sceneWorkspaceController.patchState({
+            this.scenePort.patchScenePropertiesState({
                 status: "",
                 error: "Background dimension update failed."
             });
@@ -1278,30 +1284,12 @@ export class SceneDesignFeature extends WorkspaceFeature {
         this.renderCallback({ force: false });
     }
 
-    #getPrimaryActivePanel(layout = this.sceneWorkspaceController?.layoutEngine?.getLayout()) {
-        const centerDock = layout?.root?.centerDock;
-        const centerStack = centerDock?.stacks?.[0];
-        const activePanelId = centerStack?.activePanelId;
-        const activePanel = centerStack?.panels?.find((panel) => panel.id === activePanelId) ?? centerStack?.panels?.[0];
-        if (activePanel) return activePanel;
-
-        for (const dockId of WORKSPACE_V2_DOCK_IDS) {
-            const stack = layout?.root?.[dockId]?.stacks?.[0];
-            const fallbackActiveId = stack?.activePanelId;
-            const fallbackPanel = stack?.panels?.find((panel) => panel.id === fallbackActiveId) ?? stack?.panels?.[0];
-            if (fallbackPanel) return fallbackPanel;
-        }
-
-        return null;
+    #getPrimaryActivePanel(layout = this.panelPort.getLayout()) {
+        return this.panelPort.getPrimaryActivePanel(layout);
     }
 
-    #getActiveCenterMapPanel(layout = this.sceneWorkspaceController?.layoutEngine?.getLayout()) {
-        const centerDock = layout?.root?.centerDock;
-        for (const stack of centerDock?.stacks ?? []) {
-            const activePanel = (stack?.panels ?? []).find((panel) => panel.id === stack.activePanelId) ?? stack?.panels?.[0];
-            if (this.#isMapPanel(activePanel)) return activePanel;
-        }
-        return null;
+    #getActiveCenterMapPanel(layout = this.panelPort.getLayout()) {
+        return this.panelPort.getActiveCenterMapPanel(layout);
     }
 
     // -------------------------------------------------------------------------
@@ -1313,20 +1301,22 @@ export class SceneDesignFeature extends WorkspaceFeature {
         if (!action) return;
 
         const sourcePanel = panelId ? this.#resolvePanelDefinitionLocal(panelId) : this.#getPrimaryActivePanel();
-        const currentScene = globalThis.canvas?.scene ?? globalThis.game?.scenes?.active ?? globalThis.game?.scenes?.viewed ?? null;
-        const actionScene = this.sceneWorkspaceController.getDesignActionScene(sourcePanel, currentScene);
+        const currentScene = this.scenePort.getCurrentScene();
+        const actionScene = this.scenePort.getDesignActionScene(sourcePanel, currentScene);
 
         try {
+            const canvas = this.scenePort.getCanvas();
+            const ui = this.scenePort.getUi();
             const result = await action.execute({
                 app: this,
                 panel: this.#getPrimaryActivePanel(),
                 sourcePanel,
                 scene: actionScene,
                 currentScene,
-                canvas: globalThis.canvas,
-                ui: globalThis.ui,
-                combat: globalThis.game?.combats?.active ?? globalThis.game?.combat ?? null,
-                controlledTokens: globalThis.canvas?.tokens?.controlled ?? []
+                canvas,
+                ui,
+                combat: this.scenePort.getCombat(),
+                controlledTokens: canvas?.tokens?.controlled ?? []
             });
 
             if (actionId === "scene.walls" && result?.ok && actionScene) this.refreshSceneWallOverlay(actionScene);
@@ -1336,55 +1326,57 @@ export class SceneDesignFeature extends WorkspaceFeature {
             }
 
             if (result?.level === "warn") {
-                globalThis.ui?.notifications?.warn(result.message ?? `${action.label} is not available right now.`);
+                ui?.notifications?.warn(result.message ?? `${action.label} is not available right now.`);
             } else if (result?.silent) {
                 // Action handled its own UI — no notification needed.
             } else if (result?.message) {
-                globalThis.ui?.notifications?.info(result.message);
+                ui?.notifications?.info(result.message);
             } else if (result?.name) {
-                globalThis.ui?.notifications?.info(`Created ${result.name}.`);
+                ui?.notifications?.info(`Created ${result.name}.`);
             } else {
-                globalThis.ui?.notifications?.info(`${action.label} design action is not wired yet.`);
+                ui?.notifications?.info(`${action.label} design action is not wired yet.`);
             }
         } catch (error) {
             console.error("[turn-of-the-century] Design action failed", { actionId, error });
-            globalThis.ui?.notifications?.error(error?.message ?? `${action.label} failed.`);
+            this.scenePort.getUi()?.notifications?.error(error?.message ?? `${action.label} failed.`);
         }
     }
 
     async executeDesignIssueNavigation(navigateAction, { subjectId = "", subjectType = "" } = {}) {
         try {
+            const canvas = this.scenePort.getCanvas();
+            const ui = this.scenePort.getUi();
             switch (navigateAction) {
                 case "navigate.actor": {
-                    const actor = subjectId ? globalThis.game?.actors?.get(subjectId) : null;
+                    const actor = subjectId ? this.scenePort.getActorById(subjectId) : null;
                     if (actor) renderFoundryApplication(actor.sheet, { force: true });
-                    else globalThis.ui?.notifications?.warn("Actor not found.");
+                    else ui?.notifications?.warn("Actor not found.");
                     break;
                 }
                 case "navigate.scene.config": {
-                    const scene = subjectId ? globalThis.game?.scenes?.get(subjectId) : (globalThis.canvas?.scene ?? null);
+                    const scene = subjectId ? this.scenePort.getSceneById(subjectId) : (canvas?.scene ?? null);
                     if (scene) renderFoundryApplication(scene.sheet, { force: true });
-                    else globalThis.ui?.notifications?.warn("Scene not found.");
+                    else ui?.notifications?.warn("Scene not found.");
                     break;
                 }
                 case "navigate.scene.walls":
-                    globalThis.canvas?.walls?.activate?.();
+                    canvas?.walls?.activate?.();
                     break;
                 case "navigate.scene.lights":
-                    globalThis.canvas?.lighting?.activate?.();
+                    canvas?.lighting?.activate?.();
                     break;
                 case "navigate.scene.tokens":
-                    globalThis.canvas?.tokens?.activate?.();
+                    canvas?.tokens?.activate?.();
                     break;
                 case "navigate.combat":
-                    renderFoundryApplication(globalThis.ui?.combat, { force: true });
+                    renderFoundryApplication(ui?.combat, { force: true });
                     break;
                 default:
                     console.warn("[turn-of-the-century] Unknown navigate action:", navigateAction);
             }
         } catch (error) {
             console.error("[turn-of-the-century] Design issue navigation failed", { navigateAction, subjectId, error });
-            globalThis.ui?.notifications?.error("Navigation failed — see console for details.");
+            this.scenePort.getUi()?.notifications?.error("Navigation failed - see console for details.");
         }
     }
 
@@ -1393,18 +1385,18 @@ export class SceneDesignFeature extends WorkspaceFeature {
     // -------------------------------------------------------------------------
 
     async openScenePropertiesPanel() {
-        await this.sceneWorkspaceController.openScenePropertiesPanel();
+        await this.panelPort.openScenePropertiesPanel();
     }
 
     async openSceneGridConfiguration({ scene = null } = {}) {
-        const targetScene = scene ?? globalThis.canvas?.scene ?? globalThis.game?.scenes?.viewed ?? null;
+        const targetScene = scene ?? this.scenePort.getCanvas()?.scene ?? this.scenePort.getViewedScene();
         if (!targetScene) {
-            globalThis.ui?.notifications?.warn?.("Open a scene before editing the grid.");
+            this.scenePort.getUi()?.notifications?.warn?.("Open a scene before editing the grid.");
             return;
         }
 
         const targetSceneId = String(targetScene?.id ?? targetScene?._id ?? "").trim();
-        const currentSceneId = String(globalThis.canvas?.scene?.id ?? globalThis.game?.scenes?.viewed?.id ?? "").trim();
+        const currentSceneId = String(this.scenePort.getCanvas()?.scene?.id ?? this.scenePort.getViewedScene()?.id ?? "").trim();
         if (targetSceneId && currentSceneId !== targetSceneId) {
             await targetScene.view?.();
         }
@@ -1412,12 +1404,12 @@ export class SceneDesignFeature extends WorkspaceFeature {
         if (targetScene.sheet?.render) {
             targetScene.sheet.render(true);
         } else {
-            globalThis.ui?.notifications?.warn?.("Scene configuration is not available in this Foundry session.");
+            this.scenePort.getUi()?.notifications?.warn?.("Scene configuration is not available in this Foundry session.");
         }
     }
 
     async createSceneDesignScene() {
-        return await this.sceneWorkspaceController.createSceneDesignScene();
+        return await this.panelPort.createSceneDesignScene();
     }
 
     // -------------------------------------------------------------------------
@@ -1427,17 +1419,17 @@ export class SceneDesignFeature extends WorkspaceFeature {
     #resolvePanelDefinitionLocal(panelId) {
         const id = String(panelId ?? "").trim();
         if (!id) return null;
-        const registered = this.sceneWorkspaceController.panelRegistry?.get?.(id);
+        const registered = this.panelPort.getPanelDefinition(id);
         if (registered) return registered;
         if (id.startsWith("map:")) {
-            const scene = globalThis.game?.scenes?.get?.(id.slice(4)) ?? null;
-            return this.sceneWorkspaceController.makeSceneMapPanelDef?.(scene) ?? null;
+            const scene = this.scenePort.getSceneById(id.slice(4));
+            return this.panelPort.makeSceneMapPanelDef(scene) ?? null;
         }
         return null;
     }
 
     #isMapPanel(panel) {
-        return this.sceneWorkspaceController?.isMapPanel?.(panel) ?? false;
+        return this.panelPort.isMapPanel(panel);
     }
 
     #sceneId(scene) {

@@ -157,8 +157,8 @@ export class WorkspaceLayoutFeature extends WorkspaceFeature {
     }
 
     dispose() {
-        document.removeEventListener("pointermove", this._onResizePointerMove);
-        document.removeEventListener("pointerup", this._onResizePointerUp);
+        document?.removeEventListener?.("pointermove", this._onResizePointerMove);
+        document?.removeEventListener?.("pointerup", this._onResizePointerUp);
         this._resizeSession = null;
         this.wiredElement = null;
     }

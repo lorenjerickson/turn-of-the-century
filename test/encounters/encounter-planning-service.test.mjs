@@ -40,7 +40,9 @@ function makePorts({
     initialState = null,
     isCombatantOwned = () => true,
     isInitiativeGateActive = () => false,
-    restorePlanningOrigin = async () => {}
+    restorePlanningOrigin = async () => {},
+    clone = (value) => structuredClone(value),
+    now = () => 12345
 } = {}) {
     let state = initialState ?? makeState();
     const emitted = [];
@@ -56,7 +58,9 @@ function makePorts({
             isCombatantOwned,
             isInitiativeGateActive,
             emit: (eventName, payload) => emitted.push({ eventName, payload }),
-            restorePlanningOrigin
+            restorePlanningOrigin,
+            clone,
+            now
         },
         getState: () => state,
         emitted,
@@ -129,6 +133,37 @@ describe("EncounterPlanningService.setCombatantPlan — AP budget", () => {
             () => service.setCombatantPlan("unknown", []),
             /not part of (the encounter state|this encounter)/
         );
+    });
+});
+
+describe("EncounterPlanningService ports", () => {
+    it("uses injected clone and clock ports without Foundry globals", async () => {
+        const previousFoundry = globalThis.foundry;
+        delete globalThis.foundry;
+        try {
+            const { service, getState } = makeService({
+                initialState: makeState({
+                    overrides: {
+                        perCombatant: {
+                            c1: {
+                                plan: [{ id: "attack", type: "attack", apCost: 1 }],
+                                ready: false,
+                                committedAt: 0
+                            }
+                        }
+                    }
+                }),
+                clone: (value) => structuredClone(value),
+                now: () => 98765
+            });
+
+            await service.setCombatantReady("c1", true);
+
+            assert.equal(getState().perCombatant.c1.committedAt, 98765);
+            assert.equal(getState().perCombatant.c1.ready, true);
+        } finally {
+            globalThis.foundry = previousFoundry;
+        }
     });
 });
 

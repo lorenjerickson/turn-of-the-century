@@ -151,6 +151,14 @@ describe("WorkspaceFeature and composition shell", () => {
         assert.ok(app.features.includes(app.sceneDesignFeature));
     });
 
+    it("registers scene design hook families through root construction", () => {
+        const app = new WorkspaceRootApp();
+        const designIssues = app.hooksController.families.get("designIssues");
+        assert.ok(designIssues, "designIssues hooks should be registered by the root composition path");
+        assert.ok(designIssues.some((entry) => entry.event === "updateScene"));
+        assert.ok(designIssues.some((entry) => entry.event === "createWall"));
+    });
+
     it("lets encounter planning project selected-token state into shared context", () => {
         const actor = { id: "actor-1", name: "Ada" };
         const token = { id: "token-1", actorId: actor.id };

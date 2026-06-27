@@ -1,16 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
+import { GamemasterFeature } from "../../module/ui/workspace-v2/controllers/gamemaster-feature.mjs";
 import {
     buildEncounterManagerPanelModel,
     renderEncounterManagerPanel
 } from "../../module/ui/workspace-v2/panels/encounter-manager-panel.mjs";
-
-const rootDir = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
-const workspaceRootSource = readFileSync(join(rootDir, "module/ui/workspace-v2/workspace-root-app.mjs"), "utf8");
 
 const escapeHTML = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -165,14 +160,30 @@ describe("encounter manager panel", () => {
         assert.match(html, /class="totc-v2-encounter-manager__current-line" aria-hidden="true"/);
     });
 
-    it("wires GM start encounter to activate the Encounter Manager panel", () => {
-        assert.match(workspaceRootSource, /case "gm-start-encounter"/);
-        assert.match(workspaceRootSource, /await this\.\#showEncounterManagerPanel\(\)/);
-        assert.match(workspaceRootSource, /this\.panelRegistry\.get\("encounter-manager"\)/);
-        assert.match(workspaceRootSource, /restorePanel\(panelDef, \{ preferredDockId: panelDef\.defaultDock \?\? "leftDock" \}\)/);
-        assert.match(workspaceRootSource, /#wireEncounterManagerPanelHandlers/);
-        assert.match(workspaceRootSource, /beginEncounterResolution/);
-        assert.match(workspaceRootSource, /encounter-manager-step-tick/);
-        assert.match(workspaceRootSource, /stepEncounterResolution/);
+    it("starts encounters through the GM feature and opens the Encounter Manager panel", async () => {
+        let createdWith = null;
+        let initialized = false;
+        let managerOpened = false;
+        let renderCalled = false;
+        const feature = new GamemasterFeature({
+            getGame: () => ({ user: { isGM: true }, combats: { active: null }, combat: null }),
+            getCanvas: () => ({ scene: { id: "scene-1" }, tokens: { controlled: [] } }),
+            getUi: () => ({ notifications: { warn() {}, info() {} } }),
+            createCombat: async (data) => {
+                createdWith = data;
+                return {
+                    initializeEncounterRound: async () => { initialized = true; }
+                };
+            },
+            openEncounterManager: async () => { managerOpened = true; },
+            render: () => { renderCalled = true; }
+        });
+
+        await feature.executeAction("gm-start-encounter");
+
+        assert.deepEqual(createdWith, { scene: "scene-1" });
+        assert.equal(initialized, true);
+        assert.equal(managerOpened, true);
+        assert.equal(renderCalled, true);
     });
 });
