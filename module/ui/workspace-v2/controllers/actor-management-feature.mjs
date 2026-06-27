@@ -21,12 +21,99 @@ function slugifyActorName(name) {
 
 const TOKEN_IMAGE_DIR = "assets/images/tokens";
 
-async function saveActorTokenImageToWorld(actorName, b64Data) {
-    const slug = slugifyActorName(actorName) || "actor-token";
-    const fileName = `${slug}.png`;
+function base64ToBytes(b64Data) {
     const binary = globalThis.atob?.(b64Data) ?? "";
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+}
+
+function bytesToBase64(bytes) {
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return globalThis.btoa?.(binary) ?? "";
+}
+
+export function applyCircularTokenAlphaMask(imageData, { paddingRatio = 0.012 } = {}) {
+    const width = Number(imageData?.width ?? 0);
+    const height = Number(imageData?.height ?? 0);
+    const data = imageData?.data;
+    if (!width || !height || !data) return imageData;
+
+    const centerX = (width - 1) / 2;
+    const centerY = (height - 1) / 2;
+    const padding = paddingRatio > 0 ? Math.max(1, Math.min(width, height) * paddingRatio) : 0;
+    const radius = (Math.min(width, height) / 2) - padding;
+    const radiusSquared = radius * radius;
+
+    for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+            const dx = x - centerX;
+            const dy = y - centerY;
+            if ((dx * dx) + (dy * dy) <= radiusSquared) continue;
+
+            const index = ((y * width) + x) * 4;
+            data[index] = 0;
+            data[index + 1] = 0;
+            data[index + 2] = 0;
+            data[index + 3] = 0;
+        }
+    }
+
+    return imageData;
+}
+
+async function blobToBase64(blob) {
+    const buffer = await blob.arrayBuffer();
+    return bytesToBase64(new Uint8Array(buffer));
+}
+
+async function normalizeActorTokenImageBase64(b64Data, {
+    ImageClass = globalThis.Image,
+    documentRef = globalThis.document,
+    URLRef = globalThis.URL
+} = {}) {
+    if (!ImageClass || !documentRef?.createElement || !URLRef?.createObjectURL) return b64Data;
+
+    const blob = new Blob([base64ToBytes(b64Data)], { type: "image/png" });
+    const objectUrl = URLRef.createObjectURL(blob);
+    try {
+        const image = new ImageClass();
+        await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = () => reject(new Error("Generated token image could not be decoded."));
+            image.src = objectUrl;
+        });
+
+        const canvas = documentRef.createElement("canvas");
+        canvas.width = image.naturalWidth || image.width || 1024;
+        canvas.height = image.naturalHeight || image.height || 1024;
+        const context = canvas.getContext?.("2d", { willReadFrequently: true });
+        if (!context?.drawImage || !context?.getImageData || !context?.putImageData) return b64Data;
+
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        context.putImageData(applyCircularTokenAlphaMask(imageData), 0, 0);
+
+        if (typeof canvas.toBlob !== "function") return b64Data;
+        const normalizedBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+        if (!normalizedBlob) return b64Data;
+        return await blobToBase64(normalizedBlob);
+    } catch (_error) {
+        return b64Data;
+    } finally {
+        URLRef.revokeObjectURL?.(objectUrl);
+    }
+}
+
+async function saveActorTokenImageToWorld(actorName, b64Data) {
+    const slug = slugifyActorName(actorName) || "actor-token";
+    const fileName = `${slug}.png`;
+    const normalizedB64 = await normalizeActorTokenImageBase64(b64Data);
+    const bytes = base64ToBytes(normalizedB64);
     const blob = new Blob([bytes], { type: "image/png" });
     const FileClass = getFileConstructor();
     const file = FileClass ? new FileClass([blob], fileName, { type: "image/png" }) : null;

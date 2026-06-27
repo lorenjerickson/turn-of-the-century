@@ -152,6 +152,7 @@ export class GamemasterFeature extends WorkspaceFeature {
         this.generateMarketOfferBoard = generateMarketOfferBoard;
         this.sectionSnapshots = new Map();
         this.wiredElement = null;
+        this._clickHandler = (event) => this.#handlePanelClick(event);
 
         this._refreshHandler = () => this.renderCallback({ force: false });
         hooksController?.registerFamily("gamemaster", [
@@ -187,42 +188,47 @@ export class GamemasterFeature extends WorkspaceFeature {
 
     bind(rootElement) {
         if (this.wiredElement === rootElement) return;
+        this.wiredElement?.removeEventListener?.("click", this._clickHandler);
         this.wiredElement = rootElement;
         if (!rootElement || typeof rootElement.addEventListener !== "function") return;
+        rootElement.addEventListener("click", this._clickHandler);
+    }
 
-        rootElement.querySelectorAll?.("[data-action='gm-execute-action']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const actionId = button.dataset.gmActionId;
-                if (!actionId) return;
-                await this.executeAction(actionId);
-            });
-        });
+    async #handlePanelClick(event) {
+        const target = event.target;
+        const actionButton = target?.closest?.("[data-action='gm-execute-action']");
+        if (actionButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            const actionId = actionButton.dataset.gmActionId;
+            if (!actionId) return;
+            await this.executeAction(actionId);
+            return;
+        }
 
-        rootElement.querySelectorAll?.("[data-action='gm-toggle-group']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const groupId = String(button.dataset.groupId ?? "").trim();
-                if (!groupId) return;
-                const current = this.getPanelState();
-                const collapsed = new Set(current.collapsedGroupIds ?? []);
-                if (collapsed.has(groupId)) collapsed.delete(groupId);
-                else collapsed.add(groupId);
-                await this.setPanelStatePatch({ collapsedGroupIds: [...collapsed] });
-                await this.renderCallback({ force: false });
-            });
-        });
+        const groupButton = target?.closest?.("[data-action='gm-toggle-group']");
+        if (groupButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            const groupId = String(groupButton.dataset.groupId ?? "").trim();
+            if (!groupId) return;
+            const current = this.getPanelState();
+            const collapsed = new Set(current.collapsedGroupIds ?? []);
+            if (collapsed.has(groupId)) collapsed.delete(groupId);
+            else collapsed.add(groupId);
+            await this.setPanelStatePatch({ collapsedGroupIds: [...collapsed] });
+            await this.renderCallback({ force: false });
+            return;
+        }
 
-        rootElement.querySelectorAll?.("[data-action='gm-toggle-all-actions']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                const current = this.getPanelState();
-                await this.setPanelStatePatch({ allActionsExpanded: !current.allActionsExpanded });
-                await this.renderCallback({ force: false });
-            });
-        });
+        const allActionsButton = target?.closest?.("[data-action='gm-toggle-all-actions']");
+        if (allActionsButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            const current = this.getPanelState();
+            await this.setPanelStatePatch({ allActionsExpanded: !current.allActionsExpanded });
+            await this.renderCallback({ force: false });
+        }
     }
 
     getPanelState() {

@@ -6,6 +6,7 @@ import {
     GENERAL_GENERATION_PROMPT_PATH,
     LLMService,
     OPENAI_API_KEY_SETTING,
+    buildActorTokenImagePrompt,
     buildGenerationContextPrompt,
     extractOpenAIResponseText,
     getGenerationJsonConstraint,
@@ -250,6 +251,26 @@ describe("LLMService", () => {
         assert.match(constraint, /Actor Name/);
     });
 
+    it("builds actor token prompts with a circular frame and transparent exterior", () => {
+        const prompt = buildActorTokenImagePrompt({
+            name: "Ada Kingsley",
+            system: {
+                biography: "<p>A noted investigator with a brass-handled revolver.</p>",
+                classification: {
+                    category: "npc",
+                    species: "Human",
+                    profession: "Investigator",
+                    origin: "London"
+                }
+            }
+        });
+
+        assert.match(prompt, /Transparent background outside the token frame/i);
+        assert.match(prompt, /no checkerboard pattern/i);
+        assert.match(prompt, /circular brass or iron token frame/i);
+        assert.doesNotMatch(prompt, /no border/i);
+    });
+
     it("falls back when a generation prep prompt file is unavailable", async () => {
         globalThis.fetch = async () => ({ ok: false, text: async () => "" });
 
@@ -270,6 +291,36 @@ describe("LLMService", () => {
             LLMService.generate("Test prompt"),
             /No OpenAI API Key found/
         );
+    });
+
+    it("requests generated actor token images without unsupported transparent background parameters", async () => {
+        globalThis.game = {
+            settings: {
+                get: () => "test-key"
+            }
+        };
+
+        let fetchCall = null;
+        globalThis.fetch = async (url, options) => {
+            fetchCall = { url, options };
+            return {
+                ok: true,
+                json: async () => ({ data: [{ b64_json: "image-data" }] })
+            };
+        };
+
+        const result = await LLMService.generateActorTokenImage("Token prompt");
+
+        assert.equal(result, "image-data");
+        assert.ok(fetchCall, "fetch should have been called");
+        assert.equal(fetchCall.url, "https://api.openai.com/v1/images/generations");
+        assert.equal(fetchCall.options.headers.Authorization, "Bearer test-key");
+
+        const body = JSON.parse(fetchCall.options.body);
+        assert.equal(body.prompt, "Token prompt");
+        assert.equal(body.size, "1024x1024");
+        assert.equal(body.quality, "auto");
+        assert.equal(Object.hasOwn(body, "background"), false);
     });
 
     it("calls OpenAI Responses with the composed prompt and JSON output format", async () => {

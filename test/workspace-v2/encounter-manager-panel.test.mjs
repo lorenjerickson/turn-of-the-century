@@ -186,4 +186,42 @@ describe("encounter manager panel", () => {
         assert.equal(managerOpened, true);
         assert.equal(renderCalled, true);
     });
+
+    it("executes dynamically rendered GM panel actions through delegated click handling", async () => {
+        let deleted = false;
+        let renderCalled = false;
+        let clickHandler = null;
+        const combat = {
+            id: "combat-1",
+            delete: async () => { deleted = true; }
+        };
+        const feature = new GamemasterFeature({
+            getGame: () => ({ user: { isGM: true }, combats: { active: combat }, combat: null }),
+            getCanvas: () => ({ scene: { id: "scene-1" }, tokens: { controlled: [] } }),
+            getUi: () => ({ notifications: { warn() {}, info() {} } }),
+            render: () => { renderCalled = true; }
+        });
+        const root = {
+            addEventListener: (eventName, handler) => {
+                if (eventName === "click") clickHandler = handler;
+            },
+            removeEventListener: () => {}
+        };
+
+        feature.bind(root);
+        feature.bind(root);
+
+        const button = {
+            dataset: { gmActionId: "gm-end-combat" },
+            closest: (selector) => selector === "[data-action='gm-execute-action']" ? button : null
+        };
+        await clickHandler({
+            target: button,
+            preventDefault() {},
+            stopPropagation() {}
+        });
+
+        assert.equal(deleted, true);
+        assert.equal(renderCalled, true);
+    });
 });

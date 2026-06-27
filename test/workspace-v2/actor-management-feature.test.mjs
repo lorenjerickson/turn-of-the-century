@@ -65,7 +65,10 @@ globalThis.canvas = {
 };
 
 // Dynamically import to ensure global mocks are defined before modules load
-const { ActorManagementFeature } = await import("../../module/ui/workspace-v2/controllers/actor-management-feature.mjs");
+const {
+    ActorManagementFeature,
+    applyCircularTokenAlphaMask
+} = await import("../../module/ui/workspace-v2/controllers/actor-management-feature.mjs");
 
 describe("ActorManagementFeature", () => {
     let mockLayoutEngine;
@@ -156,5 +159,27 @@ describe("ActorManagementFeature", () => {
 
         feature.bind("mock-root");
         assert.equal(wired, true);
+    });
+
+    it("masks generated token art outside a circular frame", () => {
+        const width = 5;
+        const height = 5;
+        const data = new Uint8ClampedArray(width * height * 4);
+        for (let i = 0; i < data.length; i += 4) {
+            data[i] = 210;
+            data[i + 1] = 210;
+            data[i + 2] = 210;
+            data[i + 3] = 255;
+        }
+
+        applyCircularTokenAlphaMask({ width, height, data }, { paddingRatio: 0 });
+
+        const alphaAt = (x, y) => data[((y * width) + x) * 4 + 3];
+        assert.equal(alphaAt(0, 0), 0);
+        assert.equal(alphaAt(4, 0), 0);
+        assert.equal(alphaAt(0, 4), 0);
+        assert.equal(alphaAt(4, 4), 0);
+        assert.equal(alphaAt(2, 2), 255);
+        assert.equal(alphaAt(2, 0), 255);
     });
 });

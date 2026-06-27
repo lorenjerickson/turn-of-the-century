@@ -4,8 +4,10 @@ const TOKEN_ART_STYLE_SUFFIX = [
     "Style: gothic-steampunk 1890s–1910s aesthetic.",
     "Favour brass, iron, leather, soot, gaslight, cabinet-card portrait quality, Victorian engravings.",
     "No modern sci-fi, no fantasy tropes, no neon or plastic.",
-    "Transparent background — subject only, no backdrop, no ground shadow, no border.",
-    "Suitable for a miniature token on a tabletop battle-map. No text or UI overlays."
+    "Transparent background outside the token frame — transparent pixels only, no checkerboard pattern, no backdrop, no ground shadow.",
+    "Add a circular brass or iron token frame around the subject, leaving the area outside the frame fully transparent.",
+    "Suitable for a miniature token on a tabletop battle-map. No text or UI overlays.",
+    "Output in PNG format, 1024x1024 pixels, high quality, lossless compression."
 ].join(" ");
 const OPENAI_DEFAULT_MODEL = "gpt-5.5";
 const DEFAULT_SYSTEM_PROMPT = "You are a master architect for the Turn of the Century Roleplaying Game, responsible for creating engaging, historically grounded campaigns and scenarios.";
@@ -313,8 +315,7 @@ export class LLMService {
                 prompt,
                 n: 1,
                 size: "1024x1024",
-                quality: "auto",
-                background: "transparent"
+                quality: "auto"
             })
         });
 
