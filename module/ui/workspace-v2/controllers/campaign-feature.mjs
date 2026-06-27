@@ -46,7 +46,10 @@ export class CampaignFeature extends WorkspaceFeature {
 
         this.campaignViewState = {
             selectedId: "",
-            expandedIds: new Set()
+            expandedIds: new Set(),
+            editingDetail: false,
+            editingItemId: "",
+            detailEdits: {}
         };
 
         this.gmAssistantState = {
@@ -73,11 +76,17 @@ export class CampaignFeature extends WorkspaceFeature {
         const scenarios = Array.from(globalThis.game?.items?.contents || []).filter(i => i.type === "scenario");
         context.scenarioBuilderPanel = buildScenarioBuilderPanelModel({ scenarios });
 
-        context.campaignViewPanel = buildCampaignViewPanelModel({
-            items: Array.from(globalThis.game?.items?.contents || []),
-            selectedId: this.campaignViewState.selectedId,
-            expandedIds: this.campaignViewState.expandedIds
-        });
+        context.campaignViewPanel = {
+            ...buildCampaignViewPanelModel({
+                items: Array.from(globalThis.game?.items?.contents || []),
+                selectedId: this.campaignViewState.editingDetail
+                    ? (this.campaignViewState.editingItemId || this.campaignViewState.selectedId)
+                    : this.campaignViewState.selectedId,
+                expandedIds: this.campaignViewState.expandedIds
+            }),
+            editing: this.campaignViewState.editingDetail,
+            detailEdits: this.campaignViewState.detailEdits
+        };
 
         const locationOptions = Array.from(globalThis.game?.items?.contents || [])
             .filter((item) => item.type === "location")
@@ -175,7 +184,43 @@ export class CampaignFeature extends WorkspaceFeature {
                 event.preventDefault();
                 event.stopPropagation();
                 this.campaignViewState.selectedId = String(viewSelectBtn.dataset.itemId ?? "").trim();
+                this.campaignViewState.editingDetail = false;
+                this.campaignViewState.editingItemId = "";
+                this.campaignViewState.detailEdits = {};
                 this.renderCallback({ force: false });
+                return;
+            }
+
+            // campaign-view-edit-detail
+            const editDetailBtn = target?.closest("[data-action='campaign-view-edit-detail']");
+            if (editDetailBtn) {
+                event.preventDefault();
+                event.stopPropagation();
+                this.campaignViewState.editingDetail = true;
+                this.campaignViewState.editingItemId = this.campaignViewState.selectedId;
+                this.campaignViewState.detailEdits = {};
+                this.renderCallback({ force: false });
+                return;
+            }
+
+            // campaign-view-cancel-detail
+            const cancelDetailBtn = target?.closest("[data-action='campaign-view-cancel-detail']");
+            if (cancelDetailBtn) {
+                event.preventDefault();
+                event.stopPropagation();
+                this.campaignViewState.editingDetail = false;
+                this.campaignViewState.editingItemId = "";
+                this.campaignViewState.detailEdits = {};
+                this.renderCallback({ force: false });
+                return;
+            }
+
+            // campaign-view-save-detail
+            const saveDetailBtn = target?.closest("[data-action='campaign-view-save-detail']");
+            if (saveDetailBtn) {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#handleDetailSave(rootElement);
                 return;
             }
 
@@ -281,9 +326,25 @@ export class CampaignFeature extends WorkspaceFeature {
             }
         });
 
-        // Input delegation (for prompt textbox height & debounce)
+        // Input delegation
         rootElement.addEventListener("input", (event) => {
             const input = event.target;
+
+            // Silently track detail field edits so re-renders preserve user's work
+            if (this.campaignViewState.editingDetail) {
+                const editField = input?.closest("[data-edit-field]");
+                if (editField) {
+                    const path = String(editField.dataset.editField ?? "").trim();
+                    const fieldType = String(editField.dataset.fieldType ?? "").trim();
+                    if (path) {
+                        this.campaignViewState.detailEdits[path] = fieldType === "html"
+                            ? editField.innerHTML
+                            : String(editField.value ?? "");
+                    }
+                    return;
+                }
+            }
+
             if (input?.matches?.("[data-action='gm-assistant-set-prompt']")) {
                 const value = String(input.value ?? "");
                 this.gmAssistantState.prompt = value;
@@ -611,6 +672,41 @@ export class CampaignFeature extends WorkspaceFeature {
         this.gmAssistantState.prompt = "";
         this.gmAssistantState.campaignId = "";
         this.gmAssistantState.scenarioId = "";
+        this.renderCallback({ force: false });
+    }
+
+    async #handleDetailSave(rootElement) {
+        const itemId = this.campaignViewState.editingItemId || this.campaignViewState.selectedId;
+        const item = this.#getItemDocumentById(itemId);
+        if (!item) return;
+
+        const editForm = rootElement?.querySelector("[data-campaign-view-edit-form='true']");
+        if (!editForm) return;
+
+        const updateData = {};
+        const fields = editForm.querySelectorAll("[data-edit-field]");
+        for (const field of fields) {
+            const path = String(field.dataset.editField ?? "").trim();
+            const fieldType = String(field.dataset.fieldType ?? "").trim();
+            if (!path) continue;
+            let value;
+            if (fieldType === "html" && field.contentEditable === "true") {
+                value = field.innerHTML;
+            } else if (fieldType === "array") {
+                value = String(field.value ?? "").split("\n").map(s => s.trim()).filter(Boolean);
+            } else {
+                value = String(field.value ?? "");
+            }
+            updateData[`system.${path}`] = value;
+        }
+
+        this.campaignViewState.editingDetail = false;
+        this.campaignViewState.editingItemId = "";
+        this.campaignViewState.detailEdits = {};
+
+        if (Object.keys(updateData).length > 0) {
+            await item.update(updateData);
+        }
         this.renderCallback({ force: false });
     }
 

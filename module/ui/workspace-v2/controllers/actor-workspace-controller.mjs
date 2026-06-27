@@ -4,13 +4,14 @@ export const DEFAULT_ACTOR_EDITOR_STATE = Object.freeze({
     actorType: "pawn",
     additionalPrompt: "",
     isGenerating: false,
+    isGeneratingToken: false,
     formData: {},
     dirty: false,
     status: "",
     error: ""
 });
 
-const COMPENDIUM_ITEM_DRAG_MIME = "application/x-totc-compendium-item";
+const CODEX_ITEM_DRAG_MIME = "application/x-totc-codex-item";
 const TEXT_PLAIN_MIME = "text/plain";
 const EQUIPMENT_SLOT_KEYS = Object.freeze(["head", "neck", "torso", "hands", "legs", "feet", "belt"]);
 const EQUIPMENT_SLOT_CONFIG = Object.freeze({
@@ -78,10 +79,10 @@ function findEmptyEquipmentSlot(actor, item) {
 }
 
 function parseDropPayload(dataTransfer) {
-    const compendiumData = String(dataTransfer?.getData?.(COMPENDIUM_ITEM_DRAG_MIME) ?? "").trim();
-    if (compendiumData) {
+    const codexData = String(dataTransfer?.getData?.(CODEX_ITEM_DRAG_MIME) ?? "").trim();
+    if (codexData) {
         try {
-            const payload = JSON.parse(compendiumData);
+            const payload = JSON.parse(codexData);
             if (payload?.type === "Item" && (payload?.uuid || payload?.data)) return payload;
         } catch {
             // Ignore invalid mime payload and fall back to text/plain parsing.
@@ -108,6 +109,9 @@ export class ActorWorkspaceController {
         buildActorUpdateDataFromFormData = () => ({}),
         fromUuid = async (uuid) => globalThis.fromUuid?.(uuid),
         openActorEditor = async () => {},
+        generateActorTokenImage = async () => "",
+        saveActorTokenImage = async () => "",
+        updateSceneTokensByActorId = async () => {},
         render = () => {},
         logger = console
     } = {}) {
@@ -118,6 +122,9 @@ export class ActorWorkspaceController {
         this.buildActorUpdateDataFromFormData = buildActorUpdateDataFromFormData;
         this.fromUuid = fromUuid;
         this.openActorEditor = openActorEditor;
+        this.generateActorTokenImage = generateActorTokenImage;
+        this.saveActorTokenImage = saveActorTokenImage;
+        this.updateSceneTokensByActorId = updateSceneTokensByActorId;
         this.render = render;
         this.logger = logger;
         this.searchQuery = "";
@@ -152,7 +159,15 @@ export class ActorWorkspaceController {
 
         const slot = findEmptyEquipmentSlot(actor, createdItem);
         if (!slot) {
-            return { createdItem, equipped: false };
+            const packItemIds = Array.isArray(actor.system?.inventory?.pack?.itemIds)
+                ? actor.system.inventory.pack.itemIds
+                : [];
+            if (!packItemIds.includes(createdItem.id)) {
+                await actor.update({
+                    "system.inventory.pack.itemIds": [...packItemIds, createdItem.id]
+                });
+            }
+            return { createdItem, equipped: false, packed: true };
         }
 
         const nextItemIds = [...slot.itemIds];
@@ -299,6 +314,36 @@ export class ActorWorkspaceController {
         this.render();
     }
 
+    async generateActorTokenArt() {
+        if (this.editorState.isGeneratingToken) return;
+        const actor = this.getSelectedActor();
+        if (!actor) return;
+
+        this.editorState = { ...this.editorState, isGeneratingToken: true, status: "Generating token art…", error: "" };
+        this.render();
+
+        try {
+            const b64 = await this.generateActorTokenImage(actor);
+            const path = await this.saveActorTokenImage(actor.name, b64);
+            if (path) {
+                await actor.update({
+                    img: path,
+                    "prototypeToken.texture.src": path,
+                    "system.artwork.image": path,
+                    "system.tokenArtwork.image": path
+                });
+                const actorId = String(actor?.id ?? actor?._id ?? "").trim();
+                if (actorId) await this.updateSceneTokensByActorId(actorId, path);
+            }
+            this.editorState = { ...this.editorState, isGeneratingToken: false, status: "Token art generated.", error: "" };
+        } catch (error) {
+            this.logger?.error?.("[turn-of-the-century] Actor token generation failed", error);
+            this.editorState = { ...this.editorState, isGeneratingToken: false, status: "", error: error?.message ?? "Token art generation failed." };
+        }
+
+        this.render();
+    }
+
     async saveActorForm(form) {
         const formData = new FormData(form);
         const actorId = String(formData.get("actorId") ?? this.editorState.actorId ?? "").trim();
@@ -438,6 +483,14 @@ export class ActorWorkspaceController {
             });
         });
 
+        root?.querySelectorAll("[data-action='actor-generate-token']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.generateActorTokenArt();
+            });
+        });
+
         root?.querySelectorAll("[data-action='actor-editor-save-form']")?.forEach((form) => {
             form.addEventListener("submit", async (event) => {
                 event.preventDefault();
@@ -491,7 +544,7 @@ export class ActorWorkspaceController {
                 }
 
                 try {
-                    const { createdItem, equipped } = await this.importItemToActor(actor, payload);
+                    const { createdItem, equipped, packed } = await this.importItemToActor(actor, payload);
                     this.editorState = {
                         ...this.editorState,
                         mode: "edit",
@@ -501,7 +554,9 @@ export class ActorWorkspaceController {
                         dirty: false,
                         status: equipped
                             ? `Added ${createdItem.name ?? "item"} and equipped it.`
-                            : `Added ${createdItem.name ?? "item"} to inventory.`,
+                            : packed
+                                ? `Added ${createdItem.name ?? "item"} to pack — no free slot available.`
+                                : `Added ${createdItem.name ?? "item"} to inventory.`,
                         error: ""
                     };
                 } catch (error) {
@@ -517,13 +572,13 @@ export class ActorWorkspaceController {
             });
         });
 
-        root?.querySelectorAll("[data-compendium-item-draggable='true']")?.forEach((entry) => {
+        root?.querySelectorAll("[data-codex-item-draggable='true']")?.forEach((entry) => {
             entry.addEventListener("dragstart", (event) => {
                 const uuid = String(entry.dataset.entryUuid ?? "").trim();
                 if (!uuid || !event.dataTransfer) return;
                 const payload = JSON.stringify({ type: "Item", uuid });
                 event.dataTransfer.effectAllowed = "copy";
-                event.dataTransfer.setData(COMPENDIUM_ITEM_DRAG_MIME, payload);
+                event.dataTransfer.setData(CODEX_ITEM_DRAG_MIME, payload);
                 event.dataTransfer.setData(TEXT_PLAIN_MIME, payload);
                 entry.classList?.add("is-dragging");
             });

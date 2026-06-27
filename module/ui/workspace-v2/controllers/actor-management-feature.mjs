@@ -8,8 +8,44 @@ import {
     renderActorEditorPanel,
     renderActorListPanel
 } from "../panels/actor-management-panel.mjs";
-import { LLMService } from "../../../services/llm-service.mjs";
-import { requireActorDocumentClass } from "../../../foundry-v14-runtime.mjs";
+import { LLMService, buildActorTokenImagePrompt } from "../../../services/llm-service.mjs";
+import { requireActorDocumentClass, requireFilePicker, getFileConstructor } from "../../../foundry-v14-runtime.mjs";
+
+function slugifyActorName(name) {
+    return String(name ?? "")
+        .toLowerCase()
+        .replace(/['']/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
+const TOKEN_IMAGE_DIR = "assets/images/tokens";
+
+async function saveActorTokenImageToWorld(actorName, b64Data) {
+    const slug = slugifyActorName(actorName) || "actor-token";
+    const fileName = `${slug}.png`;
+    const binary = globalThis.atob?.(b64Data) ?? "";
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: "image/png" });
+    const FileClass = getFileConstructor();
+    const file = FileClass ? new FileClass([blob], fileName, { type: "image/png" }) : null;
+    if (!file) throw new Error("File API is not available.");
+
+    const fp = requireFilePicker();
+    let current = "";
+    for (const segment of TOKEN_IMAGE_DIR.split("/").filter(Boolean)) {
+        current = current ? `${current}/${segment}` : segment;
+        try {
+            await fp.createDirectory?.("data", current, {});
+        } catch (error) {
+            if (!/exist|EEXIST|already/i.test(String(error?.message ?? ""))) throw error;
+        }
+    }
+
+    const result = await fp.upload?.("data", TOKEN_IMAGE_DIR, file, { notify: false });
+    return String(result?.path ?? "");
+}
 
 const ActorDocumentClass = requireActorDocumentClass();
 
@@ -35,6 +71,17 @@ export class ActorManagementFeature extends WorkspaceFeature {
             buildGeneratedActorDocumentData,
             buildActorUpdateDataFromFormData,
             openActorEditor: () => this.#openActorEditorPanel(),
+            generateActorTokenImage: (actor) => LLMService.generateActorTokenImage(buildActorTokenImagePrompt(actor)),
+            saveActorTokenImage: (name, b64) => saveActorTokenImageToWorld(name, b64),
+            updateSceneTokensByActorId: async (actorId, path) => {
+                for (const scene of Array.from(globalThis.game?.scenes?.contents ?? [])) {
+                    const matching = Array.from(scene.tokens?.contents ?? [])
+                        .filter(t => String(t.actorId ?? "") === actorId);
+                    for (const token of matching) {
+                        await token.update({ "texture.src": path });
+                    }
+                }
+            },
             render: () => this.renderCallback({ force: false }),
             logger: console
         });

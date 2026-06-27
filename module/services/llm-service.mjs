@@ -1,4 +1,12 @@
 const OPENAI_API_BASE_URL = "https://api.openai.com/v1";
+const OPENAI_IMAGE_MODEL = "gpt-image-2";
+const TOKEN_ART_STYLE_SUFFIX = [
+    "Style: gothic-steampunk 1890s–1910s aesthetic.",
+    "Favour brass, iron, leather, soot, gaslight, cabinet-card portrait quality, Victorian engravings.",
+    "No modern sci-fi, no fantasy tropes, no neon or plastic.",
+    "Square 1024×1024 canvas, subject centred, dark vignette border.",
+    "Suitable for a miniature token on a tabletop battle-map. No text or UI overlays."
+].join(" ");
 const OPENAI_DEFAULT_MODEL = "gpt-5.5";
 const DEFAULT_SYSTEM_PROMPT = "You are a master architect for the Turn of the Century Roleplaying Game, responsible for creating engaging, historically grounded campaigns and scenarios.";
 export const GENERAL_GENERATION_PROMPT_PATH = "prompts/general.md";
@@ -95,6 +103,40 @@ export function getRelevantContentSkillPrompts(elementType = "campaign") {
     if (MEDIA_AWARE_GENERATION_TYPES.has(normalizedType)) skillKeys.push("art-style");
 
     return skillKeys.map((key) => CONTENT_SKILL_PROMPTS[key]).filter(Boolean);
+}
+
+export function buildActorTokenImagePrompt(actor) {
+    const name = String(actor?.name ?? "Unknown").trim();
+    const bio = stripHTML(actor?.system?.biography ?? "");
+    const classification = actor?.system?.classification ?? {};
+    const profession = String(classification.profession ?? "").trim();
+    const origin = String(classification.origin ?? "").trim();
+    const category = String(classification.category ?? "").trim().toLowerCase();
+    const species = String(classification.species ?? "Human").trim();
+    const isCreature = category === "monster" || (species !== "Human" && species !== "");
+
+    if (isCreature) {
+        const speciesLabel = species && species !== "Human" ? `, ${species}` : "";
+        const profLabel = profession ? `, role: ${profession}` : "";
+        return [
+            `Token art for a tabletop RPG creature in a gothic Victorian steampunk setting.`,
+            `Creature: ${name}${speciesLabel}${profLabel}.`,
+            bio ? `Description: ${bio}` : "",
+            "Show the creature's full form or a menacing close-up.",
+            "Dramatic gaslit shadows, Victorian scientific-illustration aesthetic meets gothic horror.",
+            TOKEN_ART_STYLE_SUFFIX
+        ].filter(Boolean).join(" ");
+    }
+
+    const locationLabel = origin ? ` from ${origin}` : "";
+    const profLabel = profession ? `, ${profession}` : "";
+    return [
+        `Token portrait for a tabletop RPG character in a gothic Victorian steampunk setting.`,
+        `Character: ${name}${profLabel}${locationLabel}.`,
+        bio ? `Description: ${bio}` : "",
+        "Shoulder-up bust portrait, period-appropriate clothing, gaslit illumination, rich detail.",
+        TOKEN_ART_STYLE_SUFFIX
+    ].filter(Boolean).join(" ");
 }
 
 export function buildGenerationContextPrompt(context = {}) {
@@ -252,5 +294,37 @@ export class LLMService {
             console.error("Failed to parse LLM response as JSON", cleanedText);
             throw new Error("The LLM did not return a valid JSON format.");
         }
+    }
+
+    static async generateActorTokenImage(prompt) {
+        const apiKey = this.getApiKey();
+        if (!apiKey) {
+            throw new Error("No OpenAI API Key found. Please configure it in the Turn of the Century system settings.");
+        }
+
+        const response = await fetch(`${OPENAI_API_BASE_URL}/images/generations`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: OPENAI_IMAGE_MODEL,
+                prompt,
+                n: 1,
+                size: "1024x1024",
+                quality: "auto"
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`OpenAI API Error: ${response.status} - ${errorData?.error?.message ?? response.statusText}`);
+        }
+
+        const data = await response.json();
+        const b64 = String(data.data?.[0]?.b64_json ?? "");
+        if (!b64) throw new Error("No image data returned from OpenAI.");
+        return b64;
     }
 }

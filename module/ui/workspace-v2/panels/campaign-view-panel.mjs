@@ -1,4 +1,4 @@
-import { renderGeneratedAssistantContent } from "./gm-assistant-panel.mjs";
+import { renderGeneratedAssistantContent, getSerializableSystemData } from "./gm-assistant-panel.mjs";
 
 const CAMPAIGN_TYPE = "campaign";
 const SCENARIO_TYPE = "scenario";
@@ -406,22 +406,112 @@ function renderNode(node, { escapeHTML }) {
         </div>`;
 }
 
-function renderDetail(selected, { escapeHTML }) {
-    if (!selected) {
-        return `<div class="totc-v2-campaign-view__empty-detail">Select or create a campaign item.</div>`;
+function safeAttr(v) {
+    return String(v ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function safeText(v) {
+    return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function getEditFields(selected, detailEdits = {}) {
+    if (!selected) return [];
+    const sys = getSerializableSystemData(selected.document?.system ?? {});
+
+    function val(path, fallback) {
+        return path in detailEdits ? detailEdits[path] : fallback;
     }
 
+    if (selected.type === CAMPAIGN_TYPE) {
+        const ant = (sys.antagonist && typeof sys.antagonist === "object") ? sys.antagonist : {};
+        return [
+            { path: "setting", label: "Setting", fieldType: "string", value: val("setting", String(sys.setting ?? "")) },
+            { path: "era", label: "Era", fieldType: "string", value: val("era", String(sys.era ?? "")) },
+            { path: "environment", label: "Environment", fieldType: "html", value: val("environment", String(sys.environment ?? "")) },
+            { path: "culture", label: "Culture", fieldType: "html", value: val("culture", String(sys.culture ?? "")) },
+            { path: "socialClimate", label: "Social Climate", fieldType: "html", value: val("socialClimate", String(sys.socialClimate ?? "")) },
+            { path: "antagonist.name", label: "Antagonist Name", fieldType: "string", value: val("antagonist.name", String(ant.name ?? "")) },
+            { path: "antagonist.concept", label: "Antagonist Concept", fieldType: "string", value: val("antagonist.concept", String(ant.concept ?? "")) },
+            { path: "antagonist.motivations", label: "Antagonist Motivations", fieldType: "html", value: val("antagonist.motivations", String(ant.motivations ?? "")) },
+            { path: "motivations", label: "Campaign Motivations", fieldType: "html", value: val("motivations", String(sys.motivations ?? "")) }
+        ];
+    }
+
+    if (selected.type === SCENARIO_TYPE) {
+        return [
+            { path: "description", label: "Description", fieldType: "html", value: val("description", String(sys.description ?? "")) },
+            { path: "historicalNotes", label: "Historical Notes", fieldType: "html", value: val("historicalNotes", String(sys.historicalNotes ?? "")) },
+            { path: "resolutionCriteria", label: "Resolution Criteria", fieldType: "html", value: val("resolutionCriteria", String(sys.resolutionCriteria ?? "")) }
+        ];
+    }
+
+    if (selected.type === ENCOUNTER_TYPE) {
+        const npcs = Array.isArray(sys.npcs) ? sys.npcs : [];
+        return [
+            { path: "description", label: "Description", fieldType: "html", value: val("description", String(sys.description ?? "")) },
+            { path: "hazards", label: "Hazards", fieldType: "html", value: val("hazards", String(sys.hazards ?? "")) },
+            { path: "npcs", label: "NPCs (one per line)", fieldType: "array", value: val("npcs", npcs.join("\n")) }
+        ];
+    }
+
+    return [];
+}
+
+function renderEditField(field) {
+    const label = `<label class="totc-v2-campaign-view__edit-label">${safeText(field.label)}</label>`;
+    if (field.fieldType === "string") {
+        return `<div class="totc-v2-campaign-view__edit-field">${label}<input type="text" class="totc-v2-campaign-view__edit-input" data-edit-field="${safeAttr(field.path)}" data-field-type="string" value="${safeAttr(field.value)}"></div>`;
+    }
+    if (field.fieldType === "html") {
+        return `<div class="totc-v2-campaign-view__edit-field">${label}<div class="totc-v2-campaign-view__edit-html" contenteditable="true" spellcheck="true" data-edit-field="${safeAttr(field.path)}" data-field-type="html">${field.value}</div></div>`;
+    }
+    if (field.fieldType === "array") {
+        return `<div class="totc-v2-campaign-view__edit-field">${label}<textarea class="totc-v2-campaign-view__edit-textarea" data-edit-field="${safeAttr(field.path)}" data-field-type="array">${safeText(field.value)}</textarea></div>`;
+    }
+    return "";
+}
+
+function renderDetailReadMode(selected, { escapeHTML }) {
     return `
         <article class="totc-v2-campaign-view__detail-card">
-            <header class="totc-v2-campaign-view__detail-header">
-                <p>${escapeHTML(getTypeLabel(selected.type))}</p>
-                <h3>${escapeHTML(selected.name)}</h3>
-                ${selected.summary ? `<span>${escapeHTML(selected.summary)}</span>` : ""}
-            </header>
+            <div class="totc-v2-campaign-view__detail-toolbar">
+                <button type="button" class="totc-v2-campaign-view__detail-action" data-action="campaign-view-edit-detail">
+                    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit
+                </button>
+            </div>
             <div class="totc-v2-campaign-view__detail-content">
                 ${renderGeneratedAssistantContent({ system: selected.document?.system ?? {} }, { escapeHTML })}
             </div>
         </article>`;
+}
+
+function renderDetailEditMode(selected, detailEdits) {
+    const fields = getEditFields(selected, detailEdits);
+    const fieldMarkup = fields.map(renderEditField).join("");
+    return `
+        <article class="totc-v2-campaign-view__detail-card totc-v2-campaign-view__detail-card--editing">
+            <div class="totc-v2-campaign-view__detail-toolbar totc-v2-campaign-view__detail-toolbar--editing">
+                <button type="button" class="totc-v2-campaign-view__detail-action totc-v2-campaign-view__detail-action--primary" data-action="campaign-view-save-detail">
+                    <i class="fa-solid fa-check" aria-hidden="true"></i> Save
+                </button>
+                <button type="button" class="totc-v2-campaign-view__detail-action" data-action="campaign-view-cancel-detail">
+                    Cancel
+                </button>
+            </div>
+            <div class="totc-v2-campaign-view__detail-content">
+                <div class="totc-v2-campaign-view__edit-form" data-campaign-view-edit-form="true">
+                    ${fieldMarkup}
+                </div>
+            </div>
+        </article>`;
+}
+
+function renderDetail(selected, editing, detailEdits, { escapeHTML }) {
+    if (!selected) {
+        return `<div class="totc-v2-campaign-view__empty-detail">Select or create a campaign item.</div>`;
+    }
+    if (editing) return renderDetailEditMode(selected, detailEdits);
+    return renderDetailReadMode(selected, { escapeHTML });
 }
 
 export function renderCampaignViewPanel(model = {}, { escapeHTML }) {
@@ -465,7 +555,7 @@ export function renderCampaignViewPanel(model = {}, { escapeHTML }) {
                 ${orphanMarkup ? `<section class="totc-v2-campaign-view__orphans"><h4>Unlinked Content</h4>${orphanMarkup}</section>` : ""}
             </nav>
             <section class="totc-v2-campaign-view__detail">
-                ${renderDetail(model.selected, { escapeHTML })}
+                ${renderDetail(model.selected, model.editing ?? false, model.detailEdits ?? {}, { escapeHTML })}
             </section>
         </div>
     </section>`;
