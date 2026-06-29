@@ -4856,9 +4856,87 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     color: #bbf7d0;
 }
 
+.turn-of-the-century .totc-v2-encounter-manager__actor-ready.is-awaiting-rolls {
+    border-color: rgba(251, 191, 36, 0.58);
+    color: #fde68a;
+}
+
 .turn-of-the-century .totc-v2-encounter-manager__actor-ready.is-resolved {
     border-color: rgba(196, 181, 253, 0.5);
     color: #ddd6fe;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__draft {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 4px;
+    display: grid;
+    gap: 0.28rem;
+    padding: 0.42rem;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__draft.is-confirmedAwaitingRolls {
+    border-color: rgba(251, 191, 36, 0.42);
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__draft.is-locked {
+    border-color: rgba(134, 239, 172, 0.36);
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__draft header,
+.turn-of-the-century .totc-v2-encounter-manager__draft footer {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: space-between;
+    min-width: 0;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__draft-label {
+    color: #cbd5e1;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__draft-state {
+    border: 1px solid rgba(147, 197, 253, 0.38);
+    border-radius: 999px;
+    color: #bfdbfe;
+    font-size: 0.56rem;
+    font-weight: 800;
+    padding: 0.12rem 0.34rem;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__draft-state.is-confirmedAwaitingRolls {
+    border-color: rgba(251, 191, 36, 0.62);
+    color: #fde68a;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__draft-state.is-locked {
+    border-color: rgba(134, 239, 172, 0.52);
+    color: #bbf7d0;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__draft p {
+    color: #e2e8f0;
+    font-size: 0.7rem;
+    line-height: 1.35;
+    margin: 0;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__draft footer span,
+.turn-of-the-century .totc-v2-encounter-manager__draft footer strong {
+    color: #94a3b8;
+    font-size: 0.6rem;
+    font-weight: 700;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__draft footer strong {
+    color: #fbbf24;
 }
 
 .turn-of-the-century .totc-v2-encounter-manager__plan {

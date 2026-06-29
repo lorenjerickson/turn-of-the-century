@@ -1,5 +1,6 @@
 import { buildEncounterOrderDisplay } from "../../../encounters/encounter-order-model.mjs";
 import { orderIdForAction } from "../../../encounters/encounter-order-clauses.mjs";
+import { renderDraftPlanNarrative } from "../../../encounters/encounter-draft-narrative.mjs";
 
 function toArray(value) {
     return Array.isArray(value) ? value : [];
@@ -140,6 +141,73 @@ function orderModelsFromPlan({ actions = [], timeline = [], combatantId = "", cu
     });
 }
 
+function rollRequirementsForAction(action = {}) {
+    const requirements = toArray(action.rollRequirements);
+    if (requirements.length) return requirements;
+    if (action.requiresToHit || action.type === "attack") {
+        return [{ rollType: "attack", rollSubType: "toHit" }];
+    }
+    return [];
+}
+
+function rollRequirementSatisfied(action = {}, requirement = {}) {
+    const requiredType = String(requirement?.rollType ?? "").toLowerCase();
+    const requiredSubType = String(requirement?.rollSubType ?? "").toLowerCase();
+    return toArray(action.planningRollResults).some((result) => {
+        const resultType = String(result?.rollType ?? "").toLowerCase();
+        const resultSubType = String(result?.rollSubType ?? "").toLowerCase();
+        if (resultType && requiredType && resultType !== requiredType) return false;
+        if (resultSubType && requiredSubType && resultSubType !== requiredSubType) return false;
+        return true;
+    });
+}
+
+function pendingRollCount(actions = []) {
+    return toArray(actions).reduce((sum, action) => {
+        const pending = rollRequirementsForAction(action)
+            .filter((requirement) => !rollRequirementSatisfied(action, requirement))
+            .length;
+        return sum + pending;
+    }, 0);
+}
+
+function lifecycleLabel(lifecycle = "") {
+    const normalized = String(lifecycle || "drafting");
+    if (normalized === "confirmedAwaitingRolls") return "Awaiting Rolls";
+    if (normalized === "locked") return "Locked";
+    if (normalized === "resolving") return "Resolving";
+    if (normalized === "resolved") return "Resolved";
+    return "Draft";
+}
+
+function draftSummaryModel({ combatant = null, currentState = {}, apBudget = 6 } = {}) {
+    const draftPlan = currentState.draftPlan ?? { clauses: [] };
+    const narrative = renderDraftPlanNarrative(draftPlan, {
+        subjectName: String(combatant?.name ?? combatant?.actor?.name ?? "Combatant"),
+        apBudget
+    });
+    const missingDecisions = toArray(narrative.missingDecisions)
+        .map((entry) => String(entry?.decision ?? "").trim())
+        .filter(Boolean);
+    const lifecycle = String(narrative.lifecycle ?? draftPlan?.lifecycle ?? "drafting");
+    const pendingRolls = lifecycle === "confirmedAwaitingRolls"
+        ? pendingRollCount(currentState.plan)
+        : 0;
+
+    return {
+        lifecycle,
+        lifecycleLabel: lifecycleLabel(lifecycle),
+        text: String(narrative.text ?? ""),
+        spentAp: Math.max(0, toNumber(narrative.spentAp, 0)),
+        remainingAp: Math.max(0, toNumber(narrative.remainingAp, apBudget)),
+        complete: Boolean(narrative.complete),
+        overBudget: Boolean(narrative.overBudget),
+        missingDecisions,
+        pendingRolls,
+        hasClauses: toArray(draftPlan?.clauses).length > 0
+    };
+}
+
 function tickNarrativeFromResolution(resolution = {}, tick = 0) {
     const rows = toArray(resolution?.tickNarratives);
     const match = rows.find((row) => toNumber(row?.tick, 0) === toNumber(tick, 0)) ?? null;
@@ -176,7 +244,8 @@ function buildCombatantSummary(combatant, state, timeline, apBudget, currentTick
         conditions: actorEffects(actor),
         apBudget,
         segments,
-        orders
+        orders,
+        draftSummary: draftSummaryModel({ combatant, currentState, apBudget })
     };
 }
 
@@ -276,20 +345,52 @@ function renderActorOrders(actor, escapeHTML) {
         </ol>`;
 }
 
+function renderDraftSummary(actor, escapeHTML) {
+    const draft = actor.draftSummary ?? null;
+    if (!draft) return "";
+    const lifecycle = String(draft.lifecycle ?? "drafting");
+    const missingText = toArray(draft.missingDecisions).length
+        ? `Needs ${toArray(draft.missingDecisions).join(", ")}.`
+        : draft.overBudget
+            ? "Over AP budget."
+            : draft.pendingRolls > 0
+                ? `${draft.pendingRolls} roll${draft.pendingRolls === 1 ? "" : "s"} pending.`
+                : draft.complete
+                    ? "Complete."
+                    : "Composition in progress.";
+
+    return `
+        <section class="totc-v2-encounter-manager__draft is-${escapeHTML(lifecycle)}" aria-label="${escapeHTML(actor.name)} draft plan">
+            <header>
+                <span class="totc-v2-encounter-manager__draft-label">Narrative Plan</span>
+                <span class="totc-v2-encounter-manager__draft-state is-${escapeHTML(lifecycle)}">${escapeHTML(draft.lifecycleLabel)}</span>
+            </header>
+            <p>${escapeHTML(draft.text)}</p>
+            <footer>
+                <span>${escapeHTML(String(draft.spentAp))} AP planned</span>
+                <span>${escapeHTML(String(draft.remainingAp))} AP unused</span>
+                <strong>${escapeHTML(missingText)}</strong>
+            </footer>
+        </section>`;
+}
+
 function encounterStatusLabel(actor, phase = "") {
     if (phase === "roundComplete") return "Resolved";
+    if (actor.draftSummary?.lifecycle === "confirmedAwaitingRolls") return "Awaiting Rolls";
+    if (actor.draftSummary?.lifecycle === "locked") return "Ready";
     return actor.ready ? "Ready" : "Planning";
 }
 
 function renderActorPlan(actor, currentTick, phase, escapeHTML) {
     const status = encounterStatusLabel(actor, phase);
-    const statusClass = status.toLowerCase();
+    const statusClass = status.toLowerCase().replace(/\s+/g, "-");
     return `
         <article class="totc-v2-encounter-manager__actor-plan">
             <header class="totc-v2-encounter-manager__actor-plan-label">
                 <span class="totc-v2-encounter-manager__actor-name">${escapeHTML(actor.name)}</span>
                 <span class="totc-v2-encounter-manager__actor-ready is-${escapeHTML(statusClass)}">${escapeHTML(status)}</span>
             </header>
+            ${renderDraftSummary(actor, escapeHTML)}
             ${renderPlanBar(actor, currentTick, escapeHTML)}
             ${renderActorOrders(actor, escapeHTML)}
         </article>`;

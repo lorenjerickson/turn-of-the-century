@@ -63,4 +63,11 @@ describe("Encounter panel styles", () => {
         assert.match(rule, /vertical-align:\s*middle;/);
         assert.match(rule, /margin-right:\s*0\.25rem;/);
     });
+
+    it("distinguishes GM draft lifecycle states in the encounter manager", () => {
+        assert.match(styles, /\.totc-v2-encounter-manager__draft\.is-confirmedAwaitingRolls/);
+        assert.match(styles, /\.totc-v2-encounter-manager__draft\.is-locked/);
+        assert.match(styles, /\.totc-v2-encounter-manager__actor-ready\.is-awaiting-rolls/);
+        assert.match(styles, /\.totc-v2-encounter-manager__draft-state\.is-confirmedAwaitingRolls/);
+    });
 });

@@ -337,6 +337,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 this.render({ force: false });
             }
         };
+        this._encounterRefreshHandler = () => {
+            if (this.rendered) {
+                this.render({ force: false });
+            }
+        };
         this._wallSelectionRefreshHandler = () => {
             const scene = canvas?.scene ?? game.scenes?.viewed ?? game.scenes?.active ?? null;
             this.sceneDesignFeature.syncSelectedWallsFromCanvas(scene, { clearWhenEmpty: true });
@@ -362,6 +367,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             { event: "updateItem", handler: this._compendiumDocumentMutationHandler },
             { event: "deleteItem", handler: this._compendiumDocumentMutationHandler },
             { event: "totcStarterCompendiumsReady", handler: this._compendiumRefreshHandler }
+        ]);
+        this.hooksController.registerFamily("encounter", [
+            { event: "totcEncounterDraftPlanUpdated", handler: this._encounterRefreshHandler },
+            { event: "totcEncounterPlanUpdated", handler: this._encounterRefreshHandler },
+            { event: "totcEncounterCombatantReadyChanged", handler: this._encounterRefreshHandler },
+            { event: "totcEncounterPlanningStarted", handler: this._encounterRefreshHandler },
+            { event: "totcEncounterRoundResolved", handler: this._encounterRefreshHandler }
         ]);
     }
 

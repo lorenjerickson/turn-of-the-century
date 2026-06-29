@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { GamemasterFeature } from "../../module/ui/workspace-v2/controllers/gamemaster-feature.mjs";
@@ -12,6 +13,8 @@ const escapeHTML = (value) => String(value ?? "")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+
+const workspaceRootSource = readFileSync(new URL("../../module/ui/workspace-v2/workspace-root-app.mjs", import.meta.url), "utf8");
 
 function combatFixture() {
     return {
@@ -121,6 +124,72 @@ function resolvingCombatFixture() {
     };
 }
 
+function planningDraftCombatFixture() {
+    const combat = combatFixture();
+    return {
+        ...combat,
+        phase: "planning",
+        encounterState: {
+            ...combat.encounterState,
+            phase: "planning",
+            perCombatant: {
+                "combatant-1": {
+                    ready: false,
+                    plan: [],
+                    draftPlan: {
+                        lifecycle: "drafting",
+                        clauses: [
+                            {
+                                clauseId: "draft-clause-1",
+                                actionId: "attack",
+                                type: "attack",
+                                label: "Attack",
+                                apCost: 2,
+                                requiresTarget: true,
+                                requiresItem: true,
+                                targetId: "combatant-2",
+                                targetName: "Brass Knuckles Briggs"
+                            }
+                        ]
+                    }
+                },
+                "combatant-2": {
+                    ready: false,
+                    plan: [
+                        {
+                            id: "strike",
+                            actionId: "strike",
+                            type: "attack",
+                            label: "Strike",
+                            apCost: 2,
+                            requiresToHit: true,
+                            rollRequirements: [
+                                { rollType: "attack", rollSubType: "toHit" }
+                            ],
+                            planningRollResults: []
+                        }
+                    ],
+                    draftPlan: {
+                        lifecycle: "confirmedAwaitingRolls",
+                        clauses: [
+                            {
+                                clauseId: "draft-clause-1",
+                                actionId: "strike",
+                                type: "attack",
+                                label: "Strike",
+                                apCost: 2,
+                                requiresTarget: true,
+                                targetId: "combatant-1",
+                                targetName: "Ada Price"
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    };
+}
+
 describe("encounter manager panel", () => {
     it("renders no active encounter empty state when there is no encounter", () => {
         const model = buildEncounterManagerPanelModel({ combat: null });
@@ -190,6 +259,44 @@ describe("encounter manager panel", () => {
         assert.match(html, /class="totc-v2-encounter-manager__order-clause is-active"/);
         assert.match(html, /data-related-combatant-ids="combatant-2"/);
         assert.match(html, /Move toward the alley gate/);
+    });
+
+    it("shows player draft narratives and AP context before confirmation", () => {
+        const model = buildEncounterManagerPanelModel({ combat: planningDraftCombatFixture() });
+        const ada = model.actors[0];
+
+        assert.equal(ada.draftSummary.lifecycle, "drafting");
+        assert.equal(ada.draftSummary.spentAp, 2);
+        assert.equal(ada.draftSummary.remainingAp, 4);
+        assert.deepEqual(ada.draftSummary.missingDecisions, ["item"]);
+        assert.match(ada.draftSummary.text, /Ada Price attacks Brass Knuckles Briggs/);
+
+        const html = renderEncounterManagerPanel(model, { escapeHTML });
+        assert.match(html, /class="totc-v2-encounter-manager__draft is-drafting"/);
+        assert.match(html, /Narrative Plan/);
+        assert.match(html, /Ada Price attacks Brass Knuckles Briggs/);
+        assert.match(html, /2 AP planned/);
+        assert.match(html, /4 AP unused/);
+        assert.match(html, /Needs item\./);
+    });
+
+    it("distinguishes confirmed plans that are still waiting for rolls", () => {
+        const model = buildEncounterManagerPanelModel({ combat: planningDraftCombatFixture() });
+        const briggs = model.actors[1];
+
+        assert.equal(briggs.draftSummary.lifecycle, "confirmedAwaitingRolls");
+        assert.equal(briggs.draftSummary.pendingRolls, 1);
+
+        const html = renderEncounterManagerPanel(model, { escapeHTML });
+        assert.match(html, /class="totc-v2-encounter-manager__actor-ready is-awaiting-rolls">Awaiting Rolls<\/span>/);
+        assert.match(html, /class="totc-v2-encounter-manager__draft-state is-confirmedAwaitingRolls">Awaiting Rolls<\/span>/);
+        assert.match(html, /1 roll pending\./);
+    });
+
+    it("refreshes the workspace when draft plans change so the GM can observe composition", () => {
+        assert.match(workspaceRootSource, /totcEncounterDraftPlanUpdated/);
+        assert.match(workspaceRootSource, /totcEncounterPlanUpdated/);
+        assert.match(workspaceRootSource, /registerFamily\("encounter"/);
     });
 
     it("starts encounters through the GM feature and opens the Encounter Manager panel", async () => {
