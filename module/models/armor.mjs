@@ -13,6 +13,7 @@ const {
 export const TOTC_ARMOR_CATEGORIES = ["clothing", "light", "medium", "heavy", "natural", "prosthetic"];
 export const TOTC_ARMOR_QUALITIES = ["poor", "standard", "fine", "exceptional", "masterwork", "experimental"];
 export const TOTC_ARMOR_RARITIES = ["common", "uncommon", "rare", "veryRare", "unique"];
+export const TOTC_ARMOR_SLOT_CHOICES = Object.freeze([...new Set([...TOTC_ARMOR_SLOT_KEYS, "hands"])]);
 
 function createAbilityMinimumsField() {
     return new SchemaField(
@@ -96,7 +97,7 @@ export class ArmorDataModel extends foundry.abstract.TypeDataModel {
             slot: new StringField({
                 required: true,
                 blank: false,
-                choices: TOTC_ARMOR_SLOT_KEYS,
+                choices: TOTC_ARMOR_SLOT_CHOICES,
                 initial: "torso"
             }),
             armorClass: new SchemaField({

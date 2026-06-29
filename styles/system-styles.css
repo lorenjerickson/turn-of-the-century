@@ -3684,19 +3684,18 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 .turn-of-the-century .totc-v2-encounter-panel {
     color: #cbd5e1;
     container-type: inline-size;
-    display: grid;
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
     gap: 0.6rem;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
-    grid-template-rows: auto;
     height: 100%;
     min-height: 0;
     overflow: auto;
 }
 
 .turn-of-the-century .totc-v2-encounter-panel.is-empty {
-    align-content: center;
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
 }
 
@@ -3706,6 +3705,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     background: rgba(15, 23, 42, 0.5);
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 6px;
+    flex: 0 0 auto;
     min-width: 0;
     padding: 0.55rem;
 }
@@ -3790,11 +3790,12 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 }
 
 .turn-of-the-century .totc-v2-encounter-panel__planner {
-    align-content: start;
-    display: grid;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
     gap: 0.55rem;
-    min-height: 0;
-    overflow: auto;
+    min-height: 18rem;
+    overflow: hidden;
     position: relative;
 }
 
@@ -3804,6 +3805,99 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     gap: 0.5rem;
     justify-content: space-between;
     min-width: 0;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__orders {
+    display: grid;
+    flex: 0 0 auto;
+    gap: 0.4rem;
+    list-style: none !important;
+    list-style-type: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__order {
+    background: rgba(2, 6, 23, 0.26);
+    border-left: 3px solid rgba(147, 197, 253, 0.56);
+    color: #dbeafe;
+    display: grid;
+    gap: 0.3rem;
+    list-style: none !important;
+    list-style-type: none !important;
+    margin: 0 !important;
+    min-width: 0;
+    padding: 0.42rem 0.5rem;
+    text-align: left;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__order.is-locked {
+    border-left-color: rgba(251, 191, 36, 0.78);
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__order-main {
+    align-items: start;
+    display: grid;
+    gap: 0.25rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__order-main strong {
+    color: #e2e8f0;
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1.3;
+    min-width: 0;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__order-main span {
+    color: #93c5fd;
+    font-size: 0.66rem;
+    font-weight: 800;
+    line-height: 1.3;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__order-clauses {
+    color: #94a3b8;
+    display: grid;
+    font-size: 0.68rem;
+    gap: 0.18rem;
+    line-height: 1.3;
+    list-style: none !important;
+    list-style-type: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__order-clauses li {
+    list-style: none !important;
+    list-style-type: none !important;
+    margin: 0 !important;
+    min-width: 0;
+    text-align: left;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__orders-empty {
+    background: rgba(2, 6, 23, 0.26);
+    border: 1px dashed rgba(148, 163, 184, 0.24);
+    border-radius: 5px;
+    color: #64748b;
+    flex: 0 0 auto;
+    font-size: 0.76rem;
+    padding: 0.45rem 0.5rem;
+    text-align: left;
+}
+
+.turn-of-the-century .totc-v2-encounter-panel__planning-view {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.55rem;
+    min-height: 12rem;
+    min-width: 0;
+    position: relative;
 }
 
 .turn-of-the-century .totc-v2-encounter-panel__picker {
@@ -4116,6 +4210,107 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     font-size: 0.8rem;
     padding: 1.2rem;
     text-align: center;
+}
+
+.turn-of-the-century .totc-v2-encounter-config {
+    background: rgba(15, 23, 42, 0.64);
+    border: 1px solid rgba(148, 163, 184, 0.26);
+    border-radius: 6px;
+    display: grid;
+    gap: 0.65rem;
+    padding: 0.7rem;
+}
+
+.turn-of-the-century .totc-v2-encounter-config__header {
+    align-items: center;
+    display: flex;
+    gap: 0.6rem;
+    justify-content: space-between;
+}
+
+.turn-of-the-century .totc-v2-encounter-config__header h4 {
+    color: #f8fafc;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.turn-of-the-century .totc-v2-encounter-config__header span {
+    color: #94a3b8;
+    display: block;
+    font-size: 0.72rem;
+    margin-top: 0.12rem;
+}
+
+.turn-of-the-century .totc-v2-encounter-config__icon {
+    align-items: center;
+    background: rgba(30, 41, 59, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.34);
+    border-radius: 5px;
+    color: #e2e8f0;
+    cursor: pointer;
+    display: flex;
+    height: 1.9rem;
+    justify-content: center;
+    width: 1.9rem;
+}
+
+.turn-of-the-century .totc-v2-encounter-config__icon:hover {
+    background: rgba(51, 65, 85, 0.86);
+    border-color: rgba(148, 163, 184, 0.54);
+}
+
+.turn-of-the-century .totc-v2-encounter-config__body {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+}
+
+.turn-of-the-century .totc-v2-encounter-config__body label {
+    color: #cbd5e1;
+    display: grid;
+    font-size: 0.68rem;
+    font-weight: 800;
+    gap: 0.25rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-encounter-config__body select {
+    background: rgba(2, 6, 23, 0.48);
+    border: 1px solid rgba(148, 163, 184, 0.36);
+    border-radius: 5px;
+    color: #f8fafc;
+    font-size: 0.78rem;
+    letter-spacing: 0;
+    min-width: 0;
+    padding: 0.36rem 0.45rem;
+    text-transform: none;
+}
+
+.turn-of-the-century .totc-v2-encounter-config__body select:focus {
+    border-color: rgba(147, 197, 253, 0.68);
+    outline: none;
+}
+
+.turn-of-the-century .totc-v2-encounter-config__actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.turn-of-the-century .totc-v2-encounter-config__actions button {
+    background: rgba(37, 99, 235, 0.36);
+    border: 1px solid rgba(147, 197, 253, 0.5);
+    border-radius: 5px;
+    color: #f8fafc;
+    cursor: pointer;
+    font-size: 0.74rem;
+    font-weight: 800;
+    padding: 0.42rem 0.75rem;
+}
+
+.turn-of-the-century .totc-v2-encounter-config__actions button:hover {
+    background: rgba(37, 99, 235, 0.48);
+    border-color: rgba(147, 197, 253, 0.72);
 }
 .turn-of-the-century .totc-v2-encounter-panel__segment,
 .turn-of-the-century .totc-v2-encounter-panel__history-segment {
@@ -4577,6 +4772,92 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     justify-self: center;
 }
 
+.turn-of-the-century .totc-v2-encounter-manager__orders,
+.turn-of-the-century .totc-v2-encounter-manager__order-clauses {
+    display: grid;
+    gap: 0.25rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__order {
+    background: rgba(15, 23, 42, 0.52);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 4px;
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.35rem;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__order.is-active {
+    border-color: rgba(251, 191, 36, 0.62);
+    box-shadow: inset 3px 0 0 rgba(251, 191, 36, 0.85);
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__order.is-completed {
+    border-color: rgba(134, 239, 172, 0.42);
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__order.is-failed {
+    border-color: rgba(252, 165, 165, 0.5);
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__order > strong {
+    color: #e2e8f0;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__order-clause {
+    align-items: start;
+    display: grid;
+    gap: 0.35rem;
+    grid-template-columns: auto minmax(0, 1fr);
+    min-width: 0;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__order-clause-status {
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 999px;
+    color: #94a3b8;
+    font-size: 0.55rem;
+    font-weight: 800;
+    line-height: 1;
+    padding: 0.14rem 0.3rem;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__order-clause.is-active .totc-v2-encounter-manager__order-clause-status {
+    border-color: rgba(251, 191, 36, 0.72);
+    color: #fde68a;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__order-clause.is-completed .totc-v2-encounter-manager__order-clause-status {
+    border-color: rgba(134, 239, 172, 0.54);
+    color: #bbf7d0;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__order-clause.is-failed .totc-v2-encounter-manager__order-clause-status,
+.turn-of-the-century .totc-v2-encounter-manager__order-clause.is-interrupted .totc-v2-encounter-manager__order-clause-status {
+    border-color: rgba(252, 165, 165, 0.62);
+    color: #fecaca;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__order-clause-text,
+.turn-of-the-century .totc-v2-encounter-manager__orders-empty {
+    color: #cbd5e1;
+    font-size: 0.64rem;
+    line-height: 1.3;
+    min-width: 0;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__orders-empty {
+    color: #64748b;
+    margin: 0;
+}
+
 .turn-of-the-century .totc-v2-encounter-manager__narrative {
     display: grid;
     gap: 0.3rem;
@@ -4735,174 +5016,269 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 
 .turn-of-the-century .totc-v2-actor-equipment {
     display: grid;
-    gap: 0.75rem;
+    gap: 1rem;
 }
 
 .turn-of-the-century .totc-v2-actor-equipment__body {
-    align-items: stretch;
     display: grid;
-    gap: 0.45rem 0.6rem;
-    grid-template-areas:
-        ". head ."
-        ". neck ."
-        "hand-left torso hand-right"
-        "hand-left torso-extra hand-right"
-        ". legs ."
-        ". feet .";
-    grid-template-columns: minmax(8.5rem, 1fr) minmax(10rem, 1.1fr) minmax(8.5rem, 1fr);
+    gap: 0.7rem;
     isolation: isolate;
+    justify-items: center;
+    justify-self: center;
+    max-width: min(26rem, 100%);
     position: relative;
+    width: 100%;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__body-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 1.15rem;
+    justify-content: center;
+    min-height: 5.25rem;
+    width: 100%;
 }
 
 .turn-of-the-century .totc-v2-actor-equipment__belt {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.6rem;
     justify-content: center;
+    margin-top: 0.75rem;
 }
 
 .turn-of-the-century .totc-v2-actor-equipment__slot {
     background: rgba(15, 23, 42, 0.55);
     border: 1px solid rgba(148, 163, 184, 0.24);
     border-radius: 6px;
-    display: grid;
-    gap: 0.35rem;
-    min-width: 0;
-    padding: 0.45rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 5.25rem;
+    padding: 0.25rem;
     position: relative;
     text-align: left;
+    width: 5.25rem;
     z-index: 1;
 }
 
-.turn-of-the-century .totc-v2-actor-equipment__slot--head {
-    grid-area: head;
-}
-
-.turn-of-the-century .totc-v2-actor-equipment__slot--neck {
-    grid-area: neck;
-}
-
-.turn-of-the-century .totc-v2-actor-equipment__slot--torso {
-    grid-area: torso;
-}
-
-.turn-of-the-century .totc-v2-actor-equipment__slot--torso-extra {
-    grid-area: torso-extra;
-}
-
-.turn-of-the-century .totc-v2-actor-equipment__slot--hand-left {
-    grid-area: hand-left;
-}
-
-.turn-of-the-century .totc-v2-actor-equipment__slot--hand-right {
-    grid-area: hand-right;
-}
-
-.turn-of-the-century .totc-v2-actor-equipment__slot--legs {
-    grid-area: legs;
-}
-
-.turn-of-the-century .totc-v2-actor-equipment__slot--feet {
-    grid-area: feet;
+.turn-of-the-century .totc-v2-actor-equipment__slot:hover,
+.turn-of-the-century .totc-v2-actor-equipment__slot:focus-within {
+    z-index: 1000;
 }
 
 .turn-of-the-century .totc-v2-actor-equipment__slot--belt {
-    flex: 1 1 11rem;
-    max-width: 16rem;
+    max-width: none;
 }
 
-.turn-of-the-century .totc-v2-actor-equipment__slot-label {
+.turn-of-the-century .totc-v2-actor-equipment__icon {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    height: 4.8rem;
+    justify-content: center;
+    padding: 0;
+    position: relative;
+    width: 4.8rem;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__icon:hover,
+.turn-of-the-century .totc-v2-actor-equipment__icon:focus-visible {
+    border-color: rgba(251, 191, 36, 0.72);
+    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.18);
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__icon.is-empty {
+    opacity: 0.74;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__icon.is-empty::before {
+    border: 1px dashed rgba(148, 163, 184, 0.46);
+    border-radius: 4px;
+    content: "";
+    height: 3.5rem;
+    width: 3.5rem;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__icon img {
+    border-radius: 4px;
+    height: 4.45rem;
+    object-fit: cover;
+    width: 4.45rem;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__hover-card {
+    background: rgba(15, 23, 42, 0.97);
+    border: 1px solid rgba(251, 191, 36, 0.46);
+    border-radius: 6px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.38);
+    color: #cbd5e1;
+    display: none;
+    font-size: 0.72rem;
+    gap: 0.2rem;
+    left: 50%;
+    line-height: 1.3;
+    max-width: 14rem;
+    min-width: 11rem;
+    padding: 0.55rem;
+    position: absolute;
+    text-align: left;
+    top: calc(100% + 0.35rem);
+    transform: translateX(-50%);
+    z-index: 1000;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__hover-card strong,
+.turn-of-the-century .totc-v2-actor-equipment__hover-card span,
+.turn-of-the-century .totc-v2-actor-equipment__hover-card small,
+.turn-of-the-century .totc-v2-actor-equipment__hover-card em {
+    display: block;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__hover-card strong {
+    color: #f8fafc;
+    font-size: 0.78rem;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__hover-card small {
     color: #fde68a;
-    font-size: 0.68rem;
-    font-weight: 800;
+    font-style: normal;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__hover-card em {
+    color: #94a3b8;
+    font-size: 0.66rem;
+    font-style: normal;
     text-transform: uppercase;
 }
 
-.turn-of-the-century .totc-v2-actor-equipment__item {
-    align-items: center;
+.turn-of-the-century .totc-v2-actor-equipment__icon:hover .totc-v2-actor-equipment__hover-card,
+.turn-of-the-century .totc-v2-actor-equipment__icon:focus-visible .totc-v2-actor-equipment__hover-card {
     display: grid;
-    gap: 0.45rem;
-    grid-template-columns: 2rem minmax(0, 1fr);
-    min-width: 0;
 }
 
-.turn-of-the-century .totc-v2-actor-equipment__item img {
-    background: rgba(30, 41, 59, 0.72);
-    border: 1px solid rgba(148, 163, 184, 0.3);
-    border-radius: 5px;
+.turn-of-the-century .totc-v2-actor-equipment__picker[hidden] {
+    display: none;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__picker.is-open {
+    align-items: center;
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    position: fixed;
+    z-index: 100;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__picker-backdrop {
+    background: rgba(2, 6, 23, 0.62);
+    inset: 0;
+    position: absolute;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__picker-card {
+    background: #111827;
+    border: 1px solid rgba(251, 191, 36, 0.42);
+    border-radius: 8px;
+    box-shadow: 0 20px 52px rgba(0, 0, 0, 0.48);
+    max-height: min(32rem, 82vh);
+    max-width: min(28rem, 92vw);
+    min-width: min(22rem, 92vw);
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__picker-header {
+    align-items: center;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0.85rem;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__picker-header h4 {
+    color: #f8fafc;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__picker-header span {
+    color: #94a3b8;
+    display: block;
+    font-size: 0.72rem;
+    margin-top: 0.15rem;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__picker-header button {
+    align-items: center;
+    display: flex;
     height: 2rem;
-    object-fit: cover;
+    justify-content: center;
     width: 2rem;
 }
 
-.turn-of-the-century .totc-v2-actor-equipment__item strong {
-    color: #e2e8f0;
+.turn-of-the-century .totc-v2-actor-equipment__picker-list {
+    display: grid;
+    gap: 0.35rem;
+    max-height: 24rem;
+    overflow: auto;
+    padding: 0.65rem;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__picker-option {
+    align-items: center;
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    justify-items: start;
+    min-height: 3.2rem;
+    text-align: left;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__picker-option.is-selected {
+    border-color: rgba(251, 191, 36, 0.72);
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__picker-option img {
+    border-radius: 5px;
+    height: 2.4rem;
+    object-fit: cover;
+    width: 2.4rem;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__picker-option strong,
+.turn-of-the-century .totc-v2-actor-equipment__picker-option small,
+.turn-of-the-century .totc-v2-actor-equipment__picker-option em {
     display: block;
-    font-size: 0.78rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
-.turn-of-the-century .totc-v2-actor-equipment__item span {
+.turn-of-the-century .totc-v2-actor-equipment__picker-option small {
     color: #94a3b8;
-    display: -webkit-box;
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     line-height: 1.25;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
 }
 
-.turn-of-the-century .totc-v2-actor-equipment__item.is-empty strong {
-    color: #cbd5e1;
+.turn-of-the-century .totc-v2-actor-equipment__picker-option em {
+    color: #fde68a;
+    font-size: 0.68rem;
+    font-style: normal;
+    margin-top: 0.12rem;
 }
 
-.turn-of-the-century .totc-v2-actor-equipment__slot select {
-    min-width: 0;
-    width: 100%;
-}
-
-@media (max-width: 720px) {
-    .turn-of-the-century .totc-v2-actor-equipment__body {
-        grid-template-areas:
-            "head"
-            "neck"
-            "torso"
-            "torso-extra"
-            "hand-left"
-            "hand-right"
-            "legs"
-            "feet";
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
-
-.turn-of-the-century .totc-v2-actor-equipment__doll {
-    fill: rgba(251, 191, 36, 0.045);
-    height: 100%;
-    left: 0;
-    pointer-events: none;
-    position: absolute;
-    stroke: rgba(251, 191, 36, 0.18);
-    stroke-linejoin: round;
-    stroke-width: 1.5;
-    top: 0;
-    width: 100%;
-    z-index: 0;
-}
-
-.turn-of-the-century .totc-v2-actor-equipment__pack {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    justify-content: center;
-}
-
+.turn-of-the-century .totc-v2-actor-equipment__belt-label,
 .turn-of-the-century .totc-v2-actor-equipment__pack-label {
+    align-items: center;
     color: #94a3b8;
+    display: flex;
+    flex: 0 0 100%;
     font-size: 0.68rem;
     font-weight: 700;
+    gap: 0.65rem;
     letter-spacing: 0.06em;
     padding: 0.1rem 0;
     text-align: center;
@@ -4910,9 +5286,25 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     width: 100%;
 }
 
+.turn-of-the-century .totc-v2-actor-equipment__belt-label::before,
+.turn-of-the-century .totc-v2-actor-equipment__belt-label::after,
+.turn-of-the-century .totc-v2-actor-equipment__pack-label::before,
+.turn-of-the-century .totc-v2-actor-equipment__pack-label::after {
+    background: rgba(148, 163, 184, 0.34);
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__pack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    justify-content: center;
+}
+
 .turn-of-the-century .totc-v2-actor-equipment__slot--pack {
-    flex: 1 1 11rem;
-    max-width: 16rem;
+    max-width: none;
 }
 
 .turn-of-the-century .totc-v2-actor-list-panel__summary {

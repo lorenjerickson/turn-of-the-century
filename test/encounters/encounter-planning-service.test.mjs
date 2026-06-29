@@ -110,6 +110,60 @@ describe("EncounterPlanningService.setCombatantPlan — AP budget", () => {
         assert.equal(plan[0].apCost, 1);
     });
 
+    it("preserves configured order metadata on write", async () => {
+        const { service, getState } = makeService();
+        await service.setCombatantPlan("c1", [
+            {
+                id: "weaponAttack",
+                actionId: "weaponAttack",
+                type: "attack",
+                label: "Attack",
+                targetMode: "selectTarget",
+                apEnvelope: { positioningAp: 2, effectAp: 2, maxAp: 4 },
+                intentType: "attackTarget",
+                summary: "Spend up to 4 AP to close on Elias and attack with a dagger.",
+                clauses: [
+                    { clauseId: "close", clauseType: "positioning", text: "close on Elias" },
+                    { clauseId: "strike", clauseType: "effect", text: "attack with a dagger" }
+                ],
+                positioningRequirement: { type: "weaponRange", rangeFeet: 5 },
+                followThrough: { type: "chooseAnotherAction", minRemainingAp: 1 },
+                failureOutcome: { type: "bestReachablePosition" },
+                sourceAction: { id: "weaponAttack", actionId: "weaponAttack" }
+            }
+        ]);
+
+        const [order] = getState().perCombatant["c1"].plan;
+        assert.equal(order.apCost, 4);
+        assert.equal(order.orderId, "order-1");
+        assert.equal(order.intentType, "attackTarget");
+        assert.equal(order.targetMode, "selectTarget");
+        assert.equal(order.summary, "Spend up to 4 AP to close on Elias and attack with a dagger.");
+        assert.deepEqual(order.apEnvelope, { positioningAp: 2, effectAp: 2, maxAp: 4 });
+        assert.equal(order.clauses[0].clauseId, "close");
+        assert.equal(order.positioningRequirement.type, "weaponRange");
+        assert.equal(order.followThrough.type, "chooseAnotherAction");
+        assert.equal(order.failureOutcome.type, "bestReachablePosition");
+        assert.equal(order.sourceAction.actionId, "weaponAttack");
+    });
+
+    it("uses the order envelope maximum for AP budget validation", async () => {
+        const { service } = makeService({ initialState: makeState({ apBudget: 3 }) });
+
+        await assert.rejects(
+            () => service.setCombatantPlan("c1", [
+                {
+                    id: "weaponAttack",
+                    type: "attack",
+                    label: "Attack",
+                    intentType: "attackTarget",
+                    apEnvelope: { positioningAp: 2, effectAp: 2, maxAp: 4 }
+                }
+            ]),
+            /exceeds AP budget/
+        );
+    });
+
     it("resets ready and committedAt on plan change", async () => {
         // Must start uncommitted — the guard rejects if the combatant is already ready.
         const { service, getState } = makeService();

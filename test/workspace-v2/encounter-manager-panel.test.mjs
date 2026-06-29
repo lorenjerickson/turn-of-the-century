@@ -100,7 +100,22 @@ function resolvingCombatFixture() {
                 totalTicks: 6,
                 snapshots: [{ tick: 0 }, { tick: 1 }, { tick: 2 }],
                 tickNarratives: []
-            }
+            },
+            timeline: [
+                ...combat.encounterState.timeline,
+                {
+                    tick: 2,
+                    combatantId: "combatant-1",
+                    orderId: "move",
+                    clauseId: "clause-1-effect",
+                    clauseType: "movement",
+                    clauseText: "Move toward the alley gate",
+                    clauseStatus: "active",
+                    relatedCombatantIds: ["combatant-2"],
+                    action: { id: "move", label: "Move", type: "movement" },
+                    outcome: { result: "movementStep", detail: "Ada moves." }
+                }
+            ]
         },
         stepEncounterResolution: async () => {}
     };
@@ -158,6 +173,23 @@ describe("encounter manager panel", () => {
         assert.match(html, />Next Second<\/button>/);
         assert.match(html, /Briggs hunkers down\./);
         assert.match(html, /class="totc-v2-encounter-manager__current-line" aria-hidden="true"/);
+    });
+
+    it("builds and renders GM order clauses with current tick highlighting", () => {
+        const model = buildEncounterManagerPanelModel({ combat: resolvingCombatFixture() });
+        const ada = model.actors[0];
+
+        assert.equal(ada.orders.length, 2);
+        assert.equal(ada.orders[0].status, "active");
+        assert.equal(ada.orders[0].clauses[0].status, "active");
+        assert.equal(ada.orders[0].clauses[0].text, "Move toward the alley gate");
+        assert.deepEqual(ada.orders[0].clauses[0].relatedCombatantIds, ["combatant-2"]);
+
+        const html = renderEncounterManagerPanel(model, { escapeHTML });
+        assert.match(html, /class="totc-v2-encounter-manager__order is-active"/);
+        assert.match(html, /class="totc-v2-encounter-manager__order-clause is-active"/);
+        assert.match(html, /data-related-combatant-ids="combatant-2"/);
+        assert.match(html, /Move toward the alley gate/);
     });
 
     it("starts encounters through the GM feature and opens the Encounter Manager panel", async () => {

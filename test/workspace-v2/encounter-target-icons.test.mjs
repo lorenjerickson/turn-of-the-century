@@ -5,7 +5,8 @@ import { describe, it } from "node:test";
 
 import {
     resolveTargetIconType,
-    buildEncounterTargetIconsModel
+    buildEncounterTargetIconsModel,
+    renderEncounterTargetIconsToContainer
 } from "../../module/ui/workspace-v2/encounter-target-icons.mjs";
 
 const rootDir = new URL("../..", import.meta.url).pathname;
@@ -133,6 +134,56 @@ describe("buildEncounterTargetIconsModel", () => {
         assert.equal(result[0].tileHeight, 100);
     });
 
+    it("resolves target tokens from array-backed scene token collections", () => {
+        const combatants = {
+            "target-c": { tokenId: "tok-1" }
+        };
+        const plan = [{
+            type: "attack",
+            actionId: "snapshot",
+            targetId: "target-c"
+        }];
+        const scene = {
+            grid: { size: 100 },
+            tokens: [{ id: "tok-1", x: 200, y: 300, width: 1, height: 1 }]
+        };
+
+        const result = buildEncounterTargetIconsModel({
+            combat: makeCombat(plan, combatants),
+            combatantId: "c1",
+            scene
+        });
+
+        assert.equal(result.length, 1);
+        assert.equal(result[0].tokenId, "tok-1");
+        assert.equal(result[0].iconType, "target");
+    });
+
+    it("resolves target tokens through combatant token document references", () => {
+        const combatants = {
+            "target-c": { token: { document: { id: "tok-doc" } } }
+        };
+        const plan = [{
+            type: "attack",
+            actionId: "snapshot",
+            targetId: "target-c"
+        }];
+        const scene = {
+            grid: { size: 100 },
+            tokens: [{ id: "tok-placeable", document: { id: "tok-doc", x: 200, y: 300, width: 1, height: 1 } }]
+        };
+
+        const result = buildEncounterTargetIconsModel({
+            combat: makeCombat(plan, combatants),
+            combatantId: "c1",
+            scene
+        });
+
+        assert.equal(result.length, 1);
+        assert.equal(result[0].tokenId, "tok-doc");
+        assert.equal(result[0].iconType, "target");
+    });
+
     it("scales tileWidth/tileHeight by gridSize and token width", () => {
         const tokens = {
             "tok-big": { x: 0, y: 0, width: 2, height: 2 }
@@ -220,6 +271,78 @@ describe("buildEncounterTargetIconsModel", () => {
 });
 
 // ---------------------------------------------------------------------------
+// renderEncounterTargetIconsToContainer
+// ---------------------------------------------------------------------------
+
+class FakeLegacyGraphics {
+    constructor() {
+        this.calls = [];
+        FakeLegacyGraphics.instances.push(this);
+    }
+
+    beginFill(...args) { this.calls.push(["beginFill", ...args]); return this; }
+    endFill(...args) { this.calls.push(["endFill", ...args]); return this; }
+    lineStyle(...args) { this.calls.push(["lineStyle", ...args]); return this; }
+    drawCircle(...args) { this.calls.push(["drawCircle", ...args]); return this; }
+    drawPolygon(...args) { this.calls.push(["drawPolygon", ...args]); return this; }
+    moveTo(...args) { this.calls.push(["moveTo", ...args]); return this; }
+    lineTo(...args) { this.calls.push(["lineTo", ...args]); return this; }
+    destroy(...args) { this.calls.push(["destroy", ...args]); return this; }
+}
+
+FakeLegacyGraphics.instances = [];
+
+class FakeContainer {
+    constructor(children = []) {
+        this.children = [...children];
+    }
+
+    addChild(child) {
+        this.children.push(child);
+        return child;
+    }
+
+    removeChildAt(index) {
+        return this.children.splice(index, 1)[0] ?? null;
+    }
+}
+
+describe("renderEncounterTargetIconsToContainer", () => {
+    it("renders target icons using legacy PIXI Graphics methods", () => {
+        const originalPixi = globalThis.PIXI;
+        FakeLegacyGraphics.instances = [];
+        globalThis.PIXI = { Graphics: FakeLegacyGraphics };
+
+        try {
+            const staleChild = { destroyCalled: false, destroy() { this.destroyCalled = true; } };
+            const container = new FakeContainer([staleChild]);
+
+            renderEncounterTargetIconsToContainer(container, [{
+                x: 100,
+                y: 200,
+                tileWidth: 100,
+                tileHeight: 100,
+                iconType: "follow"
+            }]);
+
+            assert.equal(staleChild.destroyCalled, true);
+            assert.equal(container.children.length, 1);
+            assert.equal(FakeLegacyGraphics.instances.length, 1);
+
+            const calls = FakeLegacyGraphics.instances[0].calls.map(([name]) => name);
+            assert.ok(calls.includes("drawCircle"));
+            assert.ok(calls.includes("drawPolygon"));
+            assert.ok(calls.includes("beginFill"));
+            assert.ok(calls.includes("lineStyle"));
+            assert.ok(!calls.includes("circle"));
+            assert.ok(!calls.includes("poly"));
+        } finally {
+            globalThis.PIXI = originalPixi;
+        }
+    });
+});
+
+// ---------------------------------------------------------------------------
 // Source-text assertions: PIXI rendering structure
 // ---------------------------------------------------------------------------
 
@@ -228,9 +351,9 @@ describe("encounter target icons rendering structure", () => {
         assert.match(iconSource, /typeof PIXI === "undefined"/);
     });
 
-    it("places each icon at the top-right corner of the token bounding box", () => {
-        assert.match(iconSource, /cx = x \+ tileWidth - r - 3/);
-        assert.match(iconSource, /cy = y \+ r \+ 3/);
+    it("places each icon at the top-left corner of the token bounding box", () => {
+        assert.match(iconSource, /cx = x \+ r \+ 2/);
+        assert.match(iconSource, /cy = y \+ r \+ 2/);
     });
 
     it("draws a dark background disc for icon legibility over token images", () => {
@@ -252,7 +375,7 @@ describe("encounter target icons rendering structure", () => {
 
     it("draws a pentagon shield shape for defense actions", () => {
         assert.match(iconSource, /drawShield/);
-        assert.match(iconSource, /g\.poly\(pts\)/);
+        assert.match(iconSource, /strokePolygon\(g, pts/);
     });
 
     it("draws directional arrows for all three movement variants", () => {
@@ -286,17 +409,19 @@ describe("encounter planning feature target icon integration", () => {
         assert.match(featureSource, /selection\?\.combatant\?\.id/);
     });
 
-    it("uses a hash to skip PIXI redraws when the icon set is unchanged", () => {
+    it("uses a hash and child count to skip PIXI redraws only when the icon set is unchanged", () => {
         assert.match(featureSource, /hash === this\.lastTargetIconsHash/);
+        assert.match(featureSource, /children\?\.length === icons\.length/);
+        assert.match(featureSource, /i\.x.*i\.y.*i\.tileWidth.*i\.tileHeight/s);
     });
 
-    it("adds the icon container to canvas.interface (topmost canvas layer)", () => {
-        assert.match(featureSource, /canvas\?\.interface/);
-        assert.match(featureSource, /interfaceLayer\.addChild\(this\.targetIconsContainer\)/);
+    it("adds the icon container to a world-space canvas layer", () => {
+        assert.match(featureSource, /canvas\?\.tokens \?\? canvas\?\.primary \?\? canvas\?\.stage \?\? canvas\?\.interface/);
+        assert.match(featureSource, /targetIconLayer\.addChild\(this\.targetIconsContainer\)/);
     });
 
     it("recreates the container if it has been destroyed or reparented", () => {
         assert.match(featureSource, /targetIconsContainer\.destroyed/);
-        assert.match(featureSource, /targetIconsContainer\.parent !== interfaceLayer/);
+        assert.match(featureSource, /targetIconsContainer\.parent !== targetIconLayer/);
     });
 });

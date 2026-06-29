@@ -11,11 +11,80 @@ function pointerGlobalPoint(event = {}) {
         ?? null;
 }
 
+function eventSources(event = {}) {
+    return [
+        event,
+        event?.nativeEvent,
+        event?.data?.originalEvent,
+        event?.originalEvent
+    ].filter(Boolean);
+}
+
 function domClientPoint(event = {}) {
-    const source = event?.nativeEvent ?? event?.data?.originalEvent ?? event;
-    const x = Number(source?.clientX);
-    const y = Number(source?.clientY);
-    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+    for (const source of eventSources(event)) {
+        const x = Number(source?.clientX ?? source?.x);
+        const y = Number(source?.clientY ?? source?.y);
+        const point = Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+        if (point) return point;
+    }
+    return null;
+}
+
+function domOffsetPoint(event = {}) {
+    for (const source of eventSources(event)) {
+        const x = Number(source?.offsetX ?? source?.layerX);
+        const y = Number(source?.offsetY ?? source?.layerY);
+        const point = Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+        if (point) return point;
+    }
+    return null;
+}
+
+function domPagePoint(event = {}) {
+    for (const source of eventSources(event)) {
+        const x = Number(source?.pageX);
+        const y = Number(source?.pageY);
+        const point = Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+        if (point) return point;
+    }
+    return null;
+}
+
+function clientPointFromPage(pagePoint = null) {
+    if (!pagePoint) return null;
+    const scrollX = Number(globalThis.window?.scrollX ?? globalThis.document?.documentElement?.scrollLeft ?? 0);
+    const scrollY = Number(globalThis.window?.scrollY ?? globalThis.document?.documentElement?.scrollTop ?? 0);
+    return finitePoint({
+        x: pagePoint.x - scrollX,
+        y: pagePoint.y - scrollY
+    });
+}
+
+function canvasLocalPointFromClient(clientPoint = null, view = null) {
+    if (!clientPoint || !view) return null;
+    const rect = view?.getBoundingClientRect?.();
+    if (!rect) return null;
+    const scaleX = Number(view?.width) > 0 && Number(rect.width) > 0
+        ? Number(view.width) / Number(rect.width)
+        : 1;
+    const scaleY = Number(view?.height) > 0 && Number(rect.height) > 0
+        ? Number(view.height) / Number(rect.height)
+        : 1;
+    return finitePoint({
+        x: (clientPoint.x - Number(rect.left ?? 0)) * scaleX,
+        y: (clientPoint.y - Number(rect.top ?? 0)) * scaleY
+    });
+}
+
+function scenePointFromCanvasLocal(localPoint = null, stage = null) {
+    if (!localPoint) return null;
+    if (typeof stage?.worldTransform?.applyInverse === "function") {
+        return finitePoint(stage.worldTransform.applyInverse(localPoint));
+    }
+    if (typeof stage?.toLocal === "function") {
+        return finitePoint(stage.toLocal(localPoint));
+    }
+    return localPoint;
 }
 
 export function isPrimaryPointerButton(event = {}) {
@@ -39,19 +108,20 @@ export function getNativeCanvasEventScenePoint(event = {}, canvasRef = globalThi
         return finitePoint(event.data.getLocalPosition(stage));
     }
 
-    const clientPoint = domClientPoint(event);
+    const clientPoint = domClientPoint(event) ?? clientPointFromPage(domPagePoint(event));
     if (clientPoint && typeof canvasRef?.canvasCoordinatesFromClient === "function") {
-        return finitePoint(canvasRef.canvasCoordinatesFromClient(clientPoint.x, clientPoint.y));
+        const scenePoint = finitePoint(canvasRef.canvasCoordinatesFromClient(clientPoint.x, clientPoint.y));
+        if (scenePoint) return scenePoint;
     }
 
     const view = canvasRef?.app?.view ?? canvasRef?.app?.canvas ?? null;
-    const rect = view?.getBoundingClientRect?.();
-    if (clientPoint && rect && stage?.worldTransform && typeof stage.worldTransform.applyInverse === "function") {
-        return finitePoint(stage.worldTransform.applyInverse({
-            x: clientPoint.x - Number(rect.left ?? 0),
-            y: clientPoint.y - Number(rect.top ?? 0)
-        }));
-    }
+    const localClientPoint = canvasLocalPointFromClient(clientPoint, view);
+    const sceneClientPoint = scenePointFromCanvasLocal(localClientPoint, stage);
+    if (sceneClientPoint) return sceneClientPoint;
+
+    const offsetPoint = domOffsetPoint(event);
+    const sceneOffsetPoint = scenePointFromCanvasLocal(offsetPoint, stage);
+    if (sceneOffsetPoint) return sceneOffsetPoint;
 
     return null;
 }

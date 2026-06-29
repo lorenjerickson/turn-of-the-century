@@ -108,6 +108,100 @@ describe("ActorWorkspaceController", () => {
         assert.equal(controller.state.editorState.dirty, false);
     });
 
+    it("selects equipment modal items into hidden form fields", async () => {
+        const listeners = new Map();
+        const input = {
+            name: "system.inventory.equipment.hands.itemIds.0",
+            value: "revolver",
+            dataset: { actorField: "system.inventory.equipment.hands.itemIds.0" }
+        };
+        const saveButton = {
+            disabled: true,
+            removeAttribute: (name) => {
+                if (name === "disabled") saveButton.disabled = false;
+            }
+        };
+        const picker = {
+            hidden: false,
+            classList: {
+                removed: [],
+                remove: (className) => picker.classList.removed.push(className)
+            }
+        };
+        const form = {
+            querySelector: (selector) => {
+                if (selector.startsWith("[name=")) return input;
+                if (selector === "[data-action='actor-editor-save']") return saveButton;
+                return null;
+            }
+        };
+        const optionButton = {
+            disabled: false,
+            dataset: {
+                equipmentField: "system.inventory.equipment.hands.itemIds.0",
+                itemId: "knife"
+            },
+            addEventListener: (type, handler) => listeners.set(type, handler),
+            closest: (selector) => {
+                if (selector === "form") return form;
+                if (selector === "[data-equipment-picker]") return picker;
+                return null;
+            }
+        };
+        const root = {
+            querySelectorAll: (selector) => selector === "[data-action='actor-equipment-select-item']" ? [optionButton] : []
+        };
+        const controller = new ActorWorkspaceController();
+
+        controller.wireHandlers(root);
+        await listeners.get("click")({
+            preventDefault() {},
+            stopPropagation() {}
+        });
+
+        assert.equal(input.value, "knife");
+        assert.equal(controller.state.editorState.formData["system.inventory.equipment.hands.itemIds.0"], "knife");
+        assert.equal(controller.state.editorState.dirty, true);
+        assert.equal(saveButton.disabled, false);
+        assert.equal(picker.hidden, true);
+        assert.deepEqual(picker.classList.removed, ["is-open"]);
+    });
+
+    it("equips hand armor drops into the shared hand armor slot", async () => {
+        let updateData = null;
+        const actor = {
+            system: {
+                inventory: {
+                    equipment: {
+                        hands: { itemIds: [], allowedTypes: ["weapon", "tool", "equipment"], capacity: 2 },
+                        handsArmor: { itemIds: [], allowedTypes: ["armor"], capacity: 1 },
+                        belt: { itemIds: [], allowedTypes: ["item"], capacity: 4, quality: "standard" }
+                    }
+                }
+            },
+            async createEmbeddedDocuments(type, payload) {
+                assert.equal(type, "Item");
+                assert.deepEqual(payload, [{ name: "Bracers", type: "armor", system: { slot: "handsArmor" } }]);
+                return [{ id: "bracers", name: "Bracers", type: "armor", system: { slot: "handsArmor" } }];
+            },
+            async update(changes) {
+                updateData = changes;
+            }
+        };
+        const controller = new ActorWorkspaceController();
+
+        const result = await controller.importItemToActor(actor, {
+            type: "Item",
+            data: { name: "Bracers", type: "armor", system: { slot: "handsArmor" } }
+        });
+
+        assert.equal(result.equipped, true);
+        assert.equal(result.slotKey, "handsArmor");
+        assert.deepEqual(updateData, {
+            "system.inventory.equipment.handsArmor.itemIds": ["bracers"]
+        });
+    });
+
     it("generates actors through injected services and updates editor status", async () => {
         const renderCalls = [];
         let generatedPrompt = "";
@@ -280,7 +374,8 @@ describe("ActorWorkspaceController", () => {
                         head: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
                         neck: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
                         torso: { itemIds: [], allowedTypes: ["armor", "equipment", "item"], capacity: 2 },
-                        hands: { itemIds: [], allowedTypes: ["armor", "weapon", "tool", "equipment"], capacity: 2 },
+                        hands: { itemIds: [], allowedTypes: ["weapon", "tool", "equipment"], capacity: 2 },
+                        handsArmor: { itemIds: [], allowedTypes: ["armor"], capacity: 1 },
                         legs: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
                         feet: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
                         belt: { itemIds: [], allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"], capacity: 4, quality: "standard" }
@@ -370,7 +465,8 @@ describe("ActorWorkspaceController", () => {
                         head: { itemIds: ["existing-head-item"], allowedTypes: ["armor", "equipment"], capacity: 1 },
                         neck: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
                         torso: { itemIds: [], allowedTypes: ["armor", "equipment", "item"], capacity: 2 },
-                        hands: { itemIds: ["existing-item-1", "existing-item-2"], allowedTypes: ["armor", "weapon", "tool", "equipment"], capacity: 2 },
+                        hands: { itemIds: ["existing-item-1", "existing-item-2"], allowedTypes: ["weapon", "tool", "equipment"], capacity: 2 },
+                        handsArmor: { itemIds: ["existing-hand-armor"], allowedTypes: ["armor"], capacity: 1 },
                         legs: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
                         feet: { itemIds: [], allowedTypes: ["armor", "equipment"], capacity: 1 },
                         belt: { itemIds: ["belt-1", "belt-2", "belt-3", "belt-4"], allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"], capacity: 4, quality: "standard" }

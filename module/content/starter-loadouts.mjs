@@ -45,7 +45,7 @@ export const STARTER_ACTOR_LOADOUTS = {
     "Doctor Mordecai Vale": {
         equipped: [
             { type: "weapon", name: "Galvanic Prod", slot: "hands", position: 1 },
-            { type: "armor", name: "Pneumatic Bracer Rig", slot: "hands", position: 2 },
+            { type: "armor", name: "Pneumatic Bracer Rig", slot: "handsArmor", position: 1 },
             { type: "consumable", name: "Combat Morphia", slot: "belt", position: 1 },
             { type: "equipment", name: "Portable Telegraph Tap", slot: "belt", position: 2 },
             { type: "consumable", name: "Antitoxin Ampoule", slot: "belt", position: 3 },

@@ -95,6 +95,7 @@ export class EncounterNarrator {
         const action = entry?.action ?? {};
         const outcome = entry?.outcome ?? {};
         const result = String(outcome?.result ?? "").trim();
+        const clauseText = String(entry?.clauseText ?? "").trim();
         const actionType = String(action?.type ?? "").trim().toLowerCase();
         const actionId = String(action?.id ?? action?.actionId ?? "").trim().toLowerCase();
         const targetCombatant = resolveDeclaredTarget(
@@ -121,6 +122,10 @@ export class EncounterNarrator {
         });
 
         if (recapText) return recapText;
+
+        if (clauseText && ["progress", "movementstep", "reactionready"].includes(result.toLowerCase())) {
+            return `${combatantName}: ${clauseText}.`;
+        }
 
         if (actionType === "movement" || result === "movementStep") {
             const movementFeet = Math.max(

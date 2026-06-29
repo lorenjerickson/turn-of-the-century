@@ -94,16 +94,26 @@ describe("Actor management panel", () => {
         assert.match(styles, /\.totc-v2-actor-editor__section-fields \.totc-v2-actor-editor__field--textarea,[\s\S]*\.totc-v2-actor-editor__section-fields \.totc-v2-actor-editor__field--html\s*\{[\s\S]*flex-basis:\s*20rem;[\s\S]*max-width:\s*32rem;/);
     });
 
-    it("styles actor equipment as a mannequin layout with belt and pack slots below", () => {
-        assert.match(styles, /\.totc-v2-actor-equipment__body\s*\{[\s\S]*grid-template-areas:/);
-        assert.match(styles, /"\. head \."/);
-        assert.match(styles, /"hand-left torso hand-right"/);
-        assert.match(styles, /"\. feet \."/);
-        assert.match(styles, /\.totc-v2-actor-equipment__body\s*\{[\s\S]*position:\s*relative;/);
-        assert.match(styles, /\.totc-v2-actor-equipment__doll\s*\{[\s\S]*position:\s*absolute;[\s\S]*pointer-events:\s*none;/);
-        assert.match(styles, /\.totc-v2-actor-equipment__belt\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-wrap:\s*wrap;[\s\S]*justify-content:\s*center;/);
-        assert.match(styles, /\.totc-v2-actor-equipment__pack\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-wrap:\s*wrap;/);
-        assert.match(styles, /\.totc-v2-actor-equipment__item\s*\{[\s\S]*grid-template-columns:\s*2rem minmax\(0, 1fr\);/);
+    it("styles actor equipment as icon slots with hover cards and modal pickers", () => {
+        assert.match(styles, /\.totc-v2-actor-equipment\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*1rem;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__body\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0\.7rem;[\s\S]*justify-items:\s*center;[\s\S]*max-width:\s*min\(26rem, 100%\);/);
+        assert.match(styles, /\.totc-v2-actor-equipment__body-row\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-wrap:\s*nowrap;[\s\S]*gap:\s*1\.15rem;[\s\S]*justify-content:\s*center;/);
+        assert.doesNotMatch(styles, /totc-v2-actor-equipment__doll/);
+        assert.match(styles, /\.totc-v2-actor-equipment__slot\s*\{[\s\S]*height:\s*5\.25rem;[\s\S]*position:\s*relative;[\s\S]*width:\s*5\.25rem;/);
+        assert.doesNotMatch(styles, /\.totc-v2-actor-equipment__body > \.totc-v2-actor-equipment__slot\s*\{[\s\S]*position:\s*absolute;/);
+        assert.doesNotMatch(styles, /transform:\s*translate\(-50%, -50%\);/);
+        assert.match(styles, /\.totc-v2-actor-equipment__slot:hover,[\s\S]*\.totc-v2-actor-equipment__slot:focus-within\s*\{[\s\S]*z-index:\s*1000;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__belt\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-wrap:\s*wrap;[\s\S]*justify-content:\s*center;[\s\S]*margin-top:\s*0\.75rem;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__pack\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-wrap:\s*wrap;[\s\S]*justify-content:\s*center;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__belt-label,[\s\S]*\.totc-v2-actor-equipment__pack-label\s*\{[\s\S]*display:\s*flex;[\s\S]*flex:\s*0 0 100%;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__belt-label::before,[\s\S]*\.totc-v2-actor-equipment__pack-label::after\s*\{[\s\S]*height:\s*1px;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__icon\s*\{[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;[\s\S]*height:\s*4\.8rem;[\s\S]*width:\s*4\.8rem;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__icon\.is-empty::before\s*\{[\s\S]*border:\s*1px dashed rgba\(148, 163, 184, 0\.46\);/);
+        assert.match(styles, /\.totc-v2-actor-equipment__icon img\s*\{[\s\S]*height:\s*4\.45rem;[\s\S]*width:\s*4\.45rem;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__hover-card\s*\{[\s\S]*display:\s*none;[\s\S]*position:\s*absolute;[\s\S]*z-index:\s*1000;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__icon:hover \.totc-v2-actor-equipment__hover-card,[\s\S]*\.totc-v2-actor-equipment__icon:focus-visible \.totc-v2-actor-equipment__hover-card\s*\{[\s\S]*display:\s*grid;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__picker\.is-open\s*\{[\s\S]*position:\s*fixed;[\s\S]*z-index:\s*100;/);
+        assert.match(styles, /\.totc-v2-actor-equipment__picker-option\s*\{[\s\S]*grid-template-columns:\s*2\.5rem minmax\(0, 1fr\);/);
     });
 
     it("builds drag payloads from the current multi-selection", () => {
@@ -285,7 +295,7 @@ describe("Actor management panel", () => {
         assert.match(html, /class="totc-v2-actor-editor__ability-score"[^>]+name="system\.abilities\.int\.value"[^>]+type="number"[^>]+value="14"/);
     });
 
-    it("renders an equipment mannequin with compatible item selectors and item summaries", () => {
+    it("renders equipment icon slots, hover cards, and compatible item modals without a body illustration", () => {
         const actor = {
             id: "a",
             name: "Ada Finch",
@@ -293,8 +303,10 @@ describe("Actor management panel", () => {
             items: {
                 contents: [
                     { id: "hat", name: "Oilskin Hat", type: "armor", img: "", system: { slot: "head", description: "<p>Keeps rain out of suspicious eyes.</p>" } },
-                    { id: "revolver", name: "Service Revolver", type: "weapon", img: "revolver.webp", system: { slot: "hands", description: "<p>A six-shot sidearm.</p>" } },
+                    { id: "revolver", name: "Service Revolver", type: "weapon", img: "revolver.webp", system: { slot: "hands", description: "<p>A six-shot sidearm.</p>", damage: { formula: "1d8 piercing" }, effects: [{ name: "Loud report" }] } },
+                    { id: "bracers", name: "Pneumatic Bracer Rig", type: "armor", img: "bracers.webp", system: { slot: "handsArmor", description: "<p>Brass wrist protection.</p>" } },
                     { id: "vest", name: "Mourning Silk Vest", type: "armor", img: "vest.webp", system: { slot: "torso", description: "<p>Armored formal wear.</p>" } },
+                    { id: "satchel", name: "Witness Satchel", type: "item", img: "satchel.webp", system: { slot: "torso", category: "container", description: "<p>Evidence bag.</p>", properties: { tags: ["container", "satchel"] } } },
                     { id: "tonic", name: "Nightwatch Tonic", type: "consumable", img: "tonic.webp", system: { slot: "belt", description: "<p>Sharpens attention briefly.</p>" } },
                     { id: "bandage", name: "Field Bandage", type: "consumable", img: "bandage.webp", system: { description: "<p>Stops bleeding.</p>" } }
                 ]
@@ -305,8 +317,9 @@ describe("Actor management panel", () => {
                     equipment: {
                         head: { label: "Head", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: ["hat"] },
                         neck: { label: "Neck", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
-                        torso: { label: "Torso", capacity: 2, allowedTypes: ["armor", "equipment", "item"], itemIds: ["vest"] },
-                        hands: { label: "Hands", capacity: 2, allowedTypes: ["armor", "weapon", "tool", "equipment"], itemIds: ["revolver"] },
+                        torso: { label: "Torso", capacity: 2, allowedTypes: ["armor", "equipment", "item"], itemIds: ["vest", "satchel"] },
+                        hands: { label: "Hands", capacity: 2, allowedTypes: ["weapon", "tool", "equipment"], itemIds: ["revolver"] },
+                        handsArmor: { label: "Hand Armor", capacity: 1, allowedTypes: ["armor"], itemIds: ["bracers"] },
                         legs: { label: "Legs", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
                         feet: { label: "Feet", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
                         belt: { label: "Belt", capacity: 4, quality: "standard", allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"], itemIds: ["tonic"] }
@@ -322,17 +335,95 @@ describe("Actor management panel", () => {
         assert.match(html, /totc-v2-actor-editor__section--equipment/);
         assert.match(html, /totc-v2-actor-equipment__slot--head/);
         assert.match(html, /totc-v2-actor-equipment__slot--hand-left/);
+        assert.match(html, /totc-v2-actor-equipment__slot--hands-armor/);
         assert.match(html, /totc-v2-actor-equipment__belt/);
-        assert.match(html, /totc-v2-actor-equipment__doll/);
-        assert.match(html, /<img src="icons\/svg\/item-bag\.svg" alt="">/);
+        assert.doesNotMatch(html, /totc-v2-actor-equipment__doll/);
+        assert.equal((html.match(/totc-v2-actor-equipment__body-row/g) ?? []).length, 6);
+        const bodySlotOrder = [
+            "totc-v2-actor-equipment__slot--head",
+            "totc-v2-actor-equipment__slot--neck",
+            "totc-v2-actor-equipment__slot--torso",
+            "totc-v2-actor-equipment__slot--torso-extra",
+            "totc-v2-actor-equipment__slot--hand-left",
+            "totc-v2-actor-equipment__slot--hands-armor",
+            "totc-v2-actor-equipment__slot--hand-right",
+            "totc-v2-actor-equipment__slot--legs",
+            "totc-v2-actor-equipment__slot--feet"
+        ];
+        assert.deepEqual(
+            bodySlotOrder.map((slotClass) => html.indexOf(slotClass) >= 0),
+            bodySlotOrder.map(() => true)
+        );
+        assert.deepEqual(
+            bodySlotOrder.map((slotClass) => html.indexOf(slotClass)),
+            bodySlotOrder.map((slotClass) => html.indexOf(slotClass)).toSorted((a, b) => a - b)
+        );
+        assert.match(html, /totc-v2-actor-equipment__belt-label">Belt<\/div>/);
+        assert.match(html, /type="hidden" name="system\.inventory\.equipment\.hands\.itemIds\.0"[^>]*data-action="actor-editor-field"[^>]*value="revolver"/);
+        assert.match(html, /type="hidden" name="system\.inventory\.equipment\.handsArmor\.itemIds\.0"[^>]*data-action="actor-editor-field"[^>]*value="bracers"/);
+        assert.match(html, /data-action="actor-equipment-open-picker"/);
+        assert.match(html, /aria-haspopup="dialog"/);
+        assert.match(html, /class="totc-v2-actor-equipment__icon/);
+        assert.match(html, /class="totc-v2-actor-equipment__hover-card" role="tooltip"/);
+        assert.match(html, /<em>Slot: Head<\/em>/);
         assert.match(html, /<strong>Oilskin Hat<\/strong>/);
-        assert.match(html, /Armor - Keeps rain out of suspicious eyes\./);
-        assert.match(html, /name="system\.inventory\.equipment\.hands\.itemIds\.0"[^>]*data-action="actor-editor-field"/);
-        assert.match(html, /<option value="revolver" selected >Service Revolver \(Weapon\) - A six-shot sidearm\.<\/option>/);
-        assert.doesNotMatch(html, /<option value="tonic"[^>]*>Nightwatch Tonic \(Consumable\)[^<]*<\/option>[\s\S]*name="system\.inventory\.equipment\.hands/);
+        assert.match(html, /<em>Slot: Hand Armor<\/em>[\s\S]*<strong>Pneumatic Bracer Rig<\/strong>/);
+        assert.match(html, /Keeps rain out of suspicious eyes\./);
+        assert.match(html, /Damage: 1d8 piercing \| Effects: Loud report/);
+        assert.match(html, /aria-label="Neck: Empty"[\s\S]*class="totc-v2-actor-equipment__hover-card" role="tooltip"[\s\S]*<em>Slot: Neck<\/em>[\s\S]*<strong>Empty<\/strong>/);
+        const neckLabelIndex = html.indexOf('aria-label="Neck: Empty"');
+        const emptyNeckButton = neckLabelIndex >= 0
+            ? html.slice(html.lastIndexOf("<button", neckLabelIndex), html.indexOf("</button>", neckLabelIndex) + "</button>".length)
+            : "";
+        assert.ok(emptyNeckButton, "empty neck slot button should render");
+        assert.doesNotMatch(emptyNeckButton, /<img\b/);
+        assert.match(html, /data-equipment-picker="system\.inventory\.equipment\.hands\.itemIds\.0"/);
+        assert.match(html, /data-equipment-picker="system\.inventory\.equipment\.handsArmor\.itemIds\.0"[\s\S]*data-item-id="bracers"/);
+        assert.match(html, /role="dialog"/);
+        assert.match(html, /data-action="actor-equipment-select-item"/);
+        assert.match(html, /data-item-id="revolver"/);
+        assert.doesNotMatch(html, /<select[^>]+name="system\.inventory\.equipment\.hands\.itemIds\.0"/);
+        assert.doesNotMatch(html, /data-item-id="tonic"[\s\S]*data-equipment-picker="system\.inventory\.equipment\.hands/);
         assert.match(html, /totc-v2-actor-equipment__pack/);
-        assert.match(html, /name="system\.inventory\.pack\.itemIds\.0"[^>]*data-action="actor-editor-field"/);
+        assert.match(html, /type="hidden" name="system\.inventory\.pack\.itemIds\.0"[^>]*data-action="actor-editor-field"/);
+        assert.match(html, /type="hidden" name="system\.inventory\.pack\.itemIds\.19"[^>]*data-action="actor-editor-field"/);
         assert.match(html, /<strong>Field Bandage<\/strong>/);
+    });
+
+    it("hides belt and pack inventory grids when the actor has no equipped containers", () => {
+        const actor = {
+            id: "a",
+            name: "Ada Finch",
+            type: "hero",
+            items: {
+                contents: [
+                    { id: "vest", name: "Mourning Silk Vest", type: "armor", img: "vest.webp", system: { slot: "torso", description: "<p>Armored formal wear.</p>" } },
+                    { id: "bandage", name: "Field Bandage", type: "consumable", img: "bandage.webp", system: { description: "<p>Stops bleeding.</p>" } }
+                ]
+            },
+            system: {
+                inventory: {
+                    equipment: {
+                        head: { label: "Head", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
+                        neck: { label: "Neck", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
+                        torso: { label: "Torso", capacity: 2, allowedTypes: ["armor", "equipment", "item"], itemIds: ["vest"] },
+                        hands: { label: "Hands", capacity: 2, allowedTypes: ["weapon", "tool", "equipment"], itemIds: [] },
+                        handsArmor: { label: "Hand Armor", capacity: 1, allowedTypes: ["armor"], itemIds: [] },
+                        legs: { label: "Legs", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
+                        feet: { label: "Feet", capacity: 1, allowedTypes: ["armor", "equipment"], itemIds: [] },
+                        belt: { label: "Belt", capacity: 4, quality: "standard", allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"], itemIds: [] }
+                    },
+                    pack: { itemIds: ["bandage"], capacity: 20 }
+                }
+            }
+        };
+
+        const model = buildActorEditorPanelModel({ actor, state: { mode: "edit" } });
+        const html = renderActorEditorPanel(model, { escapeHTML });
+
+        assert.doesNotMatch(html, /totc-v2-actor-equipment__belt/);
+        assert.doesNotMatch(html, /totc-v2-actor-equipment__pack/);
+        assert.doesNotMatch(html, /system\.inventory\.pack\.itemIds\.0/);
     });
 
     it("renders biography and GM notes as injected HTML instead of editable textareas", () => {
@@ -365,6 +456,7 @@ describe("Actor management panel", () => {
             ["system.abilities.int.value", "15"],
             ["system.inventory.equipment.hands.itemIds.0", "revolver"],
             ["system.inventory.equipment.hands.itemIds.1", ""],
+            ["system.inventory.equipment.handsArmor.itemIds.0", "bracers"],
             ["system.inventory.equipment.belt.itemIds.0", "tonic"],
             ["system.inventory.pack.itemIds.0", "bandage"],
             ["system.inventory.pack.itemIds.1", ""]
@@ -379,6 +471,7 @@ describe("Actor management panel", () => {
                 inventory: {
                     equipment: {
                         hands: { itemIds: ["revolver"] },
+                        handsArmor: { itemIds: ["bracers"] },
                         belt: { itemIds: ["tonic"] }
                     },
                     pack: { itemIds: ["bandage"] }

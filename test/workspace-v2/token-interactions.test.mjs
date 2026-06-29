@@ -65,8 +65,10 @@ describe("workspace token interactions", () => {
         // so we must register at document level to fire first and stop propagation.
         assert.match(encounterPlanningFeatureSource, /document\.addEventListener\("pointerdown", handler, \{ capture: true \}\)/);
         assert.match(encounterPlanningFeatureSource, /document\.removeEventListener\("pointerdown", handler, \{ capture: true \}\)/);
-        // Only intercept events on the canvas view element — let panel UI clicks through.
-        assert.match(encounterPlanningFeatureSource, /if \(view && event\.target !== view\) return;/);
+        // Only intercept events on the canvas view path — let panel UI clicks through.
+        assert.match(encounterPlanningFeatureSource, /#isCanvasPointerEvent\(event, view\)/);
+        assert.match(encounterPlanningFeatureSource, /event\.composedPath\(\)\.includes\(view\)/);
+        assert.match(encounterPlanningFeatureSource, /view\.contains\(event\.target\)/);
         assert.match(encounterPlanningFeatureSource, /get hasActiveTargetingInteraction\(\)/);
     });
 

@@ -28,8 +28,8 @@ function makeCombatant(id, name, items = []) {
     };
 }
 
-function makeEntry({ combatantId = "c1", combatantName = "Alice", tick = 1, action = {}, outcome = {} } = {}) {
-    return { combatantId, combatantName, tick, action, outcome };
+function makeEntry({ combatantId = "c1", combatantName = "Alice", tick = 1, action = {}, outcome = {}, ...rest } = {}) {
+    return { combatantId, combatantName, tick, action, outcome, ...rest };
 }
 
 // ---------------------------------------------------------------------------
@@ -77,6 +77,17 @@ describe("EncounterNarrator.buildTickNarrative", () => {
 // ---------------------------------------------------------------------------
 
 describe("EncounterNarrator.describeEntry — movement", () => {
+    it("uses active order clause text for in-progress narration", () => {
+        const narrator = makeNarrator();
+        const entry = makeEntry({
+            action: { type: "movement", movementFeet: 10 },
+            outcome: { result: "movementStep" },
+            clauseText: "Close on Elias"
+        });
+
+        assert.equal(narrator.describeEntry(entry), "Alice: Close on Elias.");
+    });
+
     it("describes a movement action using movementFeet", () => {
         const narrator = makeNarrator();
         const entry = makeEntry({ action: { type: "movement", movementFeet: 15 }, outcome: {} });

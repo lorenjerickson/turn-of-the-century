@@ -1,4 +1,15 @@
 import { getMovementFeetPerAp as getMovementFeetPerApDefault } from "./action-catalog.mjs";
+import {
+    buildFollowThroughAction,
+    remainingFollowThroughAp
+} from "./encounter-follow-through.mjs";
+import {
+    buildSoftFailureOutcome,
+    clearRuntimeEngagementFields,
+    recordReachWindow,
+    usableReachWindow
+} from "./encounter-engagement.mjs";
+import { withOrderClauseMetadata } from "./encounter-order-clauses.mjs";
 
 // ---------------------------------------------------------------------------
 // Pure utilities (local copies — no shared module dependency)
@@ -31,6 +42,56 @@ function reactionRuntimeFromResolution(resolution = {}) {
 
 function serializeReactionRuntime(reactionRuntime = null) {
     return [...(reactionRuntime?.consumedKeys ?? new Set())];
+}
+
+function currentCombatantAction(perCombatant = {}, combatant = null) {
+    const state = perCombatant?.[combatant?.id];
+    if (!state || state.remainingAp <= 0) return null;
+    return state.plan?.[state.pointer] ?? null;
+}
+
+function movementMode(action = null) {
+    return String(action?.id ?? action?.actionId ?? "").toLowerCase();
+}
+
+function isRelativeMovementAction(action = null) {
+    if (String(action?.type ?? "") !== "movement") return false;
+    return ["pursue", "follow", "avoid", "evade"].includes(movementMode(action));
+}
+
+function buildRelativeMovementTickOrder({
+    orderedCombatants = [],
+    perCombatant = {},
+    resolveDeclaredTarget = () => null
+} = {}) {
+    const byId = new Map(orderedCombatants.map((combatant) => [String(combatant?.id ?? ""), combatant]));
+    const visiting = new Set();
+    const visited = new Set();
+    const result = [];
+
+    const visit = (combatant) => {
+        const combatantId = String(combatant?.id ?? "").trim();
+        if (!combatantId || visited.has(combatantId)) return;
+        if (visiting.has(combatantId)) return;
+        visiting.add(combatantId);
+
+        const action = currentCombatantAction(perCombatant, combatant);
+        if (isRelativeMovementAction(action) && action?.targetId) {
+            const targetCombatant = resolveDeclaredTarget(combatantId, action.targetId);
+            const targetId = String(targetCombatant?.id ?? "").trim();
+            const targetAction = currentCombatantAction(perCombatant, targetCombatant);
+            if (targetId && byId.has(targetId) && String(targetAction?.type ?? "") === "movement") {
+                visit(byId.get(targetId));
+            }
+        }
+
+        visiting.delete(combatantId);
+        visited.add(combatantId);
+        result.push(combatant);
+    };
+
+    for (const combatant of orderedCombatants) visit(combatant);
+    return result;
 }
 
 // structuredClone fallback for environments that don't have it (older Foundry,
@@ -314,7 +375,13 @@ export class EncounterResolutionEngine {
         const tickEffects = [];
         const movementFeetPerAp = Number(this.#getMovementFeetPerAp() || 10);
 
-        for (const combatant of orderedCombatants) {
+        const tickOrder = buildRelativeMovementTickOrder({
+            orderedCombatants,
+            perCombatant,
+            resolveDeclaredTarget: this.#resolveDeclaredTarget
+        });
+
+        for (const combatant of tickOrder) {
             const state = perCombatant[combatant.id];
             if (!state || state.remainingAp <= 0) continue;
 
@@ -322,7 +389,7 @@ export class EncounterResolutionEngine {
                 state.remainingAp = Math.max(0, state.remainingAp - 1);
                 state.spentAp += 1;
                 const interrupted = state.progress > 0;
-                timeline.push({
+                timeline.push(withOrderClauseMetadata({
                     tick,
                     combatantId: combatant.id,
                     combatantName: combatant.name,
@@ -333,7 +400,7 @@ export class EncounterResolutionEngine {
                             ? `${combatant.name} is interrupted by incapacitation before completing their action.`
                             : `${combatant.name} is incapacitated and cannot act.`
                     }
-                });
+                }, { actionIndex: state.pointer, clauseStatus: interrupted ? "interrupted" : "failed" }));
                 state.progress = 0;
                 if (interrupted) state.pointer += 1;
                 continue;
@@ -361,10 +428,24 @@ export class EncounterResolutionEngine {
             state.progress += 1;
             action._runtimeProgress = state.progress;
             const isReactionWindow = Boolean(action.isReaction);
+            const impliedOrderHandled = await this.#resolveImpliedOrderPositioningTick({
+                tick,
+                combatant,
+                state,
+                action,
+                timeline,
+                tickEffects,
+                movementFeetPerAp,
+                perCombatant,
+                reactionRuntime,
+                orderedCombatants,
+                evaluationSnapshot
+            });
+            if (impliedOrderHandled) continue;
 
             if (action.type === "movement") {
                 if (action.requiresTarget && !action.targetId) {
-                    timeline.push({
+                    timeline.push(withOrderClauseMetadata({
                         tick,
                         combatantId: combatant.id,
                         combatantName: combatant.name,
@@ -373,7 +454,7 @@ export class EncounterResolutionEngine {
                             result: "failed",
                             detail: `${combatant.name} cannot complete ${action.label}; no target was selected.`
                         }
-                    });
+                    }, { actionIndex: state.pointer, clauseStatus: "failed" }));
                     state.pointer += 1;
                     state.progress = 0;
                     delete action._runtimeProgress;
@@ -408,7 +489,7 @@ export class EncounterResolutionEngine {
                         : movementMode === "avoid"
                             ? `${combatant.name} avoids${targetSuffix} (${stepFeet} ft).`
                             : `${combatant.name} moves ${stepFeet} ft.`;
-                timeline.push({
+                timeline.push(withOrderClauseMetadata({
                     tick,
                     combatantId: combatant.id,
                     combatantName: combatant.name,
@@ -417,7 +498,12 @@ export class EncounterResolutionEngine {
                         result: "movementStep",
                         detail: movementDetail
                     }
-                });
+                }, {
+                    actionIndex: state.pointer,
+                    clauseType: "movement",
+                    clauseStatus: "active",
+                    relatedCombatantIds: targetCombatant?.id ? [targetCombatant.id] : []
+                }));
 
                 const tokenPositionsForReaction = {
                     ...(evaluationSnapshot.tokenPositions ?? {})
@@ -445,7 +531,7 @@ export class EncounterResolutionEngine {
                     tickEffects.push(...overwatchResolution.effects);
                 }
             } else if (state.progress < action.apCost) {
-                timeline.push({
+                timeline.push(withOrderClauseMetadata({
                     tick,
                     combatantId: combatant.id,
                     combatantName: combatant.name,
@@ -456,7 +542,7 @@ export class EncounterResolutionEngine {
                             ? `${combatant.name} holds ${action.label} (${state.progress}/${action.apCost} AP).`
                             : `${combatant.name} continues ${action.label} (${state.progress}/${action.apCost} AP).`
                     }
-                });
+                }, { actionIndex: state.pointer, clauseStatus: "active" }));
             }
 
             if (state.progress < action.apCost) continue;
@@ -500,13 +586,13 @@ export class EncounterResolutionEngine {
                     });
                 }
 
-                timeline.push({
+                timeline.push(withOrderClauseMetadata({
                     tick,
                     combatantId: combatant.id,
                     combatantName: combatant.name,
                     action,
                     outcome
-                });
+                }, { actionIndex: state.pointer }));
                 const timelineIndex = timeline.length - 1;
 
                 if (action.itemId && !action.isReaction && outcome?.result !== "failed") {
@@ -528,6 +614,8 @@ export class EncounterResolutionEngine {
             delete action._runtimeProgress;
             delete action._followOffsetX;
             delete action._followOffsetY;
+            delete action._effectProgress;
+            clearRuntimeEngagementFields(action);
         }
 
         // ------------------------------------------------------------------
@@ -980,6 +1068,292 @@ export class EncounterResolutionEngine {
             tokenPositions,
             applyEffects
         });
+    }
+
+    async #resolveImpliedOrderPositioningTick({
+        tick = 0,
+        combatant = null,
+        state = null,
+        action = null,
+        timeline = [],
+        tickEffects = [],
+        movementFeetPerAp = 10,
+        perCombatant = {},
+        reactionRuntime = null,
+        orderedCombatants = [],
+        evaluationSnapshot = null
+    } = {}) {
+        const positioning = this.#movementResolver.evaluateOrderPositioning?.({
+            combatant,
+            action,
+            tokenPositions: evaluationSnapshot?.tokenPositions,
+            tickEffects
+        });
+        if (!positioning?.applies) return false;
+
+        const reachWindow = positioning.satisfied
+            ? recordReachWindow(action, {
+                tick,
+                positioning,
+                tokenPositions: positioning.tokenPositions ?? evaluationSnapshot?.tokenPositions
+            })
+            : usableReachWindow(action, {
+                targetCombatant: positioning.targetCombatant,
+                perCombatant
+            });
+        const positioningSatisfied = Boolean(positioning.satisfied || reachWindow);
+        const effectTokenPositions = reachWindow?.tokenPositions ?? positioning.tokenPositions;
+
+        if (!positioningSatisfied) {
+            await this.#recordImpliedPositioningStep({
+                tick,
+                combatant,
+                state,
+                action,
+                positioning,
+                timeline,
+                tickEffects,
+                movementFeetPerAp,
+                perCombatant,
+                reactionRuntime,
+                orderedCombatants,
+                evaluationSnapshot
+            });
+            return true;
+        }
+
+        const effectAp = Math.max(1, toNumber(action.apEnvelope?.effectAp, action.apCost ?? 1));
+        action._effectProgress = Math.max(0, toNumber(action._effectProgress, 0)) + 1;
+        if (action._effectProgress < effectAp) {
+            timeline.push(withOrderClauseMetadata({
+                tick,
+                combatantId: combatant.id,
+                combatantName: combatant.name,
+                action,
+                outcome: {
+                    result: "progress",
+                    detail: `${combatant.name} prepares ${action.label} (${action._effectProgress}/${effectAp} AP).`
+                }
+            }, { actionIndex: state.pointer, clauseType: "effect", clauseStatus: "active" }));
+            const maxAp = Math.max(1, toNumber(action.apEnvelope?.maxAp, action.apCost ?? 1));
+            if (state.progress >= maxAp) {
+                timeline.push(withOrderClauseMetadata({
+                    tick,
+                    combatantId: combatant.id,
+                    combatantName: combatant.name,
+                    action,
+                    outcome: {
+                        result: "failed",
+                        detail: `${combatant.name} cannot complete ${action.label}; the AP envelope was exhausted.`
+                    }
+                }, { actionIndex: state.pointer, clauseType: "effect", clauseStatus: "failed" }));
+                this.#advanceCompletedAction(state, action, { allowFollowThrough: false });
+            }
+            return true;
+        }
+
+        await this.#resolveCompletedImpliedOrder({
+            tick,
+            combatant,
+            state,
+            action,
+            timeline,
+            tickEffects,
+            perCombatant,
+            reactionRuntime,
+            evaluationSnapshot,
+            tokenPositions: effectTokenPositions,
+            reachWindow
+        });
+        return true;
+    }
+
+    async #recordImpliedPositioningStep({
+        tick = 0,
+        combatant = null,
+        state = null,
+        action = null,
+        positioning = {},
+        timeline = [],
+        tickEffects = [],
+        movementFeetPerAp = 10,
+        perCombatant = {},
+        reactionRuntime = null,
+        orderedCombatants = [],
+        evaluationSnapshot = null
+    } = {}) {
+        if (positioning.movementEffect) {
+            tickEffects.push({
+                type: "movement",
+                combatantId: combatant.id,
+                ...positioning.movementEffect
+            });
+        }
+
+        const movementAction = positioning.movementAction ?? {
+            id: "impliedMove",
+            actionId: "impliedMove",
+            type: "movement",
+            label: `Position for ${action.label}`,
+            apCost: action.apCost,
+            targetId: action.targetId,
+            impliedForOrderId: action.orderId ?? action.id
+        };
+        movementAction.impliedForOrderId = movementAction.impliedForOrderId ?? action.orderId ?? action.id;
+        const stepFeet = Number(movementAction.movementFeetPerAp || movementFeetPerAp || 10);
+        const targetName = positioning.targetCombatant?.name ? ` ${positioning.targetCombatant.name}` : "";
+        timeline.push(withOrderClauseMetadata({
+            tick,
+            combatantId: combatant.id,
+            combatantName: combatant.name,
+            action: movementAction,
+            outcome: {
+                result: "movementStep",
+                detail: `${combatant.name} closes${targetName} for ${action.label} (${stepFeet} ft).`
+            }
+        }, {
+            actionIndex: state.pointer,
+            clauseType: "positioning",
+            clauseStatus: "active",
+            clauseText: `Position for ${action.label}`,
+            relatedCombatantIds: positioning.targetCombatant?.id ? [positioning.targetCombatant.id] : []
+        }));
+
+        const tokenPositionsForReaction = {
+            ...(evaluationSnapshot?.tokenPositions ?? {})
+        };
+        if (positioning.movementEffect?.tokenId) {
+            tokenPositionsForReaction[positioning.movementEffect.tokenId] = {
+                x: positioning.movementEffect.x,
+                y: positioning.movementEffect.y
+            };
+        }
+
+        const overwatchResolution = await this.#reactionResolver.resolveOverwatch({
+            mover: combatant,
+            tick,
+            perCombatant,
+            reactionRuntime,
+            orderedCombatants,
+            evaluationSnapshot,
+            tokenPositions: tokenPositionsForReaction
+        });
+        if (overwatchResolution.entries.length) {
+            timeline.push(...overwatchResolution.entries);
+        }
+        if (overwatchResolution.effects.length) {
+            tickEffects.push(...overwatchResolution.effects);
+        }
+
+        const maxAp = Math.max(1, toNumber(action.apEnvelope?.maxAp, action.apCost ?? 1));
+        if (state.progress >= maxAp) {
+            timeline.push(withOrderClauseMetadata({
+                tick,
+                combatantId: combatant.id,
+                combatantName: combatant.name,
+                action,
+                outcome: buildSoftFailureOutcome(action, { combatantName: combatant.name })
+            }, { actionIndex: state.pointer, clauseType: "positioning" }));
+            this.#advanceCompletedAction(state, action, { allowFollowThrough: false });
+        }
+    }
+
+    async #resolveCompletedImpliedOrder({
+        tick = 0,
+        combatant = null,
+        state = null,
+        action = null,
+        timeline = [],
+        tickEffects = [],
+        perCombatant = {},
+        reactionRuntime = null,
+        evaluationSnapshot = null,
+        tokenPositions = null,
+        reachWindow = null
+    } = {}) {
+        const outcome = await this.#resolveAction(combatant, action, {
+            tick,
+            perCombatant,
+            reactionRuntime,
+            evaluationSnapshot,
+            tokenPositions,
+            applyEffects: false
+        });
+        const finalOutcome = reachWindow && !outcome?.reachWindow
+            ? {
+                ...outcome,
+                reachWindow: {
+                    tick: reachWindow.tick,
+                    distanceFeet: reachWindow.distanceFeet
+                }
+            }
+            : outcome;
+
+        const pendingDamage = finalOutcome?.pendingDamage;
+        if (pendingDamage?.targetCombatantId && toNumber(pendingDamage?.amount, 0) > 0) {
+            tickEffects.push({
+                type: "damage",
+                sourceCombatantId: combatant.id,
+                targetCombatantId: pendingDamage.targetCombatantId,
+                amount: toNumber(pendingDamage.amount, 0)
+            });
+        }
+
+        timeline.push(withOrderClauseMetadata({
+            tick,
+            combatantId: combatant.id,
+            combatantName: combatant.name,
+            action,
+            outcome: finalOutcome
+        }, { actionIndex: state.pointer, clauseType: "effect" }));
+        const timelineIndex = timeline.length - 1;
+
+        if (action.itemId && !action.isReaction && finalOutcome?.result !== "failed") {
+            tickEffects.push({
+                type: "consumeAction",
+                combatantId: combatant.id,
+                itemId: action.itemId,
+                actionId: action.actionId,
+                cancelIfProne: action.type === "consumable",
+                timelineIndex,
+                actionLabel: action.label,
+                combatantName: combatant.name
+            });
+        }
+
+        this.#advanceCompletedAction(state, action);
+    }
+
+    #advanceCompletedAction(state = null, action = null, { allowFollowThrough = true } = {}) {
+        if (!state || !action) return;
+        const spentAp = Math.max(1, toNumber(state.progress, 1));
+        const followThroughAp = allowFollowThrough
+            ? remainingFollowThroughAp(action, {
+                spentAp,
+                roundRemainingAp: state.remainingAp
+            })
+            : 0;
+        const followThroughAction = buildFollowThroughAction(action, { remainingAp: followThroughAp });
+
+        if (allowFollowThrough && Number(action.apCost ?? 0) > spentAp) {
+            action.apCost = spentAp;
+            action.apMin = Math.min(Math.max(1, toNumber(action.apMin, spentAp)), spentAp);
+            action.apMax = Math.max(spentAp, toNumber(action.apMax, spentAp));
+        }
+
+        if (followThroughAction) {
+            const plan = toArray(state.plan);
+            plan.splice(state.pointer + 1, 0, followThroughAction);
+            state.plan = plan;
+        }
+
+        state.pointer += 1;
+        state.progress = 0;
+        delete action._runtimeProgress;
+        delete action._followOffsetX;
+        delete action._followOffsetY;
+        delete action._effectProgress;
+        clearRuntimeEngagementFields(action);
     }
 
     /**

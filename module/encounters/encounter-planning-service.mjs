@@ -1,4 +1,5 @@
 import { getMovementFeetPerAp } from "./action-catalog.mjs";
+import { normalizeEncounterOrderData } from "./encounter-order-model.mjs";
 
 // Event name constants — kept local to avoid a circular import with combat.mjs.
 // The authoritative definitions live in TOTC_ENCOUNTER_EVENTS (combat.mjs).
@@ -36,9 +37,11 @@ function optionalNumber(value) {
 }
 
 function clampActionData(action, index = 0, cloneData = defaultClone) {
-    const apMin = clampActionCost(action.apMin ?? action.apCost ?? 1);
-    const apMax = Math.max(apMin, clampActionCost(action.apMax ?? action.apCost ?? apMin));
-    const apCost = Math.max(apMin, Math.min(apMax, clampActionCost(action.apCost ?? apMin)));
+    const requestedApCost = action.apEnvelope?.maxAp ?? action.apCost ?? 1;
+    const apMin = clampActionCost(action.apMin ?? requestedApCost);
+    const apMax = Math.max(apMin, clampActionCost(action.apMax ?? requestedApCost ?? apMin));
+    const apCost = Math.max(apMin, Math.min(apMax, clampActionCost(requestedApCost ?? apMin)));
+    const orderData = normalizeEncounterOrderData(action, { apCost, index, cloneData });
 
     return {
         id: action.id || action.actionId || `action-${index + 1}`,
@@ -51,6 +54,7 @@ function clampActionData(action, index = 0, cloneData = defaultClone) {
         variableAp: Boolean(action.variableAp && apMax > apMin),
         itemId: action.itemId || null,
         targetId: action.targetId || null,
+        targetMode: String(action.targetMode ?? ""),
         requiresToHit: Boolean(action.requiresToHit || action.type === "attack"),
         toHitBonus: Number(action.toHitBonus || 0),
         autoResolve: Boolean(action.autoResolve),
@@ -67,7 +71,8 @@ function clampActionData(action, index = 0, cloneData = defaultClone) {
         movementOriginX: optionalNumber(action.movementOriginX),
         movementOriginY: optionalNumber(action.movementOriginY),
         planningLocked: Boolean(action.planningLocked),
-        planningRollResults: toArray(action.planningRollResults).map((result) => cloneData(result))
+        planningRollResults: toArray(action.planningRollResults).map((result) => cloneData(result)),
+        ...orderData
     };
 }
 

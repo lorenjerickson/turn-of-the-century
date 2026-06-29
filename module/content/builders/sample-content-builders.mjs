@@ -154,7 +154,8 @@ export function createBaseActorSystem() {
                 head: { label: "Head", capacity: 1, quality: "standard", allowedTypes: ["armor", "equipment"], itemIds: [] },
                 neck: { label: "Neck", capacity: 1, quality: "standard", allowedTypes: ["armor", "equipment"], itemIds: [] },
                 torso: { label: "Torso", capacity: 2, quality: "standard", allowedTypes: ["armor", "equipment", "item"], itemIds: [] },
-                hands: { label: "Hands", capacity: 2, quality: "standard", allowedTypes: ["armor", "weapon", "tool", "equipment"], itemIds: [] },
+                hands: { label: "Hands", capacity: 2, quality: "standard", allowedTypes: ["weapon", "tool", "equipment"], itemIds: [] },
+                handsArmor: { label: "Hand Armor", capacity: 1, quality: "standard", allowedTypes: ["armor"], itemIds: [] },
                 legs: { label: "Legs", capacity: 1, quality: "standard", allowedTypes: ["armor", "equipment"], itemIds: [] },
                 feet: { label: "Feet", capacity: 1, quality: "standard", allowedTypes: ["armor", "equipment"], itemIds: [] },
                 belt: { label: "Belt", capacity: 4, quality: "standard", allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"], itemIds: [] }

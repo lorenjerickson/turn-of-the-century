@@ -53,26 +53,46 @@ function actionOptionModel(action = {}) {
     const apMin = Math.max(1, toNumber(action.apMin ?? action.apCost, 1));
     const apMax = Math.max(apMin, toNumber(action.apMax ?? action.apCost ?? apMin, apMin));
     const apCost = Math.max(apMin, Math.min(apMax, toNumber(action.apCost ?? apMin, apMin)));
+    const actionType = String(action.type ?? "action");
+    const requiresTarget = Boolean(action.requiresTarget);
+    const requiresToHit = Boolean(action.requiresToHit);
+    const isMovement = actionType.toLowerCase() === "movement";
+    const apEnvelope = action.apEnvelope && typeof action.apEnvelope === "object" ? { ...action.apEnvelope } : null;
+    const targetMode = String(action.targetMode ?? (isMovement ? "location" : (requiresTarget || requiresToHit ? "selectTarget" : "self")));
+    const effectAp = Math.max(0, toNumber(action.effectAp ?? apEnvelope?.effectAp, isMovement ? apCost : apCost));
+    const positioningAp = Math.max(0, toNumber(action.positioningAp ?? apEnvelope?.positioningAp, 0));
     return {
         ...action,
         id: String(action.id ?? action.actionId ?? ""),
         actionId: String(action.actionId ?? action.id ?? ""),
-        type: String(action.type ?? "action"),
+        type: actionType,
         label: String(action.label ?? "Action"),
         description: String(action.description ?? ""),
         apCost,
         apMin,
         apMax,
         variableAp: Boolean(action.variableAp && apMax > apMin),
-        requiresToHit: Boolean(action.requiresToHit),
-        requiresTarget: Boolean(action.requiresTarget),
+        requiresToHit,
+        requiresTarget,
         rangeType: String(action.rangeType ?? "melee"),
         toHitBonus: toNumber(action.toHitBonus, 0),
         targetingRangeFeet: toNumber(action.targetingRangeFeet, 0),
+        targetMode,
+        positioningAp,
+        effectAp,
         movementFeet: toNumber(action.movementFeet, 0),
         movementFeetPerAp: toNumber(action.movementFeetPerAp, 0),
+        movementTargetRow: toNumber(action.movementTargetRow, ""),
+        movementTargetCol: toNumber(action.movementTargetCol, ""),
+        movementTargetX: toNumber(action.movementTargetX, ""),
+        movementTargetY: toNumber(action.movementTargetY, ""),
+        movementOriginX: toNumber(action.movementOriginX, ""),
+        movementOriginY: toNumber(action.movementOriginY, ""),
         planningLocked: Boolean(action.planningLocked),
         planningRollResults: toArray(action.planningRollResults),
+        summary: String(action.summary ?? ""),
+        clauses: toArray(action.clauses),
+        apEnvelope,
         itemId: action.itemId ? String(action.itemId) : "",
         img: String(action.img ?? ""),
         apLabel: action.variableAp && apMax > apMin
@@ -159,6 +179,16 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
     const currentTick = Math.max(0, Math.min(apBudget, toNumber(resolution?.currentTick ?? encounterState?.currentEvaluationTick ?? 0, 0)));
     const progressPercent = Math.max(0, Math.min(100, Math.round((currentTick / apBudget) * 100)));
 
+    const selectedAction = activePlanEditSlot?.selectedAction
+        ? actionOptionModel(activePlanEditSlot.selectedAction)
+        : null;
+    const normalizedPlanEditSlot = activePlanEditSlot
+        ? {
+            ...activePlanEditSlot,
+            selectedAction
+        }
+        : null;
+
     return {
         actorId: status?.id ?? "",
         combatId,
@@ -184,7 +214,7 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
         plannedActions,
         hasPlannedActions: plannedActions.length > 0,
         historyRows: historyRowsFromTimeline({ planner, combat }),
-        activePlanEditSlot
+        activePlanEditSlot: normalizedPlanEditSlot
     };
 }
 
@@ -208,8 +238,17 @@ function actionDataAttributes(action, escapeHTML) {
         ["range-type", action.rangeType],
         ["to-hit-bonus", action.toHitBonus],
         ["targeting-range-feet", action.targetingRangeFeet],
+        ["target-mode", action.targetMode],
+        ["positioning-ap", action.positioningAp],
+        ["effect-ap", action.effectAp],
         ["movement-feet", action.movementFeet],
         ["movement-feet-per-ap", action.movementFeetPerAp],
+        ["movement-target-row", action.movementTargetRow],
+        ["movement-target-col", action.movementTargetCol],
+        ["movement-target-x", action.movementTargetX],
+        ["movement-target-y", action.movementTargetY],
+        ["movement-origin-x", action.movementOriginX],
+        ["movement-origin-y", action.movementOriginY],
         ["item-id", action.itemId],
         ["img", action.img]
     ].map(([key, value]) => `data-${key}="${escapeHTML(String(value ?? ""))}"`).join(" ");
@@ -265,6 +304,40 @@ function renderPlanBar(model, escapeHTML) {
     </ul>`;
 }
 
+function renderOrderList(model, escapeHTML) {
+    const planned = model.plannedActions ?? [];
+    if (!planned.length) {
+        return `<div class="totc-v2-encounter-panel__orders-empty">No orders planned.</div>`;
+    }
+
+    return `
+    <ol class="totc-v2-encounter-panel__orders">
+        ${planned.map((action) => {
+            const envelope = action.apEnvelope ?? {};
+            const maxAp = Math.max(1, toNumber(envelope.maxAp ?? action.apCost, action.apCost));
+            const positioningAp = Math.max(0, toNumber(envelope.positioningAp, 0));
+            const effectAp = Math.max(0, toNumber(envelope.effectAp, action.apCost));
+            const envelopeLabel = positioningAp > 0
+                ? `Up to ${maxAp} AP (${positioningAp} positioning, ${effectAp} effect)`
+                : `${maxAp} AP`;
+            return `
+                <li class="totc-v2-encounter-panel__order${action.planningLocked ? " is-locked" : ""}">
+                    <div class="totc-v2-encounter-panel__order-main">
+                        <strong>${action.planningLocked ? `<i class="fa-solid fa-lock" aria-label="Roll accepted; order locked"></i> ` : ""}${escapeHTML(action.summary || action.label)}</strong>
+                        <span>${escapeHTML(envelopeLabel)}</span>
+                    </div>
+                    ${(action.clauses ?? []).length > 1 ? `
+                        <ul class="totc-v2-encounter-panel__order-clauses">
+                            ${(action.clauses ?? []).map((clause) => `
+                                <li>${escapeHTML(clause.text ?? clause.clauseText ?? "")}</li>
+                            `).join("")}
+                        </ul>
+                    ` : ""}
+                </li>`;
+        }).join("")}
+    </ol>`;
+}
+
 function renderHistoryRows(model, escapeHTML) {
     const rows = model.historyRows ?? [];
     if (!rows.length) return `<p class="totc-v2-encounter-panel__muted">No resolved round history yet.</p>`;
@@ -285,7 +358,7 @@ function renderHistoryRows(model, escapeHTML) {
 
 function renderPlanEditPopup(model, escapeHTML) {
     const slot = model.activePlanEditSlot;
-    if (!slot) return "";
+    if (!slot || slot.selectedAction) return "";
 
     const remainingAp = slot.remainingAp;
     const actions = (model.availableActions ?? []).filter((action) => action.apMin <= remainingAp);
@@ -318,6 +391,108 @@ function renderPlanEditPopup(model, escapeHTML) {
             </div>
         </div>
     </div>`;
+}
+
+function renderPlanConfiguration(model, escapeHTML) {
+    const slot = model.activePlanEditSlot;
+    const action = slot?.selectedAction;
+    if (!slot || !action) return "";
+
+    const remainingAp = Math.max(1, toNumber(slot.remainingAp, 1));
+    const actionType = String(action.type ?? "").toLowerCase();
+    const isMovement = actionType === "movement";
+    const needsTarget = Boolean(action.requiresTarget || action.requiresToHit);
+    const apMin = Math.max(1, Math.min(remainingAp, toNumber(action.apMin, 1)));
+    const effectApMax = isMovement
+        ? Math.max(apMin, Math.min(remainingAp, toNumber(action.apMax, action.apCost)))
+        : Math.max(apMin, Math.min(remainingAp, toNumber(action.apMax, action.apCost)));
+    const effectAp = isMovement
+        ? Math.max(apMin, Math.min(effectApMax, toNumber(action.apCost, apMin)))
+        : Math.max(apMin, Math.min(effectApMax, toNumber(action.effectAp ?? action.apCost, apMin)));
+    const positioningApMax = isMovement || !needsTarget
+        ? 0
+        : Math.max(0, remainingAp - effectAp);
+    const positioningAp = Math.max(0, Math.min(positioningApMax, toNumber(action.positioningAp, 0)));
+    const apCost = isMovement
+        ? effectAp
+        : Math.max(1, Math.min(remainingAp, effectAp + positioningAp));
+    const apMax = Math.max(apCost, remainingAp);
+    const apOptions = Array.from({ length: apMax - apMin + 1 }, (_, index) => apMin + index)
+        .map((ap) => `<option value="${escapeHTML(String(ap))}" ${ap === apCost ? "selected" : ""}>${escapeHTML(String(ap))} AP</option>`)
+        .join("");
+    const effectApOptions = Array.from({ length: effectApMax - apMin + 1 }, (_, index) => apMin + index)
+        .map((ap) => `<option value="${escapeHTML(String(ap))}" ${ap === effectAp ? "selected" : ""}>${escapeHTML(String(ap))} AP</option>`)
+        .join("");
+    const positioningApOptions = Array.from({ length: positioningApMax + 1 }, (_, index) => index)
+        .map((ap) => `<option value="${escapeHTML(String(ap))}" ${ap === positioningAp ? "selected" : ""}>${escapeHTML(String(ap))} AP</option>`)
+        .join("");
+    const targetMode = String(action.targetMode ?? (isMovement ? "location" : (needsTarget ? "selectTarget" : "self")));
+    const targetModeDisabled = isMovement || !needsTarget;
+    const positioningDisabled = isMovement || !needsTarget || positioningApMax === 0;
+    const effectDisabled = isMovement;
+
+    return `
+    <section class="totc-v2-encounter-config" data-action-index="${escapeHTML(String(slot.index))}" data-remaining-ap="${escapeHTML(String(remainingAp))}">
+        <header class="totc-v2-encounter-config__header">
+            <div>
+                <h4>${escapeHTML(action.label)}</h4>
+                <span>Tick ${escapeHTML(String(slot.startTick))} · ${escapeHTML(String(remainingAp))} AP available</span>
+            </div>
+            <button type="button" class="totc-v2-encounter-config__icon" data-action="encounter-config-back" title="Choose a different action" aria-label="Choose a different action">
+                <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+            </button>
+        </header>
+        <div class="totc-v2-encounter-config__body">
+            <label>
+                <span>Target</span>
+                <select data-action="encounter-config-target-mode" ${targetModeDisabled ? "disabled" : ""}>
+                    <option value="self" ${targetMode === "self" ? "selected" : ""}>Self or no target</option>
+                    <option value="selectTarget" ${targetMode === "selectTarget" ? "selected" : ""}>Select target on map</option>
+                    <option value="location" ${targetMode === "location" ? "selected" : ""}>Selected location</option>
+                </select>
+            </label>
+            <label>
+                <span>Positioning AP</span>
+                <select data-action="encounter-config-positioning-ap" ${positioningDisabled ? "disabled" : ""}>
+                    ${positioningApOptions}
+                </select>
+            </label>
+            <label>
+                <span>Effect AP</span>
+                <select data-action="encounter-config-effect-ap" ${effectDisabled ? "disabled" : ""}>
+                    ${effectApOptions}
+                </select>
+            </label>
+            <label>
+                <span>Total AP</span>
+                <select data-action="encounter-config-ap-cost" disabled>
+                    ${apOptions}
+                </select>
+            </label>
+            <label>
+                <span>Follow-through</span>
+                <select data-action="encounter-config-follow-through">
+                    <option value="chooseAnotherAction" selected>Plan another action if AP remains</option>
+                    <option value="hold">Hold position</option>
+                    <option value="overwatch">Enter Overwatch if available</option>
+                </select>
+            </label>
+            <label>
+                <span>If blocked</span>
+                <select data-action="encounter-config-failure-outcome">
+                    <option value="bestReachablePosition" selected>Best reachable position</option>
+                    <option value="holdPosition">Hold current position</option>
+                </select>
+            </label>
+        </div>
+        <footer class="totc-v2-encounter-config__actions">
+            <button type="button" data-action="encounter-confirm-configured-action"
+                ${actionDataAttributes(action, escapeHTML)}
+                data-action-index="${escapeHTML(String(slot.index))}">
+                Add Order
+            </button>
+        </footer>
+    </section>`;
 }
 
 export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
@@ -362,12 +537,16 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
                 <span class="totc-v2-encounter-panel__progress-fill" style="width:${escapeHTML(String(model.progressPercent ?? 0))}%;"></span>
                 <span class="totc-v2-encounter-panel__progress-label">AP ${escapeHTML(String(model.currentTick ?? 0))}/${escapeHTML(String(model.apBudget))} · ${escapeHTML(model.resolutionStatus ?? "idle")}</span>
             </div>
-            ${renderPlanBar(model, escapeHTML)}
+            <div class="totc-v2-encounter-panel__planning-view">
+                ${renderPlanBar(model, escapeHTML)}
+                ${renderPlanConfiguration(model, escapeHTML)}
+                ${model.activePlanEditSlot ? renderPlanEditPopup(model, escapeHTML) : ""}
+            </div>
+            ${renderOrderList(model, escapeHTML)}
             <footer class="totc-v2-encounter-panel__actions">
                 <button type="button" data-action="encounter-clear-plan" ${model.canClearPlan ? "" : "disabled"}>Clear Unlocked</button>
                 <button type="button" data-action="encounter-toggle-ready" data-ready="${model.ready ? "true" : "false"}" aria-pressed="${model.ready ? "true" : "false"}" ${model.canCommit ? "" : "disabled"}>Ready</button>
             </footer>
-            ${model.activePlanEditSlot ? renderPlanEditPopup(model, escapeHTML) : ""}
         </section>
 
         <section class="totc-v2-encounter-panel__history">

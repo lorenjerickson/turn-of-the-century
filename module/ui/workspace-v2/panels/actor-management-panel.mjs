@@ -2,12 +2,13 @@ const ACTOR_TYPES = Object.freeze(["hero", "pawn", "villain"]);
 const DEFAULT_ACTOR_TYPE = "pawn";
 export const ACTOR_LIST_DRAG_MIME = "application/x-totc-actor-list";
 const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
-const EQUIPMENT_SLOT_KEYS = Object.freeze(["head", "neck", "torso", "hands", "legs", "feet", "belt"]);
+const EQUIPMENT_SLOT_KEYS = Object.freeze(["head", "neck", "torso", "hands", "handsArmor", "legs", "feet", "belt"]);
 const EQUIPMENT_SLOT_CONFIG = Object.freeze({
     head: { label: "Head", capacity: 1, allowedTypes: ["armor", "equipment"] },
     neck: { label: "Neck", capacity: 1, allowedTypes: ["armor", "equipment"] },
     torso: { label: "Torso", capacity: 2, allowedTypes: ["armor", "equipment", "item"] },
-    hands: { label: "Hands", capacity: 2, allowedTypes: ["armor", "weapon", "tool", "equipment"] },
+    hands: { label: "Hands", capacity: 2, allowedTypes: ["weapon", "tool", "equipment"] },
+    handsArmor: { label: "Hand Armor", capacity: 1, allowedTypes: ["armor"] },
     legs: { label: "Legs", capacity: 1, allowedTypes: ["armor", "equipment"] },
     feet: { label: "Feet", capacity: 1, allowedTypes: ["armor", "equipment"] },
     belt: { label: "Belt", capacity: 4, allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"] }
@@ -190,6 +191,24 @@ function briefDescription(value, maxLength = 96) {
     return `${description.slice(0, maxLength - 1).trim()}...`;
 }
 
+function formatItemDetails(system = {}) {
+    const damage = system.damage ?? system.attack?.damage ?? system.combat?.damage ?? null;
+    const effects = system.effects ?? system.effect ?? system.action?.effect ?? system.use?.effect ?? null;
+    const parts = [];
+
+    const damageText = Array.isArray(damage)
+        ? damage.map((entry) => String(entry?.formula ?? entry?.value ?? entry ?? "").trim()).filter(Boolean).join(", ")
+        : String(damage?.formula ?? damage?.value ?? damage ?? "").trim();
+    if (damageText) parts.push(`Damage: ${damageText}`);
+
+    const effectText = Array.isArray(effects)
+        ? effects.map((entry) => String(entry?.label ?? entry?.name ?? entry?.description ?? entry ?? "").trim()).filter(Boolean).join(", ")
+        : String(effects?.label ?? effects?.name ?? effects?.description ?? effects ?? "").trim();
+    if (effectText) parts.push(`Effects: ${stripHtml(effectText)}`);
+
+    return parts.join(" | ");
+}
+
 function formatItemType(type) {
     return String(type ?? "")
         .replace(/([A-Z])/g, " $1")
@@ -200,6 +219,30 @@ function formatItemType(type) {
 function isToolItem(item) {
     const system = itemSystem(item);
     return (item?.type === "equipment" || item?.type === "item") && system.category === "tool";
+}
+
+function itemTags(item) {
+    const tags = item.system?.properties?.tags;
+    return Array.isArray(tags) ? tags.map((tag) => String(tag ?? "").toLowerCase()) : [];
+}
+
+function itemSearchText(item) {
+    return [
+        item.name,
+        item.system?.commonName,
+        item.system?.category,
+        ...itemTags(item)
+    ].map((part) => String(part ?? "").toLowerCase()).join(" ");
+}
+
+function isPackContainerItem(item) {
+    if (item.system?.category !== "container") return false;
+    return /\b(pack|satchel|valise|bag|case|rucksack)\b/.test(itemSearchText(item));
+}
+
+function isBeltContainerItem(item) {
+    if (item.system?.category !== "container") return false;
+    return /\b(belt|bandolier|harness|pouch)\b/.test(itemSearchText(item));
 }
 
 function getSlotDefinition(actor, slotKey) {
@@ -240,6 +283,7 @@ function buildEquipmentViewModel(actor, staged = {}) {
         type: String(item?.type ?? ""),
         typeLabel: formatItemType(item?.type),
         description: briefDescription(itemSystem(item).description),
+        details: formatItemDetails(itemSystem(item)),
         system: itemSystem(item)
     })).filter((item) => item.id);
     const slots = Object.fromEntries(EQUIPMENT_SLOT_KEYS.map((slotKey) => [slotKey, getSlotDefinition(actor, slotKey)]));
@@ -254,12 +298,17 @@ function buildEquipmentViewModel(actor, staged = {}) {
     const packDef = actorSystem(actor)?.inventory?.pack ?? {};
     const packStoredIds = Array.isArray(packDef.itemIds) ? packDef.itemIds : [];
     const packCapacity = Math.max(1, Number(packDef.capacity ?? 20));
-    const packSlotCount = Math.min(packCapacity, packStoredIds.filter(Boolean).length + 1);
+    const packSlotCount = packCapacity;
     const selectedByPackPosition = Array.from({ length: packSlotCount }, (_, index) => {
         const path = `${PACK_ITEM_IDS_PREFIX}${index}`;
         return Object.hasOwn(staged, path) ? String(staged[path] ?? "") : String(packStoredIds[index] ?? "");
     });
     const equippedIds = new Set(Object.values(selectedBySlot).flatMap((ids) => ids).filter(Boolean));
+    const itemById = new Map(items.map((item) => [item.id, item]));
+    const equippedTorsoItems = (selectedBySlot.torso ?? []).map((itemId) => itemById.get(itemId)).filter(Boolean);
+    const equippedBeltItems = (selectedBySlot.belt ?? []).map((itemId) => itemById.get(itemId)).filter(Boolean);
+    const hasEquippedPack = equippedTorsoItems.some((item) => isPackContainerItem(item));
+    const hasEquippedBelt = equippedBeltItems.some((item) => isBeltContainerItem(item)) || equippedBeltItems.length > 0;
     const packSlots = Array.from({ length: packSlotCount }, (_, position) => {
         const selectedItemId = selectedByPackPosition[position] ?? "";
         const selectedElsewhereInPack = new Set(selectedByPackPosition.filter((id, i) => id && i !== position));
@@ -278,6 +327,7 @@ function buildEquipmentViewModel(actor, staged = {}) {
                 type: item.typeLabel,
                 img: item.img,
                 description: item.description,
+                details: item.details,
                 selected: item.id === selectedItemId,
                 disabled: selectedElsewhereInPack.has(item.id)
             }))
@@ -292,13 +342,16 @@ function buildEquipmentViewModel(actor, staged = {}) {
             { area: "torso-extra", slotKey: "torso", position: 1 },
             { area: "hand-left", slotKey: "hands", position: 0 },
             { area: "hand-right", slotKey: "hands", position: 1 },
+            { area: "hands-armor", slotKey: "handsArmor", position: 0 },
             { area: "legs", slotKey: "legs", position: 0 },
             { area: "feet", slotKey: "feet", position: 0 }
         ].map((placement) => buildEquipmentSlotControl(placement, slots, selectedBySlot, items)),
-        beltSlots: Array.from({ length: getSlotCapacity("belt", slots.belt) }, (_, position) => (
-            buildEquipmentSlotControl({ area: "belt", slotKey: "belt", position }, slots, selectedBySlot, items)
-        )),
-        packSlots
+        beltSlots: hasEquippedBelt
+            ? Array.from({ length: getSlotCapacity("belt", slots.belt) }, (_, position) => (
+                buildEquipmentSlotControl({ area: "belt", slotKey: "belt", position }, slots, selectedBySlot, items)
+            ))
+            : [],
+        packSlots: hasEquippedPack ? packSlots : []
     };
 }
 
@@ -320,6 +373,8 @@ function buildEquipmentSlotControl(placement, slots, selectedBySlot, items) {
         ...placement,
         label: placement.slotKey === "hands"
             ? (placement.position === 0 ? "Left Hand" : "Right Hand")
+            : placement.slotKey === "handsArmor"
+                ? "Hand Armor"
             : placement.slotKey === "torso"
                 ? `Torso ${placement.position + 1}`
             : slot.label,
@@ -332,6 +387,7 @@ function buildEquipmentSlotControl(placement, slots, selectedBySlot, items) {
             type: item.typeLabel,
             img: item.img,
             description: item.description,
+            details: item.details,
             selected: item.id === selectedItemId,
             disabled: item.id !== selectedItemId && selectedElsewhere.has(item.id)
         }))
@@ -614,52 +670,99 @@ function renderFieldSection(title, fields, escapeHTML) {
     </fieldset>`;
 }
 
-function renderEquipmentItemSummary(item, escapeHTML) {
-    if (!item) {
-        return `
-        <div class="totc-v2-actor-equipment__item is-empty">
-            <img src="${escapeHTML(DEFAULT_ITEM_ICON)}" alt="">
-            <div>
-                <strong>Empty</strong>
-                <span>No item equipped</span>
-            </div>
-        </div>`;
-    }
-
+function renderEquipmentHoverCard(item, slotLabel, escapeHTML) {
+    const cardName = item?.name ?? "Empty";
+    const cardDescription = item?.description || "No item equipped.";
+    const cardDetails = item?.details ?? "";
     return `
-    <div class="totc-v2-actor-equipment__item">
-        <img src="${escapeHTML(item.img || DEFAULT_ITEM_ICON)}" alt="">
-        <div>
-            <strong>${escapeHTML(item.name)}</strong>
-            <span>${escapeHTML(item.typeLabel ?? item.type)}${item.description ? ` - ${escapeHTML(item.description)}` : ""}</span>
-        </div>
+    <span class="totc-v2-actor-equipment__hover-card" role="tooltip">
+        <em>Slot: ${escapeHTML(slotLabel)}</em>
+        <strong>${escapeHTML(cardName)}</strong>
+        <span>${escapeHTML(cardDescription)}</span>
+        ${cardDetails ? `<small>${escapeHTML(cardDetails)}</small>` : ""}
+    </span>`;
+}
+
+function renderEquipmentIconButton(slot, escapeHTML) {
+    const item = slot.selectedItem;
+    const label = `${slot.label}: ${item?.name ?? "Empty"}`;
+    return `
+    <button type="button"
+        class="totc-v2-actor-equipment__icon${item ? "" : " is-empty"}"
+        data-action="actor-equipment-open-picker"
+        data-equipment-field="${escapeHTML(slot.name)}"
+        aria-haspopup="dialog"
+        aria-label="${escapeHTML(label)}"
+        title="${escapeHTML(label)}">
+        ${item ? `<img src="${escapeHTML(item.img || DEFAULT_ITEM_ICON)}" alt="">` : ""}
+        ${renderEquipmentHoverCard(item, slot.label, escapeHTML)}
+    </button>`;
+}
+
+function renderEquipmentPickerModal(slot, escapeHTML) {
+    const modalId = `totc-equipment-picker-${slot.area}-${slot.position}`;
+    const selectedName = slot.selectedItem?.name ?? "Empty";
+    const options = [
+        { id: "", name: "Empty", type: "None", img: DEFAULT_ITEM_ICON, description: "Clear this equipment slot.", details: "", selected: !slot.selectedItemId, disabled: false },
+        ...(slot.options ?? [])
+    ];
+    return `
+    <div class="totc-v2-actor-equipment__picker" id="${escapeHTML(modalId)}" data-equipment-picker="${escapeHTML(slot.name)}" hidden>
+        <div class="totc-v2-actor-equipment__picker-backdrop" data-action="actor-equipment-close-picker"></div>
+        <section class="totc-v2-actor-equipment__picker-card" role="dialog" aria-modal="true" aria-labelledby="${escapeHTML(modalId)}-title">
+            <header class="totc-v2-actor-equipment__picker-header">
+                <div>
+                    <h4 id="${escapeHTML(modalId)}-title">${escapeHTML(slot.label)}</h4>
+                    <span>${escapeHTML(selectedName)}</span>
+                </div>
+                <button type="button" data-action="actor-equipment-close-picker" aria-label="Close equipment picker">&times;</button>
+            </header>
+            <div class="totc-v2-actor-equipment__picker-list" role="listbox" aria-label="${escapeHTML(`${slot.label} compatible inventory items`)}">
+                ${options.map((option) => `
+                    <button type="button"
+                        class="totc-v2-actor-equipment__picker-option${option.selected ? " is-selected" : ""}"
+                        data-action="actor-equipment-select-item"
+                        data-equipment-field="${escapeHTML(slot.name)}"
+                        data-item-id="${escapeHTML(option.id)}"
+                        ${option.disabled ? "disabled" : ""}
+                        role="option"
+                        aria-selected="${option.selected ? "true" : "false"}">
+                        <img src="${escapeHTML(option.img || DEFAULT_ITEM_ICON)}" alt="">
+                        <span>
+                            <strong>${escapeHTML(option.name)}</strong>
+                            <small>${escapeHTML(option.type)}${option.description ? ` - ${escapeHTML(option.description)}` : ""}</small>
+                            ${option.details ? `<em>${escapeHTML(option.details)}</em>` : ""}
+                        </span>
+                    </button>`).join("")}
+            </div>
+        </section>
     </div>`;
 }
 
 function renderEquipmentSlot(slot, escapeHTML) {
-    const optionLabel = (option) => `${option.name} (${option.type})${option.description ? ` - ${option.description}` : ""}`;
     return `
-    <label class="totc-v2-actor-equipment__slot totc-v2-actor-equipment__slot--${escapeHTML(slot.area)}">
-        <span class="totc-v2-actor-equipment__slot-label">${escapeHTML(slot.label)}</span>
-        ${renderEquipmentItemSummary(slot.selectedItem, escapeHTML)}
-        <select name="${escapeHTML(slot.name)}" data-action="actor-editor-field" data-actor-field="${escapeHTML(slot.name)}">
-            <option value="">Empty</option>
-            ${slot.options.map((option) => `<option value="${escapeHTML(option.id)}" ${option.selected ? "selected" : ""} ${option.disabled ? "disabled" : ""}>${escapeHTML(optionLabel(option))}</option>`).join("")}
-        </select>
-    </label>`;
+    <div class="totc-v2-actor-equipment__slot totc-v2-actor-equipment__slot--${escapeHTML(slot.area)}">
+        <input type="hidden" name="${escapeHTML(slot.name)}" data-action="actor-editor-field" data-actor-field="${escapeHTML(slot.name)}" value="${escapeHTML(slot.selectedItemId)}">
+        ${renderEquipmentIconButton(slot, escapeHTML)}
+        ${renderEquipmentPickerModal(slot, escapeHTML)}
+    </div>`;
 }
 
-const BODY_DOLL_SVG = `<svg aria-hidden="true" class="totc-v2-actor-equipment__doll" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 320" preserveAspectRatio="xMidYMid meet">
-    <circle cx="80" cy="27" r="22"/>
-    <rect x="70" y="49" width="20" height="22" rx="3"/>
-    <polygon points="55,71 105,71 112,212 48,212"/>
-    <rect x="4" y="100" width="46" height="110" rx="5"/>
-    <rect x="110" y="100" width="46" height="110" rx="5"/>
-    <polygon points="50,212 78,212 74,308 46,308"/>
-    <polygon points="82,212 110,212 114,308 86,308"/>
-    <rect x="40" y="306" width="38" height="18" rx="5"/>
-    <rect x="82" y="306" width="38" height="18" rx="5"/>
-</svg>`;
+function renderEquipmentBodyRows(bodySlots, escapeHTML) {
+    const byArea = new Map((bodySlots ?? []).map((slot) => [slot.area, slot]));
+    const rows = [
+        ["head"],
+        ["neck"],
+        ["torso", "torso-extra"],
+        ["hand-left", "hands-armor", "hand-right"],
+        ["legs"],
+        ["feet"]
+    ];
+    return rows.map((areas) => `
+        <div class="totc-v2-actor-equipment__body-row">
+            ${areas.map((area) => byArea.get(area)).filter(Boolean).map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
+        </div>`).join("");
+}
 
 function renderEquipmentSection(equipment, escapeHTML) {
     if (!equipment) return "";
@@ -669,17 +772,20 @@ function renderEquipmentSection(equipment, escapeHTML) {
                 ${equipment.packSlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
             </div>`
         : "";
+    const beltSection = equipment.beltSlots?.length
+        ? `<div class="totc-v2-actor-equipment__belt" aria-label="Belt slots">
+                <div class="totc-v2-actor-equipment__belt-label">Belt</div>
+                ${equipment.beltSlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
+            </div>`
+        : "";
     return `
     <fieldset class="totc-v2-actor-editor__section totc-v2-actor-editor__section--equipment">
         <legend>Equipment</legend>
         <div class="totc-v2-actor-equipment">
             <div class="totc-v2-actor-equipment__body">
-                ${BODY_DOLL_SVG}
-                ${equipment.bodySlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
+                ${renderEquipmentBodyRows(equipment.bodySlots, escapeHTML)}
             </div>
-            <div class="totc-v2-actor-equipment__belt" aria-label="Belt slots">
-                ${equipment.beltSlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
-            </div>
+            ${beltSection}
             ${packSection}
         </div>
     </fieldset>`;

@@ -45,7 +45,7 @@ export const ARMOR_CONFIGS = [
             category: "prosthetic",
             quality: "experimental",
             rarity: "veryRare",
-            slot: "hands",
+            slot: "handsArmor",
             armorClass: { increment: 1 },
             prerequisites: { abilityMinimums: { ...ABILITY_MINIMUMS_NONE, dex: 11 }, requiresTraining: true },
             encumbrance: { weight: 5, bulk: 1 },

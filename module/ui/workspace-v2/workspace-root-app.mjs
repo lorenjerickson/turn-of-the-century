@@ -60,10 +60,7 @@ import { ActorManagementFeature } from "./controllers/actor-management-feature.m
 import { RollRequestFeature } from "./controllers/roll-request-feature.mjs";
 import { WorkspaceLayoutFeature } from "./controllers/workspace-layout-feature.mjs";
 import { GamemasterFeature } from "./controllers/gamemaster-feature.mjs";
-import {
-    createSceneDesignPanelPort,
-    createSceneDesignScenePort
-} from "./scene-design-ports.mjs";
+import { createSceneDesignRuntime } from "./scene-design-runtime.mjs";
 
 const ApplicationV2Base = requireApplicationV2();
 const CombatDocumentClass = requireCombatDocumentClass();
@@ -236,35 +233,23 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             notifications: globalThis.ui?.notifications,
             logger: console
         });
-        this.sceneDesignFeature = new SceneDesignFeature({
-            gridCalibrationController: this.gridCalibrationController,
-            scenePort: createSceneDesignScenePort({
-                controller: this.sceneWorkspaceController,
-                getGame: () => game,
-                getCanvas: () => canvas,
-                getUi: () => ui,
-                getFoundry: () => foundry,
-                getActors: () => Array.from(game.actors?.contents ?? [])
-            }),
-            panelPort: createSceneDesignPanelPort({
-                controller: this.sceneWorkspaceController,
-                layoutEngine: this.layoutEngine,
-                panelRegistry: this.panelRegistry,
-                stateStore: this.stateStore
-            }),
-            encounterPlanningFeature: this.encounterPlanningFeature,
-            designActionRegistry: this.designActionRegistry,
-            hooksController: this.hooksController,
+        const sceneDesignRuntime = createSceneDesignRuntime({
+            sceneWorkspaceController: this.sceneWorkspaceController,
+            layoutEngine: this.layoutEngine,
+            panelRegistry: this.panelRegistry,
+            stateStore: this.stateStore,
             render: (options) => this.render(options),
-            notifications: globalThis.ui?.notifications,
-            getActors: () => Array.from(game.actors?.contents ?? []),
             addActorsToScene: (actors) => this.#addActorsToScene(actors),
             centerSceneMapOnToken: ({ sceneId, x, y }) => this.#centerSceneMapOnToken({ sceneId, x, y }),
-            confirmRef: () => globalThis.confirm,
-            uiRef: () => ui,
-            foundryRef: () => foundry,
             activityLogger: totcLogger,
             logger: console
+        });
+        this.sceneDesignFeature = new SceneDesignFeature({
+            gridCalibrationController: this.gridCalibrationController,
+            ...sceneDesignRuntime,
+            encounterPlanningFeature: this.encounterPlanningFeature,
+            designActionRegistry: this.designActionRegistry,
+            hooksController: this.hooksController
         });
         this.registerFeature(this.sceneDesignFeature);
         this.campaignFeature = new CampaignFeature({

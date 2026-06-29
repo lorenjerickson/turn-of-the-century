@@ -14,7 +14,7 @@
     "category": "container",
     "quality": "standard",
     "rarity": "common",
-    "slot": "belt",
+    "slot": "torso",
     "use": {
       "actionCost": 1,
       "requiresHands": true,

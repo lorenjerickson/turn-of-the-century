@@ -16,6 +16,10 @@ const ITEM_SLOT_DEFAULTS = {
     equipment: "belt",
     item: "belt"
 };
+const HAND_ARMOR_SLOT_KEY = "handsArmor";
+const SLOT_LABELS = {
+    handsArmor: "Hand Armor"
+};
 
 function toArray(value) {
     return Array.isArray(value) ? value : [];
@@ -35,14 +39,30 @@ function beltQualityFromCapacity(capacity) {
     return "experimental";
 }
 
+function getDocumentItems(document) {
+    return Array.isArray(document?.items?.contents) ? document.items.contents : [];
+}
+
+function itemSystem(item) {
+    return item?.system?.toObject?.() ?? item?.system ?? {};
+}
+
+function isHandArmorItem(item) {
+    const slot = itemSystem(item).slot;
+    return item?.type === "armor" && (slot === "hands" || slot === HAND_ARMOR_SLOT_KEY);
+}
+
 function ensureSlotConfig(slotKey, slotValue) {
     const defaults = TOTC_EQUIPMENT_SLOTS[slotKey];
     const current = slotValue ?? {};
 
-    const allowedTypes = unique([
+    let allowedTypes = unique([
         ...defaults.allowed,
         ...toArray(current.allowedTypes)
     ]);
+    if (slotKey === "hands") {
+        allowedTypes = allowedTypes.filter((type) => type !== "armor");
+    }
 
     let quality = current.quality;
     if (!quality) {
@@ -57,7 +77,7 @@ function ensureSlotConfig(slotKey, slotValue) {
     }
 
     return {
-        label: current.label ?? slotKey.charAt(0).toUpperCase() + slotKey.slice(1),
+        label: current.label ?? SLOT_LABELS[slotKey] ?? slotKey.charAt(0).toUpperCase() + slotKey.slice(1),
         capacity,
         quality,
         allowedTypes,
@@ -68,6 +88,7 @@ function ensureSlotConfig(slotKey, slotValue) {
 function buildActorSlotUpdate(actor) {
     const system = actor.system?.toObject?.() ?? foundry.utils.deepClone(actor.system ?? {});
     const equipment = system.inventory?.equipment ?? {};
+    const actorItemsById = new Map(getDocumentItems(actor).map((item) => [String(item.id ?? item._id ?? ""), item]));
 
     const updates = {};
     for (const slotKey of Object.keys(TOTC_EQUIPMENT_SLOTS)) {
@@ -80,6 +101,18 @@ function buildActorSlotUpdate(actor) {
         updates[`${prefix}.itemIds`] = normalized.itemIds;
     }
 
+    const handItemIds = toArray(equipment.hands?.itemIds);
+    const handArmorItemIds = toArray(equipment[HAND_ARMOR_SLOT_KEY]?.itemIds);
+    const handArmorIdsInWieldSlots = handItemIds.filter((itemId) => isHandArmorItem(actorItemsById.get(String(itemId))));
+    const migratedHandArmorId = handArmorItemIds[0] ?? handArmorIdsInWieldSlots[0];
+
+    if (migratedHandArmorId) {
+        updates["system.inventory.equipment.hands.itemIds"] = handItemIds
+            .filter((itemId) => !handArmorIdsInWieldSlots.some((armorItemId) => String(armorItemId) === String(itemId)))
+            .slice(0, TOTC_EQUIPMENT_SLOTS.hands.capacity);
+        updates[`system.inventory.equipment.${HAND_ARMOR_SLOT_KEY}.itemIds`] = [migratedHandArmorId];
+    }
+
     return updates;
 }
 
@@ -88,6 +121,10 @@ function getExpectedItemSlot(item) {
 }
 
 function buildItemSlotUpdate(item) {
+    if (isHandArmorItem(item)) {
+        return { "system.slot": HAND_ARMOR_SLOT_KEY };
+    }
+
     const expected = getExpectedItemSlot(item);
     if (!expected) return null;
 

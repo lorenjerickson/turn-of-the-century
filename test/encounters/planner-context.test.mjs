@@ -85,6 +85,61 @@ describe("encounter planner context", () => {
         assert.equal(planner.availableActions[0].img, "modules/game-icons-net/blackbackground/move.svg");
     });
 
+    it("enriches planned actions with narrative order display metadata", async () => {
+        const { buildEncounterPlannerForCombatant } = await loadPlannerContext();
+        const stiletto = { id: "item-stiletto", name: "Clockmaker's Stiletto", img: "items/stiletto.webp" };
+        const ada = {
+            ...actorFixture("actor-ada", "Ada Price"),
+            items: { get: (id) => id === stiletto.id ? stiletto : null }
+        };
+        const elias = actorFixture("actor-elias", "Elias Vane");
+        const combatants = [
+            { id: "combatant-ada", name: "Ada Price", actor: ada, actorId: ada.id, tokenId: "token-ada" },
+            { id: "combatant-elias", name: "Elias Vane", actor: elias, actorId: elias.id, tokenId: "token-elias" }
+        ];
+        const combat = {
+            id: "combat-1",
+            name: "Rookery Ambush",
+            phase: "planning",
+            round: 1,
+            apBudget: 6,
+            planningRemainingSeconds: 42,
+            combatants: {
+                contents: combatants,
+                get: (id) => combatants.find((entry) => entry.id === id) ?? null
+            },
+            encounterState: { initialized: true },
+            getCombatantState: () => ({ ready: false, spentAp: 0, plan: [] }),
+            getCombatantPlan: () => [
+                {
+                    id: "item-stiletto:weaponAttack",
+                    actionId: "weaponAttack",
+                    type: "attack",
+                    label: "Attack",
+                    apCost: 2,
+                    requiresToHit: true,
+                    targetId: "combatant-elias",
+                    itemId: stiletto.id
+                }
+            ],
+            getCombatantRemainingAp: () => 4,
+            getAvailableActionsForCombatant: () => [],
+            getTargetOptionsForCombatant: () => []
+        };
+
+        const planner = buildEncounterPlannerForCombatant({
+            actor: ada,
+            tokenDocument: { id: "token-ada", actor: ada },
+            combat,
+            combatantId: "combatant-ada"
+        });
+
+        assert.equal(planner.queue[0].summary, "Spend 2 AP to attack Elias Vane with Clockmaker's Stiletto.");
+        assert.deepEqual(planner.queue[0].apEnvelope, { positioningAp: 0, effectAp: 2, maxAp: 2 });
+        assert.equal(planner.queue[0].clauses[0].text, planner.queue[0].summary);
+        assert.equal(planner.planSlots[0].action.summary, planner.queue[0].summary);
+    });
+
     it("builds a planner from combat turns when the combatants collection has no contents", async () => {
         const { buildEncounterPlannerForCombatant } = await loadPlannerContext();
         const actor = actorFixture("actor-ada", "Ada Price");

@@ -965,7 +965,7 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         await encounter.beginEncounterResolution();
         await encounter.stepEncounterResolution(1);
 
-        assert.equal(Number(pursuerToken?.x ?? 0), 200);
+        assert.equal(Number(pursuerToken?.x ?? 0), 100);
         assert.match(String(harness.getState().resolution.tickNarratives[0]?.summary ?? ""), /Pursuer moved 10 feet\./);
     });
 
@@ -1999,7 +1999,7 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         const pursueEntry = timeline.find((entry) => entry.combatantId === "c-p" && entry.action?.id === "pursue");
         assert.ok(pursueEntry);
         assert.equal(String(pursueEntry?.outcome?.detail ?? "").includes("pursues"), true);
-        assert.equal(Number(pursuerToken?.x ?? 0), 200);
+        assert.equal(Number(pursuerToken?.x ?? 0), 100);
     });
 
     it("mirrors selected target movement while keeping distance when resolving follow", async () => {
@@ -2076,6 +2076,77 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         assert.equal(Number(followerToken?.x ?? 0), 100);
     });
 
+    it("moves the followed token first even when the follower has higher initiative", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        const harness = buildMultiCombatHarness({
+            apBudget: 1,
+            combatants: [
+                {
+                    id: "c-f",
+                    actorId: "actor-f",
+                    name: "Follower",
+                    tokenId: "token-f",
+                    x: 0,
+                    y: 0,
+                    initiative: 20,
+                    items: [],
+                    inventory: {
+                        equipment: { hands: { itemIds: [] }, torso: { itemIds: [] }, belt: { itemIds: [] } },
+                        pack: { itemIds: [] }
+                    }
+                },
+                {
+                    id: "c-t",
+                    actorId: "actor-t",
+                    name: "Lead",
+                    tokenId: "token-t",
+                    x: 100,
+                    y: 0,
+                    initiative: 10,
+                    items: [],
+                    inventory: {
+                        equipment: { hands: { itemIds: [] }, torso: { itemIds: [] }, belt: { itemIds: [] } },
+                        pack: { itemIds: [] }
+                    }
+                }
+            ],
+            plans: {
+                "c-t": [{
+                    id: "move",
+                    actionId: "move",
+                    type: "movement",
+                    label: "Advance",
+                    apCost: 1,
+                    movementFeetPerAp: 10,
+                    movementTargetX: 200,
+                    movementTargetY: 0,
+                    isReaction: false,
+                    reactionTriggerType: ""
+                }],
+                "c-f": [{
+                    id: "follow",
+                    actionId: "follow",
+                    type: "movement",
+                    label: "Follow",
+                    apCost: 1,
+                    movementFeetPerAp: 10,
+                    requiresTarget: true,
+                    targetId: "c-t",
+                    isReaction: false,
+                    reactionTriggerType: ""
+                }]
+            }
+        });
+
+        const leaderToken = globalThis.canvas.scene.tokens.get("token-t");
+        const followerToken = globalThis.canvas.scene.tokens.get("token-f");
+        const encounter = new TurnOfTheCenturyEncounter(harness.combat);
+        await encounter.resolveEncounterRound({ tickDelayMs: 0 });
+
+        assert.equal(Number(leaderToken?.x ?? 0), 200);
+        assert.equal(Number(followerToken?.x ?? 0), 100);
+    });
+
     it("moves away from the selected target when resolving avoid", async () => {
         const { TurnOfTheCenturyEncounter } = await loadCombatModule();
         const harness = buildMultiCombatHarness({
@@ -2100,7 +2171,7 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
                     actorId: "actor-h",
                     name: "Hunter",
                     tokenId: "token-h",
-                    x: 100,
+                    x: 200,
                     y: 0,
                     initiative: 10,
                     items: [],
@@ -2123,17 +2194,30 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
                     isReaction: false,
                     reactionTriggerType: ""
                 }],
-                "c-h": []
+                "c-h": [{
+                    id: "move",
+                    actionId: "move",
+                    type: "movement",
+                    label: "Close",
+                    apCost: 1,
+                    movementFeetPerAp: 10,
+                    movementTargetX: 100,
+                    movementTargetY: 0,
+                    isReaction: false,
+                    reactionTriggerType: ""
+                }]
             }
         });
 
         const avoiderToken = globalThis.canvas.scene.tokens.get("token-a");
+        const hunterToken = globalThis.canvas.scene.tokens.get("token-h");
         const encounter = new TurnOfTheCenturyEncounter(harness.combat);
         const timeline = await encounter.resolveEncounterRound({ tickDelayMs: 0 });
 
         const avoidEntry = timeline.find((entry) => entry.combatantId === "c-a" && entry.action?.id === "avoid");
         assert.ok(avoidEntry);
         assert.equal(String(avoidEntry?.outcome?.detail ?? "").includes("avoids"), true);
+        assert.equal(Number(hunterToken?.x ?? 0), 100);
         assert.equal(Number(avoiderToken?.x ?? 0) < 0, true);
     });
 });

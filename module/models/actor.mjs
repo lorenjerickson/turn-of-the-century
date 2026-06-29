@@ -36,7 +36,8 @@ export const TOTC_EQUIPMENT_SLOTS = {
     head: { capacity: 1, allowed: ["armor", "equipment"] },
     neck: { capacity: 1, allowed: ["armor", "equipment"] },
     torso: { capacity: 2, allowed: ["armor", "equipment", "item"] },
-    hands: { capacity: 2, allowed: ["armor", "weapon", "tool", "equipment"] },
+    hands: { capacity: 2, allowed: ["weapon", "tool", "equipment"] },
+    handsArmor: { capacity: 1, allowed: ["armor"] },
     legs: { capacity: 1, allowed: ["armor", "equipment"] },
     feet: { capacity: 1, allowed: ["armor", "equipment"] },
     belt: { capacity: 4, allowed: ["weapon", "tool", "equipment", "consumable", "item"] }
@@ -160,6 +161,7 @@ function createEquipmentSlotsField() {
         neck: createSlotField({ label: "Neck", capacity: TOTC_EQUIPMENT_SLOTS.neck.capacity, allowed: TOTC_EQUIPMENT_SLOTS.neck.allowed }),
         torso: createSlotField({ label: "Torso", capacity: TOTC_EQUIPMENT_SLOTS.torso.capacity, allowed: TOTC_EQUIPMENT_SLOTS.torso.allowed }),
         hands: createSlotField({ label: "Hands", capacity: TOTC_EQUIPMENT_SLOTS.hands.capacity, allowed: TOTC_EQUIPMENT_SLOTS.hands.allowed }),
+        handsArmor: createSlotField({ label: "Hand Armor", capacity: TOTC_EQUIPMENT_SLOTS.handsArmor.capacity, allowed: TOTC_EQUIPMENT_SLOTS.handsArmor.allowed }),
         legs: createSlotField({ label: "Legs", capacity: TOTC_EQUIPMENT_SLOTS.legs.capacity, allowed: TOTC_EQUIPMENT_SLOTS.legs.allowed }),
         feet: createSlotField({ label: "Feet", capacity: TOTC_EQUIPMENT_SLOTS.feet.capacity, allowed: TOTC_EQUIPMENT_SLOTS.feet.allowed }),
         belt: createSlotField({ label: "Belt", capacity: TOTC_EQUIPMENT_SLOTS.belt.capacity, allowed: TOTC_EQUIPMENT_SLOTS.belt.allowed })

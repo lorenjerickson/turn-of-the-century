@@ -192,6 +192,26 @@ describe("EncounterSnapshotStore.capture — envelope", () => {
         assert.equal(snapshot.timeline[0].action.type, "movement");
         assert.deepEqual(snapshot.perCombatant.c1.plan, []);
     });
+
+    it("preserves order clause metadata in timeline snapshots", async () => {
+        const store = makeStore();
+        const timeline = [{
+            tick: 2,
+            orderId: "order-strike",
+            clauseId: "close",
+            clauseType: "positioning",
+            clauseText: "Close on Elias",
+            clauseStatus: "active",
+            relatedCombatantIds: ["c2"],
+            action: { type: "movement" }
+        }];
+
+        const snapshot = await store.capture({ tick: 2, timeline });
+
+        assert.equal(snapshot.timeline[0].orderId, "order-strike");
+        assert.equal(snapshot.timeline[0].clauseId, "close");
+        assert.deepEqual(snapshot.timeline[0].relatedCombatantIds, ["c2"]);
+    });
 });
 
 // ---------------------------------------------------------------------------

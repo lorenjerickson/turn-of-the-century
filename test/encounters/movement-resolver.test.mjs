@@ -166,6 +166,23 @@ describe("MovementResolver.planMovement — absolute movement", () => {
         assert.ok(result.x > 0 && result.x < 200, `expected 0 < x < 200, got ${result.x}`);
     });
 
+    it("keeps multi-AP movement ticks on grid waypoints", () => {
+        const token = makeToken("t1", 0, 0);
+        const combatant = makeCombatant("c1", token);
+        const resolver = makeResolver();
+        const result = resolver.planMovement({
+            combatant,
+            action: makeAction({ apCost: 2, _runtimeProgress: 1, movementTargetX: 300, movementTargetY: 0 }),
+            tokenPositions: null,
+            tickEffects: []
+        });
+
+        assert.ok(result !== null, "expected a movement result");
+        assert.notEqual(result.x, 150);
+        assert.equal(result.x % 100, 0);
+        assert.equal(result.y % 100, 0);
+    });
+
     it("completes the remaining distance on the second tick of a 2-AP action", () => {
         // apCost=2, progress=2: remainingSteps=0, stepDivisor=1 → moves full remaining path.
         const token = makeToken("t1", 0, 0);
@@ -223,6 +240,48 @@ describe("MovementResolver.planMovement — pursue", () => {
         assert.ok(result.x > 0, `expected pursuit to move right, got x=${result.x}`);
     });
 
+    it("does not move farther than the per-AP step when pursuing a distant token", () => {
+        const moverToken = makeToken("t1", 0, 0);
+        const mover = makeCombatant("c1", moverToken);
+
+        const targetToken = makeToken("t2", 800, 0);
+        const target = makeCombatant("c2", targetToken);
+
+        const combatants = new Map([["c1", mover], ["c2", target]]);
+        const resolver = makeResolver({ combatants });
+
+        const result = resolver.planMovement({
+            combatant: mover,
+            action: makeAction({ id: "pursue", actionId: "pursue", apCost: 1, targetId: "c2", movementFeetPerAp: 10 }),
+            tokenPositions: null,
+            tickEffects: []
+        });
+
+        assert.ok(result !== null, "expected pursuit movement");
+        assert.equal(result.x, 200);
+        assert.equal(result.y, 0);
+    });
+
+    it("stops when it becomes adjacent to the pursued token", () => {
+        const moverToken = makeToken("t1", 0, 0);
+        const mover = makeCombatant("c1", moverToken);
+
+        const targetToken = makeToken("t2", 200, 0);
+        const target = makeCombatant("c2", targetToken);
+
+        const combatants = new Map([["c1", mover], ["c2", target]]);
+        const resolver = makeResolver({ combatants });
+
+        const result = resolver.planMovement({
+            combatant: mover,
+            action: makeAction({ id: "pursue", actionId: "pursue", apCost: 1, targetId: "c2", movementFeetPerAp: 10 }),
+            tokenPositions: null,
+            tickEffects: []
+        });
+
+        assert.deepEqual(result, { tokenId: "t1", x: 100, y: 0 });
+    });
+
     it("pursues the target's updated position from tokenPositions", () => {
         const moverToken = makeToken("t1", 0, 0);
         const mover = makeCombatant("c1", moverToken);
@@ -261,12 +320,51 @@ describe("MovementResolver.planMovement — pursue", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Implied order positioning
+// ---------------------------------------------------------------------------
+
+describe("MovementResolver.evaluateOrderPositioning — implied location movement", () => {
+    it("builds a movement step toward a location-backed interaction target", () => {
+        const token = makeToken("t1", 0, 0, { parent: OPEN_SCENE });
+        const combatant = makeCombatant("c1", token);
+        const resolver = makeResolver();
+
+        const result = resolver.evaluateOrderPositioning({
+            combatant,
+            action: {
+                id: "open",
+                actionId: "open",
+                type: "utility",
+                label: "Open Door",
+                intentType: "interactWithObject",
+                apCost: 3,
+                movementFeetPerAp: 10,
+                targetX: 500,
+                targetY: 0,
+                apEnvelope: { positioningAp: 2, effectAp: 1, maxAp: 3 }
+            },
+            tokenPositions: null,
+            tickEffects: []
+        });
+
+        assert.equal(result.applies, true);
+        assert.equal(result.satisfied, false);
+        assert.equal(result.movementAction.type, "movement");
+        assert.equal(result.movementAction.actionId, "impliedMove");
+        assert.equal(result.movementAction.movementTargetX, 500);
+        assert.equal(result.movementAction.movementTargetY, 0);
+        assert.equal(result.movementEffect.tokenId, "t1");
+        assert.ok(result.movementEffect.x > 0, `expected movement toward target, got x=${result.movementEffect.x}`);
+    });
+});
+
+// ---------------------------------------------------------------------------
 // Avoid
 // ---------------------------------------------------------------------------
 
 describe("MovementResolver.planMovement — avoid", () => {
     it("moves directly away from the declared target", () => {
-        // Mover at (200,0), target at (0,0). Avoid should push mover rightward.
+        // Mover at (200,0), target moved to (100,0). Avoid should push mover rightward.
         const moverToken = makeToken("t1", 200, 0);
         const mover = makeCombatant("c1", moverToken);
 
@@ -284,8 +382,29 @@ describe("MovementResolver.planMovement — avoid", () => {
             combatant: mover,
             action: makeAction({ id: "avoid", actionId: "avoid", apCost: 1, targetId: "c2", movementFeetPerAp: 10 }),
             tokenPositions: null,
+            tickEffects: [{ type: "movement", combatantId: "c2", tokenId: "t2", x: 100, y: 0 }]
+        });
+        assert.ok(result !== null, "expected avoidance movement");
+        assert.ok(result.x > 200, `expected avoidance to move right (x > 200), got x=${result.x}`);
+    });
+
+    it("moves away from a stationary declared target", () => {
+        const moverToken = makeToken("t1", 200, 0);
+        const mover = makeCombatant("c1", moverToken);
+
+        const targetToken = makeToken("t2", 0, 0);
+        const target = makeCombatant("c2", targetToken);
+
+        const combatants = new Map([["c1", mover], ["c2", target]]);
+        const resolver = makeResolver({ combatants, scene: OPEN_SCENE });
+
+        const result = resolver.planMovement({
+            combatant: mover,
+            action: makeAction({ id: "avoid", actionId: "avoid", apCost: 1, targetId: "c2" }),
+            tokenPositions: null,
             tickEffects: []
         });
+
         assert.ok(result !== null, "expected avoidance movement");
         assert.ok(result.x > 200, `expected avoidance to move right (x > 200), got x=${result.x}`);
     });
@@ -304,9 +423,30 @@ describe("MovementResolver.planMovement — avoid", () => {
             combatant: mover,
             action: makeAction({ id: "avoid", actionId: "avoid", apCost: 1, targetId: "c2" }),
             tokenPositions: null,
-            tickEffects: []
+            tickEffects: [{ type: "movement", combatantId: "c2", tokenId: "t2", x: 200, y: 0 }]
         });
         assert.equal(result, null);
+    });
+
+    it("treats evade as a named avoid movement", () => {
+        const moverToken = makeToken("t1", 200, 0);
+        const mover = makeCombatant("c1", moverToken);
+
+        const targetToken = makeToken("t2", 0, 0);
+        const target = makeCombatant("c2", targetToken);
+
+        const combatants = new Map([["c1", mover], ["c2", target]]);
+        const resolver = makeResolver({ combatants, scene: OPEN_SCENE });
+
+        const result = resolver.planMovement({
+            combatant: mover,
+            action: makeAction({ id: "evade", actionId: "evade", apCost: 1, targetId: "c2", movementFeetPerAp: 10 }),
+            tokenPositions: null,
+            tickEffects: [{ type: "movement", combatantId: "c2", tokenId: "t2", x: 100, y: 0 }]
+        });
+
+        assert.ok(result !== null, "expected evade movement");
+        assert.ok(result.x > 200, `expected evade to move right (x > 200), got x=${result.x}`);
     });
 });
 
@@ -315,35 +455,30 @@ describe("MovementResolver.planMovement — avoid", () => {
 // ---------------------------------------------------------------------------
 
 describe("MovementResolver.planMovement — follow", () => {
-    it("initializes the follow offset on first call", () => {
-        // Follower at (100,0), target at (0,0) → initial offset = (100,0).
-        const moverToken = makeToken("t1", 100, 0);
+    it("moves toward a stationary declared target", () => {
+        const moverToken = makeToken("t1", 0, 0);
         const mover = makeCombatant("c1", moverToken);
 
-        const targetToken = makeToken("t2", 0, 0);
+        const targetToken = makeToken("t2", 500, 0);
         const target = makeCombatant("c2", targetToken);
 
         const combatants = new Map([["c1", mover], ["c2", target]]);
         const resolver = makeResolver({ combatants });
 
-        const action = makeAction({
-            id: "follow", actionId: "follow", apCost: 1, targetId: "c2",
-            movementTargetX: 0, movementTargetY: 0
+        const result = resolver.planMovement({
+            combatant: mover,
+            action: makeAction({ id: "follow", actionId: "follow", apCost: 1, targetId: "c2", movementFeetPerAp: 10 }),
+            tokenPositions: null,
+            tickEffects: []
         });
-        // First call — _followOffsetX/_followOffsetY not yet set.
-        resolver.planMovement({ combatant: mover, action, tokenPositions: null, tickEffects: [] });
 
-        // Offset should now be stamped on the action object.
-        assert.ok(Number.isFinite(action._followOffsetX), "expected _followOffsetX to be initialized");
-        assert.ok(Number.isFinite(action._followOffsetY), "expected _followOffsetY to be initialized");
-        assert.equal(action._followOffsetX, 100);
-        assert.equal(action._followOffsetY, 0);
+        assert.ok(result !== null, "expected follow movement");
+        assert.equal(result.x, 200);
+        assert.equal(result.y, 0);
     });
 
-    it("mirrors the target's movement when the target moved this tick", () => {
-        // Follower at (100,100), target originally at (0,100).
-        // Target moved to (0,200) this tick — follower should try to reach (100,200).
-        const moverToken = makeToken("t1", 100, 100);
+    it("moves toward the target's updated position when the target moved this tick", () => {
+        const moverToken = makeToken("t1", 200, 100);
         const mover = makeCombatant("c1", moverToken);
 
         const targetToken = makeToken("t2", 0, 100);
@@ -355,36 +490,75 @@ describe("MovementResolver.planMovement — follow", () => {
         const tickEffects = [
             { type: "movement", combatantId: "c2", tokenId: "t2", x: 0, y: 200 }
         ];
-        const action = makeAction({
-            id: "follow", actionId: "follow", apCost: 1, targetId: "c2",
-            _followOffsetX: 100, _followOffsetY: 0  // pre-initialized offset
+
+        const result = resolver.planMovement({
+            combatant: mover,
+            action: makeAction({ id: "follow", actionId: "follow", apCost: 1, targetId: "c2" }),
+            tokenPositions: null,
+            tickEffects
         });
 
-        const result = resolver.planMovement({ combatant: mover, action, tokenPositions: null, tickEffects });
         assert.ok(result !== null, "expected follower to move");
-        // Follower should move toward (100, 200).
-        assert.ok(result.y > 100, `expected y > 100 (moving toward 200), got y=${result.y}`);
+        const startDistance = Math.hypot(200 - 0, 100 - 200);
+        const resultDistance = Math.hypot(result.x - 0, result.y - 200);
+        assert.ok(resultDistance < startDistance, `expected follow to close distance to updated target, got ${resultDistance} >= ${startDistance}`);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Implied order positioning
+// ---------------------------------------------------------------------------
+
+describe("MovementResolver.evaluateOrderPositioning", () => {
+    it("returns satisfied for an attack order already within weapon range", () => {
+        const moverToken = makeToken("t1", 0, 0);
+        const mover = makeCombatant("c1", moverToken);
+        const targetToken = makeToken("t2", 100, 0);
+        const target = makeCombatant("c2", targetToken);
+        const resolver = makeResolver({ combatants: new Map([["c1", mover], ["c2", target]]) });
+
+        const result = resolver.evaluateOrderPositioning({
+            combatant: mover,
+            action: {
+                type: "attack",
+                intentType: "attackTarget",
+                label: "Strike",
+                targetId: "c2",
+                targetingRangeFeet: 5
+            }
+        });
+
+        assert.equal(result.applies, true);
+        assert.equal(result.satisfied, true);
+        assert.equal(result.movementEffect, null);
     });
 
-    it("does not reinitialize the offset if already set", () => {
-        const moverToken = makeToken("t1", 100, 0);
+    it("plans pursue-style movement for an out-of-range attack order", () => {
+        const moverToken = makeToken("t1", 0, 0);
         const mover = makeCombatant("c1", moverToken);
-
-        const targetToken = makeToken("t2", 0, 0);
+        const targetToken = makeToken("t2", 400, 0);
         const target = makeCombatant("c2", targetToken);
+        const resolver = makeResolver({ combatants: new Map([["c1", mover], ["c2", target]]) });
 
-        const combatants = new Map([["c1", mover], ["c2", target]]);
-        const resolver = makeResolver({ combatants });
-
-        const action = makeAction({
-            id: "follow", actionId: "follow", apCost: 1, targetId: "c2",
-            _followOffsetX: 50,  // pre-set to a different value
-            _followOffsetY: 0
+        const result = resolver.evaluateOrderPositioning({
+            combatant: mover,
+            action: {
+                id: "strike",
+                actionId: "strike",
+                type: "attack",
+                intentType: "attackTarget",
+                label: "Strike",
+                targetId: "c2",
+                targetingRangeFeet: 5,
+                apCost: 4,
+                movementFeetPerAp: 10
+            }
         });
 
-        resolver.planMovement({ combatant: mover, action, tokenPositions: null, tickEffects: [] });
-
-        // Should not have overwritten the pre-set offset.
-        assert.equal(action._followOffsetX, 50);
+        assert.equal(result.applies, true);
+        assert.equal(result.satisfied, false);
+        assert.equal(result.movementAction.actionId, "pursue");
+        assert.equal(result.movementEffect.tokenId, "t1");
+        assert.ok(result.movementEffect.x > 0);
     });
 });

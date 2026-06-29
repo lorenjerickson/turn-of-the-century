@@ -43,6 +43,111 @@ describe("native canvas grid calibration adapter", () => {
         assert.deepEqual(point, { x: 325, y: 227 });
     });
 
+    it("falls back to outer event coordinates when nativeEvent lacks coordinates", () => {
+        const point = getNativeCanvasEventScenePoint({
+            clientX: 320,
+            clientY: 220,
+            nativeEvent: { button: 0 }
+        }, {
+            canvasCoordinatesFromClient: (x, y) => ({ x: x + 5, y: y + 7 })
+        });
+
+        assert.deepEqual(point, { x: 325, y: 227 });
+    });
+
+    it("falls through when Foundry client coordinate conversion returns no point", () => {
+        const point = getNativeCanvasEventScenePoint({
+            clientX: 320,
+            clientY: 220,
+            offsetX: 150,
+            offsetY: 80
+        }, {
+            canvasCoordinatesFromClient: () => undefined
+        });
+
+        assert.deepEqual(point, { x: 150, y: 80 });
+    });
+
+    it("falls back to DOM canvas-local coordinates for captured pointer events", () => {
+        const point = getNativeCanvasEventScenePoint({
+            clientX: 320,
+            clientY: 220
+        }, {
+            app: {
+                view: {
+                    width: 600,
+                    height: 400,
+                    getBoundingClientRect: () => ({
+                        left: 20,
+                        top: 40,
+                        width: 300,
+                        height: 200
+                    })
+                }
+            }
+        });
+
+        assert.deepEqual(point, { x: 600, y: 360 });
+    });
+
+    it("converts captured DOM pointer coordinates through stage.toLocal when available", () => {
+        const point = getNativeCanvasEventScenePoint({
+            x: 160,
+            y: 90
+        }, {
+            app: {
+                view: {
+                    getBoundingClientRect: () => ({
+                        left: 10,
+                        top: 20,
+                        width: 300,
+                        height: 200
+                    })
+                }
+            },
+            stage: {
+                toLocal: ({ x, y }) => ({ x: x - 50, y: y - 25 })
+            }
+        });
+
+        assert.deepEqual(point, { x: 100, y: 45 });
+    });
+
+    it("falls back to pointer offset coordinates when client coordinates are absent", () => {
+        const point = getNativeCanvasEventScenePoint({
+            offsetX: 150,
+            offsetY: 80
+        }, {});
+
+        assert.deepEqual(point, { x: 150, y: 80 });
+    });
+
+    it("falls back to layer coordinates when offset coordinates are absent", () => {
+        const point = getNativeCanvasEventScenePoint({
+            layerX: 160,
+            layerY: 90
+        }, {});
+
+        assert.deepEqual(point, { x: 160, y: 90 });
+    });
+
+    it("converts page coordinates to client coordinates before canvas conversion", () => {
+        const originalWindow = globalThis.window;
+        globalThis.window = { scrollX: 20, scrollY: 30 };
+        try {
+            const point = getNativeCanvasEventScenePoint({
+                pageX: 340,
+                pageY: 250
+            }, {
+                canvasCoordinatesFromClient: (x, y) => ({ x, y })
+            });
+
+            assert.deepEqual(point, { x: 320, y: 220 });
+        } finally {
+            globalThis.window = originalWindow;
+        }
+    });
+
     it("registers and removes a PIXI stage pointer listener", () => {
         const calls = [];
         const handler = () => {};

@@ -7,6 +7,10 @@ function toNumber(value, fallback = 0) {
     return Number.isFinite(number) ? number : fallback;
 }
 
+function toArray(value) {
+    return Array.isArray(value) ? value : [];
+}
+
 // ---------------------------------------------------------------------------
 // Pure helpers — no port access, no Foundry globals
 // ---------------------------------------------------------------------------
@@ -25,7 +29,7 @@ function resolveActionRangeFeet(action = null, item = null) {
     const long = Number(item?.system?.physical?.range?.long ?? Math.max(normal, 60));
     if (rangeType === "long") return Math.max(5, long || normal || 60);
     if (rangeType === "normal") return Math.max(5, normal || 30);
-    return 5;
+    return Math.max(5, normal || 5);
 }
 
 /**
@@ -41,6 +45,35 @@ function getAttackAbilityBonus(actor, item) {
     const dexClassifications = new Set(["simpleRanged", "martialRanged", "firearm", "explosive", "thrown"]);
     const abilityKey = dexClassifications.has(classification) ? "dex" : "str";
     return toNumber(actor?.system?.abilities?.[abilityKey]?.bonus, 0);
+}
+
+function planningAttackRollResult(action = null, rollSubType = "") {
+    const subType = String(rollSubType ?? "").toLowerCase();
+    return toArray(action?.planningRollResults)
+        .find((entry) => String(entry?.rollType ?? "").toLowerCase() === "attack"
+            && (!subType || String(entry?.rollSubType ?? "").toLowerCase() === subType))
+        ?? null;
+}
+
+function planningRollTotal(entry = null) {
+    const total = toNumber(entry?.result?.total, Number.NaN);
+    if (Number.isFinite(total)) return total;
+    return toNumber(entry?.total, Number.NaN);
+}
+
+function systemRollsAllowed(action = null) {
+    return Boolean(action?.systemRollsAllowed || action?.allowSystemRolls);
+}
+
+function damageFormulaData(weaponData = {}) {
+    const formula = String(weaponData?.damage?.formula || "1").trim() || "1";
+    const bonus = toNumber(weaponData?.damage?.bonus, 0);
+    return { formula, bonus };
+}
+
+function staticDamageTotal({ formula = "1", bonus = 0 } = {}) {
+    const value = toNumber(formula, Number.NaN);
+    return Number.isFinite(value) ? Math.max(0, value + bonus) : Number.NaN;
 }
 
 // ---------------------------------------------------------------------------
@@ -231,7 +264,21 @@ export class AttackResolver {
         const attackAbilityBonus = getAttackAbilityBonus(actor, item);
         const toHitFlatBonus = Number(action.toHitBonus || 0);
 
-        const toHitRoll = await this.#roll("1d20");
+        const lockedAttackRoll = planningAttackRollResult(action, "tohit") ?? planningAttackRollResult(action);
+        const lockedAttackTotal = planningRollTotal(lockedAttackRoll);
+        const toHitRoll = Number.isFinite(lockedAttackTotal)
+            ? { total: lockedAttackTotal, requestId: lockedAttackRoll?.requestId }
+            : systemRollsAllowed(action)
+                ? await this.#roll("1d20")
+                : null;
+        if (!toHitRoll) {
+            return {
+                result: "failed",
+                targetCombatantId: targetCombatant?.id ?? null,
+                targetName: targetCombatant?.name ?? unspecifiedTarget,
+                detail: `${combatant.name} cannot complete ${action.label}; the required attack roll has not been resolved.`
+            };
+        }
         const natural = Number(toHitRoll?.total ?? 0);
         const toHitTotal = natural + attackAbilityBonus + toHitFlatBonus;
 
@@ -280,8 +327,28 @@ export class AttackResolver {
 
         // ---- Damage roll ----------------------------------------------------
 
-        const damageRoll = await this.#rollDamage({ actor, item, action, weaponData });
-        const baseDamage = Math.max(0, toNumber(damageRoll?.total, 0));
+        const damageData = damageFormulaData(weaponData);
+        const lockedDamageRoll = planningAttackRollResult(action, "damage");
+        const lockedDamageTotal = planningRollTotal(lockedDamageRoll);
+        let baseDamage = Number.isFinite(lockedDamageTotal) ? Math.max(0, lockedDamageTotal) : Number.NaN;
+        if (!Number.isFinite(baseDamage) && systemRollsAllowed(action)) {
+            const damageRoll = await this.#rollDamage({ actor, item, action, weaponData });
+            baseDamage = Math.max(0, toNumber(damageRoll?.total, 0));
+        }
+        if (!Number.isFinite(baseDamage)) {
+            baseDamage = staticDamageTotal(damageData);
+        }
+        if (!Number.isFinite(baseDamage)) {
+            return {
+                result: "failed",
+                roll: natural,
+                total: toHitTotal,
+                targetArmorClass,
+                targetCombatantId: targetCombatant?.id ?? null,
+                targetName: targetCombatant?.name ?? unspecifiedTarget,
+                detail: `${combatant.name} cannot complete ${action.label}; the required damage roll has not been resolved.`
+            };
+        }
 
         // ---- Critical hit (natural 20) --------------------------------------
 

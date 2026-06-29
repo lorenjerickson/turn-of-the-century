@@ -13,12 +13,13 @@ export const DEFAULT_ACTOR_EDITOR_STATE = Object.freeze({
 
 const CODEX_ITEM_DRAG_MIME = "application/x-totc-codex-item";
 const TEXT_PLAIN_MIME = "text/plain";
-const EQUIPMENT_SLOT_KEYS = Object.freeze(["head", "neck", "torso", "hands", "legs", "feet", "belt"]);
+const EQUIPMENT_SLOT_KEYS = Object.freeze(["head", "neck", "torso", "hands", "handsArmor", "legs", "feet", "belt"]);
 const EQUIPMENT_SLOT_CONFIG = Object.freeze({
     head: { capacity: 1, allowedTypes: ["armor", "equipment"] },
     neck: { capacity: 1, allowedTypes: ["armor", "equipment"] },
     torso: { capacity: 2, allowedTypes: ["armor", "equipment", "item"] },
-    hands: { capacity: 2, allowedTypes: ["armor", "weapon", "tool", "equipment"] },
+    hands: { capacity: 2, allowedTypes: ["weapon", "tool", "equipment"] },
+    handsArmor: { capacity: 1, allowedTypes: ["armor"] },
     legs: { capacity: 1, allowedTypes: ["armor", "equipment"] },
     feet: { capacity: 1, allowedTypes: ["armor", "equipment"] },
     belt: { capacity: 4, allowedTypes: ["weapon", "tool", "equipment", "consumable", "item"] }
@@ -98,6 +99,10 @@ function parseDropPayload(dataTransfer) {
         return null;
     }
     return null;
+}
+
+function escapeSelectorValue(value) {
+    return String(value ?? "").replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
 }
 
 export class ActorWorkspaceController {
@@ -488,6 +493,54 @@ export class ActorWorkspaceController {
                 event.preventDefault();
                 event.stopPropagation();
                 await this.generateActorTokenArt();
+            });
+        });
+
+        root?.querySelectorAll("[data-action='actor-equipment-open-picker']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const fieldName = String(button.dataset.equipmentField ?? "").trim();
+                const picker = fieldName ? root.querySelector?.(`[data-equipment-picker="${escapeSelectorValue(fieldName)}"]`) : null;
+                if (!picker) return;
+                picker.hidden = false;
+                picker.classList?.add("is-open");
+                picker.querySelector?.("[data-action='actor-equipment-select-item']")?.focus?.();
+            });
+        });
+
+        root?.querySelectorAll("[data-action='actor-equipment-close-picker']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const picker = button.closest?.("[data-equipment-picker]");
+                if (!picker) return;
+                picker.classList?.remove("is-open");
+                picker.hidden = true;
+            });
+        });
+
+        root?.querySelectorAll("[data-action='actor-equipment-select-item']")?.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (button.disabled) return;
+
+                const fieldName = String(button.dataset.equipmentField ?? "").trim();
+                const itemId = String(button.dataset.itemId ?? "").trim();
+                const form = button.closest?.("form");
+                const input = fieldName ? form?.querySelector?.(`[name="${escapeSelectorValue(fieldName)}"]`) : null;
+                if (!input) return;
+
+                input.value = itemId;
+                this.updateEditorField(input.dataset.actorField ?? input.name, input.value);
+                form?.querySelector("[data-action='actor-editor-save']")?.removeAttribute("disabled");
+
+                const picker = button.closest?.("[data-equipment-picker]");
+                if (picker) {
+                    picker.classList?.remove("is-open");
+                    picker.hidden = true;
+                }
             });
         });
 

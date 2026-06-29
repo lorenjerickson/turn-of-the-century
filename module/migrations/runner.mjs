@@ -1,4 +1,4 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 17;
+export const TOTC_WORLD_SCHEMA_VERSION = 18;
 
 import { migrateTotcItems } from "./items.mjs";
 import { migrateTotcActionRecapFormats } from "./action-recap-formats.mjs";
@@ -283,6 +283,20 @@ export async function runTotcMigrations({
         appliedVersion = 17;
     }
 
+    // v18: split wielded hand slots from shared hand-armor equipment.
+    if (appliedVersion < 18) {
+        const report = await migrateEquipmentSlots({
+            dryRun: false,
+            notify: false
+        });
+        appliedSteps.push({
+            version: 18,
+            key: "hand-armor-equipment-slot",
+            report
+        });
+        appliedVersion = 18;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -337,6 +351,10 @@ export async function runTotcMigrations({
 
                 if (step.key === "starter-actor-token-art") {
                     return `${step.key}: ${step.report.updated} token images applied`;
+                }
+
+                if (step.key === "hand-armor-equipment-slot") {
+                    return `${step.key}: ${step.report.actorsUpdated} actors and ${step.report.itemsUpdated} items updated`;
                 }
 
                 return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;

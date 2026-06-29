@@ -358,8 +358,8 @@ describe("starter-actor-token-art migration entrypoint wiring", () => {
         assert.equal(mainSource.includes("migrateStarterActorTokenArt: migrateTotcStarterActorTokenArt"), true);
     });
 
-    it("runner schema version is bumped to 17", () => {
-        assert.match(runnerSource, /TOTC_WORLD_SCHEMA_VERSION = 17/);
+    it("runner schema version is at least 17", () => {
+        assert.match(runnerSource, /TOTC_WORLD_SCHEMA_VERSION = 1[7-9]/);
     });
 
     it("runner requires migrateStarterActorTokenArt as an injected dependency", () => {

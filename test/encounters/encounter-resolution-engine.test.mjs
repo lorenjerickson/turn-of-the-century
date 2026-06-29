@@ -295,6 +295,7 @@ describe("EncounterResolutionEngine.evaluateTick — combatant iteration", () =>
 describe("EncounterResolutionEngine.evaluateTick — action resolution", () => {
     it("calls attackResolver when action requires a hit roll", async () => {
         const attackLog = [];
+        const damageLog = [];
         const combatant = makeCombatant({ id: "c1" });
         const action = makeAction({ type: "attack", apCost: 1, requiresToHit: true });
         const perCombatant = { c1: { remainingAp: 1, spentAp: 0, progress: 0, pointer: 0, plan: [action] } };
@@ -305,11 +306,26 @@ describe("EncounterResolutionEngine.evaluateTick — action resolution", () => {
             attackLog.push(opts);
             return { result: "hit", detail: "Hit.", pendingDamage: { targetCombatantId: "c2", amount: 5 } };
         };
+        r.consumptionResolver.buildSimultaneousDamageEntriesFromTimeline = ({ timeline: entries, tick }) => entries
+            .filter((entry) => entry.tick === tick && entry.outcome?.pendingDamage)
+            .map((entry) => ({
+                targetCombatantId: entry.outcome.pendingDamage.targetCombatantId,
+                totalAmount: entry.outcome.pendingDamage.amount,
+                contributors: [{ sourceCombatantId: entry.combatantId, amount: entry.outcome.pendingDamage.amount }]
+            }));
+        r.consumptionResolver.applySimultaneousDamageEntries = async ({ damageEntries }) => {
+            damageLog.push(...damageEntries);
+        };
         const engine = makeEngine({ combatants: [combatant], resolvers: r });
 
         await engine.evaluateTick({ tick: 1, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
         assert.equal(attackLog.length, 1, "attackResolver was called");
         assert.equal(timeline[0].outcome.result, "hit");
+        assert.deepEqual(damageLog, [{
+            targetCombatantId: "c2",
+            totalAmount: 5,
+            contributors: [{ sourceCombatantId: "c1", amount: 5 }]
+        }]);
     });
 
     it("pushes consumeAction effect when itemId is present and action succeeds", async () => {
@@ -370,6 +386,544 @@ describe("EncounterResolutionEngine.evaluateTick — action resolution", () => {
         await engine.evaluateTick({ tick: 1, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
         assert.equal(checkLog.length, 1, "checkItemAction called");
         assert.equal(timeline[0].outcome.result, "failed");
+    });
+
+    it("spends an implied attack order tick on positioning before the target is in range", async () => {
+        const combatant = makeCombatant({ id: "c1" });
+        const action = makeAction({
+            id: "strike",
+            actionId: "strike",
+            type: "attack",
+            label: "Strike",
+            intentType: "attackTarget",
+            targetId: "c2",
+            requiresToHit: true,
+            apCost: 4,
+            apEnvelope: { positioningAp: 3, effectAp: 1, maxAp: 4 }
+        });
+        const perCombatant = { c1: { remainingAp: 4, spentAp: 0, progress: 0, pointer: 0, plan: [action] } };
+        const timeline = [];
+        const movementEffects = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({
+            applies: true,
+            satisfied: false,
+            targetCombatant: { id: "c2", name: "Elias" },
+            movementAction: { id: "pursue", actionId: "pursue", type: "movement", label: "Position for Strike", targetId: "c2", movementFeetPerAp: 10 },
+            movementEffect: { tokenId: "t1", x: 100, y: 0 }
+        });
+        r.consumptionResolver.buildTickReconcilePlan = ({ tickEffects }) => {
+            movementEffects.push(...tickEffects.filter((effect) => effect.type === "movement"));
+            return { consumeEffects: [], movementEffects: [], damageEntries: [] };
+        };
+        const engine = makeEngine({ combatants: [combatant], resolvers: r });
+
+        await engine.evaluateTick({ tick: 1, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+
+        assert.equal(timeline[0].outcome.result, "movementStep");
+        assert.equal(timeline[0].action.type, "movement");
+        assert.equal(timeline[0].orderId, "strike");
+        assert.equal(timeline[0].clauseType, "positioning");
+        assert.equal(timeline[0].clauseStatus, "active");
+        assert.deepEqual(timeline[0].relatedCombatantIds, ["c2"]);
+        assert.equal(perCombatant.c1.pointer, 0);
+        assert.equal(perCombatant.c1.progress, 1);
+        assert.equal(movementEffects.length, 1);
+        assert.equal(movementEffects[0].tokenId, "t1");
+    });
+
+    it("resolves an implied attack order as soon as its positioning requirement is met", async () => {
+        const attackLog = [];
+        const combatant = makeCombatant({ id: "c1" });
+        const action = makeAction({
+            id: "strike",
+            actionId: "strike",
+            type: "attack",
+            label: "Strike",
+            intentType: "attackTarget",
+            targetId: "c2",
+            requiresToHit: true,
+            apCost: 4,
+            apEnvelope: { positioningAp: 3, effectAp: 1, maxAp: 4 }
+        });
+        const perCombatant = { c1: { remainingAp: 4, spentAp: 0, progress: 0, pointer: 0, plan: [action] } };
+        const timeline = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({
+            applies: true,
+            satisfied: true,
+            tokenPositions: { t2: { x: 100, y: 0 } }
+        });
+        r.attackResolver.resolveAttack = async (opts) => {
+            attackLog.push(opts);
+            return { result: "hit", detail: "Hit." };
+        };
+        const engine = makeEngine({ combatants: [combatant], resolvers: r });
+
+        await engine.evaluateTick({ tick: 1, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+
+        assert.equal(attackLog.length, 1);
+        assert.deepEqual(attackLog[0].tokenPositions, { t2: { x: 100, y: 0 } });
+        assert.equal(timeline[0].outcome.result, "hit");
+        assert.equal(timeline[0].orderId, "strike");
+        assert.equal(timeline[0].clauseType, "effect");
+        assert.equal(timeline[0].clauseStatus, "completed");
+        assert.equal(perCombatant.c1.pointer, 1);
+        assert.equal(perCombatant.c1.progress, 0);
+    });
+
+    it("moves to a location-backed object interaction before resolving the effect", async () => {
+        const combatant = makeCombatant({ id: "c1" });
+        const action = makeAction({
+            id: "open",
+            actionId: "open",
+            type: "utility",
+            label: "Open Door",
+            intentType: "interactWithObject",
+            apCost: 3,
+            targetX: 500,
+            targetY: 0,
+            positioningRequirement: { type: "adjacent", targetKind: "location", rangeFeet: 5 },
+            apEnvelope: { positioningAp: 2, effectAp: 1, maxAp: 3 }
+        });
+        const perCombatant = { c1: { remainingAp: 3, spentAp: 0, progress: 0, pointer: 0, plan: [action] } };
+        const timeline = [];
+        const movementEffects = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({
+            applies: true,
+            satisfied: false,
+            requirement: { type: "adjacent", targetKind: "location", rangeFeet: 5 },
+            targetPosition: { x: 500, y: 0 },
+            movementAction: { id: "impliedMove", actionId: "impliedMove", type: "movement", label: "Position for Open Door", movementTargetX: 500, movementTargetY: 0, movementFeetPerAp: 10 },
+            movementEffect: { tokenId: "t1", x: 200, y: 0 }
+        });
+        r.consumptionResolver.buildTickReconcilePlan = ({ tickEffects }) => {
+            movementEffects.push(...tickEffects.filter((effect) => effect.type === "movement"));
+            return { consumeEffects: [], movementEffects: [], damageEntries: [] };
+        };
+        const engine = makeEngine({ combatants: [combatant], resolvers: r });
+
+        await engine.evaluateTick({ tick: 1, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+
+        assert.equal(timeline[0].outcome.result, "movementStep");
+        assert.equal(timeline[0].action.actionId, "impliedMove");
+        assert.equal(timeline[0].clauseType, "positioning");
+        assert.equal(perCombatant.c1.pointer, 0);
+        assert.equal(perCombatant.c1.progress, 1);
+        assert.equal(movementEffects[0].tokenId, "t1");
+
+        r.movementResolver.evaluateOrderPositioning = () => ({
+            applies: true,
+            satisfied: true,
+            requirement: { type: "adjacent", targetKind: "location", rangeFeet: 5 },
+            tokenPositions: { t1: { x: 400, y: 0 } }
+        });
+
+        await engine.evaluateTick({ tick: 2, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+
+        assert.equal(timeline.at(-1).outcome.result, "resolved");
+        assert.equal(timeline.at(-1).action.actionId, "open");
+        assert.equal(timeline.at(-1).clauseType, "effect");
+        assert.equal(perCombatant.c1.pointer, 1);
+        assert.equal(perCombatant.c1.progress, 0);
+    });
+
+    it("uses a stored reach window when the target later moves out of range", async () => {
+        const attackLog = [];
+        const combatant = makeCombatant({ id: "c1" });
+        const targetCombatant = makeCombatant({ id: "c2", name: "Elias" });
+        const action = makeAction({
+            id: "strike",
+            actionId: "strike",
+            type: "attack",
+            label: "Strike",
+            intentType: "attackTarget",
+            targetId: "c2",
+            requiresToHit: true,
+            apCost: 4,
+            apEnvelope: { positioningAp: 3, effectAp: 1, maxAp: 4 },
+            _reachWindow: {
+                tick: 1,
+                distanceFeet: 5,
+                tokenPositions: { t1: { x: 0, y: 0 }, t2: { x: 100, y: 0 } }
+            }
+        });
+        const perCombatant = {
+            c1: { remainingAp: 3, spentAp: 1, progress: 1, pointer: 0, plan: [action] },
+            c2: { remainingAp: 3, spentAp: 1, progress: 1, pointer: 0, plan: [{ id: "move", actionId: "move", type: "movement" }] }
+        };
+        const timeline = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({
+            applies: true,
+            satisfied: false,
+            targetCombatant,
+            movementAction: { id: "pursue", actionId: "pursue", type: "movement", label: "Position for Strike", targetId: "c2", movementFeetPerAp: 10 },
+            movementEffect: { tokenId: "t1", x: 200, y: 0 }
+        });
+        r.attackResolver.resolveAttack = async (opts) => {
+            attackLog.push(opts);
+            return { result: "hit", detail: "Hit." };
+        };
+        const engine = makeEngine({ combatants: [combatant, targetCombatant], resolvers: r });
+
+        await engine.evaluateTick({ tick: 2, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant, targetCombatant] });
+
+        assert.equal(attackLog.length, 1);
+        assert.deepEqual(attackLog[0].tokenPositions, { t1: { x: 0, y: 0 }, t2: { x: 100, y: 0 } });
+        assert.equal(timeline[0].outcome.result, "hit");
+        assert.deepEqual(timeline[0].outcome.reachWindow, { tick: 1, distanceFeet: 5 });
+        assert.equal(perCombatant.c1.pointer, 1);
+    });
+
+    it("records a reach window across ticks so a retreat alone does not spoil melee", async () => {
+        const attackLog = [];
+        const combatant = makeCombatant({ id: "c1" });
+        const targetCombatant = makeCombatant({ id: "c2", name: "Elias" });
+        const action = makeAction({
+            id: "strike",
+            actionId: "strike",
+            type: "attack",
+            label: "Strike",
+            intentType: "attackTarget",
+            targetId: "c2",
+            requiresToHit: true,
+            apCost: 3,
+            apEnvelope: { positioningAp: 1, effectAp: 2, maxAp: 3 }
+        });
+        const perCombatant = {
+            c1: { remainingAp: 3, spentAp: 0, progress: 0, pointer: 0, plan: [action] },
+            c2: { remainingAp: 3, spentAp: 0, progress: 0, pointer: 0, plan: [{ id: "move", actionId: "move", type: "movement" }] }
+        };
+        const timeline = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({
+            applies: true,
+            satisfied: true,
+            targetCombatant,
+            distanceFeet: 5,
+            tokenPositions: { t1: { x: 0, y: 0 }, t2: { x: 100, y: 0 } }
+        });
+        r.attackResolver.resolveAttack = async (opts) => {
+            attackLog.push(opts);
+            return { result: "hit", detail: "Hit." };
+        };
+        const engine = makeEngine({ combatants: [combatant, targetCombatant], resolvers: r });
+
+        await engine.evaluateTick({ tick: 1, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant, targetCombatant] });
+
+        assert.equal(timeline[0].outcome.result, "progress");
+        assert.deepEqual(action._reachWindow, {
+            tick: 1,
+            distanceFeet: 5,
+            tokenPositions: { t1: { x: 0, y: 0 }, t2: { x: 100, y: 0 } }
+        });
+
+        r.movementResolver.evaluateOrderPositioning = () => ({
+            applies: true,
+            satisfied: false,
+            targetCombatant,
+            movementAction: { id: "pursue", actionId: "pursue", type: "movement", label: "Position for Strike", targetId: "c2", movementFeetPerAp: 10 },
+            movementEffect: { tokenId: "t1", x: 200, y: 0 }
+        });
+
+        await engine.evaluateTick({ tick: 2, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant, targetCombatant] });
+
+        const attackerEntry = timeline.find((entry) => entry.tick === 2 && entry.combatantId === "c1");
+        assert.equal(attackLog.length, 1);
+        assert.deepEqual(attackLog[0].tokenPositions, { t1: { x: 0, y: 0 }, t2: { x: 100, y: 0 } });
+        assert.equal(attackerEntry.outcome.result, "hit");
+        assert.deepEqual(attackerEntry.outcome.reachWindow, { tick: 1, distanceFeet: 5 });
+        assert.equal(perCombatant.c1.pointer, 1);
+        assert.equal(action._reachWindow, undefined);
+    });
+
+    it("does not use a stored reach window when the target explicitly breaks away", async () => {
+        const attackLog = [];
+        const combatant = makeCombatant({ id: "c1" });
+        const targetCombatant = makeCombatant({ id: "c2", name: "Elias" });
+        const action = makeAction({
+            id: "strike",
+            actionId: "strike",
+            type: "attack",
+            label: "Strike",
+            intentType: "attackTarget",
+            targetId: "c2",
+            requiresToHit: true,
+            apCost: 4,
+            apEnvelope: { positioningAp: 3, effectAp: 1, maxAp: 4 },
+            _reachWindow: {
+                tick: 1,
+                distanceFeet: 5,
+                tokenPositions: { t1: { x: 0, y: 0 }, t2: { x: 100, y: 0 } }
+            }
+        });
+        const perCombatant = {
+            c1: { remainingAp: 3, spentAp: 1, progress: 1, pointer: 0, plan: [action] },
+            c2: { remainingAp: 3, spentAp: 1, progress: 1, pointer: 0, plan: [{ id: "evade", actionId: "evade", type: "movement" }] }
+        };
+        const timeline = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({
+            applies: true,
+            satisfied: false,
+            targetCombatant,
+            movementAction: { id: "pursue", actionId: "pursue", type: "movement", label: "Position for Strike", targetId: "c2", movementFeetPerAp: 10 },
+            movementEffect: { tokenId: "t1", x: 200, y: 0 }
+        });
+        r.attackResolver.resolveAttack = async (opts) => {
+            attackLog.push(opts);
+            return { result: "hit", detail: "Hit." };
+        };
+        const engine = makeEngine({ combatants: [combatant, targetCombatant], resolvers: r });
+
+        await engine.evaluateTick({ tick: 2, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant, targetCombatant] });
+
+        assert.equal(attackLog.length, 0);
+        assert.equal(timeline[0].outcome.result, "movementStep");
+        assert.equal(perCombatant.c1.pointer, 0);
+        assert.equal(perCombatant.c1.progress, 2);
+    });
+
+    it("shrinks an early completed order so the next planned action can start sooner", async () => {
+        const combatant = makeCombatant({ id: "c1" });
+        const action = makeAction({
+            id: "strike",
+            actionId: "strike",
+            type: "attack",
+            label: "Strike",
+            intentType: "attackTarget",
+            targetId: "c2",
+            requiresToHit: true,
+            apCost: 4,
+            apEnvelope: { positioningAp: 3, effectAp: 1, maxAp: 4 },
+            followThrough: { type: "chooseAnotherAction" }
+        });
+        const nextAction = makeAction({ id: "hunker", actionId: "hunker", type: "defense", label: "Hunker Down", apCost: 1 });
+        const perCombatant = { c1: { remainingAp: 4, spentAp: 0, progress: 0, pointer: 0, plan: [action, nextAction] } };
+        const timeline = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({ applies: true, satisfied: true });
+        r.attackResolver.resolveAttack = async () => ({ result: "hit", detail: "Hit." });
+        const engine = makeEngine({ combatants: [combatant], resolvers: r });
+
+        await engine.evaluateTick({ tick: 1, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+
+        assert.equal(perCombatant.c1.plan[0].apCost, 1);
+        assert.equal(perCombatant.c1.pointer, 1);
+        assert.equal(perCombatant.c1.plan[1], nextAction);
+    });
+
+    it("lets an early treatment order advance to the next configured action", async () => {
+        const checkLog = [];
+        const combatant = makeCombatant({
+            id: "c1",
+            actor: {
+                items: {
+                    get: (id) => id === "bandage" ? { id: "bandage", name: "Field Dressing" } : null
+                }
+            }
+        });
+        const action = makeAction({
+            id: "treat",
+            actionId: "treat",
+            type: "consumable",
+            label: "Treat Ally",
+            intentType: "useOnTarget",
+            targetId: "c2",
+            itemId: "bandage",
+            apCost: 3,
+            apEnvelope: { positioningAp: 2, effectAp: 1, maxAp: 3 },
+            followThrough: { type: "chooseAnotherAction" }
+        });
+        const nextAction = makeAction({ id: "guard", actionId: "guard", type: "defense", label: "Guard", apCost: 1 });
+        const perCombatant = { c1: { remainingAp: 3, spentAp: 0, progress: 0, pointer: 0, plan: [action, nextAction] } };
+        const timeline = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({ applies: true, satisfied: true });
+        const engine = makeEngine({
+            combatants: [combatant],
+            resolvers: r,
+            checkItemAction: async (item, actor, actionId) => {
+                checkLog.push({ item, actor, actionId });
+                return { success: true };
+            }
+        });
+
+        await engine.evaluateTick({ tick: 1, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+
+        assert.equal(checkLog.length, 1);
+        assert.equal(timeline[0].outcome.result, "resolved");
+        assert.equal(perCombatant.c1.plan[0].apCost, 1);
+        assert.equal(perCombatant.c1.pointer, 1);
+        assert.equal(perCombatant.c1.plan[1], nextAction);
+    });
+
+    it("shrinks early completion without inserting follow-through when no round AP remains", async () => {
+        const combatant = makeCombatant({ id: "c1" });
+        const action = makeAction({
+            id: "strike",
+            orderId: "order-strike",
+            actionId: "strike",
+            type: "attack",
+            label: "Strike",
+            intentType: "attackTarget",
+            targetId: "c2",
+            requiresToHit: true,
+            apCost: 4,
+            apEnvelope: { positioningAp: 3, effectAp: 1, maxAp: 4 },
+            followThrough: { type: "overwatch" }
+        });
+        const perCombatant = { c1: { remainingAp: 1, spentAp: 5, progress: 0, pointer: 0, plan: [action] } };
+        const timeline = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({ applies: true, satisfied: true });
+        r.attackResolver.resolveAttack = async () => ({ result: "hit", detail: "Hit." });
+        const engine = makeEngine({ combatants: [combatant], resolvers: r });
+
+        await engine.evaluateTick({ tick: 6, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+
+        assert.equal(timeline[0].outcome.result, "hit");
+        assert.equal(perCombatant.c1.plan[0].apCost, 1);
+        assert.equal(perCombatant.c1.plan.length, 1);
+        assert.equal(perCombatant.c1.pointer, 1);
+        assert.equal(perCombatant.c1.remainingAp, 0);
+    });
+
+    it("inserts overwatch follow-through when an order completes with AP left in its envelope", async () => {
+        const combatant = makeCombatant({ id: "c1" });
+        const action = makeAction({
+            id: "strike",
+            orderId: "order-strike",
+            actionId: "strike",
+            type: "attack",
+            label: "Strike",
+            intentType: "attackTarget",
+            targetId: "c2",
+            requiresToHit: true,
+            apCost: 4,
+            apEnvelope: { positioningAp: 3, effectAp: 1, maxAp: 4 },
+            followThrough: { type: "overwatch" }
+        });
+        const perCombatant = { c1: { remainingAp: 4, spentAp: 0, progress: 0, pointer: 0, plan: [action] } };
+        const timeline = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({ applies: true, satisfied: true });
+        r.attackResolver.resolveAttack = async () => ({ result: "hit", detail: "Hit." });
+        const engine = makeEngine({ combatants: [combatant], resolvers: r });
+
+        await engine.evaluateTick({ tick: 1, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+
+        assert.equal(perCombatant.c1.plan[0].apCost, 1);
+        assert.equal(perCombatant.c1.plan[1].actionId, "overwatch");
+        assert.equal(perCombatant.c1.plan[1].apCost, 3);
+        assert.equal(perCombatant.c1.plan[1].isReaction, true);
+        assert.equal(perCombatant.c1.pointer, 1);
+    });
+
+    it("inserts hold-position follow-through when requested", async () => {
+        const combatant = makeCombatant({ id: "c1" });
+        const action = makeAction({
+            id: "open",
+            orderId: "order-open",
+            actionId: "open",
+            type: "utility",
+            label: "Open",
+            intentType: "interactWithObject",
+            apCost: 3,
+            apEnvelope: { positioningAp: 2, effectAp: 1, maxAp: 3 },
+            followThrough: { type: "hold" },
+            targetX: 100,
+            targetY: 0
+        });
+        const perCombatant = { c1: { remainingAp: 3, spentAp: 0, progress: 0, pointer: 0, plan: [action] } };
+        const timeline = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({ applies: true, satisfied: true });
+        const engine = makeEngine({ combatants: [combatant], resolvers: r });
+
+        await engine.evaluateTick({ tick: 1, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+
+        assert.equal(timeline[0].outcome.result, "resolved");
+        assert.equal(perCombatant.c1.plan[0].apCost, 1);
+        assert.equal(perCombatant.c1.plan[1].actionId, "holdPosition");
+        assert.equal(perCombatant.c1.plan[1].apCost, 2);
+    });
+
+    it("soft-fails an implied order when its AP envelope is exhausted before positioning succeeds", async () => {
+        const combatant = makeCombatant({ id: "c1" });
+        const action = makeAction({
+            id: "strike",
+            actionId: "strike",
+            type: "attack",
+            label: "Strike",
+            intentType: "attackTarget",
+            targetId: "c2",
+            requiresToHit: true,
+            apCost: 2,
+            apEnvelope: { positioningAp: 1, effectAp: 1, maxAp: 2 }
+        });
+        const perCombatant = { c1: { remainingAp: 1, spentAp: 1, progress: 1, pointer: 0, plan: [action] } };
+        const timeline = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({
+            applies: true,
+            satisfied: false,
+            movementAction: { id: "pursue", actionId: "pursue", type: "movement", label: "Position for Strike", targetId: "c2", movementFeetPerAp: 10 },
+            movementEffect: { tokenId: "t1", x: 100, y: 0 }
+        });
+        const engine = makeEngine({ combatants: [combatant], resolvers: r });
+
+        await engine.evaluateTick({ tick: 2, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+
+        assert.equal(timeline.at(-1).outcome.result, "bestReachablePosition");
+        assert.equal(perCombatant.c1.pointer, 1);
+        assert.equal(perCombatant.c1.progress, 0);
+    });
+
+    it("uses the configured soft-failure outcome when an implied order exhausts its AP envelope", async () => {
+        const combatant = makeCombatant({ id: "c1" });
+        const action = makeAction({
+            id: "strike",
+            actionId: "strike",
+            type: "attack",
+            label: "Strike",
+            intentType: "attackTarget",
+            targetId: "c2",
+            requiresToHit: true,
+            apCost: 2,
+            apEnvelope: { positioningAp: 1, effectAp: 1, maxAp: 2 },
+            failureOutcome: { type: "maintainPressure" }
+        });
+        const perCombatant = { c1: { remainingAp: 1, spentAp: 1, progress: 1, pointer: 0, plan: [action] } };
+        const timeline = [];
+
+        const r = makeNullResolvers();
+        r.movementResolver.evaluateOrderPositioning = () => ({
+            applies: true,
+            satisfied: false,
+            movementAction: { id: "pursue", actionId: "pursue", type: "movement", label: "Position for Strike", targetId: "c2", movementFeetPerAp: 10 },
+            movementEffect: { tokenId: "t1", x: 100, y: 0 }
+        });
+        const engine = makeEngine({ combatants: [combatant], resolvers: r });
+
+        await engine.evaluateTick({ tick: 2, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+
+        assert.equal(timeline.at(-1).outcome.result, "maintainedPressure");
+        assert.equal(perCombatant.c1.pointer, 1);
     });
 });
 

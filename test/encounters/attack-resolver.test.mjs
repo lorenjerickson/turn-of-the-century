@@ -36,6 +36,7 @@ function makeAction(overrides = {}) {
         rangeType: "normal",
         toHitBonus: 0,
         apCost: 2,
+        systemRollsAllowed: true,
         ...overrides
     };
 }
@@ -46,6 +47,7 @@ function makeResolver({
     target = null,
     allCombatants = [],
     rollSequence = [],
+    rollLog = [],
     findReactionAtTick = () => null,
     consumeReactionWindow = () => false,
     applyDamageLog = []
@@ -70,6 +72,7 @@ function makeResolver({
         consumeReactionWindow,
         roll: async () => {
             const total = rollSequence[rollIndex++] ?? 10;
+            rollLog.push(total);
             return { total };
         },
         applyDamage: async (combatant, amount) => {
@@ -184,6 +187,54 @@ describe("AttackResolver.resolveAttack — hit", () => {
         assert.ok(outcome.pendingDamage?.amount === 4);
     });
 
+    it("uses locked planning attack and damage rolls when system rolls are disabled", async () => {
+        const attackerToken = sameSpotToken("t1");
+        const targetToken = sameSpotToken("t2");
+        const attacker = makeCombatant("c1", "Alice", makeActor("a1", { strBonus: 3 }), attackerToken);
+        const target = makeCombatant("c2", "Bob", makeActor("a2", { armorClass: 12 }), targetToken);
+
+        const rollLog = [];
+        const resolver = makeResolver({ allCombatants: [attacker, target], rollLog });
+
+        const outcome = await resolver.resolveAttack({
+            combatant: attacker,
+            action: makeAction({
+                targetId: "c2",
+                rangeType: "melee",
+                systemRollsAllowed: false,
+                planningRollResults: [
+                    { requestId: "to-hit", rollType: "attack", rollSubType: "toHit", result: { total: 10 } },
+                    { requestId: "damage", rollType: "attack", rollSubType: "damage", result: { total: 4 } }
+                ]
+            }),
+            evaluationSnapshot: null,
+            applyEffects: false
+        });
+
+        assert.equal(outcome.result, "hit");
+        assert.equal(outcome.roll, 10);
+        assert.equal(outcome.damage, 4);
+        assert.deepEqual(rollLog, []);
+    });
+
+    it("fails instead of silently rolling when a required planning attack roll is missing", async () => {
+        const attackerToken = sameSpotToken("t1");
+        const targetToken = sameSpotToken("t2");
+        const attacker = makeCombatant("c1", "Alice", makeActor("a1", { strBonus: 3 }), attackerToken);
+        const target = makeCombatant("c2", "Bob", makeActor("a2", { armorClass: 12 }), targetToken);
+        const resolver = makeResolver({ allCombatants: [attacker, target], rollSequence: [20, 9] });
+
+        const outcome = await resolver.resolveAttack({
+            combatant: attacker,
+            action: makeAction({ targetId: "c2", rangeType: "melee", systemRollsAllowed: false }),
+            evaluationSnapshot: null,
+            applyEffects: false
+        });
+
+        assert.equal(outcome.result, "failed");
+        assert.match(outcome.detail, /required attack roll/);
+    });
+
     it("returns miss when roll+bonus is below armor class", async () => {
         const attackerToken = sameSpotToken("t1");
         const targetToken = sameSpotToken("t2");
@@ -252,6 +303,33 @@ describe("AttackResolver.resolveAttack — hit", () => {
         // 9+4 dex=13 ≥ AC 12 → hit
         assert.equal(outcome.result, "hit");
         assert.equal(outcome.total, 13);
+    });
+
+    it("uses item physical range for reach melee attacks", async () => {
+        const attackerToken = { id: "t1", _id: "t1", x: 0, y: 0, width: 1, height: 1 };
+        const targetToken = { id: "t2", _id: "t2", x: 200, y: 0, width: 1, height: 1 };
+        const attacker = makeCombatant("c1", "Alice", makeActor("a1", { strBonus: 2 }), attackerToken);
+        const target = makeCombatant("c2", "Bob", makeActor("a2", { armorClass: 12 }), targetToken);
+        const reachWeapon = {
+            system: {
+                classification: "simpleMelee",
+                physical: { range: { normal: 10, long: 10 } },
+                damage: { formula: "1", bonus: 0 }
+            }
+        };
+        attacker.actor.items = { get: (id) => (id === "spear" ? reachWeapon : null) };
+
+        const resolver = makeResolver({ allCombatants: [attacker, target], rollSequence: [10, 3] });
+
+        const outcome = await resolver.resolveAttack({
+            combatant: attacker,
+            action: makeAction({ targetId: "c2", rangeType: "melee", itemId: "spear" }),
+            evaluationSnapshot: null,
+            applyEffects: false
+        });
+
+        assert.equal(outcome.result, "hit");
+        assert.equal(outcome.total, 12);
     });
 });
 

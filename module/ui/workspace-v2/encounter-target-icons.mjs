@@ -1,3 +1,8 @@
+import {
+    collectTokenReferenceIds,
+    getCombatantTokenReferenceIds
+} from "../../encounters/combatant-token-matching.mjs";
+
 function numberOr(value, fallback = 0) {
     const n = Number(value);
     return Number.isFinite(n) ? n : fallback;
@@ -6,6 +11,53 @@ function numberOr(value, fallback = 0) {
 function positiveNumber(value, fallback = 1) {
     const n = Number(value);
     return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function collectionContents(collection) {
+    if (!collection) return [];
+    if (Array.isArray(collection)) return collection;
+    if (Array.isArray(collection.contents)) return collection.contents;
+    if (typeof collection.values === "function") return Array.from(collection.values());
+    if (typeof collection[Symbol.iterator] === "function") return Array.from(collection);
+    return [];
+}
+
+function collectionGet(collection, id = "") {
+    const key = String(id ?? "").trim();
+    if (!key) return null;
+    return collection?.get?.(key)
+        ?? collectionContents(collection).find((entry) => (
+            String(entry?.id ?? entry?._id ?? entry?.document?.id ?? "").trim() === key
+        ))
+        ?? null;
+}
+
+function findTokenForCombatant(collection, combatant = null) {
+    const combatantTokenIds = getCombatantTokenReferenceIds(combatant);
+    if (!combatantTokenIds.size) return null;
+    for (const id of combatantTokenIds) {
+        const token = collectionGet(collection, id);
+        if (token) return token;
+    }
+    return collectionContents(collection).find((token) => {
+        const tokenIds = collectTokenReferenceIds(token);
+        for (const id of tokenIds) {
+            if (combatantTokenIds.has(id)) return true;
+        }
+        return false;
+    }) ?? null;
+}
+
+function tokenDocumentId(token = null) {
+    return String(token?.document?.id ?? token?.id ?? token?._id ?? "").trim();
+}
+
+function firstReferenceId(ids) {
+    for (const id of ids ?? []) {
+        const key = String(id ?? "").trim();
+        if (key) return key;
+    }
+    return "";
 }
 
 /**
@@ -54,14 +106,13 @@ export function buildEncounterTargetIconsModel({ combat, combatantId, scene } = 
         const targetCombatant = combat.combatants?.get?.(targetCombatantId) ?? null;
         if (!targetCombatant) continue;
 
-        const tokenId = String(
-            targetCombatant.tokenId ?? targetCombatant.token?.id ?? ""
-        ).trim();
+        const combatantTokenIds = getCombatantTokenReferenceIds(targetCombatant);
+        const token = findTokenForCombatant(scene.tokens, targetCombatant);
+        if (!token) continue;
+
+        const tokenId = tokenDocumentId(token) || firstReferenceId(combatantTokenIds);
         if (!tokenId || seenTokenIds.has(tokenId)) continue;
         seenTokenIds.add(tokenId);
-
-        const token = scene.tokens?.get?.(tokenId) ?? null;
-        if (!token) continue;
 
         icons.push({
             tokenId,
@@ -101,18 +152,17 @@ export function renderEncounterTargetIconsToContainer(container, icons) {
 function buildTargetIconGraphic(icon) {
     const { x, y, tileWidth, iconType } = icon;
 
-    const iconSize = Math.max(14, Math.min(36, tileWidth * 0.3));
+    const iconSize = Math.max(6, tileWidth * 0.15);
     const r = iconSize / 2;
 
-    // Top-right corner of the token bounding box
-    const cx = x + tileWidth - r - 3;
-    const cy = y + r + 3;
+    // Top-left corner of the token bounding box
+    const cx = x + r + 2;
+    const cy = y + r + 2;
 
     const g = new PIXI.Graphics();
 
     // Dark disc background for legibility over any token image
-    g.circle(cx, cy, r + 3);
-    g.fill({ color: 0x0f172a, alpha: 0.72 });
+    fillCircle(g, cx, cy, r + 3, { color: 0x0f172a, alpha: 0.72 });
 
     switch (iconType) {
         case "target":  drawBullseye(g, cx, cy, r);                    break;
@@ -128,21 +178,14 @@ function buildTargetIconGraphic(icon) {
 
 function drawBullseye(g, cx, cy, r) {
     // Outer ring
-    g.circle(cx, cy, r);
-    g.stroke({ color: 0xef4444, width: 1.5, alpha: 0.95 });
+    strokeCircle(g, cx, cy, r, { color: 0xef4444, width: 1.5, alpha: 0.95 });
     // Middle ring
-    g.circle(cx, cy, r * 0.58);
-    g.stroke({ color: 0xef4444, width: 1.5, alpha: 0.95 });
+    strokeCircle(g, cx, cy, r * 0.58, { color: 0xef4444, width: 1.5, alpha: 0.95 });
     // Center dot
-    g.circle(cx, cy, r * 0.22);
-    g.fill({ color: 0xef4444, alpha: 0.95 });
+    fillCircle(g, cx, cy, r * 0.22, { color: 0xef4444, alpha: 0.95 });
     // Crosshairs
-    g.moveTo(cx - r, cy);
-    g.lineTo(cx + r, cy);
-    g.stroke({ color: 0xef4444, width: 1, alpha: 0.5 });
-    g.moveTo(cx, cy - r);
-    g.lineTo(cx, cy + r);
-    g.stroke({ color: 0xef4444, width: 1, alpha: 0.5 });
+    drawLine(g, cx - r, cy, cx + r, cy, { color: 0xef4444, width: 1, alpha: 0.5 });
+    drawLine(g, cx, cy - r, cx, cy + r, { color: 0xef4444, width: 1, alpha: 0.5 });
 }
 
 function drawShield(g, cx, cy, r) {
@@ -160,10 +203,8 @@ function drawShield(g, cx, cy, r) {
         cx - hw, mid
     ];
 
-    g.poly(pts);
-    g.fill({ color: 0x60a5fa, alpha: 0.28 });
-    g.poly(pts);
-    g.stroke({ color: 0x60a5fa, width: 2, alpha: 0.95 });
+    fillPolygon(g, pts, { color: 0x60a5fa, alpha: 0.28 });
+    strokePolygon(g, pts, { color: 0x60a5fa, width: 2, alpha: 0.95 });
 }
 
 function drawArrow(g, cx, cy, r, color, dir) {
@@ -184,8 +225,65 @@ function drawArrow(g, cx, cy, r, color, dir) {
         baseX, cy + headH    // arrowhead bottom corner
     ];
 
-    g.poly(pts);
-    g.fill({ color, alpha: 0.88 });
-    g.poly(pts);
-    g.stroke({ color, width: 1.5, alpha: 0.95 });
+    fillPolygon(g, pts, { color, alpha: 0.88 });
+    strokePolygon(g, pts, { color, width: 1.5, alpha: 0.95 });
+}
+
+function fillCircle(g, cx, cy, radius, style) {
+    if (typeof g.circle === "function" && typeof g.fill === "function") {
+        g.circle(cx, cy, radius);
+        g.fill(style);
+        return;
+    }
+
+    g.beginFill?.(style.color, style.alpha ?? 1);
+    g.drawCircle?.(cx, cy, radius);
+    g.endFill?.();
+}
+
+function strokeCircle(g, cx, cy, radius, style) {
+    if (typeof g.circle === "function" && typeof g.stroke === "function") {
+        g.circle(cx, cy, radius);
+        g.stroke(style);
+        return;
+    }
+
+    g.lineStyle?.(style.width ?? 1, style.color, style.alpha ?? 1);
+    g.drawCircle?.(cx, cy, radius);
+}
+
+function fillPolygon(g, points, style) {
+    if (typeof g.poly === "function" && typeof g.fill === "function") {
+        g.poly(points);
+        g.fill(style);
+        return;
+    }
+
+    g.beginFill?.(style.color, style.alpha ?? 1);
+    g.drawPolygon?.(points);
+    g.endFill?.();
+}
+
+function strokePolygon(g, points, style) {
+    if (typeof g.poly === "function" && typeof g.stroke === "function") {
+        g.poly(points);
+        g.stroke(style);
+        return;
+    }
+
+    g.lineStyle?.(style.width ?? 1, style.color, style.alpha ?? 1);
+    g.drawPolygon?.(points);
+}
+
+function drawLine(g, x1, y1, x2, y2, style) {
+    if (typeof g.stroke === "function") {
+        g.moveTo(x1, y1);
+        g.lineTo(x2, y2);
+        g.stroke(style);
+        return;
+    }
+
+    g.lineStyle?.(style.width ?? 1, style.color, style.alpha ?? 1);
+    g.moveTo(x1, y1);
+    g.lineTo(x2, y2);
 }

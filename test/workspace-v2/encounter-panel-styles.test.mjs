@@ -5,6 +5,26 @@ import { describe, it } from "node:test";
 const styles = readFileSync(new URL("../../styles/system-styles.css", import.meta.url), "utf8");
 
 describe("Encounter panel styles", () => {
+    it("stacks player encounter subviews vertically while allowing the planner to fill spare height", () => {
+        const panelRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-panel\s*\{[^}]+\}/)?.[0] ?? "";
+        const subviewRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-panel__status,\s*\.turn-of-the-century \.totc-v2-encounter-panel__planner,\s*\.turn-of-the-century \.totc-v2-encounter-panel__history\s*\{[^}]+\}/)?.[0] ?? "";
+        const plannerRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-panel__planner\s*\{[^}]+\}/)?.[0] ?? "";
+        const planningViewRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-panel__planning-view\s*\{[^}]+\}/)?.[0] ?? "";
+        const ordersRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-panel__orders\s*\{[^}]+\}/)?.[0] ?? "";
+
+        assert.match(panelRule, /display:\s*flex/);
+        assert.match(panelRule, /flex-direction:\s*column/);
+        assert.doesNotMatch(panelRule, /grid-template-columns/);
+        assert.match(subviewRule, /flex:\s*0 0 auto/);
+        assert.match(plannerRule, /display:\s*flex/);
+        assert.match(plannerRule, /flex:\s*1 1 auto/);
+        assert.match(plannerRule, /flex-direction:\s*column/);
+        assert.match(plannerRule, /overflow:\s*hidden/);
+        assert.match(planningViewRule, /flex:\s*1 1 auto/);
+        assert.match(planningViewRule, /position:\s*relative/);
+        assert.match(ordersRule, /flex:\s*0 0 auto/);
+    });
+
     it("aligns both current-tick highlights using align-self stretch without positional offsets", () => {
         const panelLine = styles.match(/\.totc-v2-encounter-panel__current-line\s*\{[^}]+\}/)?.[0] ?? "";
         const managerLine = styles.match(/\.totc-v2-encounter-manager__current-line\s*\{[^}]+\}/)?.[0] ?? "";

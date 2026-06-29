@@ -1,4 +1,5 @@
 import { resolveActionIcon } from "./action-icons.mjs";
+import { buildEncounterOrderDisplay } from "./encounter-order-model.mjs";
 
 function toNumber(value, fallback = 0) {
     const number = Number(value);
@@ -187,7 +188,32 @@ function resolveActionImg(action, actor) {
     return resolveActionIcon(action, { itemIcon });
 }
 
-function buildPlanSlots(queue, apBudget, actor) {
+function resolveActionItemName(action, actor) {
+    if (!action?.itemId) return "";
+    return String(actor?.items?.get?.(action.itemId)?.name ?? "").trim();
+}
+
+function resolveActionTargetName(action, combatants = []) {
+    const targetId = String(action?.targetId ?? "").trim();
+    if (!targetId) return "";
+    const target = combatants.find((combatant) => String(combatant?.id ?? "") === targetId);
+    return String(target?.name ?? target?.actor?.name ?? "").trim();
+}
+
+function enrichPlannedAction(action, index, actor, combatants = []) {
+    const orderDisplay = buildEncounterOrderDisplay(action, {
+        index,
+        targetName: resolveActionTargetName(action, combatants),
+        itemName: resolveActionItemName(action, actor)
+    });
+    return {
+        ...action,
+        ...orderDisplay,
+        img: resolveActionImg(action, actor)
+    };
+}
+
+function buildPlanSlots(queue, apBudget, actor, combatants = []) {
     const slots = [];
     let usedAp = 0;
 
@@ -195,7 +221,7 @@ function buildPlanSlots(queue, apBudget, actor) {
         const cost = Math.max(1, Number(action.apCost || 1));
         slots.push({
             type: "action",
-            action: { ...action, img: resolveActionImg(action, actor) },
+            action: enrichPlannedAction(action, index, actor, combatants),
             actionIndex: index,
             span: cost
         });
@@ -244,11 +270,8 @@ function buildEncounterPlannerFromResolvedCombatant({ actor = null, tokenDocumen
     }));
 
     const targetOptions = combat.getTargetOptionsForCombatant?.(combatant.id) ?? [];
-    const planSlots = buildPlanSlots(queue, apBudget, actor);
-    const queueWithIcons = queue.map((action) => ({
-        ...action,
-        img: resolveActionImg(action, actor)
-    }));
+    const planSlots = buildPlanSlots(queue, apBudget, actor, combatants);
+    const queueWithIcons = queue.map((action, index) => enrichPlannedAction(action, index, actor, combatants));
 
     return {
         combatId: combat.id,

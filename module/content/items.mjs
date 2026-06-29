@@ -37,7 +37,7 @@ export const ITEM_CONFIGS = [
             commonName: "Satchel",
             description: html("A partitioned leather satchel for transcripts, sketches, and sealed evidence."),
             category: "container",
-            slot: "belt",
+            slot: "torso",
             use: { actionCost: 1, requiresHands: true, consumedOnUse: false, skillCheck: { skill: "investigation", difficulty: 8, required: false, purpose: html("Retrieve stored evidence quickly.") } },
             physical: { weight: 1.8, bulk: 1, quantity: 1, unit: "satchel" },
             value: { price: 3, currency: "pounds" },
