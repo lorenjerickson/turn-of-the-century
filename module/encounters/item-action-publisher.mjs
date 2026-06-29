@@ -116,7 +116,8 @@ export function getEnabledActionsForItem(item) {
             reactionTriggerType: String(variant.reactionTriggerType ?? ""),
             rangeType: String(variant.rangeType ?? ""),
             requirements: variant.requirements ?? [],
-            itemId: item.id
+            itemId: item.id,
+            damageFormula: String(item.system?.damage?.formula ?? "").trim()
         }));
 }
 

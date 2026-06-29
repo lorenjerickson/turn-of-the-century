@@ -63,6 +63,19 @@ describe("encounter planner context", () => {
             encounterState: { initialized: true },
             getCombatantState: (id) => ({ ready: false, spentAp: 0, plan: id === "combatant-rook" ? [{ id: "dodge", label: "Dodge", apCost: 1 }] : [] }),
             getCombatantPlan: (id) => id === "combatant-rook" ? [{ id: "dodge", label: "Dodge", apCost: 1 }] : [],
+            getCombatantDraftPlan: (id) => id === "combatant-rook"
+                ? {
+                    clauses: [{
+                        actionId: "move",
+                        type: "movement",
+                        label: "Move",
+                        apCost: 2,
+                        requiresMovementDestination: true,
+                        movementTargetX: 200,
+                        movementTargetY: 0
+                    }]
+                }
+                : { clauses: [] },
             getCombatantRemainingAp: (id) => id === "combatant-rook" ? 5 : 6,
             getAvailableActionsForCombatant: (id) => id === "combatant-rook"
                 ? [{ id: "move", actionId: "move", type: "movement", label: "Move", apCost: 1, apMin: 1, apMax: 5, variableAp: true }]
@@ -83,6 +96,8 @@ describe("encounter planner context", () => {
         assert.deepEqual(planner.availableActions.map((action) => action.id), ["move"]);
         assert.equal(planner.queue[0].img, "modules/game-icons-net/blackbackground/dodge.svg");
         assert.equal(planner.availableActions[0].img, "modules/game-icons-net/blackbackground/move.svg");
+        assert.equal(planner.draftNarrative.text, "Rook Bruiser moves 20 feet (2 AP).");
+        assert.equal(planner.draftNarrative.phrases.find((phrase) => phrase.decision === "movementDestination").text, "20 feet");
     });
 
     it("enriches planned actions with narrative order display metadata", async () => {

@@ -1,9 +1,11 @@
 import { getMovementFeetPerAp } from "./action-catalog.mjs";
+import { confirmDraftPlan, normalizeDraftPlan } from "./encounter-draft-plan.mjs";
 import { normalizeEncounterOrderData } from "./encounter-order-model.mjs";
 
 // Event name constants — kept local to avoid a circular import with combat.mjs.
 // The authoritative definitions live in TOTC_ENCOUNTER_EVENTS (combat.mjs).
 const PLAN_UPDATED = "planUpdated";
+const DRAFT_PLAN_UPDATED = "draftPlanUpdated";
 const COMBATANT_READY_CHANGED = "combatantReadyChanged";
 
 // ---------------------------------------------------------------------------
@@ -23,6 +25,41 @@ function clampActionCost(value) {
     const cost = Number(value);
     if (!Number.isFinite(cost)) return 1;
     return Math.max(1, Math.floor(cost));
+}
+
+function normalizeRollRequirements(action = {}, cloneData = defaultClone) {
+    const explicit = toArray(action.rollRequirements).map((requirement) => cloneData(requirement));
+    if (explicit.length) return explicit;
+    if (action.requiresToHit || action.type === "attack") {
+        return [{ rollType: "attack", rollSubType: "toHit" }];
+    }
+    return [];
+}
+
+function rollRequirementSatisfied(action = {}, requirement = {}) {
+    const requiredType = String(requirement?.rollType ?? "").toLowerCase();
+    const requiredSubType = String(requirement?.rollSubType ?? "").toLowerCase();
+    return toArray(action.planningRollResults).some((result) => {
+        const resultType = String(result?.rollType ?? "").toLowerCase();
+        const resultSubType = String(result?.rollSubType ?? "").toLowerCase();
+        if (resultType && requiredType && resultType !== requiredType) return false;
+        if (resultSubType && requiredSubType && resultSubType !== requiredSubType) return false;
+        return true;
+    });
+}
+
+function actionRequiresPlanningRoll(action = {}) {
+    return normalizeRollRequirements(action).length > 0;
+}
+
+function actionHasRequiredPlanningRolls(action = {}) {
+    const requirements = normalizeRollRequirements(action);
+    if (!requirements.length) return true;
+    return requirements.every((requirement) => rollRequirementSatisfied(action, requirement));
+}
+
+function hasUnresolvedPlanningRolls(plan = []) {
+    return toArray(plan).some((action) => actionRequiresPlanningRoll(action) && !actionHasRequiredPlanningRolls(action));
 }
 
 function defaultClone(value) {
@@ -56,7 +93,15 @@ function clampActionData(action, index = 0, cloneData = defaultClone) {
         targetId: action.targetId || null,
         targetMode: String(action.targetMode ?? ""),
         requiresToHit: Boolean(action.requiresToHit || action.type === "attack"),
+        requiresTarget: Boolean(action.requiresTarget),
+        requiresItem: Boolean(action.requiresItem),
+        requiresDuration: Boolean(action.requiresDuration),
+        automatic: Boolean(action.automatic),
+        status: String(action.status ?? ""),
         toHitBonus: Number(action.toHitBonus || 0),
+        damageFormula: String(action.damageFormula ?? ""),
+        systemRollsAllowed: Boolean(action.systemRollsAllowed || action.allowSystemRolls),
+        allowSystemRolls: Boolean(action.allowSystemRolls || action.systemRollsAllowed),
         autoResolve: Boolean(action.autoResolve),
         interruptible: Boolean(action.interruptible ?? true),
         isReaction: Boolean(action.isReaction),
@@ -72,6 +117,7 @@ function clampActionData(action, index = 0, cloneData = defaultClone) {
         movementOriginY: optionalNumber(action.movementOriginY),
         planningLocked: Boolean(action.planningLocked),
         planningRollResults: toArray(action.planningRollResults).map((result) => cloneData(result)),
+        rollRequirements: normalizeRollRequirements(action, cloneData),
         ...orderData
     };
 }
@@ -266,6 +312,145 @@ export class EncounterPlanningService {
     }
 
     /**
+     * Replace a combatant's narrative draft plan without committing it for
+     * resolution. This state is intentionally separate from `plan` so the GM
+     * can observe composition while the existing resolution pipeline remains
+     * driven by confirmed actions.
+     *
+     * @param {string} combatantId
+     * @param {object} draftPlan
+     * @returns {Promise<object>} The normalized draft plan.
+     */
+    async setCombatantDraftPlan(combatantId, draftPlan = {}) {
+        this.#requireInitiativeReady();
+        if (!this.#isCombatantOwned(combatantId)) {
+            throw new Error("You do not have permission to edit this combatant's draft plan.");
+        }
+        this.#requirePlanningOpen(combatantId);
+
+        const state = this.#getState();
+        const apBudget = Number(state.apBudget ?? 6);
+        const perCombatant = this.#clone(state.perCombatant ?? {});
+        const combatantState = perCombatant[combatantId];
+        if (!combatantState) {
+            throw new Error(`Combatant ${combatantId} is not part of the encounter state.`);
+        }
+
+        const normalized = normalizeDraftPlan(draftPlan, {
+            apBudget,
+            cloneData: this.#clone
+        });
+
+        perCombatant[combatantId] = {
+            ...combatantState,
+            draftPlan: normalized,
+            ready: false,
+            committedAt: 0
+        };
+
+        await this.#setState({ ...state, phase: "planning", perCombatant });
+
+        this.#emit(DRAFT_PLAN_UPDATED, {
+            combatantId,
+            draftPlan: normalized,
+            perCombatantState: perCombatant[combatantId]
+        });
+
+        return normalized;
+    }
+
+    /**
+     * Clear a combatant's narrative draft plan.
+     *
+     * @param {string} combatantId
+     * @returns {Promise<object>} The normalized empty draft plan.
+     */
+    async clearCombatantDraftPlan(combatantId) {
+        return this.setCombatantDraftPlan(combatantId, { clauses: [] });
+    }
+
+    /**
+     * Confirm a complete narrative draft and make it the combatant's
+     * resolution plan. Required player rolls keep the plan in a confirmed but
+     * not-yet-ready state until roll results are stored.
+     *
+     * @param {string} combatantId
+     * @returns {Promise<{ draftPlan: object, plan: object[], requiredRolls: object[] }>}
+     */
+    async confirmCombatantDraftPlan(combatantId) {
+        this.#requireInitiativeReady();
+        if (!this.#isCombatantOwned(combatantId)) {
+            throw new Error("You do not have permission to confirm this combatant's draft plan.");
+        }
+        this.#requirePlanningOpen(combatantId);
+
+        const state = this.#getState();
+        const apBudget = Number(state.apBudget ?? 6);
+        const perCombatant = this.#clone(state.perCombatant ?? {});
+        const combatantState = perCombatant[combatantId];
+        if (!combatantState) {
+            throw new Error(`Combatant ${combatantId} is not part of the encounter state.`);
+        }
+
+        const confirmed = confirmDraftPlan(combatantState.draftPlan ?? { clauses: [] }, {
+            cloneData: this.#clone
+        });
+        const plan = confirmed.clauses.map((clause, index) => clampActionData(clause, index, this.#clone));
+        const awaitingRolls = hasUnresolvedPlanningRolls(plan);
+        const draftPlan = {
+            ...confirmed,
+            lifecycle: awaitingRolls ? "confirmedAwaitingRolls" : "locked"
+        };
+
+        perCombatant[combatantId] = {
+            ...combatantState,
+            draftPlan,
+            spentAp: 0,
+            remainingAp: apBudget,
+            plan,
+            pointer: 0,
+            progress: 0,
+            ready: !awaitingRolls,
+            committedAt: awaitingRolls ? 0 : this.#now()
+        };
+
+        if (!awaitingRolls) {
+            await this.#restorePlanningOrigin(combatantId, plan);
+        }
+
+        await this.#setState({ ...state, phase: "planning", perCombatant });
+
+        this.#emit(DRAFT_PLAN_UPDATED, {
+            combatantId,
+            draftPlan,
+            perCombatantState: perCombatant[combatantId]
+        });
+        this.#emit(PLAN_UPDATED, {
+            combatantId,
+            plan
+        });
+        this.#emit(COMBATANT_READY_CHANGED, {
+            combatantId,
+            ready: !awaitingRolls,
+            perCombatantState: perCombatant[combatantId]
+        });
+
+        if (!awaitingRolls) {
+            await this.maybeAutoFinalizePlanning();
+        }
+
+        return {
+            draftPlan,
+            plan,
+            requiredRolls: plan.flatMap((action, actionIndex) => normalizeRollRequirements(action, this.#clone).map((requirement) => ({
+                ...requirement,
+                actionIndex,
+                actionId: action.actionId ?? action.id ?? ""
+            })))
+        };
+    }
+
+    /**
      * Accept a planning-phase roll result for one action in a combatant's plan,
      * locking that action so it cannot be removed or replaced.
      * Idempotent: a duplicate `requestId` is silently ignored.
@@ -305,11 +490,42 @@ export class EncounterPlanningService {
             ...toArray(action.planningRollResults),
             this.#clone(roll)
         ];
+        const finalizesConfirmedDraft = String(combatantState.draftPlan?.lifecycle ?? "") === "confirmedAwaitingRolls";
+        const awaitingRolls = finalizesConfirmedDraft ? hasUnresolvedPlanningRolls(combatantState.plan) : true;
+        if (finalizesConfirmedDraft) {
+            combatantState.ready = !awaitingRolls;
+            combatantState.committedAt = awaitingRolls ? 0 : this.#now();
+            combatantState.draftPlan = {
+                ...combatantState.draftPlan,
+                lifecycle: awaitingRolls ? "confirmedAwaitingRolls" : "locked"
+            };
+            if (!awaitingRolls) {
+                for (const planAction of toArray(combatantState.plan)) {
+                    planAction.planningLocked = true;
+                }
+                await this.#restorePlanningOrigin(combatantId, combatantState.plan);
+            }
+        }
         await this.#setState({ ...state, perCombatant });
         this.#emit(PLAN_UPDATED, {
             combatantId,
             plan: combatantState.plan
         });
+        if (finalizesConfirmedDraft) {
+            this.#emit(DRAFT_PLAN_UPDATED, {
+                combatantId,
+                draftPlan: combatantState.draftPlan,
+                perCombatantState: combatantState
+            });
+            this.#emit(COMBATANT_READY_CHANGED, {
+                combatantId,
+                ready: Boolean(combatantState.ready),
+                perCombatantState: combatantState
+            });
+            if (!awaitingRolls) {
+                await this.maybeAutoFinalizePlanning();
+            }
+        }
         return action;
     }
 
@@ -437,6 +653,10 @@ export class EncounterPlanningService {
         }
         if (combatantState.ready) {
             throw new Error("Action plan is already committed for this round.");
+        }
+        const draftLifecycle = String(combatantState.draftPlan?.lifecycle ?? "drafting");
+        if (draftLifecycle !== "drafting") {
+            throw new Error("Action plan is already confirmed for this round.");
         }
     }
 

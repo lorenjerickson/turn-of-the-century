@@ -1,4 +1,5 @@
 import { resolveActionIcon } from "./action-icons.mjs";
+import { renderDraftPlanNarrative } from "./encounter-draft-narrative.mjs";
 import { buildEncounterOrderDisplay } from "./encounter-order-model.mjs";
 
 function toNumber(value, fallback = 0) {
@@ -193,6 +194,19 @@ function resolveActionItemName(action, actor) {
     return String(actor?.items?.get?.(action.itemId)?.name ?? "").trim();
 }
 
+function buildAvailableItems(actor = null) {
+    return collectionContents(actor?.items)
+        .filter((item) => Boolean(item?.id))
+        .map((item) => ({
+            id: String(item.id),
+            name: String(item.name ?? item.label ?? "Item").trim() || "Item",
+            type: String(item.type ?? "item"),
+            img: String(item.img ?? ""),
+            description: String(item.system?.description ?? item.system?.summary ?? "").trim()
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
+}
+
 function resolveActionTargetName(action, combatants = []) {
     const targetId = String(action?.targetId ?? "").trim();
     if (!targetId) return "";
@@ -236,6 +250,51 @@ function buildPlanSlots(queue, apBudget, actor, combatants = []) {
     return slots;
 }
 
+function actionRollRequirements(action = {}) {
+    const requirements = collectionContents(action.rollRequirements);
+    if (requirements.length) return requirements;
+    if (action.requiresToHit || action.type === "attack") {
+        return [{ rollType: "attack", rollSubType: "toHit" }];
+    }
+    return [];
+}
+
+function rollRequirementSatisfied(action = {}, requirement = {}) {
+    const requiredType = String(requirement?.rollType ?? "").toLowerCase();
+    const requiredSubType = String(requirement?.rollSubType ?? "").toLowerCase();
+    return collectionContents(action.planningRollResults).some((result) => {
+        const resultType = String(result?.rollType ?? "").toLowerCase();
+        const resultSubType = String(result?.rollSubType ?? "").toLowerCase();
+        if (resultType && requiredType && resultType !== requiredType) return false;
+        if (resultSubType && requiredSubType && resultSubType !== requiredSubType) return false;
+        return true;
+    });
+}
+
+function buildPlanningRollStatus(queue = []) {
+    const items = [];
+    for (const [actionIndex, action] of queue.entries()) {
+        for (const requirement of actionRollRequirements(action)) {
+            const complete = rollRequirementSatisfied(action, requirement);
+            items.push({
+                actionIndex,
+                actionId: String(action.actionId ?? action.id ?? ""),
+                label: String(action.label ?? `Action ${actionIndex + 1}`),
+                rollType: String(requirement?.rollType ?? "roll"),
+                rollSubType: String(requirement?.rollSubType ?? ""),
+                complete
+            });
+        }
+    }
+
+    return {
+        required: items.length > 0,
+        complete: items.length > 0 && items.every((item) => item.complete),
+        pendingCount: items.filter((item) => !item.complete).length,
+        items
+    };
+}
+
 function formatPlanningTime(totalSeconds) {
     const s = Math.max(0, Math.floor(totalSeconds));
     const mins = Math.floor(s / 60);
@@ -251,6 +310,7 @@ function buildEncounterPlannerFromResolvedCombatant({ actor = null, tokenDocumen
 
     const combatantState = combat.getCombatantState?.(combatant.id) ?? null;
     const queue = combat.getCombatantPlan?.(combatant.id) ?? [];
+    const draftPlan = combat.getCombatantDraftPlan?.(combatant.id) ?? combatantState?.draftPlan ?? null;
     const apBudget = Number(combat.apBudget ?? 6);
     const plannedAp = queue.reduce((sum, action) => sum + toNumber(action.apCost, 0), 0);
     const combatants = combatantContents(combat);
@@ -259,6 +319,13 @@ function buildEncounterPlannerFromResolvedCombatant({ actor = null, tokenDocumen
     const remainingAp = Number(combat.getCombatantRemainingAp?.(combatant.id) ?? 0);
     const planningRemainingSeconds = Number(combat.planningRemainingSeconds ?? 0);
     const phase = combat.phase ?? "planning";
+    const combatantName = String(combatant.name ?? actor?.name ?? "Combatant").trim() || "Combatant";
+    const draftLifecycle = String(draftPlan?.lifecycle ?? "drafting");
+    const draftEditable = draftLifecycle === "drafting";
+    const draftNarrative = renderDraftPlanNarrative(draftPlan ?? { clauses: [] }, {
+        subjectName: combatantName,
+        apBudget
+    });
 
     const rawAvailableActions = combat.getAvailableActionsForCombatant?.(combatant.id) ?? [];
     const availableActions = rawAvailableActions.map((action) => ({
@@ -272,6 +339,7 @@ function buildEncounterPlannerFromResolvedCombatant({ actor = null, tokenDocumen
     const targetOptions = combat.getTargetOptionsForCombatant?.(combatant.id) ?? [];
     const planSlots = buildPlanSlots(queue, apBudget, actor, combatants);
     const queueWithIcons = queue.map((action, index) => enrichPlannedAction(action, index, actor, combatants));
+    const rollStatus = buildPlanningRollStatus(queueWithIcons);
 
     return {
         combatId: combat.id,
@@ -291,12 +359,17 @@ function buildEncounterPlannerFromResolvedCombatant({ actor = null, tokenDocumen
         committedCount,
         combatantCount: combatants.length,
         ready: Boolean(combatantState?.ready),
-        canCommit: phase === "planning" && !Boolean(combatantState?.ready),
-        canEditPlan: phase === "planning" && !Boolean(combatantState?.ready),
+        draftPlan,
+        draftNarrative,
+        rollStatus,
+        draftRemainingAp: Number(draftPlan?.remainingAp ?? apBudget),
+        canCommit: phase === "planning" && draftEditable && !Boolean(combatantState?.ready),
+        canEditPlan: phase === "planning" && draftEditable && !Boolean(combatantState?.ready),
         planningWarningActive: Boolean(combat.isPlanningWarningActive),
         queue: queueWithIcons,
         planSlots,
         availableActions,
+        availableItems: buildAvailableItems(actor),
         targetOptions
     };
 }

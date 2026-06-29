@@ -643,3 +643,312 @@ describe("EncounterPlanningService.addCombatantAction", () => {
         assert.equal(getState().perCombatant["c1"].plan[0].id, "move");
     });
 });
+
+// ---------------------------------------------------------------------------
+// draft plans
+// ---------------------------------------------------------------------------
+
+describe("EncounterPlanningService draft plans", () => {
+    it("normalizes and persists a combatant draft plan without changing the committed plan", async () => {
+        const { service, getState } = makeService({
+            initialState: makeState({
+                overrides: {
+                    perCombatant: {
+                        c1: {
+                            plan: [{ id: "alreadyCommitted", type: "utility", apCost: 1 }],
+                            ready: false,
+                            committedAt: 0
+                        }
+                    }
+                }
+            })
+        });
+
+        const draft = await service.setCombatantDraftPlan("c1", {
+            clauses: [
+                { actionId: "move", type: "movement", apCost: 2, requiresMovementDestination: true, movementTargetX: 200, movementTargetY: 0 },
+                { actionId: "attack", type: "attack", apCost: 2, requiresTarget: true }
+            ]
+        });
+
+        const combatantState = getState().perCombatant.c1;
+        assert.equal(combatantState.plan.length, 1);
+        assert.equal(combatantState.plan[0].id, "alreadyCommitted");
+        assert.equal(combatantState.draftPlan.spentAp, 4);
+        assert.equal(combatantState.draftPlan.remainingAp, 2);
+        assert.deepEqual(combatantState.draftPlan.missingDecisions, [{ clauseId: "draft-clause-2", decision: "target" }]);
+        assert.equal(draft.complete, false);
+    });
+
+    it("emits draftPlanUpdated with normalized draft state", async () => {
+        const { service, emitted } = makeService();
+
+        await service.setCombatantDraftPlan("c1", {
+            clauses: [{ actionId: "wait", type: "utility", apCost: 1, requiresDuration: true, durationAp: 1 }]
+        });
+
+        assert.equal(emitted.length, 1);
+        assert.equal(emitted[0].eventName, "draftPlanUpdated");
+        assert.equal(emitted[0].payload.combatantId, "c1");
+        assert.equal(emitted[0].payload.draftPlan.complete, true);
+    });
+
+    it("resets ready state when an editable draft changes", async () => {
+        const { service, getState } = makeService({
+            initialState: makeState({
+                overrides: {
+                    perCombatant: {
+                        c1: {
+                            plan: [],
+                            draftPlan: { clauses: [] },
+                            ready: false,
+                            committedAt: 99
+                        }
+                    }
+                }
+            })
+        });
+
+        await service.setCombatantDraftPlan("c1", { clauses: [] });
+
+        assert.equal(getState().perCombatant.c1.ready, false);
+        assert.equal(getState().perCombatant.c1.committedAt, 0);
+    });
+
+    it("rejects draft edits for unowned combatants", async () => {
+        const { service } = makeService({ isCombatantOwned: () => false });
+
+        await assert.rejects(
+            () => service.setCombatantDraftPlan("c1", { clauses: [] }),
+            /do not have permission/
+        );
+    });
+
+    it("clears a combatant draft plan", async () => {
+        const { service, getState } = makeService({
+            initialState: makeState({
+                overrides: {
+                    perCombatant: {
+                        c1: {
+                            plan: [],
+                            draftPlan: {
+                                clauses: [{ actionId: "wait", type: "utility", apCost: 1, requiresDuration: true, durationAp: 1 }]
+                            },
+                            ready: false,
+                            committedAt: 0
+                        }
+                    }
+                }
+            })
+        });
+
+        await service.clearCombatantDraftPlan("c1");
+
+        assert.equal(getState().perCombatant.c1.draftPlan.clauses.length, 0);
+        assert.equal(getState().perCombatant.c1.draftPlan.remainingAp, 6);
+    });
+
+    it("confirms a complete draft plan and inserts automatic idle for unused AP", async () => {
+        const { service, getState, emitted } = makeService({
+            initialState: makeState({
+                overrides: {
+                    perCombatant: {
+                        c1: {
+                            plan: [],
+                            draftPlan: {
+                                clauses: [
+                                    { actionId: "move", type: "movement", label: "Move", apCost: 2, requiresMovementDestination: true, movementTargetX: 100, movementTargetY: 0 }
+                                ]
+                            },
+                            ready: false,
+                            committedAt: 0
+                        }
+                    }
+                }
+            })
+        });
+
+        const result = await service.confirmCombatantDraftPlan("c1");
+        const combatantState = getState().perCombatant.c1;
+
+        assert.equal(result.draftPlan.lifecycle, "locked");
+        assert.equal(combatantState.ready, true);
+        assert.equal(combatantState.committedAt, 12345);
+        assert.equal(combatantState.plan.length, 2);
+        assert.equal(combatantState.plan[1].actionId, "idle");
+        assert.equal(combatantState.plan[1].apCost, 4);
+        assert.equal(combatantState.plan[1].automatic, true);
+        assert.ok(emitted.some((entry) => entry.eventName === "planUpdated"));
+        assert.ok(emitted.some((entry) => entry.eventName === "draftPlanUpdated"));
+    });
+
+    it("keeps confirmed attack drafts awaiting required roll results", async () => {
+        const { service, getState } = makeService({
+            initialState: makeState({
+                overrides: {
+                    perCombatant: {
+                        c1: {
+                            plan: [],
+                            draftPlan: {
+                                clauses: [
+                                    {
+                                        actionId: "strike",
+                                        type: "attack",
+                                        label: "Strike",
+                                        apCost: 2,
+                                        requiresTarget: true,
+                                        targetId: "c2"
+                                    }
+                                ]
+                            },
+                            ready: false,
+                            committedAt: 0
+                        }
+                    }
+                }
+            })
+        });
+
+        const result = await service.confirmCombatantDraftPlan("c1");
+        const combatantState = getState().perCombatant.c1;
+
+        assert.equal(result.draftPlan.lifecycle, "confirmedAwaitingRolls");
+        assert.equal(combatantState.ready, false);
+        assert.equal(combatantState.committedAt, 0);
+        assert.equal(result.requiredRolls.length, 1);
+        assert.deepEqual(combatantState.plan[0].rollRequirements, [{ rollType: "attack", rollSubType: "toHit" }]);
+    });
+
+    it("rejects edits after a draft has been confirmed and is awaiting rolls", async () => {
+        const { service } = makeService({
+            initialState: makeState({
+                overrides: {
+                    perCombatant: {
+                        c1: {
+                            plan: [],
+                            draftPlan: {
+                                clauses: [
+                                    {
+                                        actionId: "strike",
+                                        type: "attack",
+                                        label: "Strike",
+                                        apCost: 2,
+                                        requiresTarget: true,
+                                        targetId: "c2"
+                                    }
+                                ]
+                            },
+                            ready: false,
+                            committedAt: 0
+                        }
+                    }
+                }
+            })
+        });
+
+        await service.confirmCombatantDraftPlan("c1");
+
+        await assert.rejects(
+            () => service.setCombatantDraftPlan("c1", { clauses: [] }),
+            /already confirmed/
+        );
+        await assert.rejects(
+            () => service.setCombatantPlan("c1", []),
+            /already confirmed/
+        );
+    });
+
+    it("locks the confirmed plan once required rolls are stored", async () => {
+        const { service, getState } = makeService({
+            initialState: makeState({
+                overrides: {
+                    perCombatant: {
+                        c1: {
+                            plan: [],
+                            draftPlan: {
+                                clauses: [
+                                    {
+                                        actionId: "strike",
+                                        type: "attack",
+                                        label: "Strike",
+                                        apCost: 2,
+                                        requiresTarget: true,
+                                        targetId: "c2"
+                                    }
+                                ]
+                            },
+                            ready: false,
+                            committedAt: 0
+                        }
+                    }
+                }
+            })
+        });
+
+        await service.confirmCombatantDraftPlan("c1");
+        await service.lockCombatantActionRoll("c1", 0, {
+            requestId: "roll-1",
+            rollType: "attack",
+            rollSubType: "toHit",
+            result: { total: 17 }
+        });
+
+        const combatantState = getState().perCombatant.c1;
+        assert.equal(combatantState.ready, true);
+        assert.equal(combatantState.committedAt, 12345);
+        assert.equal(combatantState.draftPlan.lifecycle, "locked");
+        assert.equal(combatantState.plan[0].planningLocked, true);
+        assert.equal(combatantState.plan[1].planningLocked, true);
+    });
+
+    it("waits for every declared roll requirement before locking a confirmed plan", async () => {
+        const { service, getState } = makeService({
+            initialState: makeState({
+                overrides: {
+                    perCombatant: {
+                        c1: {
+                            plan: [],
+                            draftPlan: {
+                                clauses: [
+                                    {
+                                        actionId: "strike",
+                                        type: "attack",
+                                        label: "Strike",
+                                        apCost: 2,
+                                        requiresTarget: true,
+                                        targetId: "c2",
+                                        rollRequirements: [
+                                            { rollType: "attack", rollSubType: "toHit" },
+                                            { rollType: "attack", rollSubType: "damage" }
+                                        ]
+                                    }
+                                ]
+                            },
+                            ready: false,
+                            committedAt: 0
+                        }
+                    }
+                }
+            })
+        });
+
+        await service.confirmCombatantDraftPlan("c1");
+        await service.lockCombatantActionRoll("c1", 0, {
+            requestId: "to-hit",
+            rollType: "attack",
+            rollSubType: "toHit",
+            result: { total: 17 }
+        });
+        assert.equal(getState().perCombatant.c1.ready, false);
+        assert.equal(getState().perCombatant.c1.draftPlan.lifecycle, "confirmedAwaitingRolls");
+
+        await service.lockCombatantActionRoll("c1", 0, {
+            requestId: "damage",
+            rollType: "attack",
+            rollSubType: "damage",
+            result: { total: 6 }
+        });
+        assert.equal(getState().perCombatant.c1.ready, true);
+        assert.equal(getState().perCombatant.c1.draftPlan.lifecycle, "locked");
+    });
+});

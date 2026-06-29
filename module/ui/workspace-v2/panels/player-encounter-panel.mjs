@@ -88,8 +88,10 @@ function actionOptionModel(action = {}) {
         movementTargetY: toNumber(action.movementTargetY, ""),
         movementOriginX: toNumber(action.movementOriginX, ""),
         movementOriginY: toNumber(action.movementOriginY, ""),
+        damageFormula: String(action.damageFormula ?? ""),
         planningLocked: Boolean(action.planningLocked),
         planningRollResults: toArray(action.planningRollResults),
+        rollRequirements: toArray(action.rollRequirements),
         summary: String(action.summary ?? ""),
         clauses: toArray(action.clauses),
         apEnvelope,
@@ -101,12 +103,72 @@ function actionOptionModel(action = {}) {
     };
 }
 
+function itemOptionModel(item = {}) {
+    return {
+        id: String(item.id ?? ""),
+        name: String(item.name ?? item.label ?? "Item").trim() || "Item",
+        type: String(item.type ?? "item"),
+        img: String(item.img ?? ""),
+        description: String(item.description ?? item.system?.description ?? "").trim()
+    };
+}
+
 function planSegmentModel(action = {}, index = 0) {
     const option = actionOptionModel(action);
     return {
         ...option,
         index,
         span: Math.max(1, option.apCost)
+    };
+}
+
+function phraseModel(phrase = {}) {
+    return {
+        phraseId: String(phrase.phraseId ?? ""),
+        clauseId: String(phrase.clauseId ?? ""),
+        clauseIndex: Math.max(0, toNumber(phrase.clauseIndex, 0)),
+        decision: String(phrase.decision ?? "action"),
+        rootDecision: String(phrase.rootDecision ?? phrase.decision ?? "action"),
+        text: String(phrase.text ?? ""),
+        placeholder: Boolean(phrase.placeholder),
+        editable: Boolean(phrase.editable ?? true)
+    };
+}
+
+function draftNarrativeModel(planner = null, apBudget = 6) {
+    const narrative = planner?.draftNarrative && typeof planner.draftNarrative === "object"
+        ? planner.draftNarrative
+        : null;
+    const actorName = String(planner?.combatantName ?? "Combatant").trim() || "Combatant";
+    return {
+        text: String(narrative?.text ?? `${actorName} [select an action]`),
+        phrases: toArray(narrative?.phrases).map(phraseModel),
+        lifecycle: String(narrative?.lifecycle ?? planner?.draftPlan?.lifecycle ?? "drafting"),
+        apBudget: Math.max(1, toNumber(narrative?.apBudget ?? planner?.draftPlan?.apBudget, apBudget)),
+        spentAp: Math.max(0, toNumber(narrative?.spentAp ?? planner?.draftPlan?.spentAp, 0)),
+        remainingAp: Math.max(0, toNumber(narrative?.remainingAp ?? planner?.draftPlan?.remainingAp, apBudget)),
+        complete: Boolean(narrative?.complete),
+        overBudget: Boolean(narrative?.overBudget),
+        helpText: String(narrative?.helpText ?? ""),
+        missingDecisions: toArray(narrative?.missingDecisions)
+    };
+}
+
+function rollStatusModel(rollStatus = null) {
+    const items = toArray(rollStatus?.items).map((item) => ({
+        actionIndex: Math.max(0, toNumber(item?.actionIndex, 0)),
+        actionId: String(item?.actionId ?? ""),
+        label: String(item?.label ?? "Action"),
+        rollType: String(item?.rollType ?? "roll"),
+        rollSubType: String(item?.rollSubType ?? ""),
+        complete: Boolean(item?.complete)
+    }));
+
+    return {
+        required: Boolean(rollStatus?.required ?? items.length > 0),
+        complete: items.length > 0 && items.every((item) => item.complete),
+        pendingCount: items.filter((item) => !item.complete).length,
+        items
     };
 }
 
@@ -164,8 +226,14 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
     const availableActions = mappedActions
         .filter((action) => Boolean(action.id))
         .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: "base" }));
+    const availableItems = toArray(planner?.availableItems)
+        .map(itemOptionModel)
+        .filter((item) => Boolean(item.id));
 
     const plannedActions = toArray(planner?.queue).map(planSegmentModel);
+    const draftNarrative = draftNarrativeModel(planner, apBudget);
+    const rollStatus = rollStatusModel(planner?.rollStatus);
+    const draftClauseCount = toArray(planner?.draftPlan?.clauses).length;
     const canEditPlan = Boolean(planner?.canEditPlan);
     const lockedThroughIndex = plannedActions.reduce(
         (boundary, action) => action.planningLocked ? action.index : boundary,
@@ -200,13 +268,16 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
         status,
         apBudget,
         remainingAp: toNumber(planner?.remainingAp, apBudget),
+        draftRemainingAp: toNumber(planner?.draftRemainingAp ?? draftNarrative.remainingAp, draftNarrative.remainingAp),
         plannedAp: toNumber(planner?.plannedAp, plannedActions.reduce((sum, action) => sum + action.apCost, 0)),
         planningTimeDisplay: String(planner?.planningTimeDisplay ?? ""),
         canEditPlan,
         lockedThroughIndex,
-        canClearPlan: canEditPlan && plannedActions.length > lockedThroughIndex + 1,
-        canCommit: Boolean(planner?.canCommit),
+        canClearPlan: canEditPlan && draftClauseCount > 0,
+        canCommit: Boolean(planner?.canCommit && draftNarrative.complete && !draftNarrative.overBudget),
         ready: Boolean(planner?.ready),
+        draftNarrative,
+        rollStatus,
         currentTick,
         progressPercent,
         resolutionStatus: String(resolution?.status ?? "idle"),
@@ -214,6 +285,7 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
         plannedActions,
         hasPlannedActions: plannedActions.length > 0,
         historyRows: historyRowsFromTimeline({ planner, combat }),
+        availableItems,
         activePlanEditSlot: normalizedPlanEditSlot
     };
 }
@@ -250,6 +322,7 @@ function actionDataAttributes(action, escapeHTML) {
         ["movement-origin-x", action.movementOriginX],
         ["movement-origin-y", action.movementOriginY],
         ["item-id", action.itemId],
+        ["damage-formula", action.damageFormula],
         ["img", action.img]
     ].map(([key, value]) => `data-${key}="${escapeHTML(String(value ?? ""))}"`).join(" ");
 }
@@ -354,6 +427,202 @@ function renderHistoryRows(model, escapeHTML) {
                     </li>`).join("")}
             </ul>
         </article>`).join("");
+}
+
+function renderNarrativeText(model, escapeHTML) {
+    const narrative = model.draftNarrative ?? {};
+    const phrases = toArray(narrative.phrases);
+    if (!phrases.length) return escapeHTML(narrative.text ?? "");
+
+    const sourceText = String(narrative.text ?? "");
+    let cursor = 0;
+    const rendered = [];
+    for (const phrase of phrases) {
+        const phraseText = String(phrase.text ?? "");
+        const foundAt = phraseText ? sourceText.indexOf(phraseText, cursor) : -1;
+        if (foundAt < 0) continue;
+        if (foundAt > cursor) rendered.push(escapeHTML(sourceText.slice(cursor, foundAt)));
+        const editable = model.canEditPlan && phrase.editable;
+        rendered.push(`
+            <button type="button"
+                class="totc-v2-encounter-narrative__phrase${phrase.placeholder ? " is-placeholder" : ""}"
+                data-action="encounter-narrative-phrase"
+                data-phrase-id="${escapeHTML(phrase.phraseId)}"
+                data-clause-id="${escapeHTML(phrase.clauseId)}"
+                data-clause-index="${escapeHTML(String(phrase.clauseIndex))}"
+                data-decision="${escapeHTML(phrase.decision)}"
+                data-root-decision="${escapeHTML(phrase.rootDecision)}"
+                ${editable ? "" : "disabled"}>
+                ${escapeHTML(phraseText)}
+            </button>`);
+        cursor = foundAt + phraseText.length;
+    }
+    if (cursor < sourceText.length) rendered.push(escapeHTML(sourceText.slice(cursor)));
+    return rendered.join("");
+}
+
+function renderNarrativeComposer(model, escapeHTML) {
+    const narrative = model.draftNarrative ?? {};
+    const missingLabels = toArray(narrative.missingDecisions)
+        .map((entry) => String(entry?.decision ?? "").trim())
+        .filter(Boolean)
+        .join(", ");
+    const helpText = String(model.activePlanEditSlot?.helpText || narrative.helpText || `${model.draftRemainingAp} AP remaining.`);
+    const statusText = narrative.overBudget
+        ? "Plan exceeds available AP."
+        : missingLabels
+            ? `Choose ${missingLabels}.`
+            : helpText;
+
+    return `
+    <section class="totc-v2-encounter-narrative" aria-label="Action plan narrative">
+        <p class="totc-v2-encounter-narrative__text">${renderNarrativeText(model, escapeHTML)}</p>
+        <div class="totc-v2-encounter-narrative__help">
+            <span>${escapeHTML(statusText)}</span>
+            <strong>${escapeHTML(String(narrative.remainingAp ?? model.draftRemainingAp))} AP unused</strong>
+        </div>
+    </section>`;
+}
+
+function renderPlanningRolls(model, escapeHTML) {
+    const rollStatus = model.rollStatus ?? {};
+    if (!rollStatus.required) return "";
+
+    const items = toArray(rollStatus.items);
+    const statusText = rollStatus.pendingCount > 0
+        ? `${rollStatus.pendingCount} roll${rollStatus.pendingCount === 1 ? "" : "s"} pending`
+        : "Rolls complete";
+    const itemsMarkup = items.map((item) => `
+        <li class="${item.complete ? "is-complete" : "is-pending"}">
+            <span>${escapeHTML(item.label)}</span>
+            <strong>${escapeHTML(item.complete ? "Complete" : "Pending")}</strong>
+        </li>
+    `).join("");
+
+    return `
+    <section class="totc-v2-encounter-rolls" aria-label="Required planning rolls">
+        <header>
+            <h4>Required Rolls</h4>
+            <span>${escapeHTML(statusText)}</span>
+        </header>
+        <ul>${itemsMarkup}</ul>
+    </section>`;
+}
+
+function renderNarrativeActionPopover(model, escapeHTML) {
+    const slot = model.activePlanEditSlot;
+    if (!slot || slot.selectedAction || String(slot.mode ?? "") !== "draftAction") return "";
+
+    const remainingAp = Math.max(0, toNumber(slot.remainingAp ?? model.draftRemainingAp, model.draftRemainingAp));
+    const actions = (model.availableActions ?? []).filter((action) => action.apMin <= Math.max(1, remainingAp));
+    const searchId = "totc-encounter-action-search";
+    const itemsMarkup = actions.map((action) => `
+        <button type="button" class="totc-v2-encounter-popup__item"
+            data-action="encounter-select-popup-action"
+            ${actionDataAttributes(action, escapeHTML)}
+            data-action-index="${escapeHTML(String(slot.index ?? 0))}">
+            ${action.img ? `<img src="${escapeHTML(action.img)}" alt="">` : `<span class="totc-v2-encounter-popup__item-fallback"><i class="fa-solid fa-bolt" aria-hidden="true"></i></span>`}
+            <div class="totc-v2-encounter-popup__item-info">
+                <span class="totc-v2-encounter-popup__item-label">${escapeHTML(action.label)}</span>
+                ${action.description ? `<span class="totc-v2-encounter-popup__item-desc">${escapeHTML(action.description)}</span>` : ""}
+            </div>
+            <span class="totc-v2-encounter-popup__item-ap">${escapeHTML(action.apLabel)}</span>
+        </button>
+    `).join("");
+
+    return `
+    <div class="totc-v2-encounter-popup-overlay">
+        <div class="totc-v2-encounter-popup">
+            <header class="totc-v2-encounter-popup__header">
+                <h4>Choose Action · ${escapeHTML(String(remainingAp))} AP available</h4>
+                <button type="button" class="totc-v2-encounter-popup__close" data-action="encounter-close-popup" aria-label="Close dialog">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </header>
+            <label class="totc-v2-encounter-popup__search" for="${searchId}">
+                <span>Search actions</span>
+                <input id="${searchId}" type="search" data-action="encounter-action-search" placeholder="Search actions">
+            </label>
+            <div class="totc-v2-encounter-popup__list">
+                ${itemsMarkup || `<div class="totc-v2-encounter-popup__empty">No available actions fit in the remaining budget.</div>`}
+            </div>
+        </div>
+    </div>`;
+}
+
+function renderNarrativeItemPopover(model, escapeHTML) {
+    const slot = model.activePlanEditSlot;
+    if (!slot || String(slot.mode ?? "") !== "draftItem") return "";
+
+    const searchId = "totc-encounter-item-search";
+    const itemsMarkup = (model.availableItems ?? []).map((item) => `
+        <button type="button" class="totc-v2-encounter-popup__item"
+            data-action="encounter-select-draft-item"
+            data-clause-index="${escapeHTML(String(slot.index ?? 0))}"
+            data-item-id="${escapeHTML(item.id)}"
+            data-item-name="${escapeHTML(item.name)}">
+            ${item.img ? `<img src="${escapeHTML(item.img)}" alt="">` : `<span class="totc-v2-encounter-popup__item-fallback"><i class="fa-solid fa-briefcase" aria-hidden="true"></i></span>`}
+            <div class="totc-v2-encounter-popup__item-info">
+                <span class="totc-v2-encounter-popup__item-label">${escapeHTML(item.name)}</span>
+                ${item.description ? `<span class="totc-v2-encounter-popup__item-desc">${escapeHTML(item.description)}</span>` : ""}
+            </div>
+            <span class="totc-v2-encounter-popup__item-ap">${escapeHTML(item.type)}</span>
+        </button>
+    `).join("");
+
+    return `
+    <div class="totc-v2-encounter-popup-overlay">
+        <div class="totc-v2-encounter-popup">
+            <header class="totc-v2-encounter-popup__header">
+                <h4>Choose Item</h4>
+                <button type="button" class="totc-v2-encounter-popup__close" data-action="encounter-close-popup" aria-label="Close dialog">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </header>
+            <label class="totc-v2-encounter-popup__search" for="${searchId}">
+                <span>Search items</span>
+                <input id="${searchId}" type="search" data-action="encounter-item-search" placeholder="Search items">
+            </label>
+            <div class="totc-v2-encounter-popup__list">
+                ${itemsMarkup || `<div class="totc-v2-encounter-popup__empty">No carried items are available.</div>`}
+            </div>
+        </div>
+    </div>`;
+}
+
+function renderNarrativeDurationPopover(model, escapeHTML) {
+    const slot = model.activePlanEditSlot;
+    if (!slot || String(slot.mode ?? "") !== "draftDuration") return "";
+
+    const maxDuration = Math.max(1, toNumber(slot.maxDurationAp ?? model.draftRemainingAp, model.draftRemainingAp));
+    const durations = Array.from({ length: maxDuration }, (_entry, index) => index + 1);
+    const itemsMarkup = durations.map((duration) => `
+        <button type="button" class="totc-v2-encounter-popup__item"
+            data-action="encounter-select-draft-duration"
+            data-clause-index="${escapeHTML(String(slot.index ?? 0))}"
+            data-duration-ap="${escapeHTML(String(duration))}">
+            <span class="totc-v2-encounter-popup__item-fallback"><i class="fa-solid fa-clock" aria-hidden="true"></i></span>
+            <div class="totc-v2-encounter-popup__item-info">
+                <span class="totc-v2-encounter-popup__item-label">${escapeHTML(duration === 1 ? "1 second" : `${duration} seconds`)}</span>
+            </div>
+            <span class="totc-v2-encounter-popup__item-ap">${escapeHTML(String(duration))} AP</span>
+        </button>
+    `).join("");
+
+    return `
+    <div class="totc-v2-encounter-popup-overlay">
+        <div class="totc-v2-encounter-popup">
+            <header class="totc-v2-encounter-popup__header">
+                <h4>Choose Duration</h4>
+                <button type="button" class="totc-v2-encounter-popup__close" data-action="encounter-close-popup" aria-label="Close dialog">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </header>
+            <div class="totc-v2-encounter-popup__list">
+                ${itemsMarkup}
+            </div>
+        </div>
+    </div>`;
 }
 
 function renderPlanEditPopup(model, escapeHTML) {
@@ -531,21 +800,22 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
         <section class="totc-v2-encounter-panel__planner">
             <header>
                 <h3>Round Planning</h3>
-                <span>${escapeHTML(String(model.remainingAp))} AP remaining${model.planningTimeDisplay ? ` · ${escapeHTML(model.planningTimeDisplay)}` : ""}</span>
+                <span>${escapeHTML(String(model.draftRemainingAp))} AP remaining${model.planningTimeDisplay ? ` · ${escapeHTML(model.planningTimeDisplay)}` : ""}</span>
             </header>
             <div class="totc-v2-encounter-panel__progress" aria-label="Round progress">
                 <span class="totc-v2-encounter-panel__progress-fill" style="width:${escapeHTML(String(model.progressPercent ?? 0))}%;"></span>
                 <span class="totc-v2-encounter-panel__progress-label">AP ${escapeHTML(String(model.currentTick ?? 0))}/${escapeHTML(String(model.apBudget))} · ${escapeHTML(model.resolutionStatus ?? "idle")}</span>
             </div>
             <div class="totc-v2-encounter-panel__planning-view">
-                ${renderPlanBar(model, escapeHTML)}
-                ${renderPlanConfiguration(model, escapeHTML)}
-                ${model.activePlanEditSlot ? renderPlanEditPopup(model, escapeHTML) : ""}
+                ${renderNarrativeComposer(model, escapeHTML)}
+                ${renderPlanningRolls(model, escapeHTML)}
+                ${renderNarrativeActionPopover(model, escapeHTML)}
+                ${renderNarrativeItemPopover(model, escapeHTML)}
+                ${renderNarrativeDurationPopover(model, escapeHTML)}
             </div>
-            ${renderOrderList(model, escapeHTML)}
             <footer class="totc-v2-encounter-panel__actions">
                 <button type="button" data-action="encounter-clear-plan" ${model.canClearPlan ? "" : "disabled"}>Clear Unlocked</button>
-                <button type="button" data-action="encounter-toggle-ready" data-ready="${model.ready ? "true" : "false"}" aria-pressed="${model.ready ? "true" : "false"}" ${model.canCommit ? "" : "disabled"}>Ready</button>
+                <button type="button" data-action="encounter-toggle-ready" data-ready="${model.ready ? "true" : "false"}" aria-pressed="${model.ready ? "true" : "false"}" ${model.canCommit ? "" : "disabled"}>Confirm Plan</button>
             </footer>
         </section>
 

@@ -60,6 +60,14 @@ function firstReferenceId(ids) {
     return "";
 }
 
+function plannedActionsForTargetIcons(combat = null, combatantId = "") {
+    const draftClauses = collectionContents(combat?.getCombatantDraftPlan?.(combatantId)?.clauses);
+    if (draftClauses.length) return draftClauses;
+    return typeof combat?.getCombatantPlan === "function"
+        ? (combat.getCombatantPlan(combatantId) ?? [])
+        : [];
+}
+
 /**
  * Maps an action's type and actionId to one of five icon categories.
  *
@@ -91,9 +99,7 @@ export function resolveTargetIconType(action) {
 export function buildEncounterTargetIconsModel({ combat, combatantId, scene } = {}) {
     if (!combat || !combatantId || !scene) return [];
 
-    const plan = (typeof combat.getCombatantPlan === "function")
-        ? (combat.getCombatantPlan(combatantId) ?? [])
-        : [];
+    const plan = plannedActionsForTargetIcons(combat, combatantId);
 
     const gridSize = positiveNumber(scene?.grid?.size, 100);
     const seenTokenIds = new Set();

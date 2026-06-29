@@ -786,4 +786,282 @@ describe("EncounterPlanningFeature targeting", () => {
         assert.equal(plan[0].targetId, "target-combatant");
         assert.deepEqual(removed, []);
     });
+
+    it("commits draft target selections to the draft plan instead of the committed plan", async () => {
+        const sourceToken = { id: "source-token", actorId: "source-actor", x: 0, y: 0, width: 1, height: 1, visible: true };
+        const targetToken = { id: "target-token", actorId: "target-actor", x: 100, y: 0, width: 1, height: 1, visible: true };
+        const scene = { id: "scene-1", grid: { size: 100, distance: 5 }, tokens: [sourceToken, targetToken] };
+        const combatants = new Map([
+            ["source-combatant", { id: "source-combatant", tokenId: "source-token", actor: { id: "source-actor" } }],
+            ["target-combatant", { id: "target-combatant", tokenId: "target-token", name: "Mallory", actor: { id: "target-actor", name: "Mallory" } }]
+        ]);
+        let draftPlan = {
+            apBudget: 6,
+            remainingAp: 4,
+            clauses: [{ clauseId: "draft-clause-1", actionId: "attack", type: "attack", label: "Attack", apCost: 2, requiresTarget: true }]
+        };
+        let committedPlan = [];
+        const combat = {
+            id: "combat-1",
+            apBudget: 6,
+            combatants,
+            getCombatantPlan: () => committedPlan,
+            setCombatantPlan: async (_combatantId, nextPlan) => {
+                committedPlan = nextPlan;
+            },
+            getCombatantDraftPlan: () => draftPlan,
+            setCombatantDraftPlan: async (_combatantId, nextDraftPlan) => {
+                draftPlan = nextDraftPlan;
+            }
+        };
+        globalThis.game = {
+            user: { id: "gm", name: "GM", isGM: true },
+            scenes: { viewed: scene, get: (id) => id === scene.id ? scene : null },
+            combats: { active: combat, get: (id) => id === combat.id ? combat : null },
+            combat,
+            actors: { get: () => null }
+        };
+        globalThis.canvas = {
+            scene,
+            app: { view: {} },
+            tokens: { placeables: [sourceToken, targetToken] },
+            canvasCoordinatesFromClient: (x, y) => ({ x, y })
+        };
+        globalThis.ui = { notifications: { info: () => {}, warn: () => {}, error: () => {} } };
+
+        const feature = new EncounterPlanningFeature({ render: () => {} });
+        feature._beginEncounterTargetingInteraction({
+            combat,
+            combatantId: "source-combatant",
+            actionIndex: 0,
+            action: draftPlan.clauses[0],
+            draftDecision: "target"
+        });
+
+        await feature._finishEncounterTargetingInteraction("target-token");
+
+        assert.equal(committedPlan.length, 0);
+        assert.equal(draftPlan.clauses[0].targetId, "target-combatant");
+        assert.equal(draftPlan.clauses[0].targetName, "Mallory");
+    });
+
+    it("commits draft movement destinations to the draft plan with calculated AP", async () => {
+        const sourceToken = {
+            id: "source-token",
+            actorId: "source-actor",
+            x: 0,
+            y: 0,
+            width: 1,
+            height: 1,
+            visible: true,
+            updateSource(update) {
+                this.x = update.x;
+                this.y = update.y;
+            }
+        };
+        const scene = { id: "scene-1", grid: { size: 100, distance: 5 }, tokens: [sourceToken] };
+        const combatants = new Map([
+            ["source-combatant", { id: "source-combatant", tokenId: "source-token", actor: { id: "source-actor" } }]
+        ]);
+        let draftPlan = {
+            apBudget: 6,
+            remainingAp: 5,
+            clauses: [{ clauseId: "draft-clause-1", actionId: "move", type: "movement", label: "Move", apCost: 1, movementFeetPerAp: 10, requiresMovementDestination: true }]
+        };
+        let committedPlan = [];
+        const combat = {
+            id: "combat-1",
+            apBudget: 6,
+            combatants,
+            getCombatantPlan: () => committedPlan,
+            setCombatantPlan: async (_combatantId, nextPlan) => {
+                committedPlan = nextPlan;
+            },
+            getCombatantDraftPlan: () => draftPlan,
+            setCombatantDraftPlan: async (_combatantId, nextDraftPlan) => {
+                draftPlan = nextDraftPlan;
+            }
+        };
+        globalThis.game = {
+            user: { id: "gm", name: "GM", isGM: true },
+            scenes: { viewed: scene, get: (id) => id === scene.id ? scene : null },
+            combats: { active: combat, get: (id) => id === combat.id ? combat : null },
+            combat,
+            actors: { get: () => null }
+        };
+        globalThis.canvas = {
+            scene,
+            app: { view: {} },
+            tokens: { placeables: [sourceToken] },
+            canvasCoordinatesFromClient: (x, y) => ({ x, y })
+        };
+        globalThis.ui = { notifications: { info: () => {}, warn: () => {}, error: () => {} } };
+
+        const feature = new EncounterPlanningFeature({ render: () => {} });
+        feature._beginEncounterMovementInteraction({
+            combat,
+            combatantId: "source-combatant",
+            actionIndex: 0,
+            maxAp: 6,
+            feetPerAp: 10,
+            draftDecision: "movementDestination"
+        });
+
+        await feature._finishEncounterMovementInteraction({
+            requiredAp: 3,
+            row: 0,
+            col: 3,
+            left: 300,
+            top: 0
+        });
+
+        assert.equal(committedPlan.length, 0);
+        assert.equal(draftPlan.clauses[0].apCost, 3);
+        assert.equal(draftPlan.clauses[0].movementFeet, 30);
+        assert.equal(draftPlan.clauses[0].movementTargetX, 300);
+    });
+
+    it("anchors draft movement overlays to the projected position before the edited clause", () => {
+        const sourceToken = {
+            id: "source-token",
+            actorId: "source-actor",
+            x: 0,
+            y: 0,
+            width: 1,
+            height: 1,
+            visible: true
+        };
+        const scene = { id: "scene-1", grid: { size: 100, distance: 5 }, tokens: [sourceToken] };
+        const combatants = new Map([
+            ["source-combatant", { id: "source-combatant", tokenId: "source-token", actor: { id: "source-actor" } }]
+        ]);
+        const draftPlan = {
+            apBudget: 6,
+            remainingAp: 1,
+            clauses: [
+                { clauseId: "draft-clause-1", actionId: "move", type: "movement", apCost: 2, movementTargetX: 200, movementTargetY: 0 },
+                { clauseId: "draft-clause-2", actionId: "move", type: "movement", apCost: 2, movementFeetPerAp: 10, requiresMovementDestination: true },
+                { clauseId: "draft-clause-3", actionId: "wait", type: "utility", apCost: 1, durationAp: 1 }
+            ]
+        };
+        const combat = {
+            id: "combat-1",
+            apBudget: 6,
+            combatants,
+            getCombatantPlan: () => [],
+            getCombatantDraftPlan: () => draftPlan
+        };
+        globalThis.game = {
+            user: { id: "gm", name: "GM", isGM: true },
+            scenes: { viewed: scene, get: (id) => id === scene.id ? scene : null },
+            combats: { active: combat, get: (id) => id === combat.id ? combat : null },
+            combat,
+            actors: { get: () => null }
+        };
+        globalThis.canvas = {
+            scene,
+            app: { view: {} },
+            tokens: { placeables: [sourceToken] },
+            canvasCoordinatesFromClient: (x, y) => ({ x, y })
+        };
+        globalThis.ui = { notifications: { info: () => {}, warn: () => {}, error: () => {} } };
+
+        const feature = new EncounterPlanningFeature({ render: () => {} });
+        feature._beginEncounterMovementInteraction({
+            combat,
+            combatantId: "source-combatant",
+            actionIndex: 1,
+            maxAp: 3,
+            feetPerAp: 10,
+            draftDecision: "movementDestination"
+        });
+        const overlay = feature.getMovementOverlayState(scene);
+
+        assert.equal(overlay.active, true);
+        assert.equal(overlay.maxAp, 3);
+        assert.equal(overlay.originCell.col, 2);
+        assert.equal(overlay.originCell.row, 0);
+    });
+
+    it("opens completed movement phrases with only the AP available to that draft clause", async () => {
+        const sourceToken = {
+            id: "source-token",
+            actorId: "source-actor",
+            x: 0,
+            y: 0,
+            width: 1,
+            height: 1,
+            visible: true
+        };
+        const scene = { id: "scene-1", grid: { size: 100, distance: 5 }, tokens: [sourceToken] };
+        const combatants = new Map([
+            ["source-combatant", { id: "source-combatant", tokenId: "source-token", actor: { id: "source-actor" } }]
+        ]);
+        const draftPlan = {
+            apBudget: 6,
+            spentAp: 5,
+            remainingAp: 1,
+            clauses: [
+                { clauseId: "draft-clause-1", actionId: "move", type: "movement", apCost: 2, movementTargetX: 200, movementTargetY: 0 },
+                { clauseId: "draft-clause-2", actionId: "move", type: "movement", apCost: 2, movementFeetPerAp: 10, requiresMovementDestination: true, movementTargetX: 400, movementTargetY: 0 },
+                { clauseId: "draft-clause-3", actionId: "wait", type: "utility", apCost: 1, durationAp: 1 }
+            ]
+        };
+        const combat = {
+            id: "combat-1",
+            apBudget: 6,
+            combatants,
+            getCombatantPlan: () => [],
+            getCombatantDraftPlan: () => draftPlan
+        };
+        globalThis.game = {
+            user: { id: "gm", name: "GM", isGM: true },
+            scenes: { viewed: scene, get: (id) => id === scene.id ? scene : null },
+            combats: { active: combat, get: (id) => id === combat.id ? combat : null },
+            combat,
+            actors: { get: () => null }
+        };
+        globalThis.canvas = {
+            scene,
+            app: { view: { addEventListener: () => {}, removeEventListener: () => {} } },
+            tokens: { placeables: [sourceToken] },
+            canvasCoordinatesFromClient: (x, y) => ({ x, y })
+        };
+        globalThis.ui = { notifications: { info: () => {}, warn: () => {}, error: () => {} } };
+
+        const clickHandlers = [];
+        const rootElement = {
+            addEventListener: (type, handler) => {
+                if (type === "click") clickHandlers.push(handler);
+            }
+        };
+        const feature = new EncounterPlanningFeature({ render: () => {} });
+        feature.bind(rootElement);
+
+        const panel = { dataset: { combatId: combat.id, combatantId: "source-combatant" } };
+        const phrase = {
+            dataset: {
+                decision: "movementDestination",
+                rootDecision: "movementDestination",
+                clauseIndex: "1"
+            },
+            closest(selector) {
+                if (selector.includes("[data-action='encounter-narrative-phrase']")) return this;
+                if (selector === ".totc-v2-encounter-panel") return panel;
+                return null;
+            }
+        };
+
+        await clickHandlers.at(-1)({
+            target: phrase,
+            preventDefault: () => {},
+            stopPropagation: () => {}
+        });
+
+        const overlay = feature.getMovementOverlayState(scene);
+        assert.equal(overlay.active, true);
+        assert.equal(overlay.maxAp, 3);
+        assert.equal(overlay.originCell.col, 2);
+        assert.equal(feature.activePlanEditSlot.helpText, "Choose a destination on the map.");
+    });
 });

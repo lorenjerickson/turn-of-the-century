@@ -167,19 +167,35 @@ describe("WorkspacePanelHost", () => {
                 round: 1,
                 apBudget: 6,
                 remainingAp: 6,
+                draftRemainingAp: 6,
                 canEditPlan: true,
                 canCommit: false,
                 availableActions: [
                     { id: "move", actionId: "move", type: "movement", label: "Move", apCost: 1, apMin: 1, apMax: 3, variableAp: true }
                 ],
                 plannedActions: [],
+                draftNarrative: {
+                    text: "Ada Price [select an action]",
+                    complete: false,
+                    overBudget: false,
+                    phrases: [{
+                        id: "draft-action-placeholder",
+                        text: "[select an action]",
+                        decision: "action",
+                        rootDecision: "action",
+                        clauseIndex: 0,
+                        state: "placeholder",
+                        editable: true
+                    }]
+                },
                 historyRows: []
             }
         });
 
         assert.match(html, /totc-v2-encounter-panel/);
-        assert.match(html, /data-action="encounter-edit-plan-slot"/);
-        assert.match(html, /data-action="encounter-plan-bar"/);
+        assert.match(html, /totc-v2-encounter-narrative/);
+        assert.match(html, /data-action="encounter-narrative-phrase"/);
+        assert.doesNotMatch(html, /data-action="encounter-plan-bar"/);
     });
 
     it("renders the GM encounter manager panel", () => {

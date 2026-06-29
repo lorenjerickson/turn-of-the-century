@@ -134,6 +134,65 @@ describe("buildEncounterTargetIconsModel", () => {
         assert.equal(result[0].tileHeight, 100);
     });
 
+    it("uses targeted draft clauses for icons while a narrative plan is being composed", () => {
+        const tokens = {
+            "tok-draft": { x: 250, y: 350, width: 1, height: 1 }
+        };
+        const combatants = {
+            "target-c": { tokenId: "tok-draft" }
+        };
+        const combat = {
+            getCombatantDraftPlan: () => ({
+                clauses: [{
+                    type: "attack",
+                    actionId: "strike",
+                    targetId: "target-c"
+                }]
+            }),
+            getCombatantPlan: () => [],
+            combatants: { get: (id) => combatants[id] ?? null }
+        };
+
+        const result = buildEncounterTargetIconsModel({
+            combat,
+            combatantId: "c1",
+            scene: makeScene(100, tokens)
+        });
+
+        assert.equal(result.length, 1);
+        assert.equal(result[0].tokenId, "tok-draft");
+        assert.equal(result[0].iconType, "target");
+        assert.equal(result[0].x, 250);
+        assert.equal(result[0].y, 350);
+    });
+
+    it("falls back to the committed plan when there are no draft clauses", () => {
+        const tokens = {
+            "tok-committed": { x: 150, y: 50, width: 1, height: 1 }
+        };
+        const combatants = {
+            "target-c": { tokenId: "tok-committed" }
+        };
+        const combat = {
+            getCombatantDraftPlan: () => ({ clauses: [] }),
+            getCombatantPlan: () => [{
+                type: "attack",
+                actionId: "strike",
+                targetId: "target-c"
+            }],
+            combatants: { get: (id) => combatants[id] ?? null }
+        };
+
+        const result = buildEncounterTargetIconsModel({
+            combat,
+            combatantId: "c1",
+            scene: makeScene(100, tokens)
+        });
+
+        assert.equal(result.length, 1);
+        assert.equal(result[0].tokenId, "tok-committed");
+    });
+
     it("resolves target tokens from array-backed scene token collections", () => {
         const combatants = {
             "target-c": { tokenId: "tok-1" }
@@ -403,8 +462,8 @@ describe("encounter planning feature target icon integration", () => {
     });
 
     it("syncs target icons from prepareContext using the resolved selection", () => {
-        assert.match(featureSource, /#syncEncounterTargetIconsOverlay/);
-        assert.match(featureSource, /this\.#syncEncounterTargetIconsOverlay\(/);
+        assert.match(featureSource, /_syncEncounterTargetIconsOverlay/);
+        assert.match(featureSource, /this\._syncEncounterTargetIconsOverlay\(/);
         assert.match(featureSource, /selection\?\.combat/);
         assert.match(featureSource, /selection\?\.combatant\?\.id/);
     });

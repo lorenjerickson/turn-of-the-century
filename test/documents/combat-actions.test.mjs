@@ -241,4 +241,56 @@ describe("TurnOfTheCenturyEncounter actions", () => {
         await encounter.removeCombatantAction(combatant.id, 1);
         assert.deepEqual(encounter.getCombatantPlan(combatant.id).map((action) => action.id), ["move"]);
     });
+
+    it("blocks encounter resolution while player-owned attack rolls are unresolved", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        const combatant = {
+            id: "combatant-1",
+            name: "Ada",
+            initiative: 12,
+            actor: {
+                ownership: { "player-1": 3 },
+                testUserPermission: (user, permission) => user?.id === "player-1" && permission === "OWNER",
+                items: { contents: [] },
+                system: {}
+            }
+        };
+        let storedState = {
+            phase: "planning",
+            apBudget: 6,
+            round: 1,
+            perCombatant: {
+                [combatant.id]: {
+                    plan: [
+                        { id: "strike", type: "attack", label: "Strike", apCost: 2, requiresToHit: true, planningRollResults: [] }
+                    ],
+                    ready: true,
+                    committedAt: 12345
+                }
+            }
+        };
+        const combat = {
+            id: "combat-1",
+            round: 1,
+            combatants: {
+                contents: [combatant],
+                get: (id) => id === combatant.id ? combatant : null
+            },
+            getFlag: () => storedState,
+            setFlag: async (_scope, _key, state) => { storedState = structuredClone(state); }
+        };
+        globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { OWNER: 3 } };
+        globalThis.game.user = { id: "gm-1", isGM: true };
+        globalThis.game.users = [
+            { id: "gm-1", isGM: true, active: true },
+            { id: "player-1", isGM: false, active: true }
+        ];
+
+        const encounter = new TurnOfTheCenturyEncounter(combat);
+
+        await assert.rejects(
+            () => encounter.beginEncounterResolution(),
+            /Required player planning rolls/
+        );
+    });
 });

@@ -49,14 +49,42 @@ function plannerFixture() {
         round: 3,
         apBudget: 6,
         remainingAp: 3,
+        draftRemainingAp: 3,
         plannedAp: 3,
         planningTimeDisplay: "38s",
         canEditPlan: true,
         canCommit: true,
         ready: false,
+        draftPlan: {
+            clauses: [
+                { clauseId: "draft-clause-1", actionId: "move", type: "movement", apCost: 2 },
+                { clauseId: "draft-clause-2", actionId: "strike", type: "attack", apCost: 1 }
+            ]
+        },
+        draftNarrative: {
+            text: "Ada Price moves 20 feet (2 AP), then attacks Elias Vane with Clockmaker's Stiletto (1 AP).",
+            lifecycle: "drafting",
+            apBudget: 6,
+            spentAp: 3,
+            remainingAp: 3,
+            complete: true,
+            overBudget: false,
+            helpText: "3 AP remaining.",
+            missingDecisions: [],
+            phrases: [
+                { phraseId: "draft-clause-1:action", clauseId: "draft-clause-1", clauseIndex: 0, decision: "action", rootDecision: "action", text: "moves", editable: true },
+                { phraseId: "draft-clause-1:movementDestination", clauseId: "draft-clause-1", clauseIndex: 0, decision: "movementDestination", rootDecision: "movementDestination", text: "20 feet", editable: true },
+                { phraseId: "draft-clause-2:action", clauseId: "draft-clause-2", clauseIndex: 1, decision: "action", rootDecision: "action", text: "attacks", editable: true },
+                { phraseId: "draft-clause-2:target", clauseId: "draft-clause-2", clauseIndex: 1, decision: "target", rootDecision: "target", text: "Elias Vane", editable: true },
+                { phraseId: "draft-clause-2:item", clauseId: "draft-clause-2", clauseIndex: 1, decision: "item", rootDecision: "item", text: "Clockmaker's Stiletto", editable: true }
+            ]
+        },
         availableActions: [
             { id: "move", actionId: "move", type: "movement", label: "Move", apCost: 1, apMin: 1, apMax: 4, variableAp: true, movementFeetPerAp: 10, rangeType: "melee" },
             { id: "strike", actionId: "strike", type: "attack", label: "Strike", apCost: 2, apMin: 2, apMax: 2, requiresToHit: true, toHitBonus: 5, rangeType: "normal" }
+        ],
+        availableItems: [
+            { id: "stiletto", name: "Clockmaker's Stiletto", type: "weapon", img: "items/stiletto.webp", description: "A precise spring-loaded blade." }
         ],
         queue: [
             {
@@ -135,7 +163,7 @@ describe("player encounter panel", () => {
         assert.equal(model.historyRows[1].segments[0].label, "Watch");
     });
 
-    it("renders searchable actions, draggable plan segments, resize handles, and history bars", () => {
+    it("renders the narrative composer as the primary planning surface and keeps history bars", () => {
         const model = buildPlayerEncounterPanelModel({
             actor: actorFixture(),
             planner: plannerFixture(),
@@ -152,24 +180,60 @@ describe("player encounter panel", () => {
 
         assert.match(html, /class="totc-v2-encounter-panel"/);
         assert.match(html, /data-combat-id="combat-1" data-combatant-id="combatant-1"/);
-        assert.match(html, /class="totc-v2-encounter-panel__segment is-empty"[^>]*data-action="encounter-edit-plan-slot"/);
-        assert.match(html, /class="totc-v2-encounter-panel__planning-view"[\s\S]*class="totc-v2-encounter-panel__bar"/);
+        assert.match(html, /class="totc-v2-encounter-narrative"/);
+        assert.match(html, /data-action="encounter-narrative-phrase"[^>]*data-decision="movementDestination"/);
+        assert.match(html, /Ada Price/);
+        assert.match(html, /20 feet/);
+        assert.doesNotMatch(html, /data-action="encounter-edit-plan-slot"/);
+        assert.doesNotMatch(html, /data-action="encounter-plan-bar"/);
         assert.ok(
-            html.indexOf("totc-v2-encounter-panel__planning-view") < html.indexOf("totc-v2-encounter-panel__orders"),
-            "planning workspace should render before the order summary"
+            html.indexOf("totc-v2-encounter-panel__planning-view") < html.indexOf("totc-v2-encounter-panel__history"),
+            "planning workspace should render before history"
         );
-        assert.match(html, /class="totc-v2-encounter-panel__orders"/);
-        assert.match(html, /Spend 2 AP moving toward the selected location\./);
-        assert.match(html, /Spend 1 AP to attack Elias Vane with Clockmaker's Stiletto\./);
-        assert.match(html, /data-action="encounter-plan-segment"[\s\S]*draggable="true"/);
-        assert.match(html, /data-action="encounter-resize-action"[\s\S]*data-action-index="0"/);
-        assert.match(html, /data-action="encounter-remove-action"[\s\S]*data-action-index="1"/);
+        assert.doesNotMatch(html, /class="totc-v2-encounter-panel__orders"/);
+        assert.doesNotMatch(html, /data-action="encounter-plan-segment"/);
         assert.match(html, /data-action="encounter-clear-plan"[\s\S]*>Clear Unlocked<\/button>/);
-        assert.match(html, /data-action="encounter-toggle-ready"[\s\S]*aria-pressed="false"[\s\S]*>Ready<\/button>/);
+        assert.match(html, /data-action="encounter-toggle-ready"[\s\S]*aria-pressed="false"[\s\S]*>Confirm Plan<\/button>/);
         assert.match(html, /class="totc-v2-encounter-panel__progress"/);
-        assert.match(html, /class="totc-v2-encounter-panel__current-line"/);
         assert.match(html, /class="totc-v2-encounter-panel__history-bar"/);
         assert.match(html, /Strike/);
+    });
+
+    it("renders minimal required roll status below the narrative", () => {
+        const planner = {
+            ...plannerFixture(),
+            canEditPlan: false,
+            canCommit: false,
+            draftPlan: {
+                ...plannerFixture().draftPlan,
+                lifecycle: "confirmedAwaitingRolls"
+            },
+            draftNarrative: {
+                ...plannerFixture().draftNarrative,
+                lifecycle: "confirmedAwaitingRolls"
+            },
+            rollStatus: {
+                required: true,
+                complete: false,
+                pendingCount: 1,
+                items: [
+                    { actionIndex: 1, actionId: "strike", label: "Strike", rollType: "attack", rollSubType: "toHit", complete: false }
+                ]
+            }
+        };
+        const model = buildPlayerEncounterPanelModel({ actor: actorFixture(), planner, combat: null });
+        const html = renderPlayerEncounterPanel(model, { escapeHTML });
+
+        assert.equal(model.canEditPlan, false);
+        assert.match(html, /class="totc-v2-encounter-rolls"/);
+        assert.match(html, /Required Rolls/);
+        assert.match(html, /1 roll pending/);
+        assert.match(html, /Strike/);
+        assert.match(html, /Pending/);
+        assert.ok(
+            html.indexOf("totc-v2-encounter-narrative") < html.indexOf("totc-v2-encounter-rolls"),
+            "roll status should sit below the narrative"
+        );
     });
 
     it("disables Clear Plan when there are no planned actions to clear", () => {
@@ -178,7 +242,20 @@ describe("player encounter panel", () => {
             planner: {
                 ...plannerFixture(),
                 queue: [],
-                canEditPlan: true
+                canEditPlan: true,
+                draftPlan: { clauses: [] },
+                draftNarrative: {
+                    text: "Ada Price [select an action]",
+                    lifecycle: "drafting",
+                    apBudget: 6,
+                    spentAp: 0,
+                    remainingAp: 6,
+                    complete: false,
+                    overBudget: false,
+                    helpText: "6 AP remaining.",
+                    missingDecisions: [],
+                    phrases: [{ phraseId: "draft-clause-1:action", clauseId: "draft-clause-1", clauseIndex: 0, decision: "action", rootDecision: "action", text: "[select an action]", placeholder: true, editable: true }]
+                }
             },
             combat: null
         });
@@ -187,18 +264,15 @@ describe("player encounter panel", () => {
         assert.match(html, /data-action="encounter-clear-plan" disabled>Clear Unlocked<\/button>/);
     });
 
-    it("renders accepted-roll actions as locked and only permits later actions to be edited", () => {
+    it("locks narrative phrases when the plan is not editable", () => {
         const planner = plannerFixture();
-        planner.queue[0].planningLocked = true;
+        planner.canEditPlan = false;
         const model = buildPlayerEncounterPanelModel({ actor: actorFixture(), planner, combat: null });
         const html = renderPlayerEncounterPanel(model, { escapeHTML });
 
-        assert.equal(model.lockedThroughIndex, 0);
-        assert.equal(model.plannedActions[0].editable, false);
-        assert.equal(model.plannedActions[1].editable, true);
-        assert.match(html, /data-action="encounter-locked-plan-segment"[\s\S]*fa-lock/);
-        assert.doesNotMatch(html, /data-action="encounter-locked-plan-segment"[^>]*draggable="true"/);
-        assert.match(html, /data-action="encounter-plan-segment"[\s\S]*data-action-index="1"/);
+        assert.equal(model.canEditPlan, false);
+        assert.match(html, /data-action="encounter-narrative-phrase"[\s\S]*disabled/);
+        assert.doesNotMatch(html, /data-action="encounter-plan-segment"/);
     });
 
     it("shows no active encounter when selected actor is not in combat", () => {
@@ -225,6 +299,7 @@ describe("player encounter panel", () => {
             planner: plannerFixture(),
             combat: null,
             activePlanEditSlot: {
+                mode: "draftAction",
                 index: 2,
                 startTick: 6,
                 remainingAp: 1
@@ -239,12 +314,52 @@ describe("player encounter panel", () => {
             html.indexOf("totc-v2-encounter-panel__planning-view") < html.indexOf("totc-v2-encounter-popup-overlay"),
             "action picker should be inside the growable planning workspace"
         );
-        assert.match(html, /Add Action \(Tick 6, Max 1 AP\)/);
+        assert.match(html, /Choose Action · 1 AP available/);
+        assert.match(html, /data-action="encounter-action-search"/);
         assert.match(html, /data-action="encounter-select-popup-action"[^>]*data-action-id="move"[^>]*data-range-type="melee"/);
         assert.doesNotMatch(html, /data-action="encounter-select-popup-action"[^>]*data-action-id="strike"/);
     });
 
-    it("renders selected action configuration inline below the action plan", () => {
+    it("renders searchable carried item choices for item narrative phrases", () => {
+        const model = buildPlayerEncounterPanelModel({
+            actor: actorFixture(),
+            planner: plannerFixture(),
+            combat: null,
+            activePlanEditSlot: {
+                mode: "draftItem",
+                index: 1
+            }
+        });
+
+        const html = renderPlayerEncounterPanel(model, { escapeHTML });
+
+        assert.match(html, /Choose Item/);
+        assert.match(html, /data-action="encounter-item-search"/);
+        assert.match(html, /data-action="encounter-select-draft-item"[^>]*data-item-id="stiletto"/);
+        assert.match(html, /Clockmaker&#039;s Stiletto|Clockmaker's Stiletto/);
+    });
+
+    it("renders plain duration choices for duration narrative phrases", () => {
+        const model = buildPlayerEncounterPanelModel({
+            actor: actorFixture(),
+            planner: plannerFixture(),
+            combat: null,
+            activePlanEditSlot: {
+                mode: "draftDuration",
+                index: 2,
+                maxDurationAp: 3
+            }
+        });
+
+        const html = renderPlayerEncounterPanel(model, { escapeHTML });
+
+        assert.match(html, /Choose Duration/);
+        assert.match(html, /data-action="encounter-select-draft-duration"[^>]*data-duration-ap="1"/);
+        assert.match(html, /data-action="encounter-select-draft-duration"[^>]*data-duration-ap="3"/);
+        assert.doesNotMatch(html, /data-duration-ap="4"/);
+    });
+
+    it("does not render the legacy action detail editor in the narrative planner", () => {
         const model = buildPlayerEncounterPanelModel({
             actor: actorFixture(),
             planner: plannerFixture(),
@@ -270,21 +385,12 @@ describe("player encounter panel", () => {
         const html = renderPlayerEncounterPanel(model, { escapeHTML });
 
         assert.equal(model.activePlanEditSlot.selectedAction.apCost, 2);
-        assert.match(html, /class="totc-v2-encounter-config"/);
-        assert.match(html, /<h4>Strike<\/h4>/);
-        assert.match(html, /Tick 4 · 3 AP available/);
-        assert.match(html, /data-action="encounter-config-target-mode"[\s\S]*<option value="selectTarget" selected>Select target on map<\/option>/);
-        assert.match(html, /data-action="encounter-config-positioning-ap"[\s\S]*<option value="0" selected>0 AP<\/option>[\s\S]*<option value="1" >1 AP<\/option>/);
-        assert.match(html, /data-action="encounter-config-effect-ap"[\s\S]*<option value="2" selected>2 AP<\/option>/);
-        assert.match(html, /data-action="encounter-config-ap-cost" disabled[\s\S]*<option value="2" selected>2 AP<\/option>/);
-        assert.match(html, /data-action="encounter-config-follow-through"[\s\S]*Plan another action if AP remains/);
-        assert.match(html, /data-action="encounter-config-failure-outcome"[\s\S]*Best reachable position/);
-        assert.match(html, /data-action="encounter-confirm-configured-action"[^>]*data-action-id="strike"[^>]*data-target-mode="selectTarget"/);
-        assert.match(html, /data-action="encounter-config-back"/);
+        assert.doesNotMatch(html, /class="totc-v2-encounter-config"/);
+        assert.doesNotMatch(html, /data-action="encounter-confirm-configured-action"/);
         assert.doesNotMatch(html, /class="totc-v2-encounter-popup-overlay"/);
     });
 
-    it("renders Move AP as protected once the overlay has selected a destination", () => {
+    it("keeps movement represented by the narrative phrase rather than the legacy AP editor", () => {
         const model = buildPlayerEncounterPanelModel({
             actor: actorFixture(),
             planner: plannerFixture(),
@@ -312,13 +418,9 @@ describe("player encounter panel", () => {
 
         const html = renderPlayerEncounterPanel(model, { escapeHTML });
 
-        assert.match(html, /data-action="encounter-config-target-mode" disabled[\s\S]*<option value="location" selected>Selected location<\/option>/);
-        assert.match(html, /data-action="encounter-config-positioning-ap" disabled[\s\S]*<option value="0" selected>0 AP<\/option>/);
-        assert.match(html, /data-action="encounter-config-effect-ap" disabled[\s\S]*<option value="1" selected>1 AP<\/option>/);
-        assert.match(html, /data-action="encounter-config-ap-cost" disabled/);
-        assert.match(html, /<option value="1" selected>1 AP<\/option>/);
-        assert.match(html, /data-movement-target-x="400"/);
-        assert.match(html, /data-movement-target-y="200"/);
+        assert.match(html, /data-action="encounter-narrative-phrase"[^>]*data-decision="movementDestination"/);
+        assert.doesNotMatch(html, /data-action="encounter-config-ap-cost"/);
+        assert.doesNotMatch(html, /data-movement-target-x="400"/);
     });
 
     it("keeps encounter planning out of actor sheets and the combat tracker", () => {
@@ -338,16 +440,21 @@ describe("player encounter panel", () => {
     it("wires player encounter actions through per-action combat APIs", () => {
         assert.doesNotMatch(workspaceRootSource, /this\.\#wirePlayerEncounterPanelHandlers\(\)/);
         assert.match(encounterPlanningFeatureSource, /encounter-edit-plan-slot/);
+        assert.match(encounterPlanningFeatureSource, /encounter-narrative-phrase/);
+        assert.match(encounterPlanningFeatureSource, /setCombatantDraftPlan/);
+        assert.match(encounterPlanningFeatureSource, /encounter-action-search/);
         assert.match(encounterPlanningFeatureSource, /encounter-select-popup-action/);
         assert.match(encounterPlanningFeatureSource, /encounter-confirm-configured-action/);
         assert.match(encounterPlanningFeatureSource, /encounter-config-back/);
         assert.match(encounterPlanningFeatureSource, /addEventListener\("change"/);
         assert.match(encounterPlanningFeatureSource, /encounter-config-effect-ap/);
-        assert.match(encounterPlanningFeatureSource, /#buildConfiguredEncounterPlanAction/);
+        assert.match(encounterPlanningFeatureSource, /_buildConfiguredEncounterPlanAction/);
         assert.match(encounterPlanningFeatureSource, /encounter-close-popup/);
+        assert.match(encounterPlanningFeatureSource, /confirmCombatantDraftPlan/);
+        assert.match(encounterPlanningFeatureSource, /_requestEncounterAttackRolls/);
         assert.match(encounterPlanningFeatureSource, /setCombatantPlan/);
-        assert.match(encounterPlanningFeatureSource, /#beginEncounterMovementInteraction/);
-        assert.match(encounterPlanningFeatureSource, /#beginEncounterTargetingInteraction/);
+        assert.match(encounterPlanningFeatureSource, /_beginEncounterMovementInteraction/);
+        assert.match(encounterPlanningFeatureSource, /_beginEncounterTargetingInteraction/);
         assert.match(encounterPlanningFeatureSource, /applyLocalPlanningTokenPath\(token, movementUpdate\.path\)/);
         assert.doesNotMatch(workspaceEncounterSource, /player-execute-encounter-action/);
     });
@@ -360,9 +467,9 @@ describe("player encounter panel", () => {
 
     it("uses encounter-specific token selection when building the encounter planner", () => {
         assert.match(workspaceRootSource, /this\.registerFeature\(this\.encounterPlanningFeature\)/);
-        assert.match(encounterPlanningFeatureSource, /const selection = this\.\#resolveEncounterPlannerSelection\(\{ combat, scene \}\)/);
+        assert.match(encounterPlanningFeatureSource, /const selection = this\._resolveEncounterPlannerSelection\(\{ combat, scene \}\)/);
         assert.match(encounterPlanningFeatureSource, /buildEncounterPlannerForCombatant\(\{/);
         assert.match(encounterPlanningFeatureSource, /context\.playerEncounterPanel = buildPlayerEncounterPanelModel/);
-        assert.match(encounterPlanningFeatureSource, /#getSelectedEncounterToken\(scene = null\)/);
+        assert.match(encounterPlanningFeatureSource, /_getSelectedEncounterToken\(scene = null\)/);
     });
 });

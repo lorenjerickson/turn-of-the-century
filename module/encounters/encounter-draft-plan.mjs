@@ -1,0 +1,251 @@
+export const ENCOUNTER_DRAFT_LIFECYCLES = Object.freeze([
+    "drafting",
+    "confirmedAwaitingRolls",
+    "locked",
+    "resolving",
+    "resolved"
+]);
+
+const DOWNSTREAM_FIELDS = Object.freeze([
+    "actionId",
+    "type",
+    "apCost",
+    "durationAp",
+    "itemId",
+    "requiresTarget",
+    "requiresItem",
+    "requiresDuration",
+    "requiresMovementDestination",
+    "movementTargetX",
+    "movementTargetY",
+    "movementTargetRow",
+    "movementTargetCol"
+]);
+
+function toArray(value) {
+    return Array.isArray(value) ? value : [];
+}
+
+function toNumber(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+}
+
+function optionalNumber(value) {
+    if (value === null || value === undefined || value === "") return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+}
+
+function text(value, fallback = "") {
+    const trimmed = String(value ?? "").trim();
+    return trimmed || fallback;
+}
+
+function defaultClone(value) {
+    if (typeof structuredClone === "function") return structuredClone(value);
+    return JSON.parse(JSON.stringify(value));
+}
+
+function cloneValue(value, cloneData = defaultClone) {
+    if (value === undefined) return undefined;
+    return cloneData(value);
+}
+
+function normalizeLifecycle(value = "") {
+    const lifecycle = text(value, "drafting");
+    return ENCOUNTER_DRAFT_LIFECYCLES.includes(lifecycle) ? lifecycle : "drafting";
+}
+
+function normalizeApCost(value) {
+    const cost = optionalNumber(value);
+    if (cost === null) return null;
+    return Math.max(0, Math.floor(cost));
+}
+
+function normalizePosition(value = null) {
+    if (!value || typeof value !== "object") return null;
+    const x = optionalNumber(value.x);
+    const y = optionalNumber(value.y);
+    if (x === null || y === null) return null;
+    return { x, y };
+}
+
+function sameValue(left, right) {
+    return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
+function movementDestination(clause = {}) {
+    const x = optionalNumber(clause.movementTargetX);
+    const y = optionalNumber(clause.movementTargetY);
+    if (x === null || y === null) return null;
+    return { x, y };
+}
+
+function buildMissingDecisions(clause = {}) {
+    const missing = [];
+    if (!clause.actionId) missing.push("action");
+    if (clause.requiresTarget && !clause.targetId) missing.push("target");
+    if (clause.requiresItem && !clause.itemId) missing.push("item");
+    if (clause.requiresDuration && clause.durationAp === null) missing.push("duration");
+    if (clause.requiresMovementDestination && !movementDestination(clause)) missing.push("movementDestination");
+    return missing;
+}
+
+function normalizePhraseTokens(tokens = [], cloneData = defaultClone) {
+    return toArray(tokens).map((token, index) => ({
+        ...cloneValue(token, cloneData),
+        tokenId: text(token?.tokenId, `token-${index + 1}`),
+        decision: text(token?.decision, "action"),
+        editable: Boolean(token?.editable ?? true)
+    }));
+}
+
+export function normalizeDraftClause(clause = {}, { index = 0, origin = null, cloneData = defaultClone } = {}) {
+    const source = clause && typeof clause === "object" ? clause : {};
+    const actionId = text(source.actionId, text(source.id, ""));
+    const type = text(source.type, actionId ? "custom" : "placeholder");
+    const apCost = normalizeApCost(source.apCost ?? source.apEnvelope?.maxAp);
+    const projectedOrigin = normalizePosition(source.projectedOrigin) ?? normalizePosition(source.movementOrigin) ?? origin;
+    const destination = movementDestination(source);
+    const projectedPosition = type === "movement" && destination ? destination : projectedOrigin;
+    const normalized = {
+        ...cloneValue(source, cloneData),
+        clauseId: text(source.clauseId, `draft-clause-${index + 1}`),
+        actionId,
+        type,
+        label: text(source.label, actionId ? actionId : "Select an action"),
+        status: text(source.status, "draft"),
+        apCost,
+        targetId: text(source.targetId, ""),
+        targetName: text(source.targetName, ""),
+        itemId: text(source.itemId, ""),
+        itemName: text(source.itemName, ""),
+        durationAp: optionalNumber(source.durationAp),
+        requiresTarget: Boolean(source.requiresTarget),
+        requiresItem: Boolean(source.requiresItem),
+        requiresDuration: Boolean(source.requiresDuration),
+        requiresMovementDestination: Boolean(source.requiresMovementDestination),
+        movementTargetX: optionalNumber(source.movementTargetX),
+        movementTargetY: optionalNumber(source.movementTargetY),
+        movementTargetRow: optionalNumber(source.movementTargetRow),
+        movementTargetCol: optionalNumber(source.movementTargetCol),
+        projectedOrigin,
+        projectedPosition,
+        narrativeTokens: normalizePhraseTokens(source.narrativeTokens, cloneData),
+        rollRequirements: toArray(source.rollRequirements).map((requirement) => cloneValue(requirement, cloneData))
+    };
+    const missingDecisions = buildMissingDecisions(normalized);
+
+    return {
+        ...normalized,
+        missingDecisions,
+        complete: actionId !== "" && missingDecisions.length === 0 && apCost !== null,
+        affectsProjectedPosition: type === "movement" && Boolean(destination)
+    };
+}
+
+export function normalizeDraftPlan(source = {}, { apBudget = 6, initialPosition = null, cloneData = defaultClone } = {}) {
+    const draft = source && typeof source === "object" ? source : {};
+    const budget = Math.max(0, Math.floor(toNumber(draft.apBudget, apBudget)));
+    const startPosition = normalizePosition(draft.initialPosition) ?? normalizePosition(initialPosition);
+    let projectedPosition = startPosition;
+    const clauses = toArray(draft.clauses).map((clause, index) => {
+        const normalized = normalizeDraftClause(clause, { index, origin: projectedPosition, cloneData });
+        projectedPosition = normalized.projectedPosition;
+        return normalized;
+    });
+    const spentAp = clauses.reduce((sum, clause) => sum + Math.max(0, toNumber(clause.apCost, 0)), 0);
+    const missingDecisions = clauses.flatMap((clause) => clause.missingDecisions.map((decision) => ({
+        clauseId: clause.clauseId,
+        decision
+    })));
+    const lifecycle = normalizeLifecycle(draft.lifecycle);
+
+    return {
+        draftId: text(draft.draftId, "active"),
+        lifecycle,
+        apBudget: budget,
+        spentAp,
+        remainingAp: Math.max(0, budget - spentAp),
+        overBudget: spentAp > budget,
+        complete: clauses.length > 0 && missingDecisions.length === 0 && spentAp <= budget,
+        initialPosition: startPosition,
+        projectedPosition,
+        missingDecisions,
+        clauses
+    };
+}
+
+export function createEmptyDraftPlan({ apBudget = 6, initialPosition = null, lifecycle = "drafting" } = {}) {
+    return normalizeDraftPlan({ lifecycle, clauses: [] }, { apBudget, initialPosition });
+}
+
+export function truncateDraftPlan(draftPlan = {}, clauseIndex = 0, options = {}) {
+    const normalized = normalizeDraftPlan(draftPlan, options);
+    const index = Math.max(0, Math.floor(toNumber(clauseIndex, 0)));
+    return normalizeDraftPlan({
+        ...normalized,
+        clauses: normalized.clauses.slice(0, index + 1)
+    }, {
+        apBudget: normalized.apBudget,
+        initialPosition: normalized.initialPosition,
+        cloneData: options.cloneData
+    });
+}
+
+export function draftClauseChangeAffectsDownstream(previousClause = {}, nextClause = {}) {
+    const previous = normalizeDraftClause(previousClause);
+    const next = normalizeDraftClause(nextClause);
+    return DOWNSTREAM_FIELDS.some((fieldName) => !sameValue(previous[fieldName], next[fieldName]));
+}
+
+export function replaceDraftClause(draftPlan = {}, clauseIndex = 0, nextClause = {}, { truncateDownstream = null, cloneData = defaultClone } = {}) {
+    const normalized = normalizeDraftPlan(draftPlan, { cloneData });
+    const index = Math.max(0, Math.floor(toNumber(clauseIndex, 0)));
+    const clauses = normalized.clauses.slice();
+    const previousClause = clauses[index] ?? null;
+    const shouldTruncate = truncateDownstream ?? (previousClause
+        ? draftClauseChangeAffectsDownstream(previousClause, nextClause)
+        : true);
+    clauses[index] = cloneValue(nextClause, cloneData);
+
+    return normalizeDraftPlan({
+        ...normalized,
+        clauses: shouldTruncate ? clauses.slice(0, index + 1) : clauses
+    }, {
+        apBudget: normalized.apBudget,
+        initialPosition: normalized.initialPosition,
+        cloneData
+    });
+}
+
+export function confirmDraftPlan(draftPlan = {}, { includeIdle = true, cloneData = defaultClone } = {}) {
+    const normalized = normalizeDraftPlan(draftPlan, { cloneData });
+    if (!normalized.complete) {
+        throw new Error("Draft plan cannot be confirmed until all required decisions are complete and within AP budget.");
+    }
+
+    const clauses = normalized.clauses.map((clause) => cloneValue(clause, cloneData));
+    if (includeIdle && normalized.remainingAp > 0) {
+        clauses.push({
+            clauseId: `draft-clause-${clauses.length + 1}`,
+            actionId: "idle",
+            type: "utility",
+            label: "Idle",
+            apCost: normalized.remainingAp,
+            status: "confirmed",
+            automatic: true
+        });
+    }
+
+    return normalizeDraftPlan({
+        ...normalized,
+        lifecycle: "confirmedAwaitingRolls",
+        clauses
+    }, {
+        apBudget: normalized.apBudget,
+        initialPosition: normalized.initialPosition,
+        cloneData
+    });
+}

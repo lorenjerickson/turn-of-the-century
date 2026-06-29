@@ -14,6 +14,7 @@ import { applyLocalPlanningTokenPath } from "../encounters/planning-token-previe
 import { EncounterNarrator } from "../encounters/encounter-narrator.mjs";
 import { EncounterSnapshotStore } from "../encounters/encounter-snapshot-store.mjs";
 import { EncounterPlanningService } from "../encounters/encounter-planning-service.mjs";
+import { normalizeDraftPlan } from "../encounters/encounter-draft-plan.mjs";
 import { MovementResolver } from "../encounters/movement-resolver.mjs";
 import { AttackResolver } from "../encounters/attack-resolver.mjs";
 import { ReactionResolver } from "../encounters/reaction-resolver.mjs";
@@ -40,6 +41,7 @@ const ENCOUNTER_FLAG_KEY = "encounter";
  * @property {string} ROUND_RESOLVED       - Fired after the AP timeline has been resolved and encounter state updated.
  * @property {string} COMBATANT_READY_CHANGED - Fired when a combatant commits or un-commits their plan.
  * @property {string} PLAN_UPDATED         - Fired after a combatant's action plan is written.
+ * @property {string} DRAFT_PLAN_UPDATED   - Fired after a combatant's narrative draft plan is written.
  */
 export const TOTC_ENCOUNTER_EVENTS = {
     STATE_INITIALIZED: "stateInitialized",
@@ -49,7 +51,8 @@ export const TOTC_ENCOUNTER_EVENTS = {
     ROUND_STARTED: "roundStarted",
     ROUND_RESOLVED: "roundResolved",
     COMBATANT_READY_CHANGED: "combatantReadyChanged",
-    PLAN_UPDATED: "planUpdated"
+    PLAN_UPDATED: "planUpdated",
+    DRAFT_PLAN_UPDATED: "draftPlanUpdated"
 };
 
 const TOTC_ENCOUNTER_HOOKS = {
@@ -60,7 +63,8 @@ const TOTC_ENCOUNTER_HOOKS = {
     [TOTC_ENCOUNTER_EVENTS.ROUND_STARTED]: "totcEncounterRoundStarted",
     [TOTC_ENCOUNTER_EVENTS.ROUND_RESOLVED]: "totcEncounterRoundResolved",
     [TOTC_ENCOUNTER_EVENTS.COMBATANT_READY_CHANGED]: "totcEncounterCombatantReadyChanged",
-    [TOTC_ENCOUNTER_EVENTS.PLAN_UPDATED]: "totcEncounterPlanUpdated"
+    [TOTC_ENCOUNTER_EVENTS.PLAN_UPDATED]: "totcEncounterPlanUpdated",
+    [TOTC_ENCOUNTER_EVENTS.DRAFT_PLAN_UPDATED]: "totcEncounterDraftPlanUpdated"
 };
 
 /**
@@ -178,7 +182,15 @@ function clampActionData(action, index = 0) {
         itemId: action.itemId || null,
         targetId: action.targetId || null,
         requiresToHit: Boolean(action.requiresToHit || action.type === "attack"),
+        requiresTarget: Boolean(action.requiresTarget),
+        requiresItem: Boolean(action.requiresItem),
+        requiresDuration: Boolean(action.requiresDuration),
+        automatic: Boolean(action.automatic),
+        status: String(action.status ?? ""),
         toHitBonus: Number(action.toHitBonus || 0),
+        damageFormula: String(action.damageFormula ?? ""),
+        systemRollsAllowed: Boolean(action.systemRollsAllowed || action.allowSystemRolls),
+        allowSystemRolls: Boolean(action.allowSystemRolls || action.systemRollsAllowed),
         autoResolve: Boolean(action.autoResolve),
         interruptible: Boolean(action.interruptible ?? true),
         isReaction: Boolean(action.isReaction),
@@ -193,7 +205,8 @@ function clampActionData(action, index = 0) {
         movementOriginX: optionalNumber(action.movementOriginX),
         movementOriginY: optionalNumber(action.movementOriginY),
         planningLocked: Boolean(action.planningLocked),
-        planningRollResults: toArray(action.planningRollResults).map((result) => foundry.utils.deepClone(result))
+        planningRollResults: toArray(action.planningRollResults).map((result) => foundry.utils.deepClone(result)),
+        rollRequirements: toArray(action.rollRequirements).map((requirement) => foundry.utils.deepClone(requirement))
     };
 }
 
@@ -210,6 +223,32 @@ function lockedThroughIndex(plan = []) {
         if (action?.planningLocked) boundary = index;
     }
     return boundary;
+}
+
+function actionRollRequirements(action = {}) {
+    const requirements = toArray(action.rollRequirements);
+    if (requirements.length) return requirements;
+    if (action.requiresToHit || action.type === "attack") {
+        return [{ rollType: "attack", rollSubType: "toHit" }];
+    }
+    return [];
+}
+
+function actionRollRequirementSatisfied(action = {}, requirement = {}) {
+    const requiredType = String(requirement?.rollType ?? "").toLowerCase();
+    const requiredSubType = String(requirement?.rollSubType ?? "").toLowerCase();
+    return toArray(action.planningRollResults).some((result) => {
+        const resultType = String(result?.rollType ?? "").toLowerCase();
+        const resultSubType = String(result?.rollSubType ?? "").toLowerCase();
+        if (resultType && requiredType && resultType !== requiredType) return false;
+        if (resultSubType && requiredSubType && resultSubType !== requiredSubType) return false;
+        return true;
+    });
+}
+
+function actionHasUnresolvedPlayerRoll(action = {}) {
+    const requirements = actionRollRequirements(action);
+    return requirements.some((requirement) => !actionRollRequirementSatisfied(action, requirement));
 }
 
 /**
@@ -629,6 +668,7 @@ export class TurnOfTheCenturyEncounter {
             spentAp: 0,
             remainingAp: apBudget,
             plan: [],
+            draftPlan: normalizeDraftPlan({ clauses: [] }, { apBudget }),
             pointer: 0,
             progress: 0,
             ready: false,
@@ -648,10 +688,12 @@ export class TurnOfTheCenturyEncounter {
 
         const perCombatant = foundry.utils.deepClone(existing.perCombatant ?? {});
         for (const combatant of this.#combat.combatants?.contents ?? []) {
+            const existingCombatantState = perCombatant[combatant.id] ?? {};
             perCombatant[combatant.id] = {
                 ...this.#defaultCombatantState(apBudget),
-                ...(perCombatant[combatant.id] ?? {}),
-                plan: toArray(perCombatant[combatant.id]?.plan)
+                ...existingCombatantState,
+                plan: toArray(existingCombatantState.plan),
+                draftPlan: normalizeDraftPlan(existingCombatantState.draftPlan ?? { clauses: [] }, { apBudget })
             };
         }
 
@@ -707,6 +749,16 @@ export class TurnOfTheCenturyEncounter {
         return toArray(this.getCombatantState(combatantId)?.plan);
     }
 
+    /**
+     * Returns the current narrative draft plan for a combatant.
+     *
+     * @param {string} combatantId
+     * @returns {object}
+     */
+    getCombatantDraftPlan(combatantId) {
+        return normalizeDraftPlan(this.getCombatantState(combatantId)?.draftPlan ?? { clauses: [] }, { apBudget: this.apBudget });
+    }
+
     getCombatantLockedThroughIndex(combatantId) {
         return lockedThroughIndex(this.getCombatantPlan(combatantId));
     }
@@ -730,6 +782,10 @@ export class TurnOfTheCenturyEncounter {
      */
     getCombatantRemainingAp(combatantId) {
         return Math.max(0, this.apBudget - this.getCombatantPlan(combatantId).reduce((sum, action) => sum + Number(action.apCost || 0), 0));
+    }
+
+    getCombatantDraftRemainingAp(combatantId) {
+        return Number(this.getCombatantDraftPlan(combatantId).remainingAp ?? this.apBudget);
     }
 
     /**
@@ -852,6 +908,18 @@ export class TurnOfTheCenturyEncounter {
      */
     async setCombatantActionApCost(combatantId, actionIndex, apCost) {
         return this.#planningService.setCombatantActionApCost(combatantId, actionIndex, apCost);
+    }
+
+    async setCombatantDraftPlan(combatantId, draftPlan = {}) {
+        return this.#planningService.setCombatantDraftPlan(combatantId, draftPlan);
+    }
+
+    async confirmCombatantDraftPlan(combatantId) {
+        return this.#planningService.confirmCombatantDraftPlan(combatantId);
+    }
+
+    async clearCombatantDraftPlan(combatantId) {
+        return this.#planningService.clearCombatantDraftPlan(combatantId);
     }
 
     /**
@@ -989,8 +1057,39 @@ export class TurnOfTheCenturyEncounter {
     async beginEncounterResolution() {
         this.#requireGm("begin encounter resolution");
         this.#requireInitiativeReady();
+        this.#requirePlayerPlanningRollsResolved();
         await this.#resolutionEngine.beginResolution({ persistInitialState: true });
         return this.state.resolution ?? null;
+    }
+
+    #requirePlayerPlanningRollsResolved() {
+        const unresolved = [];
+        for (const combatant of this.#combat.combatants?.contents ?? []) {
+            if (!this.#combatantHasPlayerOwner(combatant)) continue;
+            const plan = this.getCombatantPlan(combatant.id);
+            for (const [actionIndex, action] of plan.entries()) {
+                if (!actionHasUnresolvedPlayerRoll(action)) continue;
+                unresolved.push(`${combatant.name ?? "Combatant"} ${action.label ?? `action ${actionIndex + 1}`}`);
+            }
+        }
+        if (unresolved.length) {
+            throw new Error(`Required player planning rolls must be resolved before encounter resolution can begin: ${unresolved.join(", ")}.`);
+        }
+    }
+
+    #combatantHasPlayerOwner(combatant = null) {
+        const actor = combatant?.actor ?? null;
+        if (!actor) return false;
+        if (actor.hasPlayerOwner === true) return true;
+        const ownerLevel = toNumber(globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OWNER, 3);
+        return collectionContents(game?.users).some((user) => (
+            !user?.isGM
+            && user?.active !== false
+            && (
+                actor.testUserPermission?.(user, "OWNER")
+                || toNumber(actor.ownership?.[user.id], 0) >= ownerLevel
+            )
+        ));
     }
 
     async #resetInitiativeForEncounter() {
@@ -1060,6 +1159,7 @@ export class TurnOfTheCenturyEncounter {
                     ...combatantState,
                     ready: false,
                     committedAt: 0,
+                    draftPlan: normalizeDraftPlan(combatantState.draftPlan ?? { clauses: [] }, { apBudget: this.apBudget }),
                     plan: toArray(combatantState.plan).map((action) => ({
                         ...action,
                         planningLocked: false,
@@ -1337,6 +1437,10 @@ export class TurnOfTheCenturyCombat extends BaseCombatDocument {
         return this.encounter.getCombatantPlan(combatantId);
     }
 
+    getCombatantDraftPlan(combatantId) {
+        return this.encounter.getCombatantDraftPlan(combatantId);
+    }
+
     getCombatantLockedThroughIndex(combatantId) {
         return this.encounter.getCombatantLockedThroughIndex(combatantId);
     }
@@ -1347,6 +1451,10 @@ export class TurnOfTheCenturyCombat extends BaseCombatDocument {
 
     getCombatantRemainingAp(combatantId) {
         return this.encounter.getCombatantRemainingAp(combatantId);
+    }
+
+    getCombatantDraftRemainingAp(combatantId) {
+        return this.encounter.getCombatantDraftRemainingAp(combatantId);
     }
 
     getMissingInitiativeCombatants() {
@@ -1387,6 +1495,18 @@ export class TurnOfTheCenturyCombat extends BaseCombatDocument {
 
     async setCombatantActionApCost(combatantId, actionIndex, apCost) {
         return this.encounter.setCombatantActionApCost(combatantId, actionIndex, apCost);
+    }
+
+    async setCombatantDraftPlan(combatantId, draftPlan = {}) {
+        return this.encounter.setCombatantDraftPlan(combatantId, draftPlan);
+    }
+
+    async confirmCombatantDraftPlan(combatantId) {
+        return this.encounter.confirmCombatantDraftPlan(combatantId);
+    }
+
+    async clearCombatantDraftPlan(combatantId) {
+        return this.encounter.clearCombatantDraftPlan(combatantId);
     }
 
     getAvailableActionsForCombatant(combatantId) {
