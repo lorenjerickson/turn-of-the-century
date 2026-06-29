@@ -1,5 +1,5 @@
 import { getMovementFeetPerAp } from "./action-catalog.mjs";
-import { confirmDraftPlan, normalizeDraftPlan } from "./encounter-draft-plan.mjs";
+import { confirmDraftPlan, draftPlanToResolutionActions, normalizeDraftPlan } from "./encounter-draft-plan.mjs";
 import { normalizeEncounterOrderData } from "./encounter-order-model.mjs";
 
 // Event name constants — kept local to avoid a circular import with combat.mjs.
@@ -91,15 +91,25 @@ function clampActionData(action, index = 0, cloneData = defaultClone) {
         variableAp: Boolean(action.variableAp && apMax > apMin),
         itemId: action.itemId || null,
         targetId: action.targetId || null,
+        targetName: String(action.targetName ?? ""),
+        itemName: String(action.itemName ?? ""),
         targetMode: String(action.targetMode ?? ""),
         requiresToHit: Boolean(action.requiresToHit || action.type === "attack"),
         requiresTarget: Boolean(action.requiresTarget),
         requiresItem: Boolean(action.requiresItem),
         requiresDuration: Boolean(action.requiresDuration),
+        requiresMovementDestination: Boolean(action.requiresMovementDestination),
         automatic: Boolean(action.automatic),
         status: String(action.status ?? ""),
+        durationAp: optionalNumber(action.durationAp),
         toHitBonus: Number(action.toHitBonus || 0),
         damageFormula: String(action.damageFormula ?? ""),
+        recapFormat: String(action.recapFormat ?? ""),
+        tickNarrativeFragments: toArray(action.tickNarrativeFragments).map((fragment) => String(fragment ?? "")),
+        actionNarrativeText: String(action.actionNarrativeText ?? ""),
+        itemNarrativeText: String(action.itemNarrativeText ?? ""),
+        narrativeTemplate: String(action.narrativeTemplate ?? ""),
+        narrativeActionId: String(action.narrativeActionId ?? action.actionId ?? action.id ?? ""),
         systemRollsAllowed: Boolean(action.systemRollsAllowed || action.allowSystemRolls),
         allowSystemRolls: Boolean(action.allowSystemRolls || action.systemRollsAllowed),
         autoResolve: Boolean(action.autoResolve),
@@ -113,6 +123,8 @@ function clampActionData(action, index = 0, cloneData = defaultClone) {
         movementTargetY: Number(action.movementTargetY ?? 0),
         movementTargetRow: Number(action.movementTargetRow ?? 0),
         movementTargetCol: Number(action.movementTargetCol ?? 0),
+        movementDestinationX: optionalNumber(action.movementDestinationX),
+        movementDestinationY: optionalNumber(action.movementDestinationY),
         movementOriginX: optionalNumber(action.movementOriginX),
         movementOriginY: optionalNumber(action.movementOriginY),
         planningLocked: Boolean(action.planningLocked),
@@ -393,9 +405,14 @@ export class EncounterPlanningService {
         }
 
         const confirmed = confirmDraftPlan(combatantState.draftPlan ?? { clauses: [] }, {
+            apBudget,
             cloneData: this.#clone
         });
-        const plan = confirmed.clauses.map((clause, index) => clampActionData(clause, index, this.#clone));
+        const resolutionActions = draftPlanToResolutionActions(confirmed, {
+            apBudget,
+            cloneData: this.#clone
+        });
+        const plan = resolutionActions.map((action, index) => clampActionData(action, index, this.#clone));
         const awaitingRolls = hasUnresolvedPlanningRolls(plan);
         const draftPlan = {
             ...confirmed,

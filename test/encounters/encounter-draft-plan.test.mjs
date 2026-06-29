@@ -4,7 +4,9 @@ import { describe, it } from "node:test";
 import {
     confirmDraftPlan,
     createEmptyDraftPlan,
+    draftClauseToResolutionAction,
     draftClauseChangeAffectsDownstream,
+    draftPlanToResolutionActions,
     normalizeDraftClause,
     normalizeDraftPlan,
     replaceDraftClause,
@@ -139,5 +141,91 @@ describe("encounter draft plan model", () => {
         }, { apBudget: 6 });
 
         assert.throws(() => confirmDraftPlan(draft), /cannot be confirmed/);
+    });
+
+    it("converts Close With and Evade draft clauses to legacy resolver movement ids", () => {
+        const closeWith = draftClauseToResolutionAction({
+            actionId: "closeWith",
+            type: "movement",
+            label: "Close With",
+            apCost: 2,
+            targetId: "target-1",
+            targetName: "Horus",
+            movementFeetPerAp: 10
+        });
+        const evade = draftClauseToResolutionAction({
+            actionId: "evade",
+            type: "movement",
+            label: "Evade",
+            apCost: 1,
+            targetId: "target-1",
+            targetName: "Horus",
+            movementFeetPerAp: 10
+        });
+
+        assert.equal(closeWith.id, "pursue");
+        assert.equal(closeWith.actionId, "pursue");
+        assert.equal(closeWith.narrativeActionId, "closeWith");
+        assert.equal(closeWith.label, "Close With");
+        assert.equal(closeWith.targetId, "target-1");
+        assert.equal(evade.id, "avoid");
+        assert.equal(evade.actionId, "avoid");
+        assert.equal(evade.narrativeActionId, "evade");
+        assert.equal(evade.label, "Evade");
+    });
+
+    it("preserves movement origin and destination data for resolution actions", () => {
+        const actions = draftPlanToResolutionActions({
+            clauses: [
+                {
+                    actionId: "move",
+                    type: "movement",
+                    label: "Move",
+                    apCost: 2,
+                    movementFeetPerAp: 10,
+                    requiresMovementDestination: true,
+                    movementTargetX: 100,
+                    movementTargetY: 0
+                },
+                {
+                    actionId: "move",
+                    type: "movement",
+                    label: "Move",
+                    apCost: 1,
+                    movementFeetPerAp: 10,
+                    requiresMovementDestination: true,
+                    movementTargetX: 200,
+                    movementTargetY: 0
+                }
+            ]
+        }, {
+            apBudget: 6,
+            initialPosition: { x: 0, y: 0 }
+        });
+
+        assert.equal(actions[0].movementOriginX, 0);
+        assert.equal(actions[0].movementOriginY, 0);
+        assert.equal(actions[0].movementDestinationX, 100);
+        assert.equal(actions[0].movementDestinationY, 0);
+        assert.equal(actions[0].movementFeet, 20);
+        assert.equal(actions[1].movementOriginX, 100);
+        assert.equal(actions[1].movementOriginY, 0);
+        assert.equal(actions[1].movementDestinationX, 200);
+    });
+
+    it("keeps deliberate Wait and automatic Idle as separate resolution actions", () => {
+        const confirmed = confirmDraftPlan(normalizeDraftPlan({
+            clauses: [
+                { actionId: "wait", type: "utility", label: "Wait", apCost: 2, requiresDuration: true, durationAp: 2 }
+            ]
+        }, { apBudget: 6 }));
+
+        const actions = draftPlanToResolutionActions(confirmed, { apBudget: 6 });
+
+        assert.deepEqual(actions.map((action) => action.actionId), ["wait", "idle"]);
+        assert.equal(actions[0].durationAp, 2);
+        assert.equal(actions[0].automatic, false);
+        assert.equal(actions[1].apCost, 4);
+        assert.equal(actions[1].automatic, true);
     });
 });

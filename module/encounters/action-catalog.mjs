@@ -31,6 +31,7 @@ export const TOTC_ACTION_CATALOG = {
         autoResolve: false,
         interruptible: true,
         requiresTarget: false,
+        requiresMovementDestination: true,
         isReaction: false,
         reactionTriggerType: ""
     },
@@ -59,13 +60,15 @@ export const TOTC_ACTION_CATALOG = {
     },
 
     /**
-     * Pursue: movement that continuously follows a selected target combatant.
+     * Close With: movement that continuously closes on a selected target combatant.
      * Each AP increment re-evaluates the target's current position and advances
      * toward it.
+     *
+     * The id remains `pursue` for compatibility with the movement resolver.
      */
     pursue: {
         id: "pursue",
-        label: "Pursue",
+        label: "Close With",
         type: "movement",
         apCost: 1,
         apMin: 1,
@@ -115,7 +118,7 @@ export const TOTC_ACTION_CATALOG = {
      */
     avoid: {
         id: "avoid",
-        label: "Avoid",
+        label: "Evade",
         type: "movement",
         apCost: 1,
         apMin: 1,
@@ -130,6 +133,31 @@ export const TOTC_ACTION_CATALOG = {
         interruptible: true,
         requiresTarget: true,
         targetingRangeFeet: 10000,
+        isReaction: false,
+        reactionTriggerType: ""
+    },
+
+    /**
+     * Wait: intentionally spend AP doing nothing while remaining ready to let
+     * the round unfold. Kept distinct from automatic Idle so reconciliation can
+     * later treat deliberate waiting differently from unused AP.
+     */
+    wait: {
+        id: "wait",
+        label: "Wait",
+        type: "utility",
+        apCost: 1,
+        apMin: 1,
+        apMax: 6,
+        variableAp: true,
+        requiresToHit: false,
+        toHitBonus: 0,
+        completionPhaseIncrement: 0,
+        cpiPerFeet: 0,
+        autoResolve: true,
+        interruptible: true,
+        requiresTarget: false,
+        requiresDuration: true,
         isReaction: false,
         reactionTriggerType: ""
     },

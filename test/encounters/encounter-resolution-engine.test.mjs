@@ -264,6 +264,31 @@ describe("EncounterResolutionEngine.evaluateTick — combatant iteration", () =>
         assert.equal(perCombatant.c1.pointer, 0, "pointer not advanced yet");
     });
 
+    it("resolves deliberate Wait and automatic Idle as distinct no-op actions", async () => {
+        const combatant = makeCombatant({ id: "c1", name: "Mallory" });
+        const perCombatant = {
+            c1: {
+                remainingAp: 2,
+                spentAp: 0,
+                progress: 0,
+                pointer: 0,
+                plan: [
+                    makeAction({ id: "wait", actionId: "wait", type: "utility", label: "Wait", apCost: 1 }),
+                    makeAction({ id: "idle", actionId: "idle", type: "utility", label: "Idle", apCost: 1, automatic: true })
+                ]
+            }
+        };
+        const timeline = [];
+        const engine = makeEngine({ combatants: [combatant] });
+
+        await engine.evaluateTick({ tick: 1, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+        await engine.evaluateTick({ tick: 2, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
+
+        assert.deepEqual(timeline.map((entry) => entry.outcome.result), ["wait", "idle"]);
+        assert.equal(timeline[0].outcome.detail, "Mallory waits.");
+        assert.equal(timeline[1].outcome.detail, "Mallory remains idle.");
+    });
+
     it("produces 'reactionReady' while reaction action is in progress", async () => {
         const combatant = makeCombatant({ id: "c1" });
         const action = makeAction({ type: "attack", apCost: 2, isReaction: true });

@@ -819,6 +819,77 @@ describe("EncounterPlanningService draft plans", () => {
         assert.deepEqual(combatantState.plan[0].rollRequirements, [{ rollType: "attack", rollSubType: "toHit" }]);
     });
 
+    it("converts confirmed narrative clauses into resolution-compatible actions", async () => {
+        const { service, getState } = makeService({
+            initialState: makeState({
+                overrides: {
+                    perCombatant: {
+                        c1: {
+                            plan: [],
+                            draftPlan: {
+                                initialPosition: { x: 0, y: 0 },
+                                clauses: [
+                                    {
+                                        actionId: "closeWith",
+                                        type: "movement",
+                                        label: "Close With",
+                                        apCost: 2,
+                                        movementFeetPerAp: 10,
+                                        requiresTarget: true,
+                                        targetId: "c2",
+                                        targetName: "Horus"
+                                    },
+                                    {
+                                        actionId: "pistolAimedShot",
+                                        type: "attack",
+                                        label: "Aim and Fire",
+                                        apCost: 3,
+                                        itemId: "revolver",
+                                        itemName: "Service Revolver",
+                                        targetId: "c2",
+                                        targetName: "Horus",
+                                        requiresToHit: true,
+                                        requiresTarget: true,
+                                        recapFormat: "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+                                        tickNarrativeFragments: ["{{Owner.name}} raises {{Item.name}}."]
+                                    },
+                                    {
+                                        actionId: "wait",
+                                        type: "utility",
+                                        label: "Wait",
+                                        apCost: 1,
+                                        requiresDuration: true,
+                                        durationAp: 1
+                                    }
+                                ]
+                            },
+                            ready: false,
+                            committedAt: 0
+                        }
+                    }
+                }
+            })
+        });
+
+        await service.confirmCombatantDraftPlan("c1");
+
+        const [closeWith, attack, wait] = getState().perCombatant.c1.plan;
+        assert.equal(closeWith.id, "pursue");
+        assert.equal(closeWith.actionId, "pursue");
+        assert.equal(closeWith.narrativeActionId, "closeWith");
+        assert.equal(closeWith.label, "Close With");
+        assert.equal(closeWith.targetId, "c2");
+        assert.equal(closeWith.targetName, "Horus");
+        assert.equal(closeWith.movementFeet, 20);
+        assert.equal(attack.itemId, "revolver");
+        assert.equal(attack.itemName, "Service Revolver");
+        assert.equal(attack.targetName, "Horus");
+        assert.equal(attack.recapFormat, "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.");
+        assert.deepEqual(attack.tickNarrativeFragments, ["{{Owner.name}} raises {{Item.name}}."]);
+        assert.equal(wait.actionId, "wait");
+        assert.equal(wait.durationAp, 1);
+    });
+
     it("rejects edits after a draft has been confirmed and is awaiting rolls", async () => {
         const { service } = makeService({
             initialState: makeState({

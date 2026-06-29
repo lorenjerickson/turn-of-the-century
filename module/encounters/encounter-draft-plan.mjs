@@ -82,6 +82,34 @@ function movementDestination(clause = {}) {
     return { x, y };
 }
 
+function movementFeet(clause = {}) {
+    const explicit = optionalNumber(clause.movementFeet);
+    if (explicit !== null && explicit > 0) return explicit;
+    const feetPerAp = Math.max(0, toNumber(clause.movementFeetPerAp, 0));
+    const cost = Math.max(0, toNumber(clause.apCost, 0));
+    return feetPerAp * cost;
+}
+
+function normalizeResolutionActionId(actionId = "") {
+    const key = text(actionId).toLowerCase();
+    if (key === "closewith" || key === "close-with") return "pursue";
+    if (key === "evade") return "avoid";
+    return text(actionId);
+}
+
+function normalizeResolutionActionLabel(clause = {}, resolutionActionId = "") {
+    const key = text(clause.actionId).toLowerCase();
+    if (key === "closewith" || key === "close-with" || resolutionActionId === "pursue") {
+        return text(clause.label, "Close With");
+    }
+    if (key === "evade" || resolutionActionId === "avoid") {
+        return text(clause.label, "Evade");
+    }
+    if (resolutionActionId === "wait") return text(clause.label, "Wait");
+    if (resolutionActionId === "idle") return text(clause.label, "Idle");
+    return text(clause.label, resolutionActionId || "Action");
+}
+
 function buildMissingDecisions(clause = {}) {
     const missing = [];
     if (!clause.actionId) missing.push("action");
@@ -220,8 +248,8 @@ export function replaceDraftClause(draftPlan = {}, clauseIndex = 0, nextClause =
     });
 }
 
-export function confirmDraftPlan(draftPlan = {}, { includeIdle = true, cloneData = defaultClone } = {}) {
-    const normalized = normalizeDraftPlan(draftPlan, { cloneData });
+export function confirmDraftPlan(draftPlan = {}, { includeIdle = true, apBudget = 6, initialPosition = null, cloneData = defaultClone } = {}) {
+    const normalized = normalizeDraftPlan(draftPlan, { apBudget, initialPosition, cloneData });
     if (!normalized.complete) {
         throw new Error("Draft plan cannot be confirmed until all required decisions are complete and within AP budget.");
     }
@@ -248,4 +276,42 @@ export function confirmDraftPlan(draftPlan = {}, { includeIdle = true, cloneData
         initialPosition: normalized.initialPosition,
         cloneData
     });
+}
+
+export function draftClauseToResolutionAction(clause = {}, { index = 0, cloneData = defaultClone } = {}) {
+    const normalized = normalizeDraftClause(clause, { index, cloneData });
+    const resolutionActionId = normalizeResolutionActionId(normalized.actionId);
+    const projectedOrigin = normalizePosition(normalized.projectedOrigin);
+    const projectedDestination = movementDestination(normalized);
+    const source = cloneValue(normalized, cloneData);
+
+    return {
+        ...source,
+        id: resolutionActionId,
+        actionId: resolutionActionId,
+        narrativeActionId: normalized.actionId,
+        label: normalizeResolutionActionLabel(normalized, resolutionActionId),
+        apCost: Math.max(1, toNumber(normalized.apCost, toNumber(normalized.durationAp, 1))),
+        apMin: Math.max(1, toNumber(normalized.apMin, toNumber(normalized.apCost, 1))),
+        apMax: Math.max(1, toNumber(normalized.apMax, toNumber(normalized.apCost, 1))),
+        automatic: Boolean(normalized.automatic),
+        durationAp: optionalNumber(normalized.durationAp),
+        itemId: text(normalized.itemId, ""),
+        targetId: text(normalized.targetId, ""),
+        targetName: text(normalized.targetName, ""),
+        movementFeet: movementFeet(normalized),
+        movementTargetX: optionalNumber(normalized.movementTargetX) ?? 0,
+        movementTargetY: optionalNumber(normalized.movementTargetY) ?? 0,
+        movementTargetRow: optionalNumber(normalized.movementTargetRow) ?? 0,
+        movementTargetCol: optionalNumber(normalized.movementTargetCol) ?? 0,
+        movementOriginX: optionalNumber(normalized.movementOriginX) ?? projectedOrigin?.x ?? null,
+        movementOriginY: optionalNumber(normalized.movementOriginY) ?? projectedOrigin?.y ?? null,
+        movementDestinationX: projectedDestination?.x ?? null,
+        movementDestinationY: projectedDestination?.y ?? null
+    };
+}
+
+export function draftPlanToResolutionActions(draftPlan = {}, { apBudget = 6, initialPosition = null, cloneData = defaultClone } = {}) {
+    const normalized = normalizeDraftPlan(draftPlan, { apBudget, initialPosition, cloneData });
+    return normalized.clauses.map((clause, index) => draftClauseToResolutionAction(clause, { index, cloneData }));
 }

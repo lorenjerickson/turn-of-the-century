@@ -116,12 +116,14 @@ export function buildLegacyOrderSummary(action = {}, { targetName = "", itemName
     const item = itemPhrase(itemName, label);
 
     if (actionType === "movement") {
-        if (actionId === "pursue") return `Spend up to ${pluralAp(apCost)} pursuing ${target}.`;
+        if (actionId === "pursue" || actionId === "closewith" || actionId === "close-with") return `Spend up to ${pluralAp(apCost)} closing with ${target}.`;
         if (actionId === "follow") return `Spend up to ${pluralAp(apCost)} following ${target}.`;
-        if (actionId === "avoid") return `Spend up to ${pluralAp(apCost)} avoiding ${target}.`;
-        if (actionId === "evade") return `Spend up to ${pluralAp(apCost)} evading ${target}.`;
+        if (actionId === "avoid" || actionId === "evade") return `Spend up to ${pluralAp(apCost)} evading ${target}.`;
         return `Spend ${pluralAp(apCost)} moving toward the selected location.`;
     }
+
+    if (actionId === "wait") return `Spend ${pluralAp(apCost)} waiting.`;
+    if (actionId === "idle") return `Spend ${pluralAp(apCost)} idling.`;
 
     if (actionType === "attack" || action.requiresToHit) {
         return `Spend ${pluralAp(apCost)} to attack ${target} with ${item}.`;

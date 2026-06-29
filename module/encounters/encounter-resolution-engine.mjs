@@ -1034,6 +1034,16 @@ export class EncounterResolutionEngine {
             };
         }
 
+        const actionId = String(action.id ?? action.actionId ?? "").trim().toLowerCase();
+        if (actionId === "wait" || actionId === "idle") {
+            return {
+                result: actionId,
+                detail: actionId === "wait"
+                    ? `${combatant.name} waits.`
+                    : `${combatant.name} remains idle.`
+            };
+        }
+
         if (item) {
             const useResult = await this.#checkItemAction(item, actor, action.actionId);
             if (useResult && !useResult.success) {

@@ -31,7 +31,7 @@ import { evaluateRequirements } from "./action-template.mjs";
  */
 export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = 10 } = {}) {
     const actionCatalog = getBaseActionCatalog();
-    const baseOrder = ["move", "open", "pursue", "follow", "avoid", "hunkDown", "dodge", "overwatch"];
+    const baseOrder = ["move", "open", "pursue", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"];
 
     return baseOrder
         .map((id) => actionCatalog[id])
@@ -59,6 +59,8 @@ export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = 10 } =
                 movementFeet: movePerAp,
                 requiresToHit: Boolean(variant.requiresToHit),
                 requiresTarget: Boolean(variant.requiresTarget),
+                requiresDuration: Boolean(variant.requiresDuration),
+                requiresMovementDestination: Boolean(variant.requiresMovementDestination),
                 toHitBonus: Number(variant.toHitBonus ?? 0),
                 recapFormat: String(variant.recapFormat ?? ""),
                 tickNarrativeFragments: Array.isArray(variant.tickNarrativeFragments)
@@ -110,6 +112,8 @@ export function getEnabledActionsForItem(item) {
             movementFeet: 0,
             requiresToHit: Boolean(variant.requiresToHit),
             requiresTarget: Boolean(variant.requiresTarget),
+            requiresDuration: Boolean(variant.requiresDuration),
+            requiresMovementDestination: Boolean(variant.requiresMovementDestination),
             toHitBonus: Number(variant.toHitBonus ?? 0),
             recapFormat: String(variant.recapFormat ?? ""),
             tickNarrativeFragments: Array.isArray(variant.tickNarrativeFragments)

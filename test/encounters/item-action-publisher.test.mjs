@@ -130,24 +130,35 @@ function emptyRevolver() {
 // ---------------------------------------------------------------------------
 
 describe("buildUniversalActions", () => {
-    it("returns move, open, hunker down, dodge, and overwatch actions", () => {
+    it("returns the narrative universal action set", () => {
         const actions = buildUniversalActions();
-        const ids = actions.map((a) => a.id);
-        assert.ok(ids.includes("move"),   "missing move");
-        assert.ok(ids.includes("open"), "missing open");
-        assert.ok(ids.includes("hunkDown"), "missing hunkDown");
-        assert.ok(ids.includes("dodge"), "missing dodge");
-        assert.ok(ids.includes("overwatch"), "missing overwatch");
+        assert.deepEqual(
+            actions.map((action) => [action.id, action.label]),
+            [
+                ["move", "Move"],
+                ["open", "Open"],
+                ["pursue", "Close With"],
+                ["follow", "Follow"],
+                ["avoid", "Evade"],
+                ["wait", "Wait"],
+                ["hunkDown", "Hunker Down"],
+                ["dodge", "Dodge"],
+                ["overwatch", "Overwatch"]
+            ]
+        );
     });
 
     it("keeps Open fixed at 1 AP while duration-based actions remain variable", () => {
         const actions = buildUniversalActions();
         const open = actions.find((action) => action.id === "open");
+        const wait = actions.find((action) => action.id === "wait");
         assert.equal(open.apCost, 1);
         assert.equal(open.apMin, 1);
         assert.equal(open.apMax, 1);
         assert.equal(open.variableAp, false);
         assert.equal(actions.find((action) => action.id === "move").variableAp, true);
+        assert.equal(wait.variableAp, true);
+        assert.equal(wait.requiresDuration, true);
     });
 
     it("apMax is bounded by the supplied apBudget", () => {
