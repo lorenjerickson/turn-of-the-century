@@ -533,6 +533,38 @@ Acceptance criteria:
 - Movement and attack interactions resolve using the same stored target and destination data created during composition.
 - Round summaries accurately reflect whether attacks happened, missed, hit, were interrupted, or dealt damage.
 
+### Phase 7a - Plannable Action Tick Fragment Distillation
+
+Distil round tick summary fragments for every existing plannable item action and universal action so GM tick narration has complete coverage across the currently available action set.
+
+Required capabilities:
+
+- Inventory all actions that can appear in the player encounter planner, including universal actions and item-backed actions from existing content.
+- Determine the number of tick fragments needed from each action's AP cost or AP span.
+- Add concise tick fragments for each AP of each plannable action.
+- Keep fragments compatible with the same template variables used by order recap text, such as `{{Owner.name}}`, `{{Item.name}}`, `{{Target.name}}`, and tick/progress values where useful.
+- Ensure fragments read cleanly when combined with other combatants' fragments in the GM Encounter Manager tick summary.
+- Preserve action-specific tone without making the fragments so ornate that repeated ticks become noisy.
+
+Implementation notes:
+
+- A fixed 1 AP action needs one fragment.
+- A fixed 2 AP action needs two fragments.
+- A fixed 3 AP action needs three fragments.
+- Variable-duration actions should provide a small repeatable sequence or generic fallback that remains sensible for any selected duration.
+- Item-backed fragments should live on the item action variant when the item has a distinct physical or fictional procedure.
+- Universal action fragments should live on the action definition or fallback narrative rules.
+- Distillation should favor short, observable beats: raises, aims, braces, moves, waits, opens, reloads, strikes, fires, drinks, applies, steadies, recovers.
+- If an action's final AP also produces a mechanical resolution outcome, the fragment should not obscure the hit, miss, interruption, movement, or damage summary.
+
+Acceptance criteria:
+
+- Every currently plannable action has item-specific fragments, action-specific fragments, or an intentional documented generic fallback.
+- Fragment counts match fixed AP costs for fixed-cost actions.
+- Variable-duration actions have fragments that remain readable at minimum and maximum supported durations.
+- GM tick summaries for representative attacks, movement, waits, defensive actions, consumables, and utility actions include useful fictional beats.
+- Tests or content audits cover fragment completeness for existing plannable actions.
+
 ### Phase 8 - Tests and Cleanup
 
 Add focused tests around the new narrative planning behavior and remove obsolete planner UI paths.
