@@ -556,6 +556,7 @@ Implementation notes:
 - Universal action fragments should live on the action definition or fallback narrative rules.
 - Distillation should favor short, observable beats: raises, aims, braces, moves, waits, opens, reloads, strikes, fires, drinks, applies, steadies, recovers.
 - If an action's final AP also produces a mechanical resolution outcome, the fragment should not obscure the hit, miss, interruption, movement, or damage summary.
+- Include a migration script to update items and actions in an existing world.
 
 Acceptance criteria:
 

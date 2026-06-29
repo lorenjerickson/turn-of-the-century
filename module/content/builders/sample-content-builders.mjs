@@ -1,3 +1,5 @@
+import { tickFragmentsForItemAction } from "../action-tick-fragments.mjs";
+
 export const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha", "san"];
 export const SKILL_ABILITY_MAP = {
     acrobatics: "dex",
@@ -198,6 +200,7 @@ export function createUnlockAction(recapFormat = "{{Owner.name}} uses {{Item.nam
         requiresToHit: false,
         toHitBonus: 0,
         recapFormat,
+        tickNarrativeFragments: tickFragmentsForItemAction("", "unlock"),
         notes: html("Unlock an adjacent locked door, chest, hatch, or similar mechanism.")
     };
 }
@@ -211,6 +214,7 @@ export function createUseItemAction() {
         requiresToHit: false,
         toHitBonus: 0,
         recapFormat: "{{Owner.name}} uses {{Item.name}}.",
+        tickNarrativeFragments: tickFragmentsForItemAction("", "useItem"),
         notes: ""
     };
 }
@@ -246,6 +250,7 @@ export function createBaseItemLikeSystem() {
                     requiresToHit: false,
                     toHitBonus: 0,
                     recapFormat: "{{Owner.name}} uses {{Item.name}}.",
+                    tickNarrativeFragments: tickFragmentsForItemAction("", "useItem"),
                     notes: ""
                 }
             ]

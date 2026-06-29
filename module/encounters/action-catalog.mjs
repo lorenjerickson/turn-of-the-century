@@ -32,6 +32,9 @@ export const TOTC_ACTION_CATALOG = {
         interruptible: true,
         requiresTarget: false,
         requiresMovementDestination: true,
+        tickNarrativeFragments: [
+            "{{Owner.name}} moves."
+        ],
         isReaction: false,
         reactionTriggerType: ""
     },
@@ -55,6 +58,9 @@ export const TOTC_ACTION_CATALOG = {
         autoResolve: false,
         interruptible: true,
         requiresTarget: false,
+        tickNarrativeFragments: [
+            "{{Owner.name}} opens the way."
+        ],
         isReaction: false,
         reactionTriggerType: ""
     },
@@ -83,6 +89,9 @@ export const TOTC_ACTION_CATALOG = {
         interruptible: true,
         requiresTarget: true,
         targetingRangeFeet: 10000,
+        tickNarrativeFragments: [
+            "{{Owner.name}} closes with {{Target.name}}."
+        ],
         isReaction: false,
         reactionTriggerType: ""
     },
@@ -108,6 +117,9 @@ export const TOTC_ACTION_CATALOG = {
         interruptible: true,
         requiresTarget: true,
         targetingRangeFeet: 10000,
+        tickNarrativeFragments: [
+            "{{Owner.name}} keeps pace with {{Target.name}}."
+        ],
         isReaction: false,
         reactionTriggerType: ""
     },
@@ -133,6 +145,9 @@ export const TOTC_ACTION_CATALOG = {
         interruptible: true,
         requiresTarget: true,
         targetingRangeFeet: 10000,
+        tickNarrativeFragments: [
+            "{{Owner.name}} evades {{Target.name}}."
+        ],
         isReaction: false,
         reactionTriggerType: ""
     },
@@ -158,6 +173,9 @@ export const TOTC_ACTION_CATALOG = {
         interruptible: true,
         requiresTarget: false,
         requiresDuration: true,
+        tickNarrativeFragments: [
+            "{{Owner.name}} waits."
+        ],
         isReaction: false,
         reactionTriggerType: ""
     },
@@ -185,6 +203,9 @@ export const TOTC_ACTION_CATALOG = {
         requiresTarget: false,
         isReaction: false,
         reactionTriggerType: "",
+        tickNarrativeFragments: [
+            "{{Owner.name}} hunkers down."
+        ],
         // To-hit penalty applied to ranged attackers whose shot lands during this window
         rangedToHitPenalty: -3
     },
@@ -212,7 +233,10 @@ export const TOTC_ACTION_CATALOG = {
         interruptible: false,
         requiresTarget: false,
         isReaction: true,
-        reactionTriggerType: "incomingAttack"
+        reactionTriggerType: "incomingAttack",
+        tickNarrativeFragments: [
+            "{{Owner.name}} stays light on their feet."
+        ]
     },
 
     /**
@@ -239,6 +263,9 @@ export const TOTC_ACTION_CATALOG = {
         requiresTarget: false,
         isReaction: true,
         reactionTriggerType: "overwatch",
+        tickNarrativeFragments: [
+            "{{Owner.name}} watches for an opening."
+        ],
         // Applied when the overwatch trigger fires at melee range
         meleeRangeToHitPenalty: -2
     }

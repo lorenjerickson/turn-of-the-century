@@ -1,4 +1,5 @@
 import { ABILITY_MINIMUMS_NONE, createArtwork, createUnlockAction, createUseItemAction, html } from "./builders/sample-content-builders.mjs";
+import { tickFragmentsForItemAction } from "./action-tick-fragments.mjs";
 
 export const WEAPON_CONFIGS = [
     {
@@ -21,6 +22,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: -2,
                         recapFormat: "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Service Revolver", "pistolQuickShot"),
                         notes: "Fast draw and fire with reduced accuracy."
                     },
                     {
@@ -31,11 +33,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} carefully sights {{Target.name}} with {{Item.name}} and {{action.hitResult}}.",
-                        tickNarrativeFragments: [
-                            "{{Owner.name}} raises {{Item.name}}.",
-                            "{{Owner.name}} sights {{Target.name}}.",
-                            "{{Owner.name}} fires."
-                        ],
+                        tickNarrativeFragments: tickFragmentsForItemAction("Service Revolver", "pistolAimedShot"),
                         notes: "Deliberate shot with full accuracy."
                     }
                 ]
@@ -69,6 +67,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} strikes with {{Item.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Trench Truncheon", "weaponAttack"),
                         notes: "Close-range restraint blow."
                     }
                 ]
@@ -99,6 +98,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Ratcatcher Carbine", "weaponAttack"),
                         notes: "Controlled longarm shot."
                     }
                 ]
@@ -132,6 +132,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} slips {{Item.name}} into the opening and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Clockmaker's Stiletto", "weaponAttack"),
                         notes: "Precise close-quarters cut."
                     }
                 ]
@@ -160,6 +161,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} thrusts {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Ashwood Hunting Spear", "weaponAttack"),
                         notes: "Measured spear thrust."
                     }
                 ]
@@ -191,6 +193,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} jabs with {{Item.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Galvanic Prod", "weaponAttack"),
                         notes: "Unstable electrical strike."
                     }
                 ]
@@ -224,6 +227,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} hacks with {{Item.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Factory Cleaver", "weaponAttack"),
                         notes: "Rough industrial swing."
                     }
                 ]
@@ -252,6 +256,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} throws {{Item.name}} toward {{Target.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Signal Flare Bomb", "weaponAttack"),
                         notes: "Thrown pyrotechnic burst."
                     }
                 ]
@@ -279,6 +284,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} swings {{Item.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Foundry Hammer", "weaponAttack"),
                         notes: "Heavy hammer blow."
                     }
                 ]
@@ -306,6 +312,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} blasts {{Target.name}} with {{Item.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Streetline Shotgun", "weaponAttack"),
                         notes: "Close-range scatter shot."
                     }
                 ]
@@ -334,6 +341,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} drives {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Dock Hook Pike", "weaponAttack"),
                         notes: "Hooked polearm strike."
                     }
                 ]
@@ -360,6 +368,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} snaps off a shot with {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Clockwork Derringer", "weaponAttack"),
                         notes: "Very short-range concealed shot."
                     }
                 ]
@@ -388,6 +397,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} tightens {{Item.name}} on {{Target.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Wire Garrote", "weaponAttack"),
                         notes: "Silent close-quarters attack."
                     }
                 ]
@@ -416,6 +426,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: -1,
                         recapFormat: "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Signal Flare Pistol", "flareShot"),
                         notes: "Single discharge; imposes Blinded on target if fired within 10 feet."
                     }
                 ]
@@ -446,6 +457,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 1,
                         recapFormat: "{{Owner.name}} strikes carefully with {{Item.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Surgeon's Lancet", "precisionStrike"),
                         notes: "Advantage on attacks against unaware or restrained targets."
                     }
                 ]
@@ -475,6 +487,7 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} brings down {{Item.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Rivet Hammer", "weaponAttack"),
                         notes: "Brutal hammer strike."
                     }
                 ]

@@ -11,8 +11,8 @@ before(() => {
 });
 
 describe("runTotcMigrations", () => {
-    it("exports TOTC_WORLD_SCHEMA_VERSION as 18", () => {
-        assert.equal(TOTC_WORLD_SCHEMA_VERSION, 18);
+    it("exports TOTC_WORLD_SCHEMA_VERSION as 19", () => {
+        assert.equal(TOTC_WORLD_SCHEMA_VERSION, 19);
     });
 
     it("throws when seedMissingActors is not a function", async () => {
@@ -29,6 +29,7 @@ describe("runTotcMigrations", () => {
                 migrateActionRecapFormats: noop,
                 migrateItemIcons: noop,
                 migrateUnlockActions: noop,
+                migrateActionTickFragments: noop,
                 migrateStarterCompendiums: noop,
                 seedMissingActors: undefined,
                 migrateStarterActorAvatars: noop,
@@ -52,6 +53,7 @@ describe("runTotcMigrations", () => {
                 migrateActionRecapFormats: noop,
                 migrateItemIcons: noop,
                 migrateUnlockActions: noop,
+                migrateActionTickFragments: noop,
                 migrateStarterCompendiums: noop,
                 seedMissingActors: noop,
                 migrateStarterActorAvatars: undefined,
@@ -75,12 +77,37 @@ describe("runTotcMigrations", () => {
                 migrateActionRecapFormats: noop,
                 migrateItemIcons: noop,
                 migrateUnlockActions: noop,
+                migrateActionTickFragments: noop,
                 migrateStarterCompendiums: noop,
                 seedMissingActors: noop,
                 migrateStarterActorAvatars: noop,
                 migrateStarterActorTokenArt: undefined
             }),
             /migrateStarterActorTokenArt/
+        );
+    });
+
+    it("throws when migrateActionTickFragments is not a function", async () => {
+        const noop = async () => ({});
+        await assert.rejects(
+            () => runTotcMigrations({
+                currentVersion: 100,
+                migrateActorProfiles: noop,
+                migrateActorProfessions: noop,
+                migrateActorEconomy: noop,
+                migrateEquipmentSlots: noop,
+                migrateEncounterActions: noop,
+                migrateModifiers: noop,
+                migrateActionRecapFormats: noop,
+                migrateItemIcons: noop,
+                migrateUnlockActions: noop,
+                migrateActionTickFragments: undefined,
+                migrateStarterCompendiums: noop,
+                seedMissingActors: noop,
+                migrateStarterActorAvatars: noop,
+                migrateStarterActorTokenArt: noop
+            }),
+            /migrateActionTickFragments/
         );
     });
 
@@ -92,6 +119,7 @@ describe("runTotcMigrations", () => {
         let unlockActionsCalled = false;
         let tokenArtCalled = false;
         let handArmorCalled = false;
+        let tickFragmentsCalled = false;
         const noop = async () => ({});
         const seedMissingActors = async () => {
             seedCalled = true;
@@ -121,6 +149,10 @@ describe("runTotcMigrations", () => {
             handArmorCalled = true;
             return { actorsUpdated: 2, itemsUpdated: 1 };
         };
+        const migrateActionTickFragments = async () => {
+            tickFragmentsCalled = true;
+            return { itemsScanned: 9, itemsUpdated: 6, changedDocuments: [] };
+        };
 
         const result = await runTotcMigrations({
             currentVersion: 11,
@@ -133,6 +165,7 @@ describe("runTotcMigrations", () => {
             migrateActionRecapFormats,
             migrateItemIcons,
             migrateUnlockActions,
+            migrateActionTickFragments,
             migrateStarterCompendiums: noop,
             seedMissingActors,
             migrateStarterActorAvatars,
@@ -147,7 +180,8 @@ describe("runTotcMigrations", () => {
         assert.equal(unlockActionsCalled, true);
         assert.equal(tokenArtCalled, true);
         assert.equal(handArmorCalled, true);
-        assert.equal(result.toVersion, 18);
+        assert.equal(tickFragmentsCalled, true);
+        assert.equal(result.toVersion, 19);
         const step = result.applied.find((s) => s.key === "seed-missing-actors");
         assert.ok(step, "seed-missing-actors step should be present");
         assert.equal(step.version, 12);
@@ -176,14 +210,23 @@ describe("runTotcMigrations", () => {
         assert.ok(handArmorStep, "hand-armor-equipment-slot step should be present");
         assert.equal(handArmorStep.version, 18);
         assert.equal(handArmorStep.report.actorsUpdated, 2);
+        const tickFragmentStep = result.applied.find((s) => s.key === "action-tick-fragments");
+        assert.ok(tickFragmentStep, "action-tick-fragments step should be present");
+        assert.equal(tickFragmentStep.version, 19);
+        assert.equal(tickFragmentStep.report.itemsUpdated, 6);
     });
 
-    it("runs v18 hand-armor split when currentVersion is 17", async () => {
+    it("runs v18 hand-armor split and v19 tick fragments when currentVersion is 17", async () => {
         let handArmorCalled = false;
+        let tickFragmentsCalled = false;
         const noop = async () => ({});
         const migrateEquipmentSlots = async () => {
             handArmorCalled = true;
             return { actorsUpdated: 1, itemsUpdated: 2 };
+        };
+        const migrateActionTickFragments = async () => {
+            tickFragmentsCalled = true;
+            return { itemsScanned: 3, itemsUpdated: 3, changedDocuments: [] };
         };
 
         const result = await runTotcMigrations({
@@ -197,6 +240,7 @@ describe("runTotcMigrations", () => {
             migrateActionRecapFormats: noop,
             migrateItemIcons: noop,
             migrateUnlockActions: noop,
+            migrateActionTickFragments,
             migrateStarterCompendiums: noop,
             seedMissingActors: noop,
             migrateStarterActorAvatars: noop,
@@ -205,11 +249,44 @@ describe("runTotcMigrations", () => {
         });
 
         assert.equal(handArmorCalled, true);
-        assert.equal(result.toVersion, 18);
-        assert.deepEqual(result.applied.map((step) => step.key), ["hand-armor-equipment-slot"]);
+        assert.equal(tickFragmentsCalled, true);
+        assert.equal(result.toVersion, 19);
+        assert.deepEqual(result.applied.map((step) => step.key), ["hand-armor-equipment-slot", "action-tick-fragments"]);
     });
 
-    it("skips v12 through v18 when currentVersion is already 18", async () => {
+    it("runs only v19 tick fragments when currentVersion is 18", async () => {
+        let tickFragmentsCalled = false;
+        const noop = async () => ({});
+        const migrateActionTickFragments = async () => {
+            tickFragmentsCalled = true;
+            return { itemsScanned: 3, itemsUpdated: 2, changedDocuments: [] };
+        };
+
+        const result = await runTotcMigrations({
+            currentVersion: 18,
+            migrateActorProfiles: noop,
+            migrateActorProfessions: noop,
+            migrateActorEconomy: noop,
+            migrateEquipmentSlots: noop,
+            migrateEncounterActions: noop,
+            migrateModifiers: noop,
+            migrateActionRecapFormats: noop,
+            migrateItemIcons: noop,
+            migrateUnlockActions: noop,
+            migrateActionTickFragments,
+            migrateStarterCompendiums: noop,
+            seedMissingActors: noop,
+            migrateStarterActorAvatars: noop,
+            migrateStarterActorTokenArt: noop,
+            notify: false
+        });
+
+        assert.equal(tickFragmentsCalled, true);
+        assert.equal(result.toVersion, 19);
+        assert.deepEqual(result.applied.map((step) => step.key), ["action-tick-fragments"]);
+    });
+
+    it("skips v12 through v19 when currentVersion is already 19", async () => {
         let seedCalled = false;
         let avatarsCalled = false;
         let recapCalled = false;
@@ -217,6 +294,7 @@ describe("runTotcMigrations", () => {
         let unlockActionsCalled = false;
         let tokenArtCalled = false;
         let handArmorCalled = false;
+        let tickFragmentsCalled = false;
         const noop = async () => ({});
         const seedMissingActors = async () => { seedCalled = true; return {}; };
         const migrateActionRecapFormats = async () => { recapCalled = true; return {}; };
@@ -225,9 +303,10 @@ describe("runTotcMigrations", () => {
         const migrateUnlockActions = async () => { unlockActionsCalled = true; return {}; };
         const migrateStarterActorTokenArt = async () => { tokenArtCalled = true; return {}; };
         const migrateEquipmentSlots = async () => { handArmorCalled = true; return {}; };
+        const migrateActionTickFragments = async () => { tickFragmentsCalled = true; return {}; };
 
         const result = await runTotcMigrations({
-            currentVersion: 18,
+            currentVersion: 19,
             migrateActorProfiles: noop,
             migrateActorProfessions: noop,
             migrateActorEconomy: noop,
@@ -237,6 +316,7 @@ describe("runTotcMigrations", () => {
             migrateActionRecapFormats,
             migrateItemIcons,
             migrateUnlockActions,
+            migrateActionTickFragments,
             migrateStarterCompendiums: noop,
             seedMissingActors,
             migrateStarterActorAvatars,
@@ -251,6 +331,7 @@ describe("runTotcMigrations", () => {
         assert.equal(unlockActionsCalled, false);
         assert.equal(tokenArtCalled, false);
         assert.equal(handArmorCalled, false);
+        assert.equal(tickFragmentsCalled, false);
         assert.equal(result.applied.length, 0);
     });
 });

@@ -5,6 +5,7 @@ export * from "./migrations/encounter-actions.mjs";
 export * from "./migrations/equipment-slots.mjs";
 export * from "./migrations/modifiers.mjs";
 export * from "./migrations/action-recap-formats.mjs";
+export * from "./migrations/action-tick-fragments.mjs";
 export * from "./migrations/item-icons.mjs";
 export * from "./migrations/unlock-actions.mjs";
 export * from "./migrations/starter-compendiums.mjs";

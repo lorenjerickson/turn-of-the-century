@@ -1,4 +1,5 @@
 import { ABILITY_MINIMUMS_NONE, createArtwork, createUnlockAction, createUseItemAction, html } from "./builders/sample-content-builders.mjs";
+import { tickFragmentsForItemAction } from "./action-tick-fragments.mjs";
 
 export const CONSUMABLE_CONFIGS = [
     {
@@ -166,6 +167,7 @@ export const CONSUMABLE_CONFIGS = [
                         requiresToHit: false,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} drinks {{Item.name}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Aetheric Elixir", "consumeBeltElixir"),
                         notes: "Retrieve from belt and consume under pressure."
                     }
                 ]
@@ -282,6 +284,7 @@ export const CONSUMABLE_CONFIGS = [
                         requiresToHit: false,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} uses {{Item.name}}.",
+                        tickNarrativeFragments: tickFragmentsForItemAction("Acid-Wash Solution", "consumeItem"),
                         notes: ""
                     },
                     createUnlockAction("{{Owner.name}} applies {{Item.name}} and frees the lock.")
