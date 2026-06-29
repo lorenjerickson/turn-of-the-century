@@ -276,6 +276,114 @@ describe("EncounterNarrator.describeEntry — recapFormat", () => {
 });
 
 // ---------------------------------------------------------------------------
+// describeEntry — tick narrative fragments
+// ---------------------------------------------------------------------------
+
+describe("EncounterNarrator.describeEntry — tick narrative fragments", () => {
+    it("uses item variant tick fragments for in-progress multi-AP actions", () => {
+        const rifle = {
+            id: "rifle",
+            name: "the galvanic rifle",
+            system: {
+                actions: {
+                    variants: [{
+                        id: "fire",
+                        tickNarrativeFragments: [
+                            "{{Owner.name}} raises {{Item.name}} to her cheek",
+                            "{{Owner.name}} takes careful aim at {{Target.name}}",
+                            "{{Owner.name}} fires"
+                        ]
+                    }]
+                }
+            }
+        };
+        const narrator = makeNarrator([
+            makeCombatant("mallory", "Mallory", [rifle]),
+            makeCombatant("horus", "Horus")
+        ]);
+        const entry = makeEntry({
+            combatantId: "mallory",
+            combatantName: "Mallory",
+            action: {
+                id: "rifle:fire",
+                actionId: "fire",
+                type: "attack",
+                itemId: "rifle",
+                targetId: "horus",
+                apCost: 3,
+                _effectProgress: 2
+            },
+            outcome: { result: "progress" }
+        });
+
+        assert.equal(narrator.describeEntry(entry), "Mallory takes careful aim at Horus.");
+    });
+
+    it("falls back to action tick fragments when the item variant has none", () => {
+        const narrator = makeNarrator([
+            makeCombatant("mallory", "Mallory"),
+            makeCombatant("horus", "Horus")
+        ]);
+        const entry = makeEntry({
+            combatantId: "mallory",
+            combatantName: "Mallory",
+            action: {
+                type: "attack",
+                label: "Careful Shot",
+                targetId: "horus",
+                apCost: 2,
+                _runtimeProgress: 1,
+                tickNarrativeFragments: ["{{Owner.name}} steadies her aim at {{Target.name}}"]
+            },
+            outcome: { result: "progress" }
+        });
+
+        assert.equal(narrator.describeEntry(entry), "Mallory steadies her aim at Horus.");
+    });
+
+    it("uses a generic attack progress fragment when no flavor is configured", () => {
+        const narrator = makeNarrator([
+            makeCombatant("mallory", "Mallory"),
+            makeCombatant("horus", "Horus")
+        ]);
+        const entry = makeEntry({
+            combatantId: "mallory",
+            combatantName: "Mallory",
+            action: {
+                type: "attack",
+                label: "Galvanic Rifle",
+                targetId: "horus",
+                apCost: 2,
+                _runtimeProgress: 1
+            },
+            outcome: { result: "progress" }
+        });
+
+        assert.equal(narrator.describeEntry(entry), "Mallory readies Galvanic Rifle.");
+    });
+
+    it("preserves final mechanical attack summaries even when tick fragments exist", () => {
+        const narrator = makeNarrator([
+            makeCombatant("mallory", "Mallory"),
+            makeCombatant("horus", "Horus")
+        ]);
+        const entry = makeEntry({
+            combatantId: "mallory",
+            combatantName: "Mallory",
+            action: {
+                type: "attack",
+                label: "Galvanic Rifle",
+                targetId: "horus",
+                tickNarrativeFragments: ["{{Owner.name}} raises the rifle"]
+            },
+            outcome: { result: "hit" }
+        });
+
+        assert.equal(narrator.describeEntry(entry), "Mallory fires Galvanic Rifle at Horus and hits.");
+    });
+});
+
+// ---------------------------------------------------------------------------
 // describeEntry — fallback
 // ---------------------------------------------------------------------------
 

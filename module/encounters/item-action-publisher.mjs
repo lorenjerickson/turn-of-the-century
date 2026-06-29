@@ -61,6 +61,9 @@ export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = 10 } =
                 requiresTarget: Boolean(variant.requiresTarget),
                 toHitBonus: Number(variant.toHitBonus ?? 0),
                 recapFormat: String(variant.recapFormat ?? ""),
+                tickNarrativeFragments: Array.isArray(variant.tickNarrativeFragments)
+                    ? variant.tickNarrativeFragments.map((fragment) => String(fragment ?? ""))
+                    : [],
                 targetingRangeFeet: Number(variant.targetingRangeFeet ?? 0),
                 autoResolve: Boolean(variant.autoResolve),
                 interruptible: Boolean(variant.interruptible ?? true),
@@ -109,6 +112,9 @@ export function getEnabledActionsForItem(item) {
             requiresTarget: Boolean(variant.requiresTarget),
             toHitBonus: Number(variant.toHitBonus ?? 0),
             recapFormat: String(variant.recapFormat ?? ""),
+            tickNarrativeFragments: Array.isArray(variant.tickNarrativeFragments)
+                ? variant.tickNarrativeFragments.map((fragment) => String(fragment ?? ""))
+                : [],
             targetingRangeFeet: Number(variant.targetingRangeFeet ?? 0),
             autoResolve: Boolean(variant.autoResolve),
             interruptible: Boolean(variant.interruptible ?? true),

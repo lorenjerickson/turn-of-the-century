@@ -277,6 +277,31 @@ describe("getEnabledActionsForItem", () => {
         });
         assert.equal(getEnabledActionsForItem(item)[0].itemId, "item-99");
     });
+
+    it("copies tick narrative fragments from the item action variant", () => {
+        const item = mockWeaponItem({
+            variants: [{
+                id: "aimedShot",
+                type: "attack",
+                label: "Aimed Shot",
+                apCost: 3,
+                requiresToHit: true,
+                toHitBonus: 0,
+                requirements: [],
+                tickNarrativeFragments: [
+                    "{{Owner.name}} raises {{Item.name}}.",
+                    "{{Owner.name}} sights {{Target.name}}.",
+                    "{{Owner.name}} fires."
+                ]
+            }]
+        });
+
+        assert.deepEqual(getEnabledActionsForItem(item)[0].tickNarrativeFragments, [
+            "{{Owner.name}} raises {{Item.name}}.",
+            "{{Owner.name}} sights {{Target.name}}.",
+            "{{Owner.name}} fires."
+        ]);
+    });
 });
 
 // ---------------------------------------------------------------------------

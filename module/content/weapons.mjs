@@ -31,6 +31,11 @@ export const WEAPON_CONFIGS = [
                         requiresToHit: true,
                         toHitBonus: 0,
                         recapFormat: "{{Owner.name}} carefully sights {{Target.name}} with {{Item.name}} and {{action.hitResult}}.",
+                        tickNarrativeFragments: [
+                            "{{Owner.name}} raises {{Item.name}}.",
+                            "{{Owner.name}} sights {{Target.name}}.",
+                            "{{Owner.name}} fires."
+                        ],
                         notes: "Deliberate shot with full accuracy."
                     }
                 ]

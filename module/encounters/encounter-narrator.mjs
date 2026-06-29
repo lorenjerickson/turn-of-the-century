@@ -37,6 +37,32 @@ function resolveDeclaredTarget(combatants, sourceCombatantId, targetCombatantId)
     return candidates[0] ?? null;
 }
 
+function normalizeFragmentCollection(value) {
+    if (Array.isArray(value)) {
+        return value.map((fragment) => String(fragment ?? "").trim()).filter(Boolean);
+    }
+    if (value && typeof value === "object") {
+        return Object.entries(value)
+            .sort(([left], [right]) => toNumber(left, 0) - toNumber(right, 0))
+            .map(([, fragment]) => String(fragment ?? "").trim())
+            .filter(Boolean);
+    }
+    return [];
+}
+
+function selectProgressFragment(fragments, progress) {
+    const normalized = normalizeFragmentCollection(fragments);
+    if (!normalized.length) return "";
+    const index = Math.max(0, Math.min(normalized.length - 1, toNumber(progress, 1) - 1));
+    return normalized[index] ?? "";
+}
+
+function sentenceCasePeriod(text) {
+    const trimmed = String(text ?? "").trim();
+    if (!trimmed) return "";
+    return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
 // ---------------------------------------------------------------------------
 
 /**
@@ -98,14 +124,16 @@ export class EncounterNarrator {
         const clauseText = String(entry?.clauseText ?? "").trim();
         const actionType = String(action?.type ?? "").trim().toLowerCase();
         const actionId = String(action?.id ?? action?.actionId ?? "").trim().toLowerCase();
+        const resultId = result.toLowerCase();
+        const isProgressResult = ["progress", "movementstep", "reactionready"].includes(resultId);
         const targetCombatant = resolveDeclaredTarget(
             this.#combatants,
             String(entry?.combatantId ?? ""),
             action?.targetId
         );
-        const item = this.#getItem(entry);
-
-        const recapText = formatRecapTemplate(action?.recapFormat, {
+        const itemDocument = this.#getItemDocument(entry);
+        const item = this.#getItem(entry, itemDocument);
+        const context = {
             Owner: { id: String(entry?.combatantId ?? ""), name: combatantName },
             Item: item,
             Target: targetCombatant
@@ -118,12 +146,23 @@ export class EncounterNarrator {
             outcome: {
                 ...outcome,
                 result
+            },
+            tick: {
+                progress: this.#getActionProgress(action, entry),
+                total: this.#getActionApSpan(action)
             }
-        });
+        };
+
+        if (isProgressResult) {
+            const tickFlavorText = this.#formatTickFlavor(entry, context, itemDocument);
+            if (tickFlavorText) return tickFlavorText;
+        }
+
+        const recapText = formatRecapTemplate(action?.recapFormat, context);
 
         if (recapText) return recapText;
 
-        if (clauseText && ["progress", "movementstep", "reactionready"].includes(result.toLowerCase())) {
+        if (clauseText && isProgressResult) {
             return `${combatantName}: ${clauseText}.`;
         }
 
@@ -195,29 +234,82 @@ export class EncounterNarrator {
     // Private helpers
     // -----------------------------------------------------------------------
 
-    #getItem(entry = null) {
-        const combatant = this.#combatants?.get?.(String(entry?.combatantId ?? "").trim()) ?? null;
+    #getItem(entry = null, itemDocument = null) {
         const action = entry?.action ?? {};
         const itemId = String(action?.itemId ?? "").trim();
-        if (!combatant?.actor || !itemId) {
+        if (!itemDocument) {
             return {
-                id: "",
-                name: String(action?.label ?? "item").trim() || "item"
+                id: itemId,
+                name: String(action?.label ?? itemId ?? "item").trim() || "item"
             };
         }
-        const item = combatant.actor.items?.get?.(itemId) ?? null;
         return {
             id: itemId,
-            name: String(item?.name ?? item?.label ?? action?.label ?? itemId).trim() || itemId
+            name: String(itemDocument?.name ?? itemDocument?.label ?? action?.label ?? itemId).trim() || itemId
         };
     }
 
-    #getWeaponName(entry = null) {
+    #getItemDocument(entry = null) {
         const combatant = this.#combatants?.get?.(String(entry?.combatantId ?? "").trim()) ?? null;
         const action = entry?.action ?? {};
         const itemId = String(action?.itemId ?? "").trim();
         if (!combatant?.actor || !itemId) return null;
-        const item = combatant.actor.items?.get?.(itemId) ?? null;
+        return combatant.actor.items?.get?.(itemId) ?? null;
+    }
+
+    #getWeaponName(entry = null) {
+        const action = entry?.action ?? {};
+        const itemId = String(action?.itemId ?? "").trim();
+        if (!itemId) return null;
+        const item = this.#getItemDocument(entry);
         return String(item?.name ?? item?.label ?? action?.label ?? itemId).trim() || null;
+    }
+
+    #formatTickFlavor(entry = null, context = {}, itemDocument = null) {
+        const action = entry?.action ?? {};
+        const progress = this.#getActionProgress(action, entry);
+        const itemFragment = selectProgressFragment(this.#getItemTickFragments(action, itemDocument), progress);
+        const actionFragment = selectProgressFragment(action?.tickNarrativeFragments, progress);
+        const fragment = itemFragment || actionFragment;
+        if (fragment) return sentenceCasePeriod(formatRecapTemplate(fragment, context));
+        return this.#defaultProgressNarrative(entry, context);
+    }
+
+    #getItemTickFragments(action = {}, itemDocument = null) {
+        const actionId = String(action?.actionId ?? action?.id ?? "").split(":").pop();
+        const variants = toArray(itemDocument?.system?.actions?.variants);
+        const variant = variants.find((candidate) => String(candidate?.id ?? "") === actionId) ?? null;
+        return normalizeFragmentCollection(variant?.tickNarrativeFragments);
+    }
+
+    #getActionProgress(action = {}, entry = null) {
+        const explicitProgress = toNumber(action?._effectProgress ?? action?._runtimeProgress ?? entry?.progress, 0);
+        if (explicitProgress > 0) return explicitProgress;
+        const start = toNumber(action?.apStart, 0);
+        const tick = toNumber(entry?.tick, 0);
+        if (start > 0 && tick >= start) return tick - start + 1;
+        return 1;
+    }
+
+    #getActionApSpan(action = {}) {
+        return Math.max(1, toNumber(action?.apEnvelope?.effectAp ?? action?.apCost ?? action?.apMax, 1));
+    }
+
+    #defaultProgressNarrative(entry = null, context = {}) {
+        const action = entry?.action ?? {};
+        const actionType = String(action?.type ?? "").trim().toLowerCase();
+        const actionLabel = String(action?.label ?? "the action").trim() || "the action";
+        const ownerName = String(context?.Owner?.name ?? entry?.combatantName ?? "Combatant").trim() || "Combatant";
+        if (actionType === "attack" || action?.requiresToHit) {
+            const weaponName = this.#getWeaponName(entry) ?? actionLabel;
+            const targetName = String(context?.Target?.name ?? "the target").trim() || "the target";
+            const progress = this.#getActionProgress(action, entry);
+            if (progress <= 1) return `${ownerName} readies ${weaponName}.`;
+            return `${ownerName} takes aim at ${targetName}.`;
+        }
+        if (actionType === "consumable") return `${ownerName} readies ${actionLabel}.`;
+        if (actionType === "defense") return `${ownerName} braces for ${actionLabel}.`;
+        if (actionType === "utility") return `${ownerName} continues ${actionLabel}.`;
+        return "";
     }
 }

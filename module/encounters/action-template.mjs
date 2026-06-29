@@ -115,6 +115,10 @@ export function createActionVariantField({
         requiresToHit: new BooleanField({ required: true, initial: defaultRequiresToHit }),
         toHitBonus: new NumberField({ required: true, integer: true, initial: defaultToHitBonus }),
         recapFormat: new StringField({ required: true, blank: true, initial: "" }),
+        tickNarrativeFragments: new ArrayField(
+            new StringField({ required: true, blank: true, initial: "" }),
+            { required: true, initial: () => [] }
+        ),
         notes: new HTMLField({ required: true, blank: true }),
         requirements: new ArrayField(
             createActionRequirementField(),
