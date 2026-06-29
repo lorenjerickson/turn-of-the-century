@@ -479,6 +479,37 @@ Acceptance criteria:
 - The GM can tell whether a visible plan is merely a draft or has been confirmed.
 - The GM can tell whether confirmed plans are still waiting for rolls.
 
+### Phase 6a - GM Tick Narrative Flavor
+
+Enhance the combined tick narrative on the GM Encounter Manager panel so the unfolding round reads as a sequence of small fictional beats, not only mechanical action summaries.
+
+Required capabilities:
+
+- Generate per-tick narrative fragments from confirmed action plans using the same action-level and item-level flavor text used to compose the player's order expression.
+- Allow item definitions to provide tick-fragment text for the preparation, aiming, use, release, recovery, or other beats of an action.
+- Allow action definitions to provide reasonable default tick-fragment text when an item does not provide a more specific phrase.
+- Combine fragments from multiple combatants into the GM Encounter Manager tick narrative for the current AP tick.
+- Preserve mechanical clarity: tick fragments should supplement, not replace, existing resolution outcomes such as hit, miss, interrupted, moved, or damage dealt.
+
+Implementation notes:
+
+- Flavor fragments may be encoded on item action definitions or related item metadata. For example, a galvanic rifle can provide staged text for raising the rifle, settling the cheek weld, taking careful aim, and firing.
+- Action-level defaults should be generic but still readable, such as preparing, aiming, moving, waiting, bracing, or recovering.
+- Fragment selection should account for the action's AP span. A three-AP attack such as `Mallory takes careful aim at Horus with the galvanic rifle and fires` might produce:
+  - AP 1: `Mallory raises the galvanic rifle to her cheek.`
+  - AP 2: `Mallory takes careful aim at Horus.`
+  - AP 3: `Mallory fires.`
+- The GM-facing combined narrative should remain concise when several combatants act on the same tick.
+- This phase should not change player plan composition; it only enriches GM observation and round playback text.
+
+Acceptance criteria:
+
+- The GM Encounter Manager tick narrative includes flavor fragments for multi-AP actions before the final resolution outcome is known.
+- Item-provided fragments override or enrich action-level defaults.
+- Missing flavor text falls back to clear generic fragments.
+- Existing mechanical round summaries remain available and accurate.
+- Tests cover at least one item-specific multi-tick example and one fallback/default example.
+
 ### Phase 7 - Resolution Compatibility and Reconciliation
 
 Connect narrative-confirmed plans to existing resolution and reconciliation behavior.
