@@ -74,6 +74,8 @@ function clampActionData(action, index = 0) {
         targetId: action.targetId || null,
         requiresToHit: Boolean(action.requiresToHit || action.type === "attack"),
         toHitBonus: Number(action.toHitBonus || 0),
+        systemRollsAllowed: Boolean(action.systemRollsAllowed || action.allowSystemRolls),
+        allowSystemRolls: Boolean(action.allowSystemRolls || action.systemRollsAllowed),
         autoResolve: Boolean(action.autoResolve),
         interruptible: Boolean(action.interruptible ?? true),
         isReaction: Boolean(action.isReaction),

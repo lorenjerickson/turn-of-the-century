@@ -115,6 +115,8 @@ export function getEnabledActionsForItem(item) {
             requiresDuration: Boolean(variant.requiresDuration),
             requiresMovementDestination: Boolean(variant.requiresMovementDestination),
             toHitBonus: Number(variant.toHitBonus ?? 0),
+            systemRollsAllowed: Boolean(variant.systemRollsAllowed || variant.allowSystemRolls),
+            allowSystemRolls: Boolean(variant.allowSystemRolls || variant.systemRollsAllowed),
             recapFormat: String(variant.recapFormat ?? ""),
             tickNarrativeFragments: Array.isArray(variant.tickNarrativeFragments)
                 ? variant.tickNarrativeFragments.map((fragment) => String(fragment ?? ""))

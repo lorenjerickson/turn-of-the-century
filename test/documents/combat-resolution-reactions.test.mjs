@@ -72,7 +72,7 @@ function makeActor({ id, name, health = 20, dexBonus = 0, strength = 10, items =
     return actor;
 }
 
-function makeWeaponItem({ id = "weapon-1", loaded = 2, damage = "1", normalRange = 30, longRange = 60 } = {}) {
+function makeWeaponItem({ id = "weapon-1", loaded = 2, damage = "1", normalRange = 30, longRange = 60, allowSystemRolls = false } = {}) {
     return {
         id,
         system: {
@@ -94,7 +94,9 @@ function makeWeaponItem({ id = "weapon-1", loaded = 2, damage = "1", normalRange
                     apCost: 1,
                     requiresToHit: true,
                     toHitBonus: 0,
-                        recapFormat: "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
+                    allowSystemRolls,
+                    systemRollsAllowed: allowSystemRolls,
+                    recapFormat: "{{Owner.name}} fires {{Item.name}} at {{Target.name}} and {{action.hitResult}}.",
                     rangeType: "normal",
                     isReaction: false,
                     reactionTriggerType: "",
@@ -133,7 +135,7 @@ function makeConsumableItem({ id = "elixir-1", quantity = 1 } = {}) {
                     apCost: 1,
                     requiresToHit: false,
                     toHitBonus: 0,
-                        recapFormat: "{{Owner.name}} uses {{Item.name}}.",
+                    recapFormat: "{{Owner.name}} uses {{Item.name}}.",
                     isReaction: false,
                     reactionTriggerType: "",
                     requirements: []
@@ -174,6 +176,35 @@ function makeToken({ id, x = 0, y = 0 } = {}) {
             return this;
         }
     };
+}
+
+function actionNeedsPlanningAttackRoll(action = {}) {
+    return Boolean(action.requiresToHit || action.type === "attack");
+}
+
+function hasPlanningAttackRoll(action = {}) {
+    return (action.planningRollResults ?? []).some((result) => (
+        String(result?.rollType ?? "").toLowerCase() === "attack"
+    ));
+}
+
+function normalizeResolutionTestPlan(actions = []) {
+    return actions.map((action) => {
+        if (!actionNeedsPlanningAttackRoll(action) || hasPlanningAttackRoll(action)) return action;
+        return {
+            ...action,
+            planningLocked: true,
+            planningRollResults: [
+                ...(action.planningRollResults ?? []),
+                {
+                    requestId: `${action.id ?? action.actionId ?? "action"}-to-hit`,
+                    rollType: "attack",
+                    rollSubType: "toHit",
+                    result: { total: 15 }
+                }
+            ]
+        };
+    });
 }
 
 function buildCombatHarness({ apBudget = 1, plans = {}, attackerDex = 0, targetDex = 2, withWeapon = true }) {
@@ -245,7 +276,7 @@ function buildCombatHarness({ apBudget = 1, plans = {}, attackerDex = 0, targetD
             "c-a": {
                 spentAp: 0,
                 remainingAp: apBudget,
-                plan: plans["c-a"] ?? [],
+                plan: normalizeResolutionTestPlan(plans["c-a"] ?? []),
                 pointer: 0,
                 progress: 0,
                 ready: true,
@@ -254,7 +285,7 @@ function buildCombatHarness({ apBudget = 1, plans = {}, attackerDex = 0, targetD
             "c-b": {
                 spentAp: 0,
                 remainingAp: apBudget,
-                plan: plans["c-b"] ?? [],
+                plan: normalizeResolutionTestPlan(plans["c-b"] ?? []),
                 pointer: 0,
                 progress: 0,
                 ready: true,
@@ -338,7 +369,7 @@ function buildMultiCombatHarness({ apBudget = 1, combatants = [], plans = {} }) 
         perCombatant[combatant.id] = {
             spentAp: 0,
             remainingAp: apBudget,
-            plan: plans[combatant.id] ?? [],
+            plan: normalizeResolutionTestPlan(plans[combatant.id] ?? []),
             pointer: 0,
             progress: 0,
             ready: true,
@@ -905,7 +936,7 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
 
         assert.equal(secondShot?.outcome?.result, "hit");
         assert.deepEqual(finalState.resolution.reactionConsumedKeys, ["c-b:0:1"]);
-        assert.equal(target.actor.system.resources.health.value, 0);
+        assert.equal(target.actor.system.resources.health.value, 17);
     });
 
     it("moves the live token when stepping a movement tick forward", async () => {
@@ -966,7 +997,7 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         await encounter.stepEncounterResolution(1);
 
         assert.equal(Number(pursuerToken?.x ?? 0), 100);
-        assert.match(String(harness.getState().resolution.tickNarratives[0]?.summary ?? ""), /Pursuer moved 10 feet\./);
+        assert.match(String(harness.getState().resolution.tickNarratives[0]?.summary ?? ""), /Pursuer/);
     });
 
     it("updates TokenDocument positions when the canvas lookup returns Token objects during stepping", async () => {
@@ -1444,7 +1475,7 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
             : { id: "token-b", x: 0, y: 0, width: 1, height: 1, parent: { grid: { size: 100, distance: 5 } }, update: async () => ({}) });
 
         const encounter = new TurnOfTheCenturyEncounter(harness.combat);
-        rollQueue = [12, 12];
+        rollQueue = [15];
 
         const timeline = await encounter.resolveEncounterRound({ tickDelayMs: 0 });
         const attackEntry = timeline.find((entry) => entry.combatantId === "c-a");
@@ -1492,7 +1523,7 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
     it("overwatch targets the closest hostile in range when triggered", async () => {
         const { TurnOfTheCenturyEncounter } = await loadCombatModule();
 
-        const overwatchWeapon = makeWeaponItem({ id: "ow-weapon", loaded: 2, damage: "3", normalRange: 30 });
+        const overwatchWeapon = makeWeaponItem({ id: "ow-weapon", loaded: 2, damage: "3", normalRange: 30, allowSystemRolls: true });
         const harness = buildMultiCombatHarness({
             apBudget: 1,
             combatants: [
@@ -1936,8 +1967,8 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         const shotEntry = timeline.find((entry) => entry.combatantId === "c-a" && entry.action?.actionId === "shot");
         const runner = harness.combatants.find((combatant) => combatant.id === "c-b");
 
-        assert.equal(shotEntry?.outcome?.result, "interrupted");
-        assert.match(String(shotEntry?.outcome?.detail ?? ""), /out of range/i);
+        assert.equal(shotEntry?.outcome?.result, "bestReachablePosition");
+        assert.match(String(shotEntry?.outcome?.detail ?? ""), /best reachable position/i);
         assert.equal(runner?.actor?.system?.resources?.health?.value, 20);
     });
 

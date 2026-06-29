@@ -251,6 +251,24 @@ describe("getEnabledActionsForItem", () => {
         assert.equal(getEnabledActionsForItem(item)[0].label, "Iron Fist: Punch");
     });
 
+    it("preserves GM system-roll permission from item action variants", () => {
+        const item = mockWeaponItem({
+            variants: [{
+                id: "shot",
+                type: "attack",
+                label: "Shot",
+                apCost: 1,
+                requiresToHit: true,
+                allowSystemRolls: true,
+                requirements: []
+            }]
+        });
+        const action = getEnabledActionsForItem(item)[0];
+
+        assert.equal(action.allowSystemRolls, true);
+        assert.equal(action.systemRollsAllowed, true);
+    });
+
     it("includes attack actions when ammo requirement is satisfied (loaded revolver)", () => {
         const item = loadedRevolver();
         const actions = getEnabledActionsForItem(item);

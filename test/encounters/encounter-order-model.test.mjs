@@ -83,7 +83,7 @@ describe("encounter order model", () => {
     it("builds readable summaries for legacy action entries", () => {
         assert.equal(
             buildLegacyOrderSummary({ id: "pursue", actionId: "pursue", type: "movement", label: "Pursue", apCost: 3 }, { targetName: "Elias Vane" }),
-            "Spend up to 3 AP pursuing Elias Vane."
+            "Spend up to 3 AP closing with Elias Vane."
         );
         assert.equal(
             buildLegacyOrderSummary({ id: "weaponAttack", type: "attack", label: "Attack", apCost: 2, requiresToHit: true }, { targetName: "Elias Vane", itemName: "Clockmaker's Stiletto" }),
