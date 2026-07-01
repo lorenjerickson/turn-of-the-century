@@ -197,19 +197,41 @@ function tickNarrativeFromResolution(resolution = {}, tick = 0) {
     const rows = toArray(resolution?.tickNarratives);
     const match = rows.find((row) => toNumber(row?.tick, 0) === toNumber(tick, 0)) ?? null;
     if (!match) return "";
+    const generatedNarrative = String(match.generatedNarrative ?? match.narrative ?? "").trim();
+    if (generatedNarrative) return generatedNarrative;
     const summary = String(match.summary ?? "").trim();
     if (summary) return summary;
     return toArray(match.lines).map((line) => String(line ?? "").trim()).filter(Boolean).join(" ");
 }
 
+function tickNarrativeRowModel(row = null) {
+    if (!row) return {};
+    const summary = String(row.summary ?? "").trim()
+        || toArray(row.lines).map((line) => String(line ?? "").trim()).filter(Boolean).join(" ");
+    return {
+        summary,
+        generatedNarrative: String(row.generatedNarrative ?? row.narrative ?? "").trim(),
+        factualOutlineMarkdown: String(row.factualOutlineMarkdown ?? "").trim(),
+        gmNotes: toArray(row.gmNotes).map((note) => String(note ?? "").trim()).filter(Boolean),
+        generationStatus: String(row.generationStatus ?? "").trim()
+    };
+}
+
 function buildRoundNarrativeTicks({ resolution = {}, timeline = [], totalTicks = 6, currentTick = 0 } = {}) {
     const tickCount = Math.max(1, toNumber(totalTicks, 6));
     const activeTick = Math.max(0, toNumber(currentTick, 0));
+    const rows = toArray(resolution?.tickNarratives);
     return Array.from({ length: tickCount }, (_, index) => {
         const tick = index + 1;
+        const row = tickNarrativeRowModel(rows.find((candidate) => toNumber(candidate?.tick, 0) === tick) ?? null);
+        const fallbackSummary = latestSlotNarrative(timeline, tick);
         return {
             tick,
-            summary: tickNarrativeFromResolution(resolution, tick) || latestSlotNarrative(timeline, tick),
+            summary: row.summary || fallbackSummary,
+            generatedNarrative: row.generatedNarrative,
+            factualOutlineMarkdown: row.factualOutlineMarkdown,
+            gmNotes: row.gmNotes ?? [],
+            generationStatus: row.generationStatus,
             current: tick === activeTick,
             evaluated: activeTick > 0 && tick <= activeTick
         };
@@ -478,7 +500,15 @@ function renderRoundNarrative(model = {}, escapeHTML) {
                         return `
                         <li class="totc-v2-encounter-manager__tick-narrative${stateClass}" data-tick="${escapeHTML(String(tickNumber))}">
                             <span class="totc-v2-encounter-manager__tick-label">Second ${escapeHTML(String(tickNumber))}</span>
-                            <p>${tick.summary ? escapeHTML(tick.summary) : "No narration yet."}</p>
+                            ${tick.generatedNarrative
+                                ? `<p class="totc-v2-encounter-manager__tick-story">${escapeHTML(tick.generatedNarrative)}</p>`
+                                : `<p class="totc-v2-encounter-manager__tick-story">${tick.summary ? escapeHTML(tick.summary) : "No narration yet."}</p>`}
+                            ${tick.summary && tick.generatedNarrative
+                                ? `<p class="totc-v2-encounter-manager__tick-summary"><strong>Plan tick:</strong> ${escapeHTML(tick.summary)}</p>`
+                                : ""}
+                            ${tick.factualOutlineMarkdown
+                                ? `<pre class="totc-v2-encounter-manager__tick-outline">${escapeHTML(tick.factualOutlineMarkdown)}</pre>`
+                                : ""}
                         </li>`;
                     }).join("")}
                 </ol>`

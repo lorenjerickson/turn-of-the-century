@@ -188,6 +188,9 @@ export class EncounterResolutionEngine {
     /** @type {(eventName: string, payload?: object) => void} */
     #emit;
 
+    /** @type {(opts: object) => Promise<object|null>} */
+    #generateTickNarrative;
+
     // -------------------------------------------------------------------------
     // Resolver instances
     // -------------------------------------------------------------------------
@@ -216,6 +219,7 @@ export class EncounterResolutionEngine {
      *   checkItemAction:            (item: object, actor: object, actionId: string) => Promise<object|undefined>,
      *   publishRoundReplay:         (timeline: object[]) => Promise<void>,
      *   emit:                       (eventName: string, payload?: object) => void,
+     *   generateTickNarrative?:     (opts: object) => Promise<object|null>,
      *   movementResolver:           object,
      *   attackResolver:             object,
      *   reactionResolver:           object,
@@ -240,6 +244,7 @@ export class EncounterResolutionEngine {
         checkItemAction,
         publishRoundReplay,
         emit,
+        generateTickNarrative = async () => null,
         movementResolver,
         attackResolver,
         reactionResolver,
@@ -262,6 +267,7 @@ export class EncounterResolutionEngine {
         this.#checkItemAction = checkItemAction;
         this.#publishRoundReplay = publishRoundReplay;
         this.#emit = emit;
+        this.#generateTickNarrative = generateTickNarrative;
         this.#movementResolver = movementResolver;
         this.#attackResolver = attackResolver;
         this.#reactionResolver = reactionResolver;
@@ -728,7 +734,11 @@ export class EncounterResolutionEngine {
             perCombatant
         });
 
-        const narrative = this.#narrator.buildTickNarrative(timeline, tick);
+        const narrative = await this.#buildGeneratedTickNarrative({
+            tick,
+            round: this.#getCurrentRound(),
+            narrative: this.#narrator.buildTickNarrative(timeline, tick)
+        });
         tickNarratives.push(narrative);
         const snapshot = await this.#captureSnapshot({
             tick,
@@ -739,6 +749,33 @@ export class EncounterResolutionEngine {
         });
 
         return { snapshot, narrative };
+    }
+
+    async #buildGeneratedTickNarrative({ tick = 0, round = 1, narrative = {} } = {}) {
+        try {
+            const result = await this.#generateTickNarrative({
+                round,
+                tick,
+                factualOutlineMarkdown: narrative.factualOutlineMarkdown ?? "",
+                factualOutline: narrative.factualOutline ?? [],
+                planSummary: narrative.summary ?? "",
+                lines: narrative.lines ?? []
+            });
+            const generatedNarrative = String(result?.narrative ?? "").trim();
+            return {
+                ...narrative,
+                generatedNarrative,
+                gmNotes: toArray(result?.gmNotes).map((note) => String(note ?? "").trim()).filter(Boolean),
+                generationStatus: generatedNarrative ? "complete" : "unavailable"
+            };
+        } catch (error) {
+            return {
+                ...narrative,
+                generatedNarrative: "",
+                gmNotes: [`Narrative generation failed: ${error?.message ?? error}`],
+                generationStatus: "failed"
+            };
+        }
     }
 
     /**

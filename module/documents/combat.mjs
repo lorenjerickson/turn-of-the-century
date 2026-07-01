@@ -21,6 +21,7 @@ import { ReactionResolver } from "../encounters/reaction-resolver.mjs";
 import { CollisionResolver } from "../encounters/collision-resolver.mjs";
 import { ConsumptionResolver } from "../encounters/consumption-resolver.mjs";
 import { EncounterResolutionEngine } from "../encounters/encounter-resolution-engine.mjs";
+import { LLMService, OPENAI_API_KEY_SETTING } from "../services/llm-service.mjs";
 
 const BaseCombatDocument = foundry.documents?.Combat ?? Combat;
 
@@ -476,6 +477,7 @@ export class TurnOfTheCenturyEncounter {
             checkItemAction: async (item, actor, actionId) => item.executeEncounterAction?.({ actor, actionId, consume: false }),
             publishRoundReplay: (timeline) => this.#publishRoundReplay(timeline),
             emit: (eventName, payload) => this.emit(eventName, payload),
+            generateTickNarrative: (opts) => this.#generateTickNarrativeResult(opts),
             movementResolver: this.#movementResolver,
             attackResolver: this.#attackResolver,
             reactionResolver: this.#reactionResolver,
@@ -1065,6 +1067,31 @@ export class TurnOfTheCenturyEncounter {
         this.#requirePlanningRollsResolved();
         await this.#resolutionEngine.beginResolution({ persistInitialState: true });
         return this.state.resolution ?? null;
+    }
+
+    async #generateTickNarrativeResult({
+        round = 1,
+        tick = 0,
+        factualOutlineMarkdown = "",
+        factualOutline = [],
+        planSummary = "",
+        lines = []
+    } = {}) {
+        const apiKey = String(game?.settings?.get?.("turn-of-the-century", OPENAI_API_KEY_SETTING) ?? "").trim();
+        if (!apiKey) return null;
+
+        const prompt = JSON.stringify({
+            round,
+            tick,
+            factualOutlineMarkdown,
+            factualOutline,
+            planTickSummary: planSummary,
+            resolvedTickFacts: lines
+        }, null, 2);
+
+        return LLMService.generate(prompt, {
+            elementType: "encounter-round-tick-narrative-result"
+        });
     }
 
     #requirePlanningRollsResolved() {

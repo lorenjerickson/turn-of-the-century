@@ -77,6 +77,7 @@ function makeEngine({
     isCombatantIncapacitated = () => false,
     resolveDeclaredTarget = () => null,
     checkItemAction = async () => undefined,
+    generateTickNarrative = async () => null,
     resolvers = null
 } = {}) {
     let currentState = { ...state };
@@ -105,6 +106,7 @@ function makeEngine({
         checkItemAction,
         publishRoundReplay: async (tl) => { replayLog.push(tl); },
         emit: (name, payload) => { emitLog.push({ name, payload }); },
+        generateTickNarrative,
         ...r
     });
 }
@@ -998,6 +1000,78 @@ describe("EncounterResolutionEngine.evaluateTick — reconciliation", () => {
         const result = await engine.evaluateTick({ tick: 1, perCombatant, timeline: [], tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
         assert.ok(result.snapshot !== undefined, "snapshot returned");
         assert.ok(result.narrative !== undefined, "narrative returned");
+    });
+
+    it("generates AI narrative context from the tick factual outline", async () => {
+        const generationCalls = [];
+        const combatant = makeCombatant({ id: "c1" });
+        const perCombatant = { c1: { remainingAp: 1, spentAp: 0, progress: 0, pointer: 0, plan: [] } };
+        const r = makeNullResolvers();
+        r.narrator = {
+            buildTickNarrative: (_entries, tick) => ({
+                tick,
+                lines: ["Horus closes with Hera."],
+                summary: "Horus closes with Hera.",
+                factualOutline: ["Horus closes with Hera (AP 1 of 2)"],
+                factualOutlineMarkdown: "- Horus closes with Hera (AP 1 of 2)"
+            })
+        };
+        const engine = makeEngine({
+            combatants: [combatant],
+            resolvers: r,
+            generateTickNarrative: async (context) => {
+                generationCalls.push(context);
+                return { narrative: "Horus surges across the floor toward Hera.", gmNotes: ["ok"] };
+            }
+        });
+
+        const result = await engine.evaluateTick({
+            tick: 1,
+            perCombatant,
+            timeline: [],
+            tickNarratives: [],
+            reactionRuntime: { consumedKeys: new Set() },
+            orderedCombatants: [combatant]
+        });
+
+        assert.equal(generationCalls.length, 1);
+        assert.equal(generationCalls[0].factualOutlineMarkdown, "- Horus closes with Hera (AP 1 of 2)");
+        assert.equal(generationCalls[0].planSummary, "Horus closes with Hera.");
+        assert.equal(result.narrative.generatedNarrative, "Horus surges across the floor toward Hera.");
+        assert.deepEqual(result.narrative.gmNotes, ["ok"]);
+        assert.equal(result.narrative.generationStatus, "complete");
+    });
+
+    it("keeps deterministic tick narration when generated narration is unavailable", async () => {
+        const combatant = makeCombatant({ id: "c1" });
+        const perCombatant = { c1: { remainingAp: 1, spentAp: 0, progress: 0, pointer: 0, plan: [] } };
+        const r = makeNullResolvers();
+        r.narrator = {
+            buildTickNarrative: (_entries, tick) => ({
+                tick,
+                lines: ["Horus closes with Hera."],
+                summary: "Horus closes with Hera.",
+                factualOutlineMarkdown: "- Horus closes with Hera (AP 1 of 2)"
+            })
+        };
+        const engine = makeEngine({
+            combatants: [combatant],
+            resolvers: r,
+            generateTickNarrative: async () => null
+        });
+
+        const result = await engine.evaluateTick({
+            tick: 1,
+            perCombatant,
+            timeline: [],
+            tickNarratives: [],
+            reactionRuntime: { consumedKeys: new Set() },
+            orderedCombatants: [combatant]
+        });
+
+        assert.equal(result.narrative.summary, "Horus closes with Hera.");
+        assert.equal(result.narrative.generatedNarrative, "");
+        assert.equal(result.narrative.generationStatus, "unavailable");
     });
 
     it("validates completion boundary twice per tick (pre- and post-damage)", async () => {

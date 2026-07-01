@@ -273,6 +273,27 @@ describe("encounter manager panel", () => {
         assert.match(html, /Horus closes with Mallory\. Mallory sights down the barrel and shoots\./);
     });
 
+    it("renders generated tick narration alongside the plan tick summary", () => {
+        const combat = resolvingCombatFixture();
+        combat.encounterState.resolution.tickNarratives[1] = {
+            tick: 2,
+            summary: "Horus closes with Mallory. Mallory sights down the barrel and shoots.",
+            generatedNarrative: "Horus barrels through the fog as Mallory's galvanic rifle spits a hard white flash.",
+            factualOutlineMarkdown: "- Horus closes with Mallory (AP 2 of 3)\n- Mallory fires galvanic rifle at Horus; result: hit (AP 2 of 2)",
+            generationStatus: "complete"
+        };
+
+        const model = buildEncounterManagerPanelModel({ combat });
+        const html = renderEncounterManagerPanel(model, { escapeHTML });
+
+        assert.equal(model.lastNarrative, "Horus barrels through the fog as Mallory's galvanic rifle spits a hard white flash.");
+        assert.equal(model.tickNarratives[1].summary, "Horus closes with Mallory. Mallory sights down the barrel and shoots.");
+        assert.equal(model.tickNarratives[1].generatedNarrative, "Horus barrels through the fog as Mallory's galvanic rifle spits a hard white flash.");
+        assert.match(html, /class="totc-v2-encounter-manager__tick-story">Horus barrels through the fog/);
+        assert.match(html, /<strong>Plan tick:<\/strong> Horus closes with Mallory\. Mallory sights down the barrel and shoots\./);
+        assert.match(html, /class="totc-v2-encounter-manager__tick-outline">- Horus closes with Mallory/);
+    });
+
     it("builds and renders GM order clauses with current tick highlighting", () => {
         const model = buildEncounterManagerPanelModel({ combat: resolvingCombatFixture() });
         const ada = model.actors[0];
