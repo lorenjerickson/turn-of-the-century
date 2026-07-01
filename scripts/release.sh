@@ -85,6 +85,7 @@ pushd "${ROOT_DIR}" >/dev/null
 zip -rq "${OUTPUT_ZIP}" . \
   -x ".git/*" \
   -x ".agents/*" \
+  -x ".claude/*" \
   -x "dist/*" \
   -x "*.DS_Store" \
   -x "prompts.log" \
