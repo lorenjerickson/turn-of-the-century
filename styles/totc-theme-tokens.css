@@ -7,7 +7,7 @@
 body.totc-system-theme {
     --totc-color-ink: #201811;
     --totc-color-text: #342315;
-    --totc-color-text-soft: #614f40;
+    --totc-color-text-soft: #5f574c;
     --totc-color-paper: #f1e7d4;
     --totc-color-paper-alt: #e8dbc4;
     --totc-color-night: #171316;
@@ -18,6 +18,11 @@ body.totc-system-theme {
     --totc-color-brass: #b79252;
     --totc-color-brass-bright: #e0c686;
     --totc-color-crimson: #7d1d1f;
+    --totc-color-leather: #6f604c;
+    --totc-color-leather-rgb: 111, 96, 76;
+    --totc-color-oak: #8d7b62;
+    --totc-color-border: #b7a993;
+    --totc-color-border-light: #cbbda8;
 
     --totc-border-ornate: 2px solid var(--totc-color-brass);
     --totc-border-soft: 1px solid rgba(133, 102, 64, 0.55);
