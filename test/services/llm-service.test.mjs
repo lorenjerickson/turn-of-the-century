@@ -60,6 +60,10 @@ describe("LLMService", () => {
         assert.equal(GENERATION_PROMPT_PATHS.campaign, "prompts/campaign.md");
         assert.equal(GENERATION_PROMPT_PATHS.scenario, "prompts/scenario.md");
         assert.equal(GENERATION_PROMPT_PATHS["encounter-design"], "prompts/encounter-design.md");
+        assert.equal(
+            GENERATION_PROMPT_PATHS["encounter-round-tick-narrative-result"],
+            "prompts/encounter-round-tick-narrative-result.md"
+        );
         assert.equal(GENERATION_PROMPT_PATHS.actor, "prompts/actor.md");
         assert.equal(GENERATION_PROMPT_PATHS.pawn, "prompts/actor.md");
         assert.equal(GENERATION_PROMPT_PATHS.location, "prompts/location.md");
@@ -126,6 +130,21 @@ describe("LLMService", () => {
         assert.equal(promptUrl, "systems/turn-of-the-century/prompts/encounter-design.md");
         assert.ok(systemPrompt.includes("Encounter Prompt From File"));
         assert.ok(systemPrompt.includes("Encounter Title"));
+    });
+
+    it("loads encounter round tick narrative prompts from the prompts folder", async () => {
+        let promptUrl = "";
+        globalThis.fetch = async (url) => {
+            promptUrl = url;
+            return { ok: true, text: async () => "Tick Narrative Prompt From File" };
+        };
+
+        const systemPrompt = await LLMService.getSystemPrompt("encounter-round-tick-narrative-result");
+
+        assert.equal(promptUrl, "systems/turn-of-the-century/prompts/encounter-round-tick-narrative-result.md");
+        assert.ok(systemPrompt.includes("Tick Narrative Prompt From File"));
+        assert.ok(systemPrompt.includes("\"tick\": 1"));
+        assert.ok(systemPrompt.includes("\"narrative\": \"Concise player-facing tick narration\""));
     });
 
     it("loads location prep prompts from the prompts folder", async () => {

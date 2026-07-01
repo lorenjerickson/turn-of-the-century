@@ -63,6 +63,45 @@ function sentenceCasePeriod(text) {
     return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
+function stripTerminalPunctuation(text) {
+    return String(text ?? "").trim().replace(/[.!?]+$/u, "");
+}
+
+function compactWhitespace(text) {
+    return String(text ?? "").replace(/\s+/gu, " ").trim();
+}
+
+function normalizeActionPhrase(text) {
+    return stripTerminalPunctuation(text).toLowerCase();
+}
+
+function presentTenseActionPhrase(text, { preserveRest = false } = {}) {
+    const source = stripTerminalPunctuation(text);
+    const phrase = preserveRest ? source.trim() : normalizeActionPhrase(source);
+    if (!phrase) return "";
+    const [firstWord = "", ...rest] = phrase.split(/\s+/u);
+    const normalizedFirstWord = firstWord.toLowerCase();
+    const replacements = {
+        aim: "aims",
+        attack: "attacks",
+        avoid: "avoids",
+        brace: "braces",
+        close: "closes",
+        evade: "evades",
+        fire: "fires",
+        follow: "follows",
+        move: "moves",
+        pursue: "pursues",
+        reload: "reloads",
+        strike: "strikes",
+        wait: "waits"
+    };
+    if (replacements[normalizedFirstWord]) return [replacements[normalizedFirstWord], ...rest].join(" ");
+    const comparablePhrase = phrase.toLowerCase();
+    if (comparablePhrase.includes("strike") || comparablePhrase.includes("shot") || normalizedFirstWord.endsWith("ed")) return `performs ${phrase}`;
+    return phrase;
+}
+
 // ---------------------------------------------------------------------------
 
 /**
@@ -102,10 +141,13 @@ export class EncounterNarrator {
             (entry) => toNumber(entry?.tick, 0) === toNumber(tick, 0)
         );
         const lines = filtered.map((entry) => this.describeEntry(entry)).filter(Boolean);
+        const factualOutline = filtered.map((entry) => this.describeFactualOutlineEntry(entry)).filter(Boolean);
         return {
             tick: Number(tick) || 0,
             lines,
-            summary: lines.join(" ")
+            summary: lines.join(" "),
+            factualOutline,
+            factualOutlineMarkdown: this.formatFactualOutlineMarkdown(factualOutline)
         };
     }
 
@@ -230,6 +272,61 @@ export class EncounterNarrator {
         }
     }
 
+    /**
+     * Build a factual markdown outline for all timeline entries at a tick.
+     *
+     * The outline is intended for AI narration prompts. It preserves AP
+     * progress and factual outcomes while remaining easy for a human GM to
+     * inspect.
+     *
+     * @param {object[]} timelineEntries
+     * @param {number} tick
+     * @returns {{ tick: number, lines: string[], markdown: string }}
+     */
+    buildTickFactualOutline(timelineEntries = [], tick = 0) {
+        const filtered = toArray(timelineEntries).filter(
+            (entry) => toNumber(entry?.tick, 0) === toNumber(tick, 0)
+        );
+        const lines = filtered.map((entry) => this.describeFactualOutlineEntry(entry)).filter(Boolean);
+        return {
+            tick: Number(tick) || 0,
+            lines,
+            markdown: this.formatFactualOutlineMarkdown(lines)
+        };
+    }
+
+    /**
+     * Format factual outline lines as a markdown bullet list.
+     *
+     * @param {string[]} lines
+     * @returns {string}
+     */
+    formatFactualOutlineMarkdown(lines = []) {
+        return toArray(lines)
+            .map((line) => compactWhitespace(line))
+            .filter(Boolean)
+            .map((line) => `- ${line}`)
+            .join("\n");
+    }
+
+    /**
+     * Describe one timeline entry as a factual outline line.
+     *
+     * @param {object} entry
+     * @returns {string}
+     */
+    describeFactualOutlineEntry(entry = null) {
+        if (!entry) return "";
+        const combatantName = String(entry?.combatantName ?? "Combatant").trim() || "Combatant";
+        const action = entry?.action ?? null;
+        const actionText = this.#describeFactualAction(entry);
+        const resultText = this.#describeFactualOutcome(entry);
+        const apText = this.#formatActionProgress(action ?? {}, entry);
+        const baseText = compactWhitespace(`${combatantName} ${actionText}`);
+        if (resultText) return compactWhitespace(`${baseText}; result: ${resultText} ${apText}`);
+        return compactWhitespace(`${baseText} ${apText}`);
+    }
+
     // -----------------------------------------------------------------------
     // Private helpers
     // -----------------------------------------------------------------------
@@ -293,6 +390,77 @@ export class EncounterNarrator {
 
     #getActionApSpan(action = {}) {
         return Math.max(1, toNumber(action?.apEnvelope?.effectAp ?? action?.apCost ?? action?.apMax, 1));
+    }
+
+    #getFactualActionApSpan(action = {}) {
+        return Math.max(1, toNumber(action?.apCost ?? action?.apEnvelope?.maxAp ?? action?.apMax, 1));
+    }
+
+    #formatActionProgress(action = {}, entry = null) {
+        const total = this.#getFactualActionApSpan(action);
+        const progress = Math.max(1, Math.min(total, this.#getActionProgress(action, entry)));
+        return `(AP ${progress} of ${total})`;
+    }
+
+    #describeFactualAction(entry = null) {
+        const action = entry?.action ?? null;
+        if (!action) return "has no planned action";
+        const clauseText = stripTerminalPunctuation(entry?.clauseText);
+        if (clauseText) return presentTenseActionPhrase(clauseText, { preserveRest: true });
+
+        const label = presentTenseActionPhrase(action?.summary ?? action?.label ?? action?.id ?? action?.actionId ?? "acts");
+        const targetName = this.#resolveFactualTargetName(entry);
+        const itemName = this.#resolveFactualItemName(entry);
+        const actionType = String(action?.type ?? "").trim().toLowerCase();
+        const actionId = String(action?.id ?? action?.actionId ?? "").trim().toLowerCase();
+
+        if (actionType === "movement" || ["pursue", "follow", "avoid", "evade"].includes(actionId)) {
+            if (targetName) return `${label} with ${targetName}`;
+            return label || "moves";
+        }
+
+        if (actionType === "attack" || action?.requiresToHit) {
+            const targetSuffix = targetName ? ` at ${targetName}` : "";
+            const itemSuffix = itemName ? ` with ${itemName}` : "";
+            return `${label || "attacks"}${targetSuffix}${itemSuffix}`;
+        }
+
+        if (actionType === "consumable") {
+            return `uses ${itemName || label || "an item"}`;
+        }
+
+        return label || "acts";
+    }
+
+    #describeFactualOutcome(entry = null) {
+        const outcome = entry?.outcome ?? {};
+        const result = String(outcome?.result ?? "").trim();
+        const normalized = result.toLowerCase();
+        if (!result || ["progress", "movementstep", "reactionready"].includes(normalized)) return "";
+        const detail = stripTerminalPunctuation(outcome?.detail);
+        if (detail) return `${result} (${detail})`;
+        return result;
+    }
+
+    #resolveFactualTargetName(entry = null) {
+        const action = entry?.action ?? {};
+        const outcome = entry?.outcome ?? {};
+        const outcomeTarget = String(outcome?.targetName ?? "").trim();
+        if (outcomeTarget) return outcomeTarget;
+        const targetCombatant = resolveDeclaredTarget(
+            this.#combatants,
+            String(entry?.combatantId ?? ""),
+            action?.targetId ?? outcome?.targetCombatantId ?? outcome?.pendingDamage?.targetCombatantId
+        );
+        return String(targetCombatant?.name ?? "").trim();
+    }
+
+    #resolveFactualItemName(entry = null) {
+        const itemDocument = this.#getItemDocument(entry);
+        const action = entry?.action ?? {};
+        const itemName = String(itemDocument?.name ?? itemDocument?.label ?? "").trim();
+        if (itemName) return itemName;
+        return String(action?.itemName ?? action?.itemLabel ?? "").trim();
     }
 
     #defaultProgressNarrative(entry = null, context = {}) {

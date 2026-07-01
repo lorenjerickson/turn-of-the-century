@@ -70,6 +70,162 @@ describe("EncounterNarrator.buildTickNarrative", () => {
         assert.ok(summary.includes("Alice"), `expected Alice in "${summary}"`);
         assert.ok(summary.includes("Bob"), `expected Bob in "${summary}"`);
     });
+
+    it("includes a factual markdown outline for prompt generation", () => {
+        const narrator = makeNarrator([makeCombatant("hera", "Hera")]);
+        const timeline = [
+            makeEntry({
+                tick: 1,
+                combatantId: "horus",
+                combatantName: "Horus",
+                action: { type: "movement", label: "Close", targetId: "hera", apCost: 2, movementFeet: 10 },
+                outcome: { result: "movementStep" }
+            })
+        ];
+
+        const result = narrator.buildTickNarrative(timeline, 1);
+
+        assert.deepEqual(result.factualOutline, ["Horus closes with Hera (AP 1 of 2)"]);
+        assert.equal(result.factualOutlineMarkdown, "- Horus closes with Hera (AP 1 of 2)");
+    });
+});
+
+// ---------------------------------------------------------------------------
+// buildTickFactualOutline
+// ---------------------------------------------------------------------------
+
+describe("EncounterNarrator.buildTickFactualOutline", () => {
+    it("formats matching tick entries as a markdown bullet list", () => {
+        const narrator = makeNarrator([
+            makeCombatant("hera", "Hera"),
+            makeCombatant("horus", "Horus")
+        ]);
+        const timeline = [
+            makeEntry({
+                tick: 1,
+                combatantId: "hera",
+                combatantName: "Hera",
+                action: { type: "attack", label: "Fire Lightning Bolt", targetId: "horus", itemName: "temporal sceptre", apCost: 2 },
+                outcome: { result: "progress" }
+            }),
+            makeEntry({
+                tick: 1,
+                combatantId: "horus",
+                combatantName: "Horus",
+                action: { type: "movement", label: "Close", targetId: "hera", apCost: 2 },
+                outcome: { result: "movementStep" }
+            }),
+            makeEntry({
+                tick: 2,
+                combatantId: "hera",
+                combatantName: "Hera",
+                action: { type: "attack", label: "Fire Lightning Bolt", targetId: "horus", itemName: "temporal sceptre", apCost: 2 },
+                outcome: { result: "hit" }
+            })
+        ];
+
+        const result = narrator.buildTickFactualOutline(timeline, 1);
+
+        assert.equal(result.tick, 1);
+        assert.deepEqual(result.lines, [
+            "Hera fires lightning bolt at Horus with temporal sceptre (AP 1 of 2)",
+            "Horus closes with Hera (AP 1 of 2)"
+        ]);
+        assert.equal(result.markdown, [
+            "- Hera fires lightning bolt at Horus with temporal sceptre (AP 1 of 2)",
+            "- Horus closes with Hera (AP 1 of 2)"
+        ].join("\n"));
+    });
+});
+
+// ---------------------------------------------------------------------------
+// describeFactualOutlineEntry
+// ---------------------------------------------------------------------------
+
+describe("EncounterNarrator.describeFactualOutlineEntry", () => {
+    it("reports later AP progress for long-running actions", () => {
+        const narrator = makeNarrator([makeCombatant("horus", "Horus")]);
+        const entry = makeEntry({
+            combatantId: "hera",
+            combatantName: "Hera",
+            tick: 2,
+            action: {
+                type: "attack",
+                label: "Fire Lightning Bolt",
+                targetId: "horus",
+                itemName: "temporal sceptre",
+                apCost: 3,
+                apStart: 1
+            },
+            outcome: { result: "progress" }
+        });
+
+        assert.equal(
+            narrator.describeFactualOutlineEntry(entry),
+            "Hera fires lightning bolt at Horus with temporal sceptre (AP 2 of 3)"
+        );
+    });
+
+    it("includes resolved outcome details without dropping AP context", () => {
+        const narrator = makeNarrator([makeCombatant("horus", "Horus")]);
+        const entry = makeEntry({
+            combatantId: "hera",
+            combatantName: "Hera",
+            action: {
+                type: "attack",
+                label: "Fire Lightning Bolt",
+                targetId: "horus",
+                itemName: "temporal sceptre",
+                apCost: 2,
+                _runtimeProgress: 2
+            },
+            outcome: {
+                result: "hit",
+                detail: "Horus is interrupted before his strike lands."
+            }
+        });
+
+        assert.equal(
+            narrator.describeFactualOutlineEntry(entry),
+            "Hera fires lightning bolt at Horus with temporal sceptre; result: hit (Horus is interrupted before his strike lands) (AP 2 of 2)"
+        );
+    });
+
+    it("uses order clause text when present", () => {
+        const narrator = makeNarrator();
+        const entry = makeEntry({
+            combatantName: "Horus",
+            action: { type: "movement", label: "Close", apCost: 4, _runtimeProgress: 3 },
+            outcome: { result: "movementStep" },
+            clauseText: "Close with Hera"
+        });
+
+        assert.equal(
+            narrator.describeFactualOutlineEntry(entry),
+            "Horus closes with Hera (AP 3 of 4)"
+        );
+    });
+
+    it("renders noun-style combat actions as performed actions", () => {
+        const narrator = makeNarrator([makeCombatant("horus", "Horus")]);
+        const entry = makeEntry({
+            combatantName: "Mallory",
+            action: {
+                type: "attack",
+                label: "Aimed Shot",
+                targetId: "horus",
+                itemName: "galvanic carbine",
+                apCost: 3,
+                _runtimeProgress: 2
+            },
+            outcome: { result: "progress" }
+        });
+
+        assert.equal(
+            narrator.describeFactualOutlineEntry(entry),
+            "Mallory performs aimed shot at Horus with galvanic carbine (AP 2 of 3)"
+        );
+    });
 });
 
 // ---------------------------------------------------------------------------
