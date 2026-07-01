@@ -243,6 +243,106 @@ describe("buildEncounterTargetIconsModel", () => {
         assert.equal(result[0].iconType, "target");
     });
 
+    it("uses caller-provided canvas tokens when scene tokens are unavailable", () => {
+        const combatants = {
+            "target-c": { tokenId: "tok-doc" }
+        };
+        const plan = [{
+            type: "attack",
+            actionId: "snapshot",
+            targetId: "target-c"
+        }];
+        const scene = {
+            grid: { size: 100 },
+            tokens: []
+        };
+
+        const result = buildEncounterTargetIconsModel({
+            combat: makeCombat(plan, combatants),
+            combatantId: "c1",
+            scene,
+            tokens: [{
+                id: "tok-placeable",
+                x: 200,
+                y: 300,
+                width: 1,
+                height: 1,
+                document: { id: "tok-doc" }
+            }]
+        });
+
+        assert.equal(result.length, 1);
+        assert.equal(result[0].tokenId, "tok-doc");
+        assert.equal(result[0].x, 200);
+        assert.equal(result[0].y, 300);
+    });
+
+    it("prefers document grid dimensions over canvas placeable pixel dimensions", () => {
+        const combatants = {
+            "target-c": { tokenId: "tok-doc" }
+        };
+        const plan = [{
+            type: "movement",
+            actionId: "pursue",
+            targetId: "target-c"
+        }];
+        const scene = {
+            grid: { size: 100 },
+            tokens: []
+        };
+
+        const result = buildEncounterTargetIconsModel({
+            combat: makeCombat(plan, combatants),
+            combatantId: "c1",
+            scene,
+            tokens: [{
+                id: "tok-placeable",
+                x: 200,
+                y: 300,
+                width: 100,
+                height: 100,
+                document: { id: "tok-doc", width: 1, height: 1 }
+            }]
+        });
+
+        assert.equal(result.length, 1);
+        assert.equal(result[0].tileWidth, 100);
+        assert.equal(result[0].tileHeight, 100);
+        assert.equal(result[0].iconType, "pursue");
+    });
+
+    it("treats canvas placeable dimensions without document dimensions as pixels", () => {
+        const combatants = {
+            "target-c": { tokenId: "tok-placeable" }
+        };
+        const plan = [{
+            type: "movement",
+            actionId: "pursue",
+            targetId: "target-c"
+        }];
+        const scene = {
+            grid: { size: 100 },
+            tokens: []
+        };
+
+        const result = buildEncounterTargetIconsModel({
+            combat: makeCombat(plan, combatants),
+            combatantId: "c1",
+            scene,
+            tokens: [{
+                id: "tok-placeable",
+                x: 200,
+                y: 300,
+                width: 100,
+                height: 100
+            }]
+        });
+
+        assert.equal(result.length, 1);
+        assert.equal(result[0].tileWidth, 100);
+        assert.equal(result[0].tileHeight, 100);
+    });
+
     it("scales tileWidth/tileHeight by gridSize and token width", () => {
         const tokens = {
             "tok-big": { x: 0, y: 0, width: 2, height: 2 }

@@ -88,6 +88,28 @@ describe("encounter targeting overlay", () => {
         }), token);
     });
 
+    it("includes all in-range target token reference ids in the overlay model", () => {
+        const model = buildEncounterTargetingOverlayModel({
+            scene: { grid: { size: 100, distance: 5 } },
+            sourceToken: { id: "source-placeable", x: 0, y: 0, width: 1, height: 1 },
+            targetTokens: [
+                {
+                    id: "target-placeable",
+                    x: 100,
+                    y: 0,
+                    width: 1,
+                    height: 1,
+                    document: { id: "target-document" }
+                }
+            ],
+            maxRangeFeet: 10,
+            rangeType: "ranged"
+        });
+
+        assert.ok(model.targetTokenIds.includes("target-placeable"));
+        assert.ok(model.targetTokenIds.includes("target-document"));
+    });
+
     it("uses token placeable hit APIs before rectangular fallback bounds", () => {
         const token = {
             id: "eligible",

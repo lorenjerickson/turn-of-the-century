@@ -147,7 +147,10 @@ describe("WorkspacePanelHost", () => {
     });
 
     it("renders the player encounter panel for the encounter workspace panel", () => {
-        const host = new WorkspacePanelHost({ escapeHTML });
+        const host = new WorkspacePanelHost({
+            escapeHTML,
+            renderRollRequests: () => `<section class="totc-v2-die-roll-request-panel"><button type="button" data-action="die-roll-request-roll">Roll</button></section>`
+        });
 
         const html = host.renderPanelBodyContent({ id: "encounter", title: "Encounter" }, {
             playerEncounterPanel: {
@@ -189,12 +192,18 @@ describe("WorkspacePanelHost", () => {
                     }]
                 },
                 historyRows: []
+            },
+            dieRollRequestPanel: {
+                request: { id: "req1" },
+                requests: [{ id: "req1" }]
             }
         });
 
         assert.match(html, /totc-v2-encounter-panel/);
         assert.match(html, /totc-v2-encounter-narrative/);
         assert.match(html, /data-action="encounter-narrative-phrase"/);
+        assert.match(html, /totc-v2-encounter-panel__roll-requests/);
+        assert.match(html, /data-action="die-roll-request-roll"/);
         assert.doesNotMatch(html, /data-action="encounter-plan-bar"/);
     });
 
@@ -219,9 +228,11 @@ describe("WorkspacePanelHost", () => {
                         health: { value: 8, max: 10 },
                         conditions: ["Bleeding"],
                         ready: false,
-                        apBudget: 6,
-                        segments: [{ id: "move", label: "Move", start: 1, span: 2 }]
+                        apBudget: 6
                     }
+                ],
+                tickNarratives: [
+                    { tick: 1, summary: "Ada Price moves through the smoke.", current: true, evaluated: true }
                 ],
                 lastNarrative: "",
                 lastEvaluatedTick: null,
@@ -233,7 +244,9 @@ describe("WorkspacePanelHost", () => {
 
         assert.match(html, /totc-v2-encounter-manager/);
         assert.match(html, /data-action="encounter-manager-resolve-round"/);
-        assert.match(html, /<h3>Action Plans<\/h3>/);
+        assert.match(html, /<h3>Round Narrative<\/h3>/);
+        assert.match(html, /Ada Price moves through the smoke\./);
+        assert.match(html, /<h3>Combatant Plans<\/h3>/);
         assert.match(html, /totc-v2-encounter-manager__actor-plan/);
     });
 });

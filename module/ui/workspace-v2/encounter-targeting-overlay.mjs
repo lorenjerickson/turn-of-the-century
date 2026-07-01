@@ -97,16 +97,16 @@ export function buildEncounterTargetingOverlayModel({
     }
 
     const origin = tokenCenter(sourceToken, gridSize);
-    const targetTokenIds = [];
+    const targetTokenIds = new Set();
 
     for (const token of targetTokens) {
-        const tokenId = String(token?.id ?? token?._id ?? token?.document?.id ?? "").trim();
-        if (!tokenId) continue;
+        const tokenIds = collectTokenReferenceIds(token);
+        if (!tokenIds.size) continue;
 
         const center = tokenCenter(token, gridSize);
         const distancePixels = Math.hypot(center.x - origin.x, center.y - origin.y);
         if (distancePixels > radiusPixels + 0.0001) continue;
-        targetTokenIds.push(tokenId);
+        for (const tokenId of tokenIds) targetTokenIds.add(tokenId);
     }
 
     return {
@@ -114,7 +114,7 @@ export function buildEncounterTargetingOverlayModel({
         rangeFeet,
         rangeType: String(rangeType ?? "melee"),
         radiusPixels,
-        targetTokenIds,
+        targetTokenIds: [...targetTokenIds],
         sourceTokenId: String(sourceToken?.id ?? sourceToken?._id ?? sourceToken?.document?.id ?? "").trim(),
         origin
     };

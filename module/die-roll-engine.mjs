@@ -54,3 +54,57 @@ export function rollDieRequestForUser(request, userId, { rng = Math.random, now 
         timestamp: now()
     };
 }
+
+function keptDiceFromFoundryRoll(roll = null, requestDice = []) {
+    const diceTerms = Array.isArray(roll?.dice) ? roll.dice : [];
+    const fallbackFaces = requestDice[0]?.faces ?? 20;
+    return diceTerms.flatMap((term, groupIndex) => {
+        const faces = Number(term?.faces ?? fallbackFaces) || fallbackFaces;
+        const results = Array.isArray(term?.results) ? term.results : [];
+        return results.map((result, index) => ({
+            groupIndex,
+            index,
+            faces,
+            value: Number(result?.result ?? result?.value ?? 0) || 0,
+            kept: result?.active !== false && result?.discarded !== true
+        }));
+    });
+}
+
+export async function rollDieRequestForUserWithFoundry(request, userId, {
+    RollClass = globalThis.Roll,
+    rollMode = undefined,
+    createChatMessage = true,
+    fallback = rollDieRequestForUser,
+    now = () => Date.now(),
+    rng = Math.random
+} = {}) {
+    if (typeof RollClass !== "function") {
+        return fallback(request, userId, { rng, now });
+    }
+
+    const adjustment = getRecipientAdjustment(request, userId);
+    const formula = buildRollFormula({ dice: request?.dice, modifiers: request?.modifiers, adjustment });
+    const roll = await new RollClass(formula).roll({ async: true });
+    if (createChatMessage && typeof roll?.toMessage === "function") {
+        await roll.toMessage({
+            flavor: request?.label ?? "Requested Roll",
+            rollMode
+        });
+    }
+
+    const dice = keptDiceFromFoundryRoll(roll, request?.dice ?? []);
+    return {
+        requestId: request.id,
+        userId,
+        label: request.label,
+        rollType: request.rollType,
+        rollSubType: request.rollSubType,
+        formula: String(roll?.formula ?? formula),
+        dice,
+        modifiers: request.modifiers ?? [],
+        adjustment,
+        total: Number(roll?.total ?? 0) || 0,
+        timestamp: now()
+    };
+}

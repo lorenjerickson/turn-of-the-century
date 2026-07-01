@@ -27,6 +27,7 @@ export class WorkspacePanelHost {
         getEncounterTargetOverlayState = () => null,
         getMapPanelToolbarState = () => ({}),
         renderGamemasterPanel = () => "",
+        renderRollRequests = () => "",
         getSelectedTokenIds = () => new Set()
     } = {}) {
         this.getFeatures = getFeatures;
@@ -44,6 +45,7 @@ export class WorkspacePanelHost {
         this.getEncounterTargetOverlayState = getEncounterTargetOverlayState;
         this.getMapPanelToolbarState = getMapPanelToolbarState;
         this.renderGamemasterPanel = renderGamemasterPanel;
+        this.renderRollRequests = renderRollRequests;
         this.getSelectedTokenIds = getSelectedTokenIds;
     }
 
@@ -125,7 +127,13 @@ export class WorkspacePanelHost {
         }
 
         if (panel.id === "encounter") {
-            return renderPlayerEncounterPanel(context.playerEncounterPanel ?? {}, { escapeHTML: (v) => this.escapeHTML(v) });
+            const dieRollRequestPanel = context.dieRollRequestPanel ?? {};
+            const hasRollRequests = Boolean(dieRollRequestPanel.request)
+                || (Array.isArray(dieRollRequestPanel.requests) && dieRollRequestPanel.requests.length > 0);
+            return renderPlayerEncounterPanel(context.playerEncounterPanel ?? {}, {
+                escapeHTML: (v) => this.escapeHTML(v),
+                rollRequestsMarkup: hasRollRequests ? this.renderRollRequests(dieRollRequestPanel) : ""
+            });
         }
 
         if (panel.id === "gamemaster") {

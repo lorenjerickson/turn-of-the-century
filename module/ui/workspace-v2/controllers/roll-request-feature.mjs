@@ -52,7 +52,7 @@ export class RollRequestFeature extends WorkspaceFeature {
         await acceptCompletedPlanningRoll({ change });
         const userId = String(globalThis.game?.user?.id ?? "");
         const isGM = Boolean(globalThis.game?.user?.isGM);
-        const hasRelevantPendingRequest = dieRollRequestManager
+        const hasRelevantPendingRequest = !isGM && dieRollRequestManager
             .getVisibleRequests({ userId, isGM })
             .some((request) => request.isPending && (isGM || !request.hasResult(userId)));
 
@@ -186,10 +186,27 @@ export class RollRequestFeature extends WorkspaceFeature {
 
         // Player roll execution
         rootElement?.querySelectorAll("[data-action='die-roll-request-roll']")?.forEach((button) => {
-            button.addEventListener("click", (event) => {
+            button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                dieRollRequestManager.rollRequestForRecipient(button.dataset.requestId, globalThis.game?.user?.id);
+                await dieRollRequestManager.rollRequestForRecipient(
+                    button.dataset.requestId,
+                    button.dataset.recipientId || globalThis.game?.user?.id
+                );
+            });
+        });
+
+        // GM auto-roll execution for unresolved request recipients
+        rootElement?.querySelectorAll("[data-action='die-roll-request-roll-all']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const request = dieRollRequestManager.getRequest(button.dataset.requestId);
+                for (const recipientId of request?.recipientIds ?? []) {
+                    if (!request.hasResult(recipientId)) {
+                        await dieRollRequestManager.rollRequestForRecipient(request.id, recipientId);
+                    }
+                }
             });
         });
 

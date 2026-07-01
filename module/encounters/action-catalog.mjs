@@ -66,15 +66,14 @@ export const TOTC_ACTION_CATALOG = {
     },
 
     /**
-     * Close With: movement that continuously closes on a selected target combatant.
-     * Each AP increment re-evaluates the target's current position and advances
-     * toward it.
+     * Close and Engage: reserve part of the round to close on a selected target,
+     * then perform a chosen follow-up action as soon as the target is in range.
      *
-     * The id remains `pursue` for compatibility with the movement resolver.
+     * The id remains `pursue` for compatibility with existing movement internals.
      */
     pursue: {
         id: "pursue",
-        label: "Close With",
+        label: "Close and Engage",
         type: "movement",
         apCost: 1,
         apMin: 1,
@@ -88,6 +87,7 @@ export const TOTC_ACTION_CATALOG = {
         autoResolve: false,
         interruptible: true,
         requiresTarget: true,
+        requiresEngagementAction: true,
         targetingRangeFeet: 10000,
         tickNarrativeFragments: [
             "{{Owner.name}} closes with {{Target.name}}."
@@ -116,6 +116,7 @@ export const TOTC_ACTION_CATALOG = {
         autoResolve: false,
         interruptible: true,
         requiresTarget: true,
+        requiresDuration: true,
         targetingRangeFeet: 10000,
         tickNarrativeFragments: [
             "{{Owner.name}} keeps pace with {{Target.name}}."
@@ -144,6 +145,7 @@ export const TOTC_ACTION_CATALOG = {
         autoResolve: false,
         interruptible: true,
         requiresTarget: true,
+        requiresDuration: true,
         targetingRangeFeet: 10000,
         tickNarrativeFragments: [
             "{{Owner.name}} evades {{Target.name}}."
@@ -201,6 +203,7 @@ export const TOTC_ACTION_CATALOG = {
         autoResolve: false,
         interruptible: false,
         requiresTarget: false,
+        requiresDuration: true,
         isReaction: false,
         reactionTriggerType: "",
         tickNarrativeFragments: [
@@ -232,6 +235,7 @@ export const TOTC_ACTION_CATALOG = {
         autoResolve: false,
         interruptible: false,
         requiresTarget: false,
+        requiresDuration: true,
         isReaction: true,
         reactionTriggerType: "incomingAttack",
         tickNarrativeFragments: [
@@ -261,6 +265,7 @@ export const TOTC_ACTION_CATALOG = {
         autoResolve: false,
         interruptible: false,
         requiresTarget: false,
+        requiresDuration: true,
         isReaction: true,
         reactionTriggerType: "overwatch",
         tickNarrativeFragments: [

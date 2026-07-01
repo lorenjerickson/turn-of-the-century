@@ -13,6 +13,16 @@ function positiveNumber(value, fallback = 1) {
     return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+function tokenDimensionPixels(token, key, gridSize) {
+    const documentDimension = positiveNumber(token?.document?.[key], 0);
+    if (documentDimension > 0) return documentDimension * gridSize;
+
+    const dimension = positiveNumber(token?.[key], 0);
+    if (dimension <= 0) return gridSize;
+
+    return dimension > 10 ? dimension : dimension * gridSize;
+}
+
 function collectionContents(collection) {
     if (!collection) return [];
     if (Array.isArray(collection)) return collection;
@@ -27,7 +37,8 @@ function collectionGet(collection, id = "") {
     if (!key) return null;
     return collection?.get?.(key)
         ?? collectionContents(collection).find((entry) => (
-            String(entry?.id ?? entry?._id ?? entry?.document?.id ?? "").trim() === key
+            collectTokenReferenceIds(entry).has(key)
+            || String(entry?.id ?? entry?._id ?? entry?.document?.id ?? "").trim() === key
         ))
         ?? null;
 }
@@ -96,7 +107,7 @@ export function resolveTargetIconType(action) {
  * Deduplicates: if the same token is targeted by multiple actions, only the
  * first occurrence determines the icon type.
  */
-export function buildEncounterTargetIconsModel({ combat, combatantId, scene } = {}) {
+export function buildEncounterTargetIconsModel({ combat, combatantId, scene, tokens = null } = {}) {
     if (!combat || !combatantId || !scene) return [];
 
     const plan = plannedActionsForTargetIcons(combat, combatantId);
@@ -113,7 +124,7 @@ export function buildEncounterTargetIconsModel({ combat, combatantId, scene } = 
         if (!targetCombatant) continue;
 
         const combatantTokenIds = getCombatantTokenReferenceIds(targetCombatant);
-        const token = findTokenForCombatant(scene.tokens, targetCombatant);
+        const token = findTokenForCombatant(tokens ?? scene.tokens, targetCombatant);
         if (!token) continue;
 
         const tokenId = tokenDocumentId(token) || firstReferenceId(combatantTokenIds);
@@ -124,8 +135,8 @@ export function buildEncounterTargetIconsModel({ combat, combatantId, scene } = 
             tokenId,
             x: numberOr(token.x ?? token.document?.x, 0),
             y: numberOr(token.y ?? token.document?.y, 0),
-            tileWidth: positiveNumber(token.width ?? token.document?.width, 1) * gridSize,
-            tileHeight: positiveNumber(token.height ?? token.document?.height, 1) * gridSize,
+            tileWidth: tokenDimensionPixels(token, "width", gridSize),
+            tileHeight: tokenDimensionPixels(token, "height", gridSize),
             iconType: resolveTargetIconType(action)
         });
     }

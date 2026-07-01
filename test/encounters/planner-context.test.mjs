@@ -96,7 +96,7 @@ describe("encounter planner context", () => {
         assert.deepEqual(planner.availableActions.map((action) => action.id), ["move"]);
         assert.equal(planner.queue[0].img, "modules/game-icons-net/blackbackground/dodge.svg");
         assert.equal(planner.availableActions[0].img, "modules/game-icons-net/blackbackground/move.svg");
-        assert.equal(planner.draftNarrative.text, "Rook Bruiser moves 20 feet (2 AP).");
+        assert.equal(planner.draftNarrative.text, "Rook Bruiser moves 20 feet (2 AP), then [select action].");
         assert.equal(planner.draftNarrative.phrases.find((phrase) => phrase.decision === "movementDestination").text, "20 feet");
     });
 

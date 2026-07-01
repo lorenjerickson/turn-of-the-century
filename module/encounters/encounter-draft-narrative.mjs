@@ -46,6 +46,26 @@ function movementDistanceText(clause = {}) {
     return `${Math.max(0, Math.round(feet))} feet`;
 }
 
+function engagementActionText(clause = {}) {
+    return text(clause.engageActionNarrativeText, text(clause.engageActionLabel, "select action")).toLowerCase();
+}
+
+function engagementActionAp(clause = {}) {
+    const actionAp = Number(clause.engageActionAp ?? clause.effectAp);
+    if (Number.isFinite(actionAp) && actionAp > 0) return Math.max(1, Math.floor(actionAp));
+    return Math.max(1, Math.floor(toNumber(clause.apCost, 1)));
+}
+
+function closePositioningAp(clause = {}) {
+    const closeAp = Number(clause.positioningAp);
+    if (Number.isFinite(closeAp)) return Math.max(0, Math.floor(closeAp));
+    return Math.max(0, Math.floor(toNumber(clause.apCost, 0)) - engagementActionAp(clause));
+}
+
+function apText(ap = 0) {
+    return ` (${Math.max(0, Math.floor(toNumber(ap, 0)))} AP)`;
+}
+
 function formatTemplate(template = "", context = {}) {
     const raw = text(template);
     if (!raw) return "";
@@ -116,6 +136,48 @@ function renderTemplatedClause(clause, clauseIndex, { actionText = "", itemText 
     };
 }
 
+function renderCloseAndEngageClause(clause, clauseIndex) {
+    const targetPhrase = selectedOrPlaceholder({
+        clause,
+        clauseIndex,
+        decision: "target",
+        selected: clause.targetName,
+        placeholder: "select target",
+        rootDecision: "target"
+    });
+    const engagementPhrase = phrase({
+        clause,
+        clauseIndex,
+        decision: "engagementAction",
+        rootDecision: "engagementAction",
+        label: clause.missingDecisions.includes("engagementAction") ? "[select action]" : engagementActionText(clause),
+        placeholder: clause.missingDecisions.includes("engagementAction")
+    });
+    const itemPhrase = selectedOrPlaceholder({
+        clause,
+        clauseIndex,
+        decision: "item",
+        selected: clause.itemNarrativeText || clause.itemName,
+        placeholder: "select item"
+    });
+    const hasEngagementAction = !engagementPhrase.placeholder;
+    const closeAp = closePositioningAp(clause);
+    const actionAp = engagementActionAp(clause);
+    const closeApText = hasEngagementAction ? apText(closeAp) : "";
+    const actionApText = hasEngagementAction ? apText(actionAp) : "";
+    const itemText = hasEngagementAction && clause.requiresItem ? ` with ${itemPhrase.text}` : "";
+
+    return {
+        text: `closes with ${targetPhrase.text}${closeApText} and ${engagementPhrase.text}${actionApText}${itemText}`,
+        phrases: [
+            phrase({ clause, clauseIndex, decision: "action", label: "closes with" }),
+            targetPhrase,
+            engagementPhrase,
+            ...(hasEngagementAction && clause.requiresItem ? [itemPhrase] : [])
+        ]
+    };
+}
+
 function renderMovementClause(clause, clauseIndex) {
     const actionId = lowerActionId(clause);
     const targetPhrase = selectedOrPlaceholder({
@@ -134,6 +196,20 @@ function renderMovementClause(clause, clauseIndex) {
         label: clause.missingDecisions.includes("movementDestination") ? "[select destination]" : movementDistanceText(clause),
         placeholder: clause.missingDecisions.includes("movementDestination")
     });
+    const durationPhrase = clause.requiresDuration
+        ? phrase({
+            clause,
+            clauseIndex,
+            decision: "duration",
+            label: clause.durationAp === null ? "[select duration]" : durationText(clause),
+            placeholder: clause.durationAp === null
+        })
+        : null;
+    const durationSuffix = durationPhrase ? ` for ${durationPhrase.text}` : "";
+
+    if (clause.requiresEngagementAction || actionId === "closeandengage" || actionId === "close-and-engage") {
+        return renderCloseAndEngageClause(clause, clauseIndex);
+    }
 
     if (actionId === "pursue" || actionId === "closewith" || actionId === "close-with") {
         return {
@@ -147,20 +223,22 @@ function renderMovementClause(clause, clauseIndex) {
 
     if (actionId === "follow") {
         return {
-            text: `follows ${targetPhrase.text}${apLabel(clause)}`,
+            text: `follows ${targetPhrase.text}${durationSuffix}${apLabel(clause)}`,
             phrases: [
                 phrase({ clause, clauseIndex, decision: "action", label: "follows" }),
-                targetPhrase
+                targetPhrase,
+                ...(durationPhrase ? [durationPhrase] : [])
             ]
         };
     }
 
     if (actionId === "avoid" || actionId === "evade") {
         return {
-            text: `evades ${targetPhrase.text}${apLabel(clause)}`,
+            text: `evades ${targetPhrase.text}${durationSuffix}${apLabel(clause)}`,
             phrases: [
                 phrase({ clause, clauseIndex, decision: "action", label: "evades" }),
-                targetPhrase
+                targetPhrase,
+                ...(durationPhrase ? [durationPhrase] : [])
             ]
         };
     }
@@ -273,7 +351,13 @@ function renderIdleClause(clause, clauseIndex) {
 }
 
 function renderUtilityClause(clause, clauseIndex) {
-    const actionLabel = text(clause.actionNarrativeText, text(clause.label, "acts")).toLowerCase();
+    const actionId = lowerActionId(clause);
+    const defaultActionLabels = {
+        dodge: "dodges",
+        hunkdown: "hunkers down",
+        hunkerdown: "hunkers down"
+    };
+    const actionLabel = text(clause.actionNarrativeText, defaultActionLabels[actionId] ?? text(clause.label, "acts")).toLowerCase();
     const durationPhrase = clause.requiresDuration
         ? phrase({
             clause,
@@ -325,25 +409,44 @@ function joinClauses(subjectName = "", renderedClauses = []) {
     return `${subjectName} ${fragments.join(", then ")}.`;
 }
 
-function buildFallbackActionPhrase(draft) {
+function buildFallbackActionPhrase(_draft, clauseIndex = 0, label = "[select an action]") {
     const clause = {
-        clauseId: "draft-clause-1"
+        clauseId: `draft-clause-${clauseIndex + 1}`
     };
     return phrase({
         clause,
-        clauseIndex: 0,
+        clauseIndex,
         decision: "action",
-        label: "[select an action]",
+        label,
         placeholder: true
     });
+}
+
+function shouldAppendActionPrompt(draft) {
+    return draft.lifecycle === "drafting"
+        && draft.clauses.length > 0
+        && draft.remainingAp > 0
+        && !draft.overBudget
+        && draft.missingDecisions.length === 0;
+}
+
+function buildFollowOnActionClause(draft) {
+    const nextClauseIndex = draft.clauses.length;
+    return {
+        text: "[select action]",
+        phrases: [buildFallbackActionPhrase(draft, nextClauseIndex, "[select action]")]
+    };
 }
 
 export function renderDraftPlanNarrative(draftPlan = {}, { subjectName = "The combatant", apBudget = 6, initialPosition = null } = {}) {
     const draft = normalizeDraftPlan(draftPlan, { apBudget, initialPosition });
     const renderedClauses = draft.clauses.map((clause, index) => renderClause(clause, index, draft.clauses));
-    const phrases = renderedClauses.flatMap((clause) => clause.phrases);
+    const narrativeClauses = shouldAppendActionPrompt(draft)
+        ? [...renderedClauses, buildFollowOnActionClause(draft)]
+        : renderedClauses;
+    const phrases = narrativeClauses.flatMap((clause) => clause.phrases);
     const displayName = titleName(subjectName);
-    const textOutput = joinClauses(displayName, renderedClauses);
+    const textOutput = joinClauses(displayName, narrativeClauses);
     const fallbackPhrase = renderedClauses.length ? [] : [buildFallbackActionPhrase(draft)];
 
     return {

@@ -5,7 +5,10 @@ import {
     DIE_ROLL_REQUEST_STATUSES,
     DieRollRequest
 } from "../module/models/die-roll-request.mjs";
-import { rollDieRequestForUser } from "../module/die-roll-engine.mjs";
+import {
+    rollDieRequestForUser,
+    rollDieRequestForUserWithFoundry
+} from "../module/die-roll-engine.mjs";
 
 describe("DieRollRequest", () => {
     it("normalizes durable roll request fields", () => {
@@ -50,10 +53,46 @@ describe("DieRollRequest", () => {
         assert.equal(req.getFormulaFor("player1"), "1d20 + 1");
         assert.equal(req.modifiers[0].value, 2);
     });
+
+    it("uses Foundry Roll when available so dice modules can observe the roll", async () => {
+        const req = new DieRollRequest({
+            id: "req-foundry",
+            recipientIds: ["player1"],
+            label: "Attack",
+            dice: "1d20",
+            modifiers: [{ label: "Action bonus", value: 2 }]
+        });
+        const messages = [];
+        class FakeRoll {
+            constructor(formula) {
+                this.formula = formula;
+                this.total = 19;
+                this.dice = [{ faces: 20, results: [{ result: 17, active: true }] }];
+            }
+
+            async roll() {
+                return this;
+            }
+
+            async toMessage(message) {
+                messages.push(message);
+            }
+        }
+
+        const result = await rollDieRequestForUserWithFoundry(req, "player1", {
+            RollClass: FakeRoll,
+            now: () => 456
+        });
+
+        assert.equal(result.formula, "1d20 + 2");
+        assert.equal(result.total, 19);
+        assert.deepEqual(result.dice.map((die) => die.value), [17]);
+        assert.equal(messages[0].flavor, "Attack");
+    });
 });
 
 describe("rollDieRequestForUser", () => {
-    it("rolls all dice and emphasizes the kept die for disadvantage", () => {
+    it("rolls all dice and emphasizes the kept die for disadvantage", async () => {
         const req = new DieRollRequest({
             id: "req-dis",
             recipientIds: ["player1"],
@@ -63,7 +102,7 @@ describe("rollDieRequestForUser", () => {
             adjustments: { player1: { value: 1 } }
         });
         const rolls = [0.7, 0.2];
-        const result = rollDieRequestForUser(req, "player1", {
+        const result = await rollDieRequestForUser(req, "player1", {
             rng: () => rolls.shift(),
             now: () => 123
         });

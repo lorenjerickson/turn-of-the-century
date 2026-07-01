@@ -61,6 +61,7 @@ import { RollRequestFeature } from "./controllers/roll-request-feature.mjs";
 import { WorkspaceLayoutFeature } from "./controllers/workspace-layout-feature.mjs";
 import { GamemasterFeature } from "./controllers/gamemaster-feature.mjs";
 import { createSceneDesignRuntime } from "./scene-design-runtime.mjs";
+import { dieRollRequestManager } from "../../die-roll-request-manager.mjs";
 
 const ApplicationV2Base = requireApplicationV2();
 const CombatDocumentClass = requireCombatDocumentClass();
@@ -192,6 +193,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             getEncounterTargetOverlayState: (scene) => this.encounterPlanningFeature?.getTargetOverlayState(scene),
             getMapPanelToolbarState: (panel) => this.sceneDesignFeature?.getMapPanelToolbarState(panel),
             renderGamemasterPanel: (gmPanel, gmSnapshot, dieRollRequestPanel) => this.gamemasterFeature.renderGamemasterPanel(gmPanel, gmSnapshot, dieRollRequestPanel),
+            renderRollRequests: (panel) => this.rollRequestFeature?.renderRollRequests(panel) ?? "",
             getSelectedTokenIds: () => this.selectedTokenIds
         });
         this.encounterPlanningFeature = new EncounterPlanningFeature({
@@ -475,9 +477,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             playerEncounterPanel: null,
             designIssuesPanel: null,
             loggingPanel: buildLoggingPanelModel({ entries: totcLogger.getEntries() }),
-            encounterManagerPanel: buildEncounterManagerPanelModel({
-                combat
-            })
+            encounterManagerPanel: null
         };
 
         for (const feature of this.features) {
@@ -485,6 +485,12 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 await feature.prepareContext(context);
             }
         }
+
+        context.encounterManagerPanel = buildEncounterManagerPanelModel({
+            combat,
+            rollRequests: context.dieRollRequestPanel?.requests ?? [],
+            users: context.dieRollRequestPanel?.users ?? []
+        });
 
         return context;
     }
@@ -618,6 +624,58 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
                 if (!combat?.stepEncounterResolution) return;
                 const direction = Number(button.dataset.direction ?? 1) >= 0 ? 1 : -1;
                 await combat.stepEncounterResolution(direction);
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-manager-roll-request']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await dieRollRequestManager.rollRequestForRecipient(
+                    button.dataset.requestId,
+                    button.dataset.recipientId || game?.user?.id
+                );
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-manager-auto-roll-gm']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const combat = this.#getEncounterCombat();
+                const combatId = String(combat?.id ?? "");
+                const gmUserIds = this.#collectionContents(game?.users)
+                    .filter((user) => user?.isGM)
+                    .map((user) => String(user?.id ?? ""))
+                    .filter(Boolean);
+                const requests = dieRollRequestManager.getVisibleRequests({ userId: game?.user?.id, isGM: true })
+                    .filter((request) => String(request?.combatId ?? "") === combatId)
+                    .filter((request) => request?.isPending);
+                for (const request of requests) {
+                    for (const recipientId of request.recipientIds ?? []) {
+                        if (!gmUserIds.includes(String(recipientId)) || request.hasResult(recipientId)) continue;
+                        await dieRollRequestManager.rollRequestForRecipient(request.id, recipientId);
+                    }
+                }
+                this.render({ force: false });
+            });
+        });
+
+        this.element?.querySelectorAll("[data-action='encounter-manager-reset-rolls']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const combatantId = String(button.dataset.combatantId ?? "").trim();
+                const combat = this.#getEncounterCombat();
+                if (!combatantId || !combat?.resetCombatantPlanningRolls) return;
+                await combat.resetCombatantPlanningRolls(combatantId);
+                for (const request of dieRollRequestManager.getVisibleRequests({ userId: game?.user?.id, isGM: true })) {
+                    if (String(request?.combatId ?? "") !== String(combat?.id ?? "")) continue;
+                    if (String(request?.combatantId ?? "") !== combatantId) continue;
+                    dieRollRequestManager.sendCancel(request.id, { cancelledBy: game?.user?.id ?? "" });
+                }
                 this.render({ force: false });
             });
         });

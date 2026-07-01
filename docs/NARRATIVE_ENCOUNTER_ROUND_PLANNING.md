@@ -64,7 +64,7 @@ Player-facing action labels should include:
 - Attack
 - Defend
 - Evade
-- Close With
+- Close and Engage
 - Follow
 - Wait
 - Use Item
@@ -74,7 +74,7 @@ Player-facing action labels should include:
 - Aimed Shot
 - Pistol Whip
 
-`Close and Engage` should not be shown. The current `Pursue` intent should be renamed in the UI to `Close With`. `Follow` remains separate because it represents a different intent.
+`Close and Engage` replaces the earlier simple `Close With` player-facing action. It is a composite intent: the player selects a target, then selects the action they mean to perform once close enough. The closing portion spends only the AP available after preserving the selected follow-up action's AP cost, and "close" means moving until the target is within the selected action's effective range. `Follow` remains separate because it represents a different intent.
 
 ### Targets
 
@@ -122,7 +122,7 @@ Avoid:
 
 `Horus attacks Mallory with his grandfather's hunting knife when he gets within reach.`
 
-This keeps the player's movement intent legible and preserves the distinction between `Close With`, `Follow`, and other movement actions.
+This keeps the player's movement intent legible and preserves the distinction between `Close and Engage`, `Follow`, and other movement actions.
 
 ## Overwatch Language
 
@@ -518,13 +518,13 @@ Required capabilities:
 
 - Convert locked narrative plans into the action structures expected by the resolution engine.
 - Preserve existing action timing, AP cost, movement, targeting, and roll semantics.
-- Ensure `Close With`, `Follow`, `Move`, `Evade`, `Wait`, and `Idle` retain distinct intent where represented by the model.
+- Ensure `Close and Engage`, `Follow`, `Move`, `Evade`, `Wait`, and `Idle` retain distinct intent where represented by the model.
 - Ensure automatic `Idle` is resolvable and reconcilable.
 
 Implementation notes:
 
-- `Pursue` may remain as an internal legacy action id only if compatibility requires it, but player-facing text should use `Close With`.
-- `Close and Engage` should be removed from player-facing choices.
+- `Pursue` may remain as an internal legacy action id only if compatibility requires it, but player-facing text should use `Close and Engage`.
+- `Close and Engage` must preserve the selected follow-up action's AP cost and effective range when converted for resolution, allowing the resolver to move until that action becomes possible and idle if movement AP remains unused.
 - `Wait` and `Idle` can behave the same mechanically at first but should not collapse into the same action id.
 
 Acceptance criteria:

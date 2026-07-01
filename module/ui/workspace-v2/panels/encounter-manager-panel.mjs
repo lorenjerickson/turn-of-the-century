@@ -36,39 +36,6 @@ function actorEffects(actor) {
         .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
 }
 
-function planSegmentsFromActions(actions = []) {
-    let cursor = 1;
-    return toArray(actions).map((action, index) => {
-        const cost = Math.max(1, toNumber(action?.apCost, 1));
-        const segment = {
-            id: String(action?.id ?? action?.actionId ?? `action-${index + 1}`),
-            orderId: orderIdForAction(action, index),
-            label: String(action?.label ?? `Action ${index + 1}`),
-            start: cursor,
-            span: cost
-        };
-        cursor += cost;
-        return segment;
-    });
-}
-
-function planSegmentsFromTimeline(timeline = [], combatantId = "") {
-    return toArray(timeline)
-        .filter((entry) => String(entry?.combatantId ?? "") === combatantId)
-        .map((entry, index) => {
-            const action = entry?.action ?? {};
-            const start = Math.max(1, toNumber(action.apStart ?? entry.slot, 1));
-            const end = Math.max(start, toNumber(action.apEnd ?? entry.slot, start));
-            return {
-                id: String(action.id ?? action.actionId ?? `resolved-${index + 1}`),
-                label: String(action.label ?? entry?.outcome?.result ?? `Action ${index + 1}`),
-                start,
-                span: Math.max(1, end - start + 1),
-                result: String(entry?.outcome?.result ?? "")
-            };
-        });
-}
-
 function latestTimelineSlot(timeline = []) {
     return toArray(timeline).reduce((latest, entry) => Math.max(latest, toNumber(entry?.slot ?? entry?.tick, 0)), 0);
 }
@@ -136,7 +103,8 @@ function orderModelsFromPlan({ actions = [], timeline = [], combatantId = "", cu
             summary: String(display.summary ?? action?.label ?? `Action ${index + 1}`),
             active,
             status: active ? "active" : failed ? "failed" : completed ? "completed" : "pending",
-            clauses
+            clauses,
+            rollResults: toArray(action.planningRollResults).map(rollResultModel)
         };
     });
 }
@@ -160,6 +128,23 @@ function rollRequirementSatisfied(action = {}, requirement = {}) {
         if (resultSubType && requiredSubType && resultSubType !== requiredSubType) return false;
         return true;
     });
+}
+
+function rollResultModel(result = {}) {
+    const nestedResult = result?.result && typeof result.result === "object" ? result.result : {};
+    const total = toNumber(nestedResult.total ?? result.total, Number.NaN);
+    const formula = String(nestedResult.formula ?? result.formula ?? "").trim();
+    const rollType = String(result.rollType ?? nestedResult.rollType ?? "roll").trim() || "roll";
+    const rollSubType = String(result.rollSubType ?? nestedResult.rollSubType ?? "").trim();
+
+    return {
+        requestId: String(result.requestId ?? nestedResult.requestId ?? ""),
+        label: rollSubType || rollType,
+        rollType,
+        rollSubType,
+        formula,
+        total: Number.isFinite(total) ? total : null
+    };
 }
 
 function pendingRollCount(actions = []) {
@@ -217,14 +202,25 @@ function tickNarrativeFromResolution(resolution = {}, tick = 0) {
     return toArray(match.lines).map((line) => String(line ?? "").trim()).filter(Boolean).join(" ");
 }
 
+function buildRoundNarrativeTicks({ resolution = {}, timeline = [], totalTicks = 6, currentTick = 0 } = {}) {
+    const tickCount = Math.max(1, toNumber(totalTicks, 6));
+    const activeTick = Math.max(0, toNumber(currentTick, 0));
+    return Array.from({ length: tickCount }, (_, index) => {
+        const tick = index + 1;
+        return {
+            tick,
+            summary: tickNarrativeFromResolution(resolution, tick) || latestSlotNarrative(timeline, tick),
+            current: tick === activeTick,
+            evaluated: activeTick > 0 && tick <= activeTick
+        };
+    });
+}
+
 function buildCombatantSummary(combatant, state, timeline, apBudget, currentTick = 0) {
     const id = String(combatant?.id ?? "");
     const actor = combatant?.actor ?? null;
     const system = actor?.system ?? {};
     const currentState = combatantState(state, id);
-    const plannedSegments = planSegmentsFromActions(currentState.plan);
-    const resolvedSegments = planSegmentsFromTimeline(timeline, id);
-    const segments = plannedSegments.length ? plannedSegments : resolvedSegments;
     const orders = orderModelsFromPlan({
         actions: currentState.plan,
         timeline,
@@ -243,13 +239,77 @@ function buildCombatantSummary(combatant, state, timeline, apBudget, currentTick
         },
         conditions: actorEffects(actor),
         apBudget,
-        segments,
         orders,
+        canResetRolls: orders.some((order) => toArray(order.rollResults).length > 0) || pendingRollCount(currentState.plan) > 0,
         draftSummary: draftSummaryModel({ combatant, currentState, apBudget })
     };
 }
 
-export function buildEncounterManagerPanelModel({ combat = null } = {}) {
+function userModel(users = []) {
+    return toArray(users).map((user) => ({
+        id: String(user?.id ?? ""),
+        name: String(user?.name ?? user?.id ?? "User"),
+        isGM: Boolean(user?.isGM)
+    })).filter((user) => user.id);
+}
+
+function requestFormula(request = {}, recipientId = "") {
+    if (typeof request.getFormulaFor === "function") return request.getFormulaFor(recipientId);
+    const dice = toArray(request.dice).map((die) => {
+        const count = Math.max(1, toNumber(die?.count, 1));
+        const faces = Math.max(2, toNumber(die?.faces ?? die?.sides, 20));
+        const keep = die?.keep === "highest" ? "kh1" : die?.keep === "lowest" ? "kl1" : "";
+        return `${count}d${faces}${keep}`;
+    }).join(" + ") || "1d20";
+    const modifier = toArray(request.modifiers).reduce((sum, entry) => sum + toNumber(entry?.value ?? entry?.modifier, 0), 0);
+    return modifier ? `${dice} ${modifier >= 0 ? "+" : "-"} ${Math.abs(modifier)}` : dice;
+}
+
+function rollRequestModel(request = {}, users = []) {
+    const recipients = toArray(request.recipientIds).map((recipientId) => {
+        const user = users.find((entry) => entry.id === recipientId) ?? null;
+        const result = request.results?.[recipientId] ?? null;
+        return {
+            id: recipientId,
+            name: user?.name ?? recipientId,
+            isGM: Boolean(user?.isGM),
+            pending: !result,
+            formula: String(result?.formula ?? requestFormula(request, recipientId)),
+            total: Number.isFinite(Number(result?.total)) ? Number(result.total) : null
+        };
+    });
+
+    return {
+        id: String(request.id ?? ""),
+        combatId: String(request.combatId ?? ""),
+        combatantId: String(request.combatantId ?? ""),
+        actionIndex: Number.isInteger(Number(request.actionIndex)) ? Number(request.actionIndex) : null,
+        label: String(request.label ?? "Requested Roll"),
+        rollType: String(request.rollType ?? "roll"),
+        rollSubType: String(request.rollSubType ?? ""),
+        status: String(request.status ?? "pending"),
+        pending: Boolean(request.isPending ?? recipients.some((recipient) => recipient.pending)),
+        gmControlled: recipients.some((recipient) => recipient.isGM),
+        recipients
+    };
+}
+
+function rollRequestQueueModel({ combat = null, rollRequests = [], users = [] } = {}) {
+    const combatId = String(combat?.id ?? "");
+    const normalizedUsers = userModel(users);
+    const requests = toArray(rollRequests)
+        .filter((request) => !combatId || String(request?.combatId ?? "") === combatId)
+        .map((request) => rollRequestModel(request, normalizedUsers));
+    const gmRequests = requests.filter((request) => request.gmControlled && request.pending);
+    return {
+        requests,
+        gmRequests,
+        hasRequests: requests.length > 0,
+        hasPendingGmRequests: gmRequests.length > 0
+    };
+}
+
+export function buildEncounterManagerPanelModel({ combat = null, rollRequests = [], users = [] } = {}) {
     const state = combat?.encounterState ?? combat?.encounter?.state ?? {};
     const resolution = state?.resolution ?? {};
     const phase = String(combat?.phase ?? state?.phase ?? "planning");
@@ -267,6 +327,9 @@ export function buildEncounterManagerPanelModel({ combat = null } = {}) {
         && toArray(resolution?.snapshots).length > 0;
     const isInProgress = phase === "resolving" || phase === "roundComplete";
 
+    const actors = combatantContents(combat?.combatants).map((combatant) => buildCombatantSummary(combatant, state, timeline, apBudget, currentTick));
+    const pendingRequiredRolls = actors.reduce((sum, actor) => sum + pendingRollCount(combatantState(state, actor.id).plan), 0);
+
     return {
         active: Boolean(combat),
         initialized,
@@ -280,35 +343,17 @@ export function buildEncounterManagerPanelModel({ combat = null } = {}) {
         progressPercent,
         resolutionStatus: String(resolution?.status ?? "idle"),
         canStartRound: Boolean(combat?.initializeEncounterRound),
-        canResolveRound: Boolean(combat?.resolveEncounterRound),
+        canResolveRound: Boolean(combat?.resolveEncounterRound || combat?.beginEncounterResolution) && pendingRequiredRolls === 0,
         canSetPhase: Boolean(combat?.setEncounterPhase),
         canStepPrevious: hasSnapshots && isInProgress && currentTick > 0,
         canStepNext: hasSnapshots && phase === "resolving" && currentTick < totalTicks,
-        actors: combatantContents(combat?.combatants).map((combatant) => buildCombatantSummary(combatant, state, timeline, apBudget, currentTick)),
+        actors,
+        pendingRequiredRolls,
+        rollQueue: rollRequestQueueModel({ combat, rollRequests, users }),
         lastNarrative: tickNarrative,
+        tickNarratives: buildRoundNarrativeTicks({ resolution, timeline, totalTicks, currentTick }),
         lastEvaluatedTick: latestSlot || null
     };
-}
-
-function renderTicks(apBudget) {
-    return Array.from({ length: Math.max(1, Number(apBudget) || 1) }, (_, index) => `
-        <span class="totc-v2-encounter-manager__tick" style="grid-column:${index + 1};">${index + 1}</span>`).join("");
-}
-
-function renderPlanBar(actor, currentTick, escapeHTML) {
-    const tick = Math.max(1, Math.min(actor.apBudget, toNumber(currentTick, 1)));
-    return `
-        <div class="totc-v2-encounter-manager__plan" style="--totc-ap-budget:${actor.apBudget};--totc-current-tick:${tick};">
-            ${renderTicks(actor.apBudget)}
-            <span class="totc-v2-encounter-manager__current-line" aria-hidden="true"></span>
-            ${(actor.segments ?? []).map((segment) => `
-                <span class="totc-v2-encounter-manager__segment"
-                    style="grid-column:${segment.start} / span ${segment.span};"
-                    title="${escapeHTML(segment.label)}${segment.result ? `: ${escapeHTML(segment.result)}` : ""}">
-                    ${escapeHTML(segment.label)}
-                </span>`).join("")}
-            ${(actor.segments ?? []).length ? "" : `<span class="totc-v2-encounter-manager__empty-plan">No plan</span>`}
-        </div>`;
 }
 
 function renderOrderClauses(order, escapeHTML) {
@@ -340,9 +385,28 @@ function renderActorOrders(actor, escapeHTML) {
                 <li class="totc-v2-encounter-manager__order is-${escapeHTML(String(order.status ?? "pending"))}"
                     data-order-id="${escapeHTML(order.orderId)}">
                     <strong>${escapeHTML(order.summary)}</strong>
+                    ${renderOrderRollResults(order, escapeHTML)}
                     ${renderOrderClauses(order, escapeHTML)}
                 </li>`).join("")}
         </ol>`;
+}
+
+function renderOrderRollResults(order, escapeHTML) {
+    const results = toArray(order.rollResults);
+    if (!results.length) return "";
+    return `
+        <ul class="totc-v2-encounter-manager__order-rolls" aria-label="Order die roll results">
+            ${results.map((result) => {
+                const total = result.total === null ? "?" : String(result.total);
+                const formula = result.formula ? ` (${result.formula})` : "";
+                return `
+                <li>
+                    <span>${escapeHTML(result.label)}</span>
+                    <strong>${escapeHTML(total)}</strong>
+                    ${formula ? `<small>${escapeHTML(formula)}</small>` : ""}
+                </li>`;
+            }).join("")}
+        </ul>`;
 }
 
 function renderDraftSummary(actor, escapeHTML) {
@@ -381,7 +445,7 @@ function encounterStatusLabel(actor, phase = "") {
     return actor.ready ? "Ready" : "Planning";
 }
 
-function renderActorPlan(actor, currentTick, phase, escapeHTML) {
+function renderActorPlan(actor, phase, escapeHTML) {
     const status = encounterStatusLabel(actor, phase);
     const statusClass = status.toLowerCase().replace(/\s+/g, "-");
     return `
@@ -389,11 +453,96 @@ function renderActorPlan(actor, currentTick, phase, escapeHTML) {
             <header class="totc-v2-encounter-manager__actor-plan-label">
                 <span class="totc-v2-encounter-manager__actor-name">${escapeHTML(actor.name)}</span>
                 <span class="totc-v2-encounter-manager__actor-ready is-${escapeHTML(statusClass)}">${escapeHTML(status)}</span>
+                <button type="button"
+                    data-action="encounter-manager-reset-rolls"
+                    data-combatant-id="${escapeHTML(actor.id)}"
+                    ${actor.canResetRolls ? "" : "disabled"}>
+                    Reset Rolls
+                </button>
             </header>
             ${renderDraftSummary(actor, escapeHTML)}
-            ${renderPlanBar(actor, currentTick, escapeHTML)}
             ${renderActorOrders(actor, escapeHTML)}
         </article>`;
+}
+
+function renderRoundNarrative(model = {}, escapeHTML) {
+    const ticks = toArray(model.tickNarratives);
+    return `
+        <section class="totc-v2-encounter-manager__narrative" aria-label="Round narrative">
+            <h3>Round Narrative</h3>
+            ${ticks.length
+                ? `<ol class="totc-v2-encounter-manager__tick-narratives">
+                    ${ticks.map((tick) => {
+                        const tickNumber = Math.max(1, toNumber(tick.tick, 1));
+                        const stateClass = tick.current ? " is-current" : tick.evaluated ? " is-evaluated" : "";
+                        return `
+                        <li class="totc-v2-encounter-manager__tick-narrative${stateClass}" data-tick="${escapeHTML(String(tickNumber))}">
+                            <span class="totc-v2-encounter-manager__tick-label">Second ${escapeHTML(String(tickNumber))}</span>
+                            <p>${tick.summary ? escapeHTML(tick.summary) : "No narration yet."}</p>
+                        </li>`;
+                    }).join("")}
+                </ol>`
+                : `<p>No AP slot has been evaluated yet.</p>`}
+        </section>`;
+}
+
+function renderRollRecipient(recipient, escapeHTML) {
+    return `
+        <li class="${recipient.pending ? "is-pending" : "is-complete"}">
+            <span>${escapeHTML(recipient.name)}</span>
+            <small>${escapeHTML(recipient.formula)}</small>
+            <strong>${recipient.pending ? "Pending" : escapeHTML(String(recipient.total))}</strong>
+        </li>`;
+}
+
+function renderRollRequestCard(request, escapeHTML, { allowRoll = false } = {}) {
+    return `
+        <article class="totc-v2-encounter-manager__roll-request ${request.pending ? "is-pending" : "is-complete"}"
+            data-request-id="${escapeHTML(request.id)}"
+            data-combatant-id="${escapeHTML(request.combatantId)}">
+            <header>
+                <span>${escapeHTML(request.rollSubType || request.rollType)}</span>
+                <h4>${escapeHTML(request.label)}</h4>
+                <strong>${escapeHTML(request.status)}</strong>
+            </header>
+            <ul class="totc-v2-encounter-manager__roll-recipients">
+                ${request.recipients.map((recipient) => renderRollRecipient(recipient, escapeHTML)).join("")}
+            </ul>
+            ${allowRoll && request.pending ? `
+                <footer>
+                    ${request.recipients.filter((recipient) => recipient.pending).map((recipient) => `
+                        <button type="button"
+                            data-action="encounter-manager-roll-request"
+                            data-request-id="${escapeHTML(request.id)}"
+                            data-recipient-id="${escapeHTML(recipient.id)}">
+                            Roll ${escapeHTML(recipient.name)}
+                        </button>
+                    `).join("")}
+                </footer>` : ""}
+        </article>`;
+}
+
+function renderRollQueue(model = {}, escapeHTML) {
+    const queue = model.rollQueue ?? {};
+    const requests = toArray(queue.requests);
+    if (!requests.length && !model.pendingRequiredRolls) return "";
+    return `
+        <section class="totc-v2-encounter-manager__roll-queue" aria-label="Required encounter rolls">
+            <header>
+                <h3>Required Rolls</h3>
+                <span>${escapeHTML(String(model.pendingRequiredRolls ?? 0))} unresolved</span>
+                <button type="button"
+                    data-action="encounter-manager-auto-roll-gm"
+                    ${queue.hasPendingGmRequests ? "" : "disabled"}>
+                    Auto-roll GM
+                </button>
+            </header>
+            ${requests.length
+                ? `<div class="totc-v2-encounter-manager__roll-list">
+                    ${requests.map((request) => renderRollRequestCard(request, escapeHTML, { allowRoll: request.gmControlled })).join("")}
+                </div>`
+                : `<p class="totc-v2-encounter-manager__empty">Confirmed plans still need roll requests.</p>`}
+        </section>`;
 }
 
 export function renderEncounterManagerPanel(model = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
@@ -423,21 +572,20 @@ export function renderEncounterManagerPanel(model = {}, { escapeHTML = (value) =
             <button type="button" data-action="encounter-manager-start-round" ${model.canStartRound ? "" : "disabled"}>Next Round</button>
             <button type="button" data-action="encounter-manager-set-phase" data-phase="locked" ${model.canSetPhase && model.phase === "planning" ? "" : "disabled"}>Lock Plans</button>
             <button type="button" data-action="encounter-manager-set-phase" data-phase="planning" ${model.canSetPhase && model.phase !== "planning" ? "" : "disabled"}>Reopen Planning</button>
-            <button type="button" data-action="encounter-manager-resolve-round" ${model.canResolveRound ? "" : "disabled"}>Resolve Round</button>
+            <button type="button" data-action="encounter-manager-resolve-round" ${model.canResolveRound ? "" : "disabled"}>Evaluate Round</button>
             <button type="button" data-action="encounter-manager-step-tick" data-direction="-1" ${model.canStepPrevious ? "" : "disabled"}>Prev Second</button>
             <button type="button" data-action="encounter-manager-step-tick" data-direction="1" ${model.canStepNext ? "" : "disabled"}>Next Second</button>
         </div>
 
-        <section class="totc-v2-encounter-manager__actors" style="--totc-ap-budget:${model.apBudget};--totc-current-tick:${model.currentTick};">
-            <h3>Action Plans</h3>
-            ${model.actors.length
-                ? model.actors.map((actor) => renderActorPlan(actor, model.currentTick, model.phase, escapeHTML)).join("")
-                : `<p class="totc-v2-encounter-manager__empty">No actors in this encounter.</p>`}
-        </section>
+        ${renderRoundNarrative(model, escapeHTML)}
 
-        <section class="totc-v2-encounter-manager__narrative">
-            <h3>Tick Narrative${model.currentTick ? ` AP ${escapeHTML(String(model.currentTick))}` : ""}</h3>
-            <p>${model.lastNarrative ? escapeHTML(model.lastNarrative) : "No AP slot has been evaluated yet."}</p>
+        ${renderRollQueue(model, escapeHTML)}
+
+        <section class="totc-v2-encounter-manager__actors" style="--totc-ap-budget:${model.apBudget};--totc-current-tick:${model.currentTick};">
+            <h3>Combatant Plans</h3>
+            ${model.actors.length
+                ? model.actors.map((actor) => renderActorPlan(actor, model.phase, escapeHTML)).join("")
+                : `<p class="totc-v2-encounter-manager__empty">No actors in this encounter.</p>`}
         </section>
     </section>`;
 }

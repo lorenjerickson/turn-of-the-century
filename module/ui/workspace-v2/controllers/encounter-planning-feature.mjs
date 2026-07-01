@@ -22,6 +22,7 @@ import {
     buildEncounterPlannerForCombatant
 } from "../../../encounters/planner-context.mjs";
 import {
+    normalizeDraftPlan,
     replaceDraftClause
 } from "../../../encounters/encounter-draft-plan.mjs";
 import {
@@ -190,7 +191,9 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
                 const combat = this._getEncounterCombat(narrativePhrase);
                 if (!combatantId || !combat) return;
 
-                const draftPlan = combat.getCombatantDraftPlan?.(combatantId) ?? { clauses: [] };
+                const draftPlan = normalizeDraftPlan(combat.getCombatantDraftPlan?.(combatantId) ?? { clauses: [] }, {
+                    apBudget: combat.apBudget ?? 6
+                });
                 const clauseIndex = Number(narrativePhrase.dataset.clauseIndex ?? draftPlan.clauses?.length ?? 0);
                 const index = Number.isFinite(clauseIndex) ? clauseIndex : 0;
                 const clause = draftPlan.clauses?.[index] ?? null;
@@ -221,6 +224,21 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
                         mode: "draftDuration",
                         index,
                         maxDurationAp: Math.max(1, Number(clause?.apCost ?? 0) + remainingAp)
+                    };
+                    this.renderCallback({ force: false });
+                    return;
+                }
+
+                if (decision === "engagementAction" && clause) {
+                    this.activePlanEditSlot = {
+                        mode: "draftEngagementAction",
+                        index,
+                        remainingAp: Math.max(
+                            1,
+                            Number(clause.apMax ?? 0) || 0,
+                            Number(clause.apCost ?? 0) + remainingAp
+                        ),
+                        helpText: "Choose what to do once the target is in range."
                     };
                     this.renderCallback({ force: false });
                     return;
@@ -315,6 +333,35 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
 
                 if (String(this.activePlanEditSlot?.mode ?? "") === "draftAction") {
                     await this._setDraftActionClause({
+                        combat,
+                        combatantId,
+                        actionIndex,
+                        selectedAction
+                    });
+                    if (String(selectedAction.type ?? "").toLowerCase() === "movement" && !selectedAction.requiresTarget) {
+                        this.activePlanEditSlot = {
+                            mode: "draftMovement",
+                            index: actionIndex,
+                            helpText: "Choose a destination on the map."
+                        };
+                        this._beginEncounterMovementInteraction({
+                            combat,
+                            combatantId,
+                            actionIndex,
+                            maxAp: Math.max(1, Number(selectedAction.apMax ?? selectedAction.apCost ?? 1) || 1),
+                            feetPerAp: selectedAction.movementFeetPerAp || 10,
+                            draftDecision: "movementDestination"
+                        });
+                        this.renderCallback({ force: false });
+                        return;
+                    }
+                    this.activePlanEditSlot = null;
+                    this.renderCallback({ force: false });
+                    return;
+                }
+
+                if (String(this.activePlanEditSlot?.mode ?? "") === "draftEngagementAction") {
+                    await this._setDraftEngagementActionClause({
                         combat,
                         combatantId,
                         actionIndex,
@@ -699,7 +746,8 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         const combat = this._getEncounterCombatById(interaction.combatId) ?? this._getEncounterCombat();
         if (!combat) return null;
 
-        const sourceToken = this._collectionGet(scene.tokens, interaction.tokenId);
+        const sceneTokens = this._getEncounterSceneTokens(scene);
+        const sourceToken = this._collectionGet(sceneTokens, interaction.tokenId);
         if (!sourceToken) return null;
         const projectedSourceToken = this._projectEncounterTokenForPlan({
             token: sourceToken,
@@ -709,9 +757,13 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             useDraftPlan: Boolean(interaction.draftDecision)
         });
 
-        const targetTokens = this._collectionContents(scene.tokens).filter((token) => {
-            const tokenId = String(token?.id ?? token?._id ?? token?.document?.id ?? "").trim();
-            if (!tokenId || tokenId === interaction.tokenId) return false;
+        const sourceTokenIds = collectTokenReferenceIds(sourceToken);
+        const targetTokens = sceneTokens.filter((token) => {
+            const tokenIds = collectTokenReferenceIds(token);
+            if (!tokenIds.size) return false;
+            for (const tokenId of tokenIds) {
+                if (sourceTokenIds.has(tokenId) || tokenId === interaction.tokenId) return false;
+            }
             const targetCombatant = this._getEncounterCombatantForToken(combat, token);
             if (!targetCombatant?.id) return false;
             return String(targetCombatant.id) !== String(interaction.combatantId);
@@ -750,12 +802,36 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         return [];
     }
 
+    _getEncounterSceneTokens(scene = null) {
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
+        const sources = [];
+        if (!sceneId || !canvasSceneId || sceneId === canvasSceneId) {
+            sources.push(canvas?.tokens?.placeables);
+        }
+        sources.push(scene?.tokens);
+
+        const tokens = [];
+        const seen = new Set();
+        for (const source of sources) {
+            for (const token of this._collectionContents(source)) {
+                const ids = collectTokenReferenceIds(token);
+                const key = [...ids].sort().join("|") || String(tokens.length);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                tokens.push(token);
+            }
+        }
+        return tokens;
+    }
+
     _collectionGet(col, id) {
         const key = String(id ?? "").trim();
         if (!key) return null;
         return col?.get?.(key)
             ?? this._collectionContents(col).find((entry) => (
-                String(entry?.id ?? entry?._id ?? entry?.document?.id ?? "").trim() === key
+                collectTokenReferenceIds(entry).has(key)
+                || String(entry?.id ?? entry?._id ?? entry?.document?.id ?? "").trim() === key
             ))
             ?? null;
     }
@@ -790,6 +866,17 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             token,
             actor: token?.actor ?? null
         });
+    }
+
+    _getEncounterCombatantDisplayName(combatant = null, token = null) {
+        return String(
+            combatant?.name
+            || combatant?.actor?.name
+            || combatant?.token?.name
+            || token?.name
+            || token?.document?.name
+            || "the target"
+        ).trim();
     }
 
     _canViewEncounterToken({ token, actor, combatant }) {
@@ -879,12 +966,16 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             actionId: String(element.dataset.actionId ?? element.dataset.id ?? "").trim(),
             type: String(element.dataset.type ?? "action").trim(),
             label: String(element.dataset.label ?? element.value ?? "Action").trim(),
+            actionLabel: String(element.dataset.actionLabel ?? "").trim(),
+            actionNarrativeText: String(element.dataset.actionNarrativeText ?? "").trim(),
             apCost,
             apMin,
             apMax,
             variableAp: element.dataset.variableAp === "true",
             requiresToHit: element.dataset.requiresToHit === "true",
             requiresTarget: element.dataset.requiresTarget === "true",
+            requiresDuration: element.dataset.requiresDuration === "true",
+            requiresEngagementAction: element.dataset.requiresEngagementAction === "true",
             rangeType: String(element.dataset.rangeType ?? "melee").trim().toLowerCase(),
             toHitBonus: Number(element.dataset.toHitBonus ?? 0),
             targetingRangeFeet: Number(element.dataset.targetingRangeFeet ?? 0),
@@ -900,6 +991,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             movementOriginX: Number(element.dataset.movementOriginX ?? NaN),
             movementOriginY: Number(element.dataset.movementOriginY ?? NaN),
             itemId: String(element.dataset.itemId ?? "").trim() || null,
+            itemName: String(element.dataset.itemName ?? "").trim(),
             damageFormula: String(element.dataset.damageFormula ?? "").trim(),
             img: String(element.dataset.img ?? "").trim()
         };
@@ -989,6 +1081,53 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         });
     }
 
+    async _setDraftEngagementActionClause({ combat = null, combatantId = "", actionIndex = 0, selectedAction = null } = {}) {
+        if (!combat?.setCombatantDraftPlan || !selectedAction) return;
+
+        await this._updateDraftClause(combat, combatantId, actionIndex, (clause) => {
+            const totalAp = Math.max(
+                1,
+                Math.floor(Number(this.activePlanEditSlot?.remainingAp ?? clause.apCost ?? selectedAction.apCost ?? 1)) || 1
+            );
+            const effectAp = Math.max(1, Math.min(totalAp, Math.floor(Number(selectedAction.effectAp ?? selectedAction.apCost ?? 1)) || 1));
+            const positioningAp = Math.max(0, totalAp - effectAp);
+            const actionId = String(selectedAction.actionId ?? selectedAction.id ?? "").trim();
+            const rollRequirements = [];
+            if (selectedAction.requiresToHit || String(selectedAction.type ?? "").toLowerCase() === "attack") {
+                rollRequirements.push({ rollType: "attack", rollSubType: "toHit" });
+            }
+            if (String(selectedAction.damageFormula ?? "").trim().match(/\d*d\d+/i)) {
+                rollRequirements.push({ rollType: "attack", rollSubType: "damage" });
+            }
+            return {
+                ...clause,
+                engageActionId: actionId,
+                engageActionType: String(selectedAction.type ?? "action").trim(),
+                engageActionLabel: String(selectedAction.actionLabel || selectedAction.label || actionId || "Action").trim(),
+                engageActionNarrativeText: String(selectedAction.actionNarrativeText ?? "").trim(),
+                engageActionAp: effectAp,
+                engageRequiresItem: Boolean(selectedAction.itemId) || String(selectedAction.type ?? "").toLowerCase() === "attack" || Boolean(selectedAction.requiresToHit),
+                engageRequiresToHit: Boolean(selectedAction.requiresToHit),
+                engageRangeType: String(selectedAction.rangeType ?? "").trim(),
+                engageTargetingRangeFeet: Number(selectedAction.targetingRangeFeet ?? 0) || 0,
+                engageDamageFormula: String(selectedAction.damageFormula ?? "").trim(),
+                engageSystemRollsAllowed: Boolean(selectedAction.systemRollsAllowed || selectedAction.allowSystemRolls),
+                apCost: totalAp,
+                apMax: Math.max(totalAp, Number(clause.apMax ?? totalAp) || totalAp),
+                positioningAp,
+                effectAp,
+                itemId: selectedAction.itemId ? String(selectedAction.itemId) : "",
+                itemName: selectedAction.itemName ? String(selectedAction.itemName) : "",
+                itemNarrativeText: selectedAction.itemName ? String(selectedAction.itemName) : "",
+                requiresItem: Boolean(selectedAction.itemId) || String(selectedAction.type ?? "").toLowerCase() === "attack" || Boolean(selectedAction.requiresToHit),
+                requiresToHit: Boolean(selectedAction.requiresToHit),
+                targetingRangeFeet: Number(selectedAction.targetingRangeFeet ?? clause.targetingRangeFeet ?? 0) || 0,
+                rangeType: String(selectedAction.rangeType ?? clause.rangeType ?? ""),
+                rollRequirements
+            };
+        }, { truncateDownstream: false });
+    }
+
     async _updateDraftClause(combat = null, combatantId = "", actionIndex = 0, updater = null, { truncateDownstream = null } = {}) {
         if (!combat?.setCombatantDraftPlan || typeof updater !== "function") return;
         const draftPlan = combat.getCombatantDraftPlan?.(combatantId) ?? { clauses: [] };
@@ -1008,10 +1147,13 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         const actionKey = actionId.toLowerCase();
         const requiresTarget = Boolean(actionData.requiresTarget || actionData.requiresToHit);
         const requiresItem = Boolean(actionData.itemId) || type.toLowerCase() === "attack" || Boolean(actionData.requiresToHit);
-        const isWait = actionKey === "wait";
-        const isOverwatch = actionKey === "overwatch";
-        const requiresDuration = isWait || isOverwatch;
-        const apCost = Math.max(1, Math.floor(Number(actionData.apCost ?? actionData.apMin ?? 1)) || 1);
+        const requiresEngagementAction = Boolean(actionData.requiresEngagementAction);
+        const durationActionIds = new Set(["dodge", "hunkdown", "hunkerdown", "overwatch", "wait", "follow", "avoid", "evade"]);
+        const requiresDuration = Boolean(actionData.requiresDuration) || durationActionIds.has(actionKey);
+        const rawApCost = Math.max(1, Math.floor(Number(actionData.apCost ?? actionData.apMin ?? 1)) || 1);
+        const apCost = requiresEngagementAction
+            ? Math.max(rawApCost, Math.floor(Number(actionData.apMax ?? rawApCost)) || rawApCost)
+            : rawApCost;
         const rollRequirements = [];
         if (actionData.requiresToHit || type.toLowerCase() === "attack") {
             rollRequirements.push({ rollType: "attack", rollSubType: "toHit" });
@@ -1032,6 +1174,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             requiresTarget,
             requiresItem,
             requiresDuration,
+            requiresEngagementAction,
             requiresMovementDestination: isMovement && !requiresTarget,
             requiresToHit: Boolean(actionData.requiresToHit),
             movementFeetPerAp: Number(actionData.movementFeetPerAp ?? 10) || 10,
@@ -1042,8 +1185,6 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             narrativeTokens: []
         };
 
-        if (isWait) clause.durationAp = apCost;
-        if (isOverwatch) clause.durationAp = apCost;
         if (actionData.itemId) clause.itemName = String(actionData.label ?? "");
 
         return clause;
@@ -1287,7 +1428,8 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
     _getEncounterMovementToken({ combat = null, combatantId = "", scene = canvas?.scene ?? game.scenes?.viewed ?? null } = {}) {
         const combatant = this._getEncounterCombatant(combat, combatantId);
         const combatantTokenIds = getCombatantTokenReferenceIds(combatant);
-        const directToken = this._collectionContents(scene?.tokens).find((token) => {
+        const sceneTokens = this._collectionContents(scene?.tokens);
+        const directToken = sceneTokens.find((token) => {
             const tokenIds = collectTokenReferenceIds(token);
             for (const id of tokenIds) {
                 if (combatantTokenIds.has(id)) return true;
@@ -1298,7 +1440,27 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
 
         const actorId = String(combatant?.actorId ?? combatant?.actor?.id ?? combatant?.token?.actorId ?? "").trim();
         if (!actorId) return null;
-        return this._collectionContents(scene?.tokens).find((token) => (
+        return sceneTokens.find((token) => (
+            String(token?.actorId ?? token?.actor?.id ?? token?.document?.actorId ?? "").trim() === actorId
+        )) ?? null;
+    }
+
+    _getEncounterTargetingToken({ combat = null, combatantId = "", scene = canvas?.scene ?? game.scenes?.viewed ?? null } = {}) {
+        const combatant = this._getEncounterCombatant(combat, combatantId);
+        const combatantTokenIds = getCombatantTokenReferenceIds(combatant);
+        const sceneTokens = this._getEncounterSceneTokens(scene);
+        const directToken = sceneTokens.find((token) => {
+            const tokenIds = collectTokenReferenceIds(token);
+            for (const id of tokenIds) {
+                if (combatantTokenIds.has(id)) return true;
+            }
+            return false;
+        }) ?? null;
+        if (directToken) return directToken;
+
+        const actorId = String(combatant?.actorId ?? combatant?.actor?.id ?? combatant?.token?.actorId ?? "").trim();
+        if (!actorId) return null;
+        return sceneTokens.find((token) => (
             String(token?.actorId ?? token?.actor?.id ?? token?.document?.actorId ?? "").trim() === actorId
         )) ?? null;
     }
@@ -1321,7 +1483,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
 
     _beginEncounterTargetingInteraction({ combat = null, combatantId = "", actionIndex = -1, action = null, draftDecision = "" } = {}) {
         const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
-        const token = this._getEncounterMovementToken({ combat, combatantId, scene });
+        const token = this._getEncounterTargetingToken({ combat, combatantId, scene });
         const combatant = this._getEncounterCombatant(combat, combatantId);
         const rangeFeet = this._resolveEncounterActionRangeFeet(action, combatant?.actor ?? null);
         const rangeType = String(action?.rangeType ?? "melee").toLowerCase();
@@ -1652,7 +1814,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
 
         const combat = this._getEncounterCombatById(interaction.combatId) ?? this._getEncounterCombat();
         const scene = game.scenes?.get?.(interaction.sceneId) ?? canvas?.scene ?? game.scenes?.viewed ?? null;
-        const token = this._collectionGet(scene?.tokens, tokenId);
+        const token = this._collectionGet(this._getEncounterSceneTokens(scene), tokenId);
         const targetCombatant = token ? this._getEncounterCombatantForToken(combat, token) : null;
         if (!combat || !targetCombatant?.id || String(targetCombatant.id) === String(interaction.combatantId)) {
             await this._cancelEncounterTargetingInteraction("finish rejected target", {
@@ -1670,7 +1832,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             await this._updateDraftClause(combat, interaction.combatantId, index, (clause) => ({
                 ...clause,
                 targetId: String(targetCombatant.id),
-                targetName: String(targetCombatant.name ?? targetCombatant.actor?.name ?? "")
+                targetName: this._getEncounterCombatantDisplayName(targetCombatant, token)
             }), { truncateDownstream: false });
             this.targetingInteraction = null;
             this._clearEncounterTargetingCanvasListener();
@@ -1705,7 +1867,8 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
 
         plan[index] = {
             ...entry,
-            targetId: targetCombatant.id
+            targetId: targetCombatant.id,
+            targetName: this._getEncounterCombatantDisplayName(targetCombatant, token)
         };
 
         this.targetingInteraction = null;
@@ -1755,7 +1918,10 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             rollType: "attack",
             rollSubType: "toHit",
             label: `${combatant?.name ?? "Combatant"}: ${action.label ?? "Attack"}`,
-            dice: [{ count: 1, faces: 20 }]
+            dice: [{ count: 1, faces: 20 }],
+            modifiers: Number(action.toHitBonus ?? 0)
+                ? [{ label: "Action bonus", value: Number(action.toHitBonus ?? 0) || 0, source: "action" }]
+                : []
         });
 
         const damageRequest = this._buildEncounterDamageRollRequest({ combat, combatant, action, actionIndex });
@@ -1828,7 +1994,12 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
 
     _syncEncounterTargetIconsOverlay(combat = null, combatantId = null, scene = null) {
         const icons = (combat && combatantId && scene)
-            ? buildEncounterTargetIconsModel({ combat, combatantId, scene })
+            ? buildEncounterTargetIconsModel({
+                combat,
+                combatantId,
+                scene,
+                tokens: this._getEncounterSceneTokens(scene)
+            })
             : [];
 
         const hash = icons

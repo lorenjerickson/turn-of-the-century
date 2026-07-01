@@ -301,12 +301,16 @@ function actionDataAttributes(action, escapeHTML) {
         ["action-id", action.actionId],
         ["type", action.type],
         ["label", action.label],
+        ["action-label", action.actionLabel],
+        ["action-narrative-text", action.actionNarrativeText],
         ["ap-cost", action.apCost],
         ["ap-min", action.apMin],
         ["ap-max", action.apMax],
         ["variable-ap", action.variableAp ? "true" : "false"],
         ["requires-to-hit", action.requiresToHit ? "true" : "false"],
         ["requires-target", action.requiresTarget ? "true" : "false"],
+        ["requires-duration", action.requiresDuration ? "true" : "false"],
+        ["requires-engagement-action", action.requiresEngagementAction ? "true" : "false"],
         ["range-type", action.rangeType],
         ["to-hit-bonus", action.toHitBonus],
         ["targeting-range-feet", action.targetingRangeFeet],
@@ -322,6 +326,7 @@ function actionDataAttributes(action, escapeHTML) {
         ["movement-origin-x", action.movementOriginX],
         ["movement-origin-y", action.movementOriginY],
         ["item-id", action.itemId],
+        ["item-name", action.itemName],
         ["damage-formula", action.damageFormula],
         ["img", action.img]
     ].map(([key, value]) => `data-${key}="${escapeHTML(String(value ?? ""))}"`).join(" ");
@@ -511,10 +516,13 @@ function renderPlanningRolls(model, escapeHTML) {
 
 function renderNarrativeActionPopover(model, escapeHTML) {
     const slot = model.activePlanEditSlot;
-    if (!slot || slot.selectedAction || String(slot.mode ?? "") !== "draftAction") return "";
+    const mode = String(slot?.mode ?? "");
+    if (!slot || slot.selectedAction || !["draftAction", "draftEngagementAction"].includes(mode)) return "";
 
     const remainingAp = Math.max(0, toNumber(slot.remainingAp ?? model.draftRemainingAp, model.draftRemainingAp));
-    const actions = (model.availableActions ?? []).filter((action) => action.apMin <= Math.max(1, remainingAp));
+    const actions = (model.availableActions ?? [])
+        .filter((action) => action.apMin <= Math.max(1, remainingAp))
+        .filter((action) => mode !== "draftEngagementAction" || String(action.type ?? "").toLowerCase() !== "movement");
     const searchId = "totc-encounter-action-search";
     const itemsMarkup = actions.map((action) => `
         <button type="button" class="totc-v2-encounter-popup__item"
@@ -534,7 +542,7 @@ function renderNarrativeActionPopover(model, escapeHTML) {
     <div class="totc-v2-encounter-popup-overlay">
         <div class="totc-v2-encounter-popup">
             <header class="totc-v2-encounter-popup__header">
-                <h4>Choose Action · ${escapeHTML(String(remainingAp))} AP available</h4>
+                <h4>${mode === "draftEngagementAction" ? "Choose Engagement" : "Choose Action"} · ${escapeHTML(String(remainingAp))} AP available</h4>
                 <button type="button" class="totc-v2-encounter-popup__close" data-action="encounter-close-popup" aria-label="Close dialog">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>
@@ -628,6 +636,7 @@ function renderNarrativeDurationPopover(model, escapeHTML) {
 function renderPlanEditPopup(model, escapeHTML) {
     const slot = model.activePlanEditSlot;
     if (!slot || slot.selectedAction) return "";
+    if (String(slot.mode ?? "").startsWith("draft")) return "";
 
     const remainingAp = slot.remainingAp;
     const actions = (model.availableActions ?? []).filter((action) => action.apMin <= remainingAp);
@@ -764,7 +773,10 @@ function renderPlanConfiguration(model, escapeHTML) {
     </section>`;
 }
 
-export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) => String(value ?? "") } = {}) {
+export function renderPlayerEncounterPanel(model = {}, {
+    escapeHTML = (value) => String(value ?? ""),
+    rollRequestsMarkup = ""
+} = {}) {
     if (!model.status) {
         return `
         <section class="totc-v2-encounter-panel">
@@ -809,6 +821,10 @@ export function renderPlayerEncounterPanel(model = {}, { escapeHTML = (value) =>
             <div class="totc-v2-encounter-panel__planning-view">
                 ${renderNarrativeComposer(model, escapeHTML)}
                 ${renderPlanningRolls(model, escapeHTML)}
+                ${rollRequestsMarkup ? `
+                <section class="totc-v2-encounter-panel__roll-requests" aria-label="Die roll requests">
+                    ${rollRequestsMarkup}
+                </section>` : ""}
                 ${renderNarrativeActionPopover(model, escapeHTML)}
                 ${renderNarrativeItemPopover(model, escapeHTML)}
                 ${renderNarrativeDurationPopover(model, escapeHTML)}

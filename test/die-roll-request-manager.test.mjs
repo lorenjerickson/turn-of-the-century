@@ -14,7 +14,7 @@ function makeSocket() {
 }
 
 describe("DieRollRequestManager", () => {
-    it("sends, adjusts, rolls, and resolves a request", () => {
+    it("sends, adjusts, rolls, and resolves a request", async () => {
         const socket = makeSocket();
         const rngValues = [0.05, 0.95];
         const manager = new DieRollRequestManager({
@@ -34,7 +34,7 @@ describe("DieRollRequestManager", () => {
             modifiers: [{ label: "Constitution", value: 2 }]
         });
         manager.adjustModifier(request.id, "player1", 1);
-        const result = manager.rollRequestForRecipient(request.id, "player1");
+        const result = await manager.rollRequestForRecipient(request.id, "player1");
 
         assert.deepEqual(socket.emitted.map((entry) => entry.type), ["dieRollRequest", "dieRollAdjust", "dieRollResult"]);
         assert.equal(result.total, 23);
@@ -42,7 +42,7 @@ describe("DieRollRequestManager", () => {
         assert.deepEqual(changes, ["request", "adjust", "rolling", "result"]);
     });
 
-    it("keeps multiple-player requests pending until every recipient rolls", () => {
+    it("keeps multiple-player requests pending until every recipient rolls", async () => {
         const manager = new DieRollRequestManager({
             socketService: makeSocket(),
             rng: () => 0,
@@ -54,12 +54,12 @@ describe("DieRollRequestManager", () => {
             recipientIds: ["p1", "p2"],
             dice: "1d20"
         });
-        manager.rollRequestForRecipient("multi", "p1");
+        await manager.rollRequestForRecipient("multi", "p1");
 
         assert.equal(manager.getRequest("multi").status, "pending");
         assert.equal(manager.hasOutstandingRequests(), true);
 
-        manager.rollRequestForRecipient("multi", "p2");
+        await manager.rollRequestForRecipient("multi", "p2");
         assert.equal(manager.getRequest("multi").status, "resolved");
         assert.equal(manager.hasOutstandingRequests(), false);
     });

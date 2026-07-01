@@ -174,6 +174,61 @@ describe("encounter draft plan model", () => {
         assert.equal(evade.label, "Evade");
     });
 
+    it("requires and converts Close and Engage follow-up actions with AP and range semantics", () => {
+        const incomplete = normalizeDraftPlan({
+            clauses: [{
+                actionId: "pursue",
+                type: "movement",
+                label: "Close and Engage",
+                apCost: 6,
+                requiresTarget: true,
+                targetId: "target-1",
+                requiresEngagementAction: true
+            }]
+        }, { apBudget: 6 });
+
+        assert.deepEqual(incomplete.missingDecisions, [{ clauseId: "draft-clause-1", decision: "engagementAction" }]);
+
+        const [action] = draftPlanToResolutionActions({
+            clauses: [{
+                actionId: "pursue",
+                type: "movement",
+                label: "Close and Engage",
+                apCost: 6,
+                apMin: 1,
+                apMax: 6,
+                requiresTarget: true,
+                targetId: "target-1",
+                targetName: "Mallory",
+                requiresEngagementAction: true,
+                engageActionId: "precisionStrike",
+                engageActionType: "attack",
+                engageActionLabel: "Precision Strike",
+                engageActionAp: 2,
+                engageRequiresToHit: true,
+                engageRequiresItem: true,
+                itemId: "scalpel",
+                itemName: "surgical scalpel",
+                engageTargetingRangeFeet: 5,
+                engageRangeType: "melee",
+                positioningAp: 4,
+                movementFeetPerAp: 10
+            }]
+        }, { apBudget: 6 });
+
+        assert.equal(action.actionId, "precisionStrike");
+        assert.equal(action.narrativeActionId, "pursue");
+        assert.equal(action.type, "attack");
+        assert.equal(action.apCost, 6);
+        assert.equal(action.itemId, "scalpel");
+        assert.equal(action.targetId, "target-1");
+        assert.equal(action.requiresToHit, true);
+        assert.deepEqual(action.apEnvelope, { positioningAp: 4, effectAp: 2, maxAp: 6 });
+        assert.equal(action.positioningRequirement.type, "weaponRange");
+        assert.equal(action.positioningRequirement.rangeFeet, 5);
+        assert.equal(action.failureOutcome.type, "bestReachablePosition");
+    });
+
     it("preserves movement origin and destination data for resolution actions", () => {
         const actions = draftPlanToResolutionActions({
             clauses: [

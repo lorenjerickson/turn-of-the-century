@@ -444,6 +444,31 @@ describe("EncounterPlanningService.lockCombatantActionRoll", () => {
             /only lock actions during encounter planning/
         );
     });
+
+    it("resets accepted rolls and returns a confirmed plan to awaiting rolls", async () => {
+        const state = makeStateWithPlan();
+        state.perCombatant.c1.draftPlan = {
+            lifecycle: "locked",
+            clauses: [{ clauseId: "clause-1", actionId: "attack", type: "attack", apCost: 2 }]
+        };
+        state.perCombatant.c1.ready = true;
+        state.perCombatant.c1.committedAt = 50;
+        state.perCombatant.c1.plan[1].planningLocked = true;
+        state.perCombatant.c1.plan[1].planningRollResults = [{ requestId: "roll-1", rollType: "attack", rollSubType: "toHit", result: { total: 18 } }];
+
+        const { service, getState, emitted } = makeService({ initialState: state });
+        await service.resetCombatantPlanningRolls("c1");
+
+        const combatantState = getState().perCombatant.c1;
+        assert.equal(combatantState.plan[1].planningLocked, false);
+        assert.deepEqual(combatantState.plan[1].planningRollResults, []);
+        assert.equal(combatantState.ready, false);
+        assert.equal(combatantState.committedAt, 0);
+        assert.equal(combatantState.draftPlan.lifecycle, "confirmedAwaitingRolls");
+        assert.ok(emitted.some((e) => e.eventName === "planUpdated"));
+        assert.ok(emitted.some((e) => e.eventName === "draftPlanUpdated"));
+        assert.ok(emitted.some((e) => e.eventName === "combatantReadyChanged"));
+    });
 });
 
 // ---------------------------------------------------------------------------

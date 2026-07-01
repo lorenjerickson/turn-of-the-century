@@ -38,6 +38,7 @@ describe("RollRequestFeature", () => {
     let originalSendCancel;
     let originalHasOutstandingRequests;
     let originalGetVisibleRequests;
+    let originalGetRequest;
 
     let onChangeCallback = null;
     let requestsSent = [];
@@ -49,6 +50,7 @@ describe("RollRequestFeature", () => {
 
     beforeEach(() => {
         globalThis.game.user.isGM = true;
+        globalThis.game.user.id = "user-1";
         renderCalled = false;
         restoredPanelId = null;
         requestsSent = [];
@@ -82,6 +84,7 @@ describe("RollRequestFeature", () => {
         originalSendCancel = dieRollRequestManager.sendCancel;
         originalHasOutstandingRequests = dieRollRequestManager.hasOutstandingRequests;
         originalGetVisibleRequests = dieRollRequestManager.getVisibleRequests;
+        originalGetRequest = dieRollRequestManager.getRequest;
 
         dieRollRequestManager.onChange = (cb) => {
             onChangeCallback = cb;
@@ -93,7 +96,7 @@ describe("RollRequestFeature", () => {
         dieRollRequestManager.adjustModifier = (requestId, userId, delta) => {
             deltaAdjusted = { requestId, userId, delta };
         };
-        dieRollRequestManager.rollRequestForRecipient = (requestId, userId) => {
+        dieRollRequestManager.rollRequestForRecipient = async (requestId, userId) => {
             rollsExecuted.push({ requestId, userId });
         };
         dieRollRequestManager.sendCancel = (requestId, options) => {
@@ -101,6 +104,7 @@ describe("RollRequestFeature", () => {
         };
         dieRollRequestManager.hasOutstandingRequests = () => outstanding;
         dieRollRequestManager.getVisibleRequests = () => visibleRequests;
+        dieRollRequestManager.getRequest = () => null;
     });
 
     afterEach(() => {
@@ -112,9 +116,10 @@ describe("RollRequestFeature", () => {
         dieRollRequestManager.sendCancel = originalSendCancel;
         dieRollRequestManager.hasOutstandingRequests = originalHasOutstandingRequests;
         dieRollRequestManager.getVisibleRequests = originalGetVisibleRequests;
+        dieRollRequestManager.getRequest = originalGetRequest;
     });
 
-    it("subscribes to dieRollRequestManager and triggers on changes", async () => {
+    it("does not redock a GM panel when roll requests change", async () => {
         const feature = new RollRequestFeature({
             layoutEngine: mockLayoutEngine,
             panelRegistry: mockPanelRegistry,
@@ -124,16 +129,34 @@ describe("RollRequestFeature", () => {
 
         assert.ok(onChangeCallback);
 
-        // Mock a pending request to verify restore panel is triggered
         visibleRequests = [{ isPending: true, hasResult: () => false }];
         
         await onChangeCallback({ type: "other" });
 
-        assert.equal(restoredPanelId, "gamemaster");
+        assert.equal(restoredPanelId, null);
         assert.ok(renderCalled);
 
         feature.dispose();
         assert.equal(onChangeCallback, null);
+    });
+
+    it("restores the player encounter panel for pending player requests", async () => {
+        globalThis.game.user.isGM = false;
+        globalThis.game.user.id = "user-2";
+        const feature = new RollRequestFeature({
+            layoutEngine: mockLayoutEngine,
+            panelRegistry: mockPanelRegistry,
+            stateStore: mockStateStore,
+            render: () => { renderCalled = true; }
+        });
+
+        visibleRequests = [{ isPending: true, hasResult: () => false }];
+        await onChangeCallback({ type: "other" });
+
+        assert.equal(restoredPanelId, "encounter");
+        assert.ok(renderCalled);
+
+        feature.dispose();
     });
 
     it("prepares context with dieRollRequestPanel model", async () => {
@@ -283,7 +306,7 @@ describe("RollRequestFeature", () => {
         assert.equal(prevented, false);
     });
 
-    it("wires event listeners for buttons and forms on bind", () => {
+    it("wires event listeners for buttons and forms on bind", async () => {
         const feature = new RollRequestFeature({
             layoutEngine: mockLayoutEngine,
             panelRegistry: mockPanelRegistry,
@@ -293,6 +316,7 @@ describe("RollRequestFeature", () => {
         let formSubmitHandler = null;
         let adjustClickHandler = null;
         let rollClickHandler = null;
+        let rollAllClickHandler = null;
         let cancelClickHandler = null;
 
         const mockElement = {
@@ -315,9 +339,17 @@ describe("RollRequestFeature", () => {
                 }
                 if (query === "[data-action='die-roll-request-roll']") {
                     return [{
-                        dataset: { requestId: "req1" },
+                        dataset: { requestId: "req1", recipientId: "user-2" },
                         addEventListener(event, handler) {
                             if (event === "click") rollClickHandler = handler;
+                        }
+                    }];
+                }
+                if (query === "[data-action='die-roll-request-roll-all']") {
+                    return [{
+                        dataset: { requestId: "req2" },
+                        addEventListener(event, handler) {
+                            if (event === "click") rollAllClickHandler = handler;
                         }
                     }];
                 }
@@ -338,6 +370,7 @@ describe("RollRequestFeature", () => {
         assert.ok(formSubmitHandler);
         assert.ok(adjustClickHandler);
         assert.ok(rollClickHandler);
+        assert.ok(rollAllClickHandler);
         assert.ok(cancelClickHandler);
 
         // Submit form
@@ -373,9 +406,19 @@ describe("RollRequestFeature", () => {
         assert.equal(deltaAdjusted.delta, 2);
 
         // Click roll
-        rollClickHandler({ preventDefault() {}, stopPropagation() {} });
+        await rollClickHandler({ preventDefault() {}, stopPropagation() {} });
         assert.equal(rollsExecuted.length, 1);
         assert.equal(rollsExecuted[0].requestId, "req1");
+        assert.equal(rollsExecuted[0].userId, "user-2");
+
+        dieRollRequestManager.getRequest = () => ({
+            id: "req2",
+            recipientIds: ["user-2", "user-3"],
+            hasResult: (recipientId) => recipientId === "user-2"
+        });
+        await rollAllClickHandler({ preventDefault() {}, stopPropagation() {} });
+        assert.equal(rollsExecuted.length, 2);
+        assert.deepEqual(rollsExecuted[1], { requestId: "req2", userId: "user-3" });
 
         // Click cancel
         cancelClickHandler({ preventDefault() {}, stopPropagation() {} });

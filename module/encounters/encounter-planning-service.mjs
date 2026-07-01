@@ -546,6 +546,50 @@ export class EncounterPlanningService {
         return action;
     }
 
+    async resetCombatantPlanningRolls(combatantId) {
+        const state = this.#getState();
+        if (state.phase !== "planning") {
+            throw new Error("Planning rolls can only be reset during encounter planning.");
+        }
+        if (!this.#isCombatantOwned(combatantId)) {
+            throw new Error("You do not have permission to reset rolls for this combatant's plan.");
+        }
+
+        const perCombatant = this.#clone(state.perCombatant ?? {});
+        const combatantState = perCombatant[combatantId];
+        if (!combatantState) {
+            throw new Error(`Combatant ${combatantId} is not part of this encounter.`);
+        }
+
+        const plan = toArray(combatantState.plan).map((action) => ({
+            ...action,
+            planningLocked: false,
+            planningRollResults: []
+        }));
+        const awaitingRolls = hasUnresolvedPlanningRolls(plan);
+        combatantState.plan = plan;
+        combatantState.ready = !awaitingRolls;
+        combatantState.committedAt = awaitingRolls ? 0 : this.#now();
+        combatantState.draftPlan = {
+            ...(combatantState.draftPlan ?? {}),
+            lifecycle: awaitingRolls ? "confirmedAwaitingRolls" : "locked"
+        };
+
+        await this.#setState({ ...state, perCombatant });
+        this.#emit(PLAN_UPDATED, { combatantId, plan });
+        this.#emit(DRAFT_PLAN_UPDATED, {
+            combatantId,
+            draftPlan: combatantState.draftPlan,
+            perCombatantState: combatantState
+        });
+        this.#emit(COMBATANT_READY_CHANGED, {
+            combatantId,
+            ready: Boolean(combatantState.ready),
+            perCombatantState: combatantState
+        });
+        return plan;
+    }
+
     /**
      * Adjust the AP cost of a single action in a combatant's plan, clamped
      * to the action's min/max range. For movement actions, `movementFeet`

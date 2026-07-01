@@ -199,6 +199,38 @@ describe("player encounter panel", () => {
         assert.match(html, /Strike/);
     });
 
+    it("renders the follow-on select action prompt as an editable narrative phrase", () => {
+        const planner = {
+            ...plannerFixture(),
+            draftPlan: {
+                clauses: [{ clauseId: "draft-clause-1", actionId: "move", type: "movement", apCost: 2 }]
+            },
+            draftNarrative: {
+                text: "Ada Price moves 20 feet (2 AP), then [select action].",
+                lifecycle: "drafting",
+                apBudget: 6,
+                spentAp: 2,
+                remainingAp: 4,
+                complete: true,
+                overBudget: false,
+                helpText: "4 AP remaining.",
+                missingDecisions: [],
+                phrases: [
+                    { phraseId: "draft-clause-1:action", clauseId: "draft-clause-1", clauseIndex: 0, decision: "action", rootDecision: "action", text: "moves", editable: true },
+                    { phraseId: "draft-clause-1:movementDestination", clauseId: "draft-clause-1", clauseIndex: 0, decision: "movementDestination", rootDecision: "movementDestination", text: "20 feet", editable: true },
+                    { phraseId: "draft-clause-2:action", clauseId: "draft-clause-2", clauseIndex: 1, decision: "action", rootDecision: "action", text: "[select action]", placeholder: true, editable: true }
+                ]
+            }
+        };
+        const model = buildPlayerEncounterPanelModel({ actor: actorFixture(), planner, combat: null });
+        const html = renderPlayerEncounterPanel(model, { escapeHTML });
+
+        assert.match(
+            html,
+            /data-action="encounter-narrative-phrase"[^>]*data-clause-index="1"[^>]*data-decision="action"[\s\S]*\[select action\]/
+        );
+    });
+
     it("renders minimal required roll status below the narrative", () => {
         const planner = {
             ...plannerFixture(),
@@ -320,6 +352,25 @@ describe("player encounter panel", () => {
         assert.doesNotMatch(html, /data-action="encounter-select-popup-action"[^>]*data-action-id="strike"/);
     });
 
+    it("does not render the legacy action popup while draft movement is awaiting a map destination", () => {
+        const model = buildPlayerEncounterPanelModel({
+            actor: actorFixture(),
+            planner: plannerFixture(),
+            combat: null,
+            activePlanEditSlot: {
+                mode: "draftMovement",
+                index: 0,
+                helpText: "Choose a destination on the map."
+            }
+        });
+
+        const html = renderPlayerEncounterPanel(model, { escapeHTML });
+
+        assert.doesNotMatch(html, /class="totc-v2-encounter-popup-overlay"/);
+        assert.doesNotMatch(html, /Add Action/);
+        assert.match(html, /Choose a destination on the map\./);
+    });
+
     it("renders searchable carried item choices for item narrative phrases", () => {
         const model = buildPlayerEncounterPanelModel({
             actor: actorFixture(),
@@ -357,6 +408,73 @@ describe("player encounter panel", () => {
         assert.match(html, /data-action="encounter-select-draft-duration"[^>]*data-duration-ap="1"/);
         assert.match(html, /data-action="encounter-select-draft-duration"[^>]*data-duration-ap="3"/);
         assert.doesNotMatch(html, /data-duration-ap="4"/);
+    });
+
+    it("preserves duration requirements on rendered action choices", () => {
+        const model = buildPlayerEncounterPanelModel({
+            actor: actorFixture(),
+            planner: {
+                ...plannerFixture(),
+                availableActions: [{
+                    id: "follow",
+                    actionId: "follow",
+                    type: "movement",
+                    label: "Follow",
+                    apCost: 1,
+                    apMin: 1,
+                    apMax: 3,
+                    variableAp: true,
+                    requiresTarget: true,
+                    requiresDuration: true,
+                    apLabel: "1-3 AP"
+                }]
+            },
+            combat: null,
+            activePlanEditSlot: {
+                mode: "draftAction",
+                index: 0,
+                remainingAp: 3
+            }
+        });
+
+        const html = renderPlayerEncounterPanel(model, { escapeHTML });
+
+        assert.match(html, /data-action-id="follow"/);
+        assert.match(html, /data-requires-duration="true"/);
+    });
+
+    it("preserves Close and Engage requirements on rendered action choices", () => {
+        const model = buildPlayerEncounterPanelModel({
+            actor: actorFixture(),
+            planner: {
+                ...plannerFixture(),
+                availableActions: [{
+                    id: "pursue",
+                    actionId: "pursue",
+                    type: "movement",
+                    label: "Close and Engage",
+                    apCost: 1,
+                    apMin: 1,
+                    apMax: 6,
+                    variableAp: true,
+                    requiresTarget: true,
+                    requiresEngagementAction: true,
+                    apLabel: "1-6 AP"
+                }]
+            },
+            combat: null,
+            activePlanEditSlot: {
+                mode: "draftAction",
+                index: 0,
+                remainingAp: 6
+            }
+        });
+
+        const html = renderPlayerEncounterPanel(model, { escapeHTML });
+
+        assert.match(html, /data-action-id="pursue"/);
+        assert.match(html, /data-requires-target="true"/);
+        assert.match(html, /data-requires-engagement-action="true"/);
     });
 
     it("does not render the legacy action detail editor in the narrative planner", () => {

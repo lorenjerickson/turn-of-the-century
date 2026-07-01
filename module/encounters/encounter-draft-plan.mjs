@@ -15,6 +15,9 @@ const DOWNSTREAM_FIELDS = Object.freeze([
     "requiresTarget",
     "requiresItem",
     "requiresDuration",
+    "requiresEngagementAction",
+    "engageActionId",
+    "engageActionAp",
     "requiresMovementDestination",
     "movementTargetX",
     "movementTargetY",
@@ -110,10 +113,32 @@ function normalizeResolutionActionLabel(clause = {}, resolutionActionId = "") {
     return text(clause.label, resolutionActionId || "Action");
 }
 
+function actionRangeFeet(action = {}) {
+    const explicitRange = optionalNumber(action.engageTargetingRangeFeet ?? action.targetingRangeFeet);
+    if (explicitRange !== null && explicitRange > 0) return explicitRange;
+    const rangeType = text(action.engageRangeType ?? action.rangeType, "melee").toLowerCase();
+    if (rangeType === "long") return 60;
+    if (rangeType === "normal") return 30;
+    return 5;
+}
+
+function engagementActionAp(clause = {}) {
+    const explicit = optionalNumber(clause.engageActionAp ?? clause.effectAp);
+    if (explicit !== null && explicit > 0) return Math.max(1, Math.floor(explicit));
+    return Math.max(1, Math.floor(toNumber(clause.apCost, 1)));
+}
+
+function positioningAp(clause = {}) {
+    const explicit = optionalNumber(clause.positioningAp);
+    if (explicit !== null) return Math.max(0, Math.floor(explicit));
+    return Math.max(0, Math.floor(toNumber(clause.apCost, 0)) - engagementActionAp(clause));
+}
+
 function buildMissingDecisions(clause = {}) {
     const missing = [];
     if (!clause.actionId) missing.push("action");
     if (clause.requiresTarget && !clause.targetId) missing.push("target");
+    if (clause.requiresEngagementAction && !clause.engageActionId) missing.push("engagementAction");
     if (clause.requiresItem && !clause.itemId) missing.push("item");
     if (clause.requiresDuration && clause.durationAp === null) missing.push("duration");
     if (clause.requiresMovementDestination && !movementDestination(clause)) missing.push("movementDestination");
@@ -153,6 +178,20 @@ export function normalizeDraftClause(clause = {}, { index = 0, origin = null, cl
         requiresTarget: Boolean(source.requiresTarget),
         requiresItem: Boolean(source.requiresItem),
         requiresDuration: Boolean(source.requiresDuration),
+        requiresEngagementAction: Boolean(source.requiresEngagementAction),
+        engageActionId: text(source.engageActionId, ""),
+        engageActionType: text(source.engageActionType, ""),
+        engageActionLabel: text(source.engageActionLabel, ""),
+        engageActionNarrativeText: text(source.engageActionNarrativeText, ""),
+        engageActionAp: optionalNumber(source.engageActionAp),
+        engageRequiresItem: Boolean(source.engageRequiresItem),
+        engageRequiresToHit: Boolean(source.engageRequiresToHit),
+        engageRangeType: text(source.engageRangeType, ""),
+        engageTargetingRangeFeet: optionalNumber(source.engageTargetingRangeFeet),
+        engageDamageFormula: text(source.engageDamageFormula, ""),
+        engageSystemRollsAllowed: Boolean(source.engageSystemRollsAllowed),
+        positioningAp: optionalNumber(source.positioningAp),
+        effectAp: optionalNumber(source.effectAp),
         requiresMovementDestination: Boolean(source.requiresMovementDestination),
         movementTargetX: optionalNumber(source.movementTargetX),
         movementTargetY: optionalNumber(source.movementTargetY),
@@ -280,6 +319,62 @@ export function confirmDraftPlan(draftPlan = {}, { includeIdle = true, apBudget 
 
 export function draftClauseToResolutionAction(clause = {}, { index = 0, cloneData = defaultClone } = {}) {
     const normalized = normalizeDraftClause(clause, { index, cloneData });
+    if (normalized.requiresEngagementAction && normalized.engageActionId) {
+        const source = cloneValue(normalized, cloneData);
+        const effectAp = engagementActionAp(normalized);
+        const closeAp = positioningAp(normalized);
+        const actionId = text(normalized.engageActionId);
+        const actionType = text(normalized.engageActionType, "attack");
+        const label = text(normalized.engageActionLabel, actionId || "Action");
+        return {
+            ...source,
+            id: actionId,
+            actionId,
+            narrativeActionId: normalized.actionId,
+            type: actionType,
+            label,
+            apCost: Math.max(1, closeAp + effectAp),
+            apMin: Math.max(1, toNumber(normalized.apMin, 1)),
+            apMax: Math.max(1, toNumber(normalized.apMax, toNumber(normalized.apCost, 1))),
+            automatic: Boolean(normalized.automatic),
+            durationAp: optionalNumber(normalized.durationAp),
+            itemId: text(normalized.itemId, ""),
+            targetId: text(normalized.targetId, ""),
+            targetName: text(normalized.targetName, ""),
+            requiresTarget: true,
+            requiresToHit: Boolean(normalized.engageRequiresToHit),
+            requiresItem: Boolean(normalized.engageRequiresItem),
+            rangeType: text(normalized.engageRangeType, text(normalized.rangeType, "")),
+            targetingRangeFeet: actionRangeFeet(normalized),
+            damageFormula: text(normalized.engageDamageFormula, text(normalized.damageFormula, "")),
+            systemRollsAllowed: Boolean(normalized.engageSystemRollsAllowed),
+            movementFeetPerAp: Math.max(1, toNumber(normalized.movementFeetPerAp, 10)),
+            intentType: actionType === "attack" || normalized.engageRequiresToHit ? "attackTarget" : "interactWithObject",
+            apEnvelope: {
+                positioningAp: closeAp,
+                effectAp,
+                maxAp: Math.max(1, closeAp + effectAp)
+            },
+            positioningRequirement: {
+                type: actionType === "attack" || normalized.engageRequiresToHit ? "weaponRange" : "adjacent",
+                targetKind: "combatant",
+                rangeFeet: actionRangeFeet(normalized)
+            },
+            followThrough: {
+                type: "hold"
+            },
+            failureOutcome: {
+                type: "bestReachablePosition"
+            },
+            sourceAction: {
+                id: actionId,
+                actionId,
+                type: actionType,
+                itemId: text(normalized.itemId, "")
+            }
+        };
+    }
+
     const resolutionActionId = normalizeResolutionActionId(normalized.actionId);
     const projectedOrigin = normalizePosition(normalized.projectedOrigin);
     const projectedDestination = movementDestination(normalized);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 
-const { hasAnyCompendiumData, runStarterCompendiumBootstrap } =
+const { hasAnyCompendiumData, runStarterCompendiumBootstrap, onTokenDelete } =
     await import("../module/bootstrap.mjs");
 
 // ---------------------------------------------------------------------------
@@ -187,5 +187,77 @@ describe("runStarterCompendiumBootstrap", () => {
         });
 
         assert.equal(hooksCalled.length, 0);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// onTokenDelete
+// ---------------------------------------------------------------------------
+
+describe("onTokenDelete", () => {
+    const sceneId = "scene-test-123";
+    const tokenId = "token-test-456";
+    const combatantId = "combatant-test-789";
+
+    function makeGameMock({ isGM = true, activeCombat = true } = {}) {
+        const deleteMock = mock.fn();
+        const combat = {
+            scene: { id: sceneId },
+            active: activeCombat,
+            combatants: {
+                find: (fn) => {
+                    const combatant = { id: combatantId, tokenId };
+                    return fn(combatant) ? combatant : undefined;
+                }
+            },
+            deleteEmbeddedDocuments: deleteMock
+        };
+        return {
+            user: { isGM },
+            combats: {
+                find: (fn) => fn(combat) ? combat : undefined
+            },
+            _deleteMock: deleteMock
+        };
+    }
+
+    it("removes combatant from active encounter if user is GM", async () => {
+        const game = makeGameMock({ isGM: true, activeCombat: true });
+        global.game = game;
+
+        const tokenDocument = { id: tokenId, parent: { id: sceneId } };
+        await onTokenDelete(tokenDocument);
+
+        assert.equal(game._deleteMock.mock.callCount(), 1);
+        assert.deepEqual(game._deleteMock.mock.calls[0].arguments, ["Combatant", [combatantId]]);
+    });
+
+    it("does not remove combatant if user is not GM", async () => {
+        const game = makeGameMock({ isGM: false });
+        global.game = game;
+
+        const tokenDocument = { id: tokenId, parent: { id: sceneId } };
+        await onTokenDelete(tokenDocument);
+
+        assert.equal(game._deleteMock.mock.callCount(), 0);
+    });
+
+    it("does not remove combatant if no active combat", async () => {
+        const game = makeGameMock({ isGM: true, activeCombat: false });
+        global.game = game;
+
+        const tokenDocument = { id: tokenId, parent: { id: sceneId } };
+        await onTokenDelete(tokenDocument);
+
+        assert.equal(game._deleteMock.mock.callCount(), 0);
+    });
+
+    it("does not throw if combatant not found", async () => {
+        const game = makeGameMock({ isGM: true, activeCombat: true });
+        global.game = game;
+
+        const tokenDocument = { id: "some-other-token", parent: { id: sceneId } };
+        await assert.doesNotThrow(() => onTokenDelete(tokenDocument));
+        assert.equal(game._deleteMock.mock.callCount(), 0);
     });
 });

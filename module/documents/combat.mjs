@@ -897,6 +897,11 @@ export class TurnOfTheCenturyEncounter {
         return this.#planningService.lockCombatantActionRoll(combatantId, actionIndex, roll);
     }
 
+    async resetCombatantPlanningRolls(combatantId) {
+        this.#requireGm("reset combatant planning rolls");
+        return this.#planningService.resetCombatantPlanningRolls(combatantId);
+    }
+
     /**
      * Adjust the AP cost of a single action in a combatant's plan.
      * Emits {@link TOTC_ENCOUNTER_EVENTS.PLAN_UPDATED}.
@@ -1057,15 +1062,14 @@ export class TurnOfTheCenturyEncounter {
     async beginEncounterResolution() {
         this.#requireGm("begin encounter resolution");
         this.#requireInitiativeReady();
-        this.#requirePlayerPlanningRollsResolved();
+        this.#requirePlanningRollsResolved();
         await this.#resolutionEngine.beginResolution({ persistInitialState: true });
         return this.state.resolution ?? null;
     }
 
-    #requirePlayerPlanningRollsResolved() {
+    #requirePlanningRollsResolved() {
         const unresolved = [];
         for (const combatant of this.#combat.combatants?.contents ?? []) {
-            if (!this.#combatantHasPlayerOwner(combatant)) continue;
             const plan = this.getCombatantPlan(combatant.id);
             for (const [actionIndex, action] of plan.entries()) {
                 if (!actionHasUnresolvedPlayerRoll(action)) continue;
@@ -1073,23 +1077,8 @@ export class TurnOfTheCenturyEncounter {
             }
         }
         if (unresolved.length) {
-            throw new Error(`Required player planning rolls must be resolved before encounter resolution can begin: ${unresolved.join(", ")}.`);
+            throw new Error(`Required player planning rolls and GM-controlled planning rolls must be resolved before encounter resolution can begin: ${unresolved.join(", ")}.`);
         }
-    }
-
-    #combatantHasPlayerOwner(combatant = null) {
-        const actor = combatant?.actor ?? null;
-        if (!actor) return false;
-        if (actor.hasPlayerOwner === true) return true;
-        const ownerLevel = toNumber(globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OWNER, 3);
-        return collectionContents(game?.users).some((user) => (
-            !user?.isGM
-            && user?.active !== false
-            && (
-                actor.testUserPermission?.(user, "OWNER")
-                || toNumber(actor.ownership?.[user.id], 0) >= ownerLevel
-            )
-        ));
     }
 
     async #resetInitiativeForEncounter() {
@@ -1491,6 +1480,10 @@ export class TurnOfTheCenturyCombat extends BaseCombatDocument {
 
     async lockCombatantActionRoll(combatantId, actionIndex, roll = {}) {
         return this.encounter.lockCombatantActionRoll(combatantId, actionIndex, roll);
+    }
+
+    async resetCombatantPlanningRolls(combatantId) {
+        return this.encounter.resetCombatantPlanningRolls(combatantId);
     }
 
     async setCombatantActionApCost(combatantId, actionIndex, apCost) {

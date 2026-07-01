@@ -142,11 +142,34 @@ function renderResult(result, escapeHTML) {
     </div>`;
 }
 
-function renderPlayerRequest(request, model, escapeHTML) {
+function renderRequestDetails(request, userId, formula, escapeHTML) {
+    const diceText = (request.dice ?? []).map((die) => {
+        const count = Number(die.count ?? 1) || 1;
+        const faces = Number(die.faces ?? 20) || 20;
+        const keep = die.keep === "highest" ? " keep highest" : die.keep === "lowest" ? " keep lowest" : "";
+        return `${count} roll${count === 1 ? "" : "s"} per d${faces}${keep}`;
+    }).join(", ") || "1 roll per d20";
+    const modifiers = [
+        ...(request.modifiers ?? []).map((modifier) => `${modifier.label}: ${Number(modifier.value ?? 0) >= 0 ? "+" : ""}${Number(modifier.value ?? 0) || 0}`),
+        getRecipientAdjustment(request, userId)
+            ? `Player modifier: ${getRecipientAdjustment(request, userId) >= 0 ? "+" : ""}${getRecipientAdjustment(request, userId)}`
+            : ""
+    ].filter(Boolean);
+
+    return `
+    <dl class="totc-v2-die-roll-request-panel__details">
+        <div><dt>Type</dt><dd>${escapeHTML(request.rollSubType || request.rollType)}</dd></div>
+        <div><dt>Die</dt><dd>${escapeHTML(diceText)}</dd></div>
+        <div><dt>Modifiers</dt><dd>${escapeHTML(modifiers.length ? modifiers.join(", ") : "None")}</dd></div>
+        <div><dt>Formula</dt><dd>${escapeHTML(formula)}</dd></div>
+    </dl>`;
+}
+
+function renderPlayerRequest(request, model, escapeHTML, { activeRequestId = "" } = {}) {
     const userId = model.userId;
     const result = request.results?.[userId] ?? null;
     const formula = result?.formula ?? requestFormulaForUser(request, userId);
-    const canRoll = !model.isGM && !result && request.isPending;
+    const canRoll = !model.isGM && !result && request.isPending && (!activeRequestId || request.id === activeRequestId);
 
     return `
     <article class="totc-v2-die-roll-request-panel__request">
@@ -155,7 +178,7 @@ function renderPlayerRequest(request, model, escapeHTML) {
             <h3>${escapeHTML(request.label)}</h3>
             <p>Requested by ${escapeHTML(request.requestor?.name ?? request.initiatorId ?? "System")}</p>
         </header>
-        <div class="totc-v2-die-roll-request-panel__formula">${escapeHTML(formula)}</div>
+        ${renderRequestDetails(request, userId, formula, escapeHTML)}
         ${renderModifierControls(request, userId, escapeHTML)}
         ${result ? renderResult(result, escapeHTML) : `
             <div class="totc-v2-die-roll-request-panel__dice is-rolling" aria-label="Pending dice">
@@ -169,7 +192,17 @@ function renderPlayerRequest(request, model, escapeHTML) {
     </article>`;
 }
 
+function renderPlayerRequests(model, escapeHTML) {
+    const requests = model.requests.filter((request) => request.hasRecipient?.(model.userId) ?? true);
+    if (!requests.length) return `<div class="totc-v2-die-roll-request-panel__empty">No pending die roll requests.</div>`;
+    const activeRequest = requests.find((request) => request.isPending && !request.hasResult(model.userId)) ?? null;
+    return requests.map((request) => renderPlayerRequest(request, model, escapeHTML, {
+        activeRequestId: activeRequest?.id ?? ""
+    })).join("");
+}
+
 function renderGmResults(request, model, escapeHTML) {
+    const unresolvedRecipientIds = request.recipientIds.filter((id) => !request.results?.[id]);
     return `
     <article class="totc-v2-die-roll-request-panel__request">
         <header>
@@ -187,12 +220,15 @@ function renderGmResults(request, model, escapeHTML) {
                         <td>${escapeHTML(userName(model.users, id))}</td>
                         <td>${escapeHTML(result ? "resolved" : request.status)}</td>
                         <td>${escapeHTML(result?.formula ?? requestFormulaForUser(request, id))}</td>
-                        <td>${result ? escapeHTML(result.total) : "-"}</td>
+                        <td>${result
+                            ? escapeHTML(result.total)
+                            : `<button type="button" data-action="die-roll-request-roll" data-request-id="${escapeHTML(request.id)}" data-recipient-id="${escapeHTML(id)}">Roll</button>`}</td>
                     </tr>`;
                 }).join("")}
             </tbody>
         </table>
         <footer>
+            ${request.isPending && unresolvedRecipientIds.length > 1 ? `<button type="button" data-action="die-roll-request-roll-all" data-request-id="${escapeHTML(request.id)}">Auto-roll Pending</button>` : ""}
             ${request.isPending ? `<button type="button" data-action="die-roll-request-cancel" data-request-id="${escapeHTML(request.id)}">Cancel</button>` : ""}
         </footer>
     </article>`;
@@ -210,9 +246,9 @@ export function renderDieRollRequestPanel(panelModel = {}, { escapeHTML = (v) =>
     return `
     <section class="totc-v2-die-roll-request-panel">
         ${renderGmRequestForm(model, escapeHTML)}
-        ${renderQueue(model, escapeHTML)}
-        ${model.request
-            ? (model.isGM ? renderGmResults(model.request, model, escapeHTML) : renderPlayerRequest(model.request, model, escapeHTML))
-            : `<div class="totc-v2-die-roll-request-panel__empty">No pending die roll requests.</div>`}
+        ${model.isGM ? renderQueue(model, escapeHTML) : ""}
+        ${model.isGM
+            ? (model.request ? renderGmResults(model.request, model, escapeHTML) : `<div class="totc-v2-die-roll-request-panel__empty">No pending die roll requests.</div>`)
+            : renderPlayerRequests(model, escapeHTML)}
     </section>`;
 }

@@ -2,7 +2,7 @@ import {
     DIE_ROLL_REQUEST_STATUSES,
     DieRollRequest
 } from "./models/die-roll-request.mjs";
-import { rollDieRequestForUser } from "./die-roll-engine.mjs";
+import { rollDieRequestForUserWithFoundry } from "./die-roll-engine.mjs";
 import { socketService as defaultSocketService } from "./socket-service.mjs";
 
 function cleanId(value = "") {
@@ -67,13 +67,16 @@ export class DieRollRequestManager {
         this.socketService?.emit?.("dieRollResult", { requestId, recipientId, result });
     }
 
-    rollRequestForRecipient(requestId, recipientId, options = {}) {
+    async rollRequestForRecipient(requestId, recipientId, options = {}) {
         const request = this.getRequest(requestId);
         if (!request || request.isCancelled || request.hasResult(recipientId)) return null;
         request.status = DIE_ROLL_REQUEST_STATUSES.ROLLING;
         request.updatedAt = this.now();
         this._notify({ type: "rolling", request, recipientId });
-        const result = rollDieRequestForUser(request, recipientId, {
+        const result = await rollDieRequestForUserWithFoundry(request, recipientId, {
+            RollClass: options.RollClass ?? globalThis.Roll,
+            rollMode: options.rollMode,
+            createChatMessage: options.createChatMessage,
             rng: options.rng ?? this.rng,
             now: options.now ?? this.now
         });

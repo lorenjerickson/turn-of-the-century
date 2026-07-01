@@ -137,7 +137,7 @@ describe("buildUniversalActions", () => {
             [
                 ["move", "Move"],
                 ["open", "Open"],
-                ["pursue", "Close With"],
+                ["pursue", "Close and Engage"],
                 ["follow", "Follow"],
                 ["avoid", "Evade"],
                 ["wait", "Wait"],
@@ -151,14 +151,18 @@ describe("buildUniversalActions", () => {
     it("keeps Open fixed at 1 AP while duration-based actions remain variable", () => {
         const actions = buildUniversalActions();
         const open = actions.find((action) => action.id === "open");
-        const wait = actions.find((action) => action.id === "wait");
+        const durationActionIds = ["dodge", "hunkDown", "overwatch", "wait", "follow", "avoid"];
         assert.equal(open.apCost, 1);
         assert.equal(open.apMin, 1);
         assert.equal(open.apMax, 1);
         assert.equal(open.variableAp, false);
         assert.equal(actions.find((action) => action.id === "move").variableAp, true);
-        assert.equal(wait.variableAp, true);
-        assert.equal(wait.requiresDuration, true);
+        assert.equal(actions.find((action) => action.id === "pursue").requiresEngagementAction, true);
+        for (const actionId of durationActionIds) {
+            const action = actions.find((candidate) => candidate.id === actionId);
+            assert.equal(action.variableAp, true, `${actionId} should be variable AP`);
+            assert.equal(action.requiresDuration, true, `${actionId} should require duration`);
+        }
     });
 
     it("apMax is bounded by the supplied apBudget", () => {

@@ -156,3 +156,20 @@ export async function runStarterCompendiumBootstrap({
         return { skipped: false, populated: false, error };
     }
 }
+
+export async function onTokenDelete(tokenDocument, _options, _userId) {
+    if (!game.user?.isGM) return;
+
+    const sceneId = tokenDocument.scene?.id ?? tokenDocument.parent?.id;
+    if (!sceneId) return;
+
+    const combat = game.combats.find((c) => c.scene?.id === sceneId && c.active);
+    if (!combat) return;
+
+    const combatant = combat.combatants.find((c) => c.tokenId === tokenDocument.id);
+    if (combatant) {
+        await combat.deleteEmbeddedDocuments("Combatant", [combatant.id]);
+    }
+}
+
+globalThis.Hooks?.on?.("deleteToken", onTokenDelete);

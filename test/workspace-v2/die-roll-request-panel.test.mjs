@@ -62,5 +62,58 @@ describe("Die roll request panel", () => {
         assert.match(html, /Ada/);
         assert.match(html, /Bert/);
         assert.match(html, /Group Dexterity Save/);
+        assert.match(html, /data-action="die-roll-request-roll"/);
+        assert.match(html, /data-recipient-id="player1"/);
+        assert.match(html, /data-recipient-id="player2"/);
+        assert.match(html, /data-action="die-roll-request-roll-all"/);
+    });
+
+    it("renders one player card per request and only enables the next unresolved roll", () => {
+        const manager = makeManager([
+            { id: "req-a", recipientIds: ["player1"], label: "Attack", dice: "1d20" },
+            { id: "req-b", recipientIds: ["player1"], label: "Damage", dice: "1d6" }
+        ]);
+
+        const model = buildDieRollRequestPanelModel({
+            userId: "player1",
+            isGM: false,
+            manager
+        });
+        const html = renderDieRollRequestPanel(model);
+
+        assert.match(html, /Attack/);
+        assert.match(html, /Damage/);
+        assert.equal((html.match(/data-action="die-roll-request-roll"/g) ?? []).length, 1);
+    });
+
+    it("only shows GM roll controls for unresolved recipients", () => {
+        const manager = makeManager([{
+            id: "req3",
+            recipientIds: ["player1", "player2"],
+            label: "Group Dexterity Save",
+            rollType: "attribute-save"
+        }]);
+        manager.sendResult("req3", "player1", {
+            formula: "1d20",
+            total: 15,
+            dice: [],
+            timestamp: 100
+        });
+
+        const model = buildDieRollRequestPanelModel({
+            userId: "gm1",
+            isGM: true,
+            users: [
+                { id: "gm1", name: "GM", isGM: true },
+                { id: "player1", name: "Ada" },
+                { id: "player2", name: "Bert" }
+            ],
+            manager
+        });
+        const html = renderDieRollRequestPanel(model);
+
+        assert.doesNotMatch(html, /data-recipient-id="player1"/);
+        assert.match(html, /data-recipient-id="player2"/);
+        assert.doesNotMatch(html, /data-action="die-roll-request-roll-all"/);
     });
 });
