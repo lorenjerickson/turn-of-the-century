@@ -263,10 +263,11 @@ function rollRequirementSatisfied(action = {}, requirement = {}) {
     const requiredType = String(requirement?.rollType ?? "").toLowerCase();
     const requiredSubType = String(requirement?.rollSubType ?? "").toLowerCase();
     return collectionContents(action.planningRollResults).some((result) => {
-        const resultType = String(result?.rollType ?? "").toLowerCase();
-        const resultSubType = String(result?.rollSubType ?? "").toLowerCase();
-        if (resultType && requiredType && resultType !== requiredType) return false;
-        if (resultSubType && requiredSubType && resultSubType !== requiredSubType) return false;
+        const nestedResult = result?.result && typeof result.result === "object" ? result.result : {};
+        const resultType = String(result?.rollType ?? nestedResult.rollType ?? "").toLowerCase();
+        const resultSubType = String(result?.rollSubType ?? nestedResult.rollSubType ?? "").toLowerCase();
+        if (requiredType && resultType !== requiredType) return false;
+        if (requiredSubType && resultSubType !== requiredSubType) return false;
         return true;
     });
 }

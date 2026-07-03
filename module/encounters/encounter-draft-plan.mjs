@@ -115,7 +115,7 @@ function normalizeResolutionActionLabel(clause = {}, resolutionActionId = "") {
 
 function actionRangeFeet(action = {}) {
     const explicitRange = optionalNumber(action.engageTargetingRangeFeet ?? action.targetingRangeFeet);
-    if (explicitRange !== null && explicitRange > 0) return explicitRange;
+    if (explicitRange !== null) return Math.max(0, explicitRange);
     const rangeType = text(action.engageRangeType ?? action.rangeType, "melee").toLowerCase();
     if (rangeType === "long") return 60;
     if (rangeType === "normal") return 30;
@@ -344,11 +344,12 @@ export function draftClauseToResolutionAction(clause = {}, { index = 0, cloneDat
             requiresTarget: true,
             requiresToHit: Boolean(normalized.engageRequiresToHit),
             requiresItem: Boolean(normalized.engageRequiresItem),
+            rollRequirements: toArray(normalized.rollRequirements).map((requirement) => cloneValue(requirement, cloneData)),
             rangeType: text(normalized.engageRangeType, text(normalized.rangeType, "")),
             targetingRangeFeet: actionRangeFeet(normalized),
             damageFormula: text(normalized.engageDamageFormula, text(normalized.damageFormula, "")),
             systemRollsAllowed: Boolean(normalized.engageSystemRollsAllowed),
-            movementFeetPerAp: Math.max(1, toNumber(normalized.movementFeetPerAp, 10)),
+            movementFeetPerAp: Math.max(1, toNumber(normalized.movementFeetPerAp, 5)),
             intentType: actionType === "attack" || normalized.engageRequiresToHit ? "attackTarget" : "interactWithObject",
             apEnvelope: {
                 positioningAp: closeAp,

@@ -1,3 +1,5 @@
+import { resolveActionRangeFeet } from "./action-range.mjs";
+
 // ---------------------------------------------------------------------------
 // Pure utilities (local copies — no shared module dependency)
 // ---------------------------------------------------------------------------
@@ -14,23 +16,6 @@ function toArray(value) {
 // ---------------------------------------------------------------------------
 // Pure helpers — no port access, no Foundry globals
 // ---------------------------------------------------------------------------
-
-/**
- * Resolve the effective range in feet for an action, taking rangeType into
- * account and falling back to item physical range data.
- *
- * @param {object|null} action
- * @param {object|null} item   Foundry Item document or plain item-like object.
- * @returns {number}
- */
-function resolveActionRangeFeet(action = null, item = null) {
-    const rangeType = String(action?.rangeType ?? "melee").toLowerCase();
-    const normal = Number(item?.system?.physical?.range?.normal ?? (rangeType === "melee" ? 5 : 30));
-    const long = Number(item?.system?.physical?.range?.long ?? Math.max(normal, 60));
-    if (rangeType === "long") return Math.max(5, long || normal || 60);
-    if (rangeType === "normal") return Math.max(5, normal || 30);
-    return Math.max(5, normal || 5);
-}
 
 /**
  * Select the ability bonus that applies to this attack (Dex for ranged,
@@ -50,8 +35,12 @@ function getAttackAbilityBonus(actor, item) {
 function planningAttackRollResult(action = null, rollSubType = "") {
     const subType = String(rollSubType ?? "").toLowerCase();
     return toArray(action?.planningRollResults)
-        .find((entry) => String(entry?.rollType ?? "").toLowerCase() === "attack"
-            && (!subType || String(entry?.rollSubType ?? "").toLowerCase() === subType))
+        .find((entry) => {
+            const nestedResult = entry?.result && typeof entry.result === "object" ? entry.result : {};
+            const rollType = String(entry?.rollType ?? nestedResult.rollType ?? "").toLowerCase();
+            const resultSubType = String(entry?.rollSubType ?? nestedResult.rollSubType ?? "").toLowerCase();
+            return rollType === "attack" && (!subType || resultSubType === subType);
+        })
         ?? null;
 }
 

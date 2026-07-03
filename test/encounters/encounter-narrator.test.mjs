@@ -369,6 +369,42 @@ describe("EncounterNarrator.describeEntry — attack", () => {
         });
         assert.equal(narrator.describeEntry(entry), "Alice fires Revolver at Bob and hits.");
     });
+
+    it("uses melee weapon damage type for fallback hit narration", () => {
+        const knife = {
+            id: "knife",
+            name: "Bowie Knife",
+            system: {
+                classification: "simpleMelee",
+                damage: { type: "slashing" }
+            }
+        };
+        const narrator = makeNarrator([makeCombatant("c1", "Alice", [knife])]);
+        const entry = makeEntry({
+            action: { type: "attack", itemId: "knife", label: "Attack", targetId: "c2" },
+            outcome: { result: "hit", targetName: "Bob" }
+        });
+
+        assert.equal(narrator.describeEntry(entry), "Alice slashes Bob with Bowie Knife and hits.");
+    });
+
+    it("uses action name when item flavor text is absent", () => {
+        const pike = {
+            id: "pike",
+            name: "Boarding Pike",
+            system: {
+                classification: "simpleMelee",
+                damage: { type: "" }
+            }
+        };
+        const narrator = makeNarrator([makeCombatant("c1", "Alice", [pike])]);
+        const entry = makeEntry({
+            action: { type: "attack", itemId: "pike", actionLabel: "Thrust", label: "Boarding Pike: Thrust", targetId: "c2" },
+            outcome: { result: "miss", targetName: "Bob" }
+        });
+
+        assert.equal(narrator.describeEntry(entry), "Alice thrusts Boarding Pike at Bob and misses.");
+    });
 });
 
 // ---------------------------------------------------------------------------

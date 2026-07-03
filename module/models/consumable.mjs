@@ -1,4 +1,5 @@
 import { TOTC_EQUIPMENT_SLOT_KEYS } from "./actor.mjs";
+import { createActionEffectField } from "./action-effect.mjs";
 import { createModifierEntryField } from "./modifier.mjs";
 
 const {
@@ -70,6 +71,7 @@ function createActionVariantField({ defaultId = "consumeItem", defaultLabel = "C
         apCost: new NumberField({ required: true, integer: true, min: 1, initial: defaultApCost }),
         requiresToHit: new BooleanField({ required: true, initial: false }),
         toHitBonus: new NumberField({ required: true, integer: true, initial: 0 }),
+        targetingRangeFeet: new NumberField({ required: true, integer: true, min: 0, initial: 5 }),
         recapFormat: new StringField({ required: true, blank: true, initial: "" }),
         // Targeting
         targetSelf: new BooleanField({ required: true, initial: true }),
@@ -77,6 +79,7 @@ function createActionVariantField({ defaultId = "consumeItem", defaultLabel = "C
         requiresAdjacency: new BooleanField({ required: true, initial: false }),
         // Condition IDs applied on use
         conditions: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] }),
+        effects: new ArrayField(createActionEffectField(), { required: true, initial: () => [] }),
         // Completion phase increment: additional AP slots after action completes before effect lands
         completionPhaseIncrement: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
         // Distance-based CPI: if > 0, CPI = floor(targetDistance / cpiPerFeet)
@@ -147,6 +150,8 @@ export class ConsumableDataModel extends foundry.abstract.TypeDataModel {
                             apCost: 1,
                             requiresToHit: false,
                             toHitBonus: 0,
+                            targetingRangeFeet: 5,
+                            effects: [],
                             recapFormat: "{{Owner.name}} uses {{Item.name}}.",
                             notes: ""
                         }]

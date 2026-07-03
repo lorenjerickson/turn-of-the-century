@@ -59,6 +59,17 @@ function isRelativeMovementAction(action = null) {
     return ["pursue", "follow", "avoid", "evade"].includes(movementMode(action));
 }
 
+function shouldApplyActionEffect(effect = null, outcome = null) {
+    const timing = String(effect?.timing ?? "onComplete");
+    const result = String(outcome?.result ?? "");
+    if (timing === "always" || timing === "onComplete" || timing === "onUse") return true;
+    if (timing === "onHit") return ["hit", "critical"].includes(result);
+    if (timing === "onMiss") return result === "miss";
+    if (timing === "onSaveFail") return result === "saveFailed";
+    if (timing === "onSaveSuccess") return result === "saveSucceeded";
+    return true;
+}
+
 function buildRelativeMovementTickOrder({
     orderedCombatants = [],
     perCombatant = {},
@@ -188,9 +199,6 @@ export class EncounterResolutionEngine {
     /** @type {(eventName: string, payload?: object) => void} */
     #emit;
 
-    /** @type {(opts: object) => Promise<object|null>} */
-    #generateTickNarrative;
-
     // -------------------------------------------------------------------------
     // Resolver instances
     // -------------------------------------------------------------------------
@@ -219,7 +227,6 @@ export class EncounterResolutionEngine {
      *   checkItemAction:            (item: object, actor: object, actionId: string) => Promise<object|undefined>,
      *   publishRoundReplay:         (timeline: object[]) => Promise<void>,
      *   emit:                       (eventName: string, payload?: object) => void,
-     *   generateTickNarrative?:     (opts: object) => Promise<object|null>,
      *   movementResolver:           object,
      *   attackResolver:             object,
      *   reactionResolver:           object,
@@ -244,7 +251,6 @@ export class EncounterResolutionEngine {
         checkItemAction,
         publishRoundReplay,
         emit,
-        generateTickNarrative = async () => null,
         movementResolver,
         attackResolver,
         reactionResolver,
@@ -267,7 +273,6 @@ export class EncounterResolutionEngine {
         this.#checkItemAction = checkItemAction;
         this.#publishRoundReplay = publishRoundReplay;
         this.#emit = emit;
-        this.#generateTickNarrative = generateTickNarrative;
         this.#movementResolver = movementResolver;
         this.#attackResolver = attackResolver;
         this.#reactionResolver = reactionResolver;
@@ -379,7 +384,7 @@ export class EncounterResolutionEngine {
             tickNarratives
         });
         const tickEffects = [];
-        const movementFeetPerAp = Number(this.#getMovementFeetPerAp() || 10);
+        const movementFeetPerAp = Number(this.#getMovementFeetPerAp() || 5);
 
         const tickOrder = buildRelativeMovementTickOrder({
             orderedCombatants,
@@ -485,7 +490,7 @@ export class EncounterResolutionEngine {
                     });
                 }
 
-                const stepFeet = Number(action.movementFeetPerAp || movementFeetPerAp || 10);
+                const stepFeet = Number(action.movementFeetPerAp || movementFeetPerAp || 5);
                 const movementMode = String(action.id ?? action.actionId ?? "").toLowerCase();
                 const targetSuffix = targetCombatant?.name ? ` ${targetCombatant.name}` : "their target";
                 const movementDetail = movementMode === "pursue"
@@ -592,6 +597,24 @@ export class EncounterResolutionEngine {
                     });
                 }
 
+                for (const actionEffect of Array.isArray(action.effects) ? action.effects : []) {
+                    if (!shouldApplyActionEffect(actionEffect, outcome)) continue;
+                    const targetMode = String(actionEffect?.target ?? "target");
+                    const targetCombatantId = targetMode === "self"
+                        ? combatant.id
+                        : String(action.targetId ?? outcome?.targetCombatantId ?? pendingDamage?.targetCombatantId ?? "").trim();
+                    if (!targetCombatantId && !["area", "origin", "item", "custom"].includes(targetMode)) continue;
+                    tickEffects.push({
+                        type: "actionEffect",
+                        sourceCombatantId: combatant.id,
+                        targetCombatantId,
+                        targetMode,
+                        itemId: action.itemId,
+                        actionId: action.actionId,
+                        effect: actionEffect
+                    });
+                }
+
                 timeline.push(withOrderClauseMetadata({
                     tick,
                     combatantId: combatant.id,
@@ -654,6 +677,10 @@ export class EncounterResolutionEngine {
             }
 
             await this.#consumptionResolver.applyConsumeActionEffect(effect);
+        }
+
+        for (const effect of toArray(reconcilePlan.actionEffects)) {
+            await this.#consumptionResolver.applyActionEffect?.(effect);
         }
 
         const preDamageBoundaryState = await this.#captureSnapshot({
@@ -734,9 +761,7 @@ export class EncounterResolutionEngine {
             perCombatant
         });
 
-        const narrative = await this.#buildGeneratedTickNarrative({
-            tick,
-            round: this.#getCurrentRound(),
+        const narrative = this.#buildTickNarrative({
             narrative: this.#narrator.buildTickNarrative(timeline, tick)
         });
         tickNarratives.push(narrative);
@@ -751,31 +776,14 @@ export class EncounterResolutionEngine {
         return { snapshot, narrative };
     }
 
-    async #buildGeneratedTickNarrative({ tick = 0, round = 1, narrative = {} } = {}) {
-        try {
-            const result = await this.#generateTickNarrative({
-                round,
-                tick,
-                factualOutlineMarkdown: narrative.factualOutlineMarkdown ?? "",
-                factualOutline: narrative.factualOutline ?? [],
-                planSummary: narrative.summary ?? "",
-                lines: narrative.lines ?? []
-            });
-            const generatedNarrative = String(result?.narrative ?? "").trim();
-            return {
-                ...narrative,
-                generatedNarrative,
-                gmNotes: toArray(result?.gmNotes).map((note) => String(note ?? "").trim()).filter(Boolean),
-                generationStatus: generatedNarrative ? "complete" : "unavailable"
-            };
-        } catch (error) {
-            return {
-                ...narrative,
-                generatedNarrative: "",
-                gmNotes: [`Narrative generation failed: ${error?.message ?? error}`],
-                generationStatus: "failed"
-            };
-        }
+    #buildTickNarrative({ narrative = {} } = {}) {
+        return {
+            ...narrative,
+            generatedNarrative: "",
+            links: [],
+            gmNotes: [],
+            generationStatus: "deterministic"
+        };
     }
 
     /**
@@ -1053,7 +1061,7 @@ export class EncounterResolutionEngine {
         if (action.type === "movement") {
             return {
                 result: "moved",
-                detail: `${combatant.name} advances ${toNumber(action.movementFeet, 10)} ft.`
+                detail: `${combatant.name} advances ${toNumber(action.movementFeet, 5)} ft.`
             };
         }
 
@@ -1124,7 +1132,7 @@ export class EncounterResolutionEngine {
         action = null,
         timeline = [],
         tickEffects = [],
-        movementFeetPerAp = 10,
+        movementFeetPerAp = 5,
         perCombatant = {},
         reactionRuntime = null,
         orderedCombatants = [],
@@ -1223,7 +1231,7 @@ export class EncounterResolutionEngine {
         positioning = {},
         timeline = [],
         tickEffects = [],
-        movementFeetPerAp = 10,
+        movementFeetPerAp = 5,
         perCombatant = {},
         reactionRuntime = null,
         orderedCombatants = [],
@@ -1247,7 +1255,7 @@ export class EncounterResolutionEngine {
             impliedForOrderId: action.orderId ?? action.id
         };
         movementAction.impliedForOrderId = movementAction.impliedForOrderId ?? action.orderId ?? action.id;
-        const stepFeet = Number(movementAction.movementFeetPerAp || movementFeetPerAp || 10);
+        const stepFeet = Number(movementAction.movementFeetPerAp || movementFeetPerAp || 5);
         const targetName = positioning.targetCombatant?.name ? ` ${positioning.targetCombatant.name}` : "";
         timeline.push(withOrderClauseMetadata({
             tick,

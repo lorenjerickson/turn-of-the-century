@@ -145,6 +145,85 @@ describe("SceneDesignFeature", () => {
         assert.equal(designActionExecuted, "scene.walls");
     });
 
+    it("routes the scenes create button through the workspace scene draft flow", async () => {
+        let delegatedClickHandler = null;
+        let createDraftCalled = false;
+        const rootElement = {
+            ownerDocument: {
+                addEventListener: () => {},
+                removeEventListener: () => {}
+            },
+            addEventListener: (event, handler) => {
+                if (event === "click") delegatedClickHandler = handler;
+            },
+            querySelectorAll: () => []
+        };
+
+        const feature = new SceneDesignFeature({
+            scenePort: {
+                getCurrentScene: () => null,
+                getViewedScene: () => null,
+                getSceneById: () => null,
+                getScenes: () => [],
+                getScenePropertiesScene: () => null,
+                getScenePropertiesState: () => ({}),
+                patchScenePropertiesState: () => {},
+                getDesignActionScene: (_panel, fallback) => fallback,
+                getActorById: () => null,
+                getActors: () => [],
+                getCombat: () => null,
+                getCanvas: () => ({ tokens: { controlled: [] } }),
+                getUi: () => globalThis.ui,
+                getFoundry: () => globalThis.foundry,
+                isGM: () => true
+            },
+            panelPort: {
+                getLayout: () => ({ root: { centerDock: { stacks: [] } } }),
+                getPrimaryActivePanel: () => null,
+                getActiveCenterMapPanel: () => null,
+                getPanelDefinition: () => null,
+                isMapPanel: () => false,
+                getPanelSceneId: () => "",
+                makeSceneMapPanelDef: () => null,
+                openSceneMapPanel: () => ({}),
+                bindScene: () => {},
+                saveUserLayout: async () => {},
+                removeDeletedSceneMapPanel: async () => {},
+                openScenePropertiesPanel: async () => {},
+                createSceneDesignScene: async () => {
+                    createDraftCalled = true;
+                    return { ok: true, silent: true };
+                }
+            },
+            gridCalibrationController: { state: { active: false } },
+            designActionRegistry: {
+                get: (id) => id === "scene.create"
+                    ? {
+                        label: "Create Scene",
+                        execute: async (context) => context.app.createSceneDesignScene()
+                    }
+                    : null
+            }
+        });
+
+        globalThis.ui = { notifications: { info: () => {}, warn: () => {}, error: () => {} } };
+
+        feature.bind(rootElement);
+        feature.bind(rootElement);
+        assert.equal(typeof delegatedClickHandler, "function");
+
+        const createButton = {
+            closest: (selector) => selector === "[data-action='scenes-create-scene']" ? createButton : null
+        };
+        await delegatedClickHandler({
+            target: createButton,
+            preventDefault: () => {},
+            stopPropagation: () => {}
+        });
+
+        assert.equal(createDraftCalled, true);
+    });
+
     it("prepares context for scenes and scene-properties panels", async () => {
         globalThis.canvas = null;
         const viewedScene = {
@@ -519,19 +598,172 @@ describe("SceneDesignFeature", () => {
         }
     });
 
+    it("uploads a scene background with the scene name and applies it to the bound scene", async () => {
+        const previousImage = globalThis.Image;
+        const previousFile = globalThis.File;
+        class TestImage {
+            set src(value) {
+                this._src = value;
+                this.naturalWidth = 1920;
+                this.naturalHeight = 1080;
+                this.onload();
+            }
+        }
+        class TestFile {
+            constructor(_parts, name, options = {}) {
+                this.name = name;
+                this.type = options.type ?? "";
+                this.lastModified = options.lastModified ?? 0;
+            }
+        }
+        globalThis.Image = TestImage;
+        globalThis.File = TestFile;
+
+        try {
+            let changeHandler = null;
+            const root = {
+                ownerDocument: { addEventListener: () => {}, removeEventListener: () => {} },
+                addEventListener: (type, handler) => {
+                    if (type === "change") changeHandler = handler;
+                },
+                querySelectorAll: () => []
+            };
+            const createdDirectories = [];
+            let uploaded = null;
+            let receivedUpdate = null;
+            const scene = {
+                id: "scene-1",
+                name: "New Scene",
+                update: async (data) => {
+                    receivedUpdate = data;
+                    if (data.name) scene.name = data.name;
+                    scene.img = data.img;
+                    scene._source = {
+                        img: data.img,
+                        background: { src: data["background.src"] },
+                        texture: { src: data["texture.src"] }
+                    };
+                    return scene;
+                }
+            };
+            const patchedState = { sceneName: "Rookery Yard" };
+            const feature = new SceneDesignFeature({
+                scenePort: {
+                    getCurrentScene: () => scene,
+                    getViewedScene: () => scene,
+                    getSceneById: () => scene,
+                    getScenes: () => [scene],
+                    getScenePropertiesScene: () => scene,
+                    getScenePropertiesState: () => patchedState,
+                    patchScenePropertiesState: (patch) => Object.assign(patchedState, patch),
+                    getDesignActionScene: (_panel, fallback) => fallback,
+                    getActorById: () => null,
+                    getActors: () => [],
+                    getCombat: () => null,
+                    getCanvas: () => ({ tokens: { controlled: [] } }),
+                    getUi: () => globalThis.ui,
+                    getFoundry: () => globalThis.foundry,
+                    isGM: () => true
+                },
+                panelPort: {
+                    getLayout: () => ({ root: { centerDock: { stacks: [] } } }),
+                    getPrimaryActivePanel: () => null,
+                    getActiveCenterMapPanel: () => null,
+                    getPanelDefinition: () => null,
+                    isMapPanel: () => false,
+                    getPanelSceneId: () => "",
+                    makeSceneMapPanelDef: () => null,
+                    openSceneMapPanel: () => ({}),
+                    bindScene: () => {},
+                    saveUserLayout: async () => {},
+                    removeDeletedSceneMapPanel: async () => {},
+                    openScenePropertiesPanel: async () => {},
+                    createSceneDesignScene: async () => ({ ok: true })
+                },
+                foundryRef: () => ({
+                    applications: {
+                        apps: {
+                            FilePicker: {
+                                implementation: {
+                                    createDirectory: async (_source, directory) => createdDirectories.push(directory),
+                                    upload: async (_source, directory, file, options) => {
+                                        uploaded = { directory, fileName: file.name, options };
+                                        return { path: `${directory}/${file.name}` };
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }),
+                render: () => {},
+                activityLogger: { info: () => {}, warn: () => {}, error: () => {} },
+                logger: { error: () => {} }
+            });
+
+            globalThis.ui = { notifications: { info: () => {}, warn: () => {}, error: () => {} } };
+
+            feature.bind(root);
+            feature.bind(root);
+            assert.equal(typeof changeHandler, "function");
+
+            const input = {
+                files: [{
+                    name: "Original Upload.PNG",
+                    type: "image/png",
+                    size: 100,
+                    lastModified: 123
+                }],
+                matches: (selector) => selector === "[data-action='scene-properties-background-upload']"
+            };
+            await changeHandler({ target: input });
+
+            assert.deepEqual(createdDirectories, ["assets", "assets/images", "assets/images/scenes"]);
+            assert.deepEqual(uploaded, {
+                directory: "assets/images/scenes",
+                fileName: "rookery-yard.png",
+                options: { notify: true, overwrite: true }
+            });
+            assert.deepEqual(receivedUpdate, {
+                img: "assets/images/scenes/rookery-yard.png",
+                "background.src": "assets/images/scenes/rookery-yard.png",
+                "texture.src": "assets/images/scenes/rookery-yard.png",
+                width: 1900,
+                height: 1100
+            });
+            assert.equal(scene.img, "assets/images/scenes/rookery-yard.png");
+            assert.equal(patchedState.status, "Background saved: rookery-yard.png.");
+            assert.equal(patchedState.error, "");
+        } finally {
+            if (previousImage === undefined) {
+                delete globalThis.Image;
+            } else {
+                globalThis.Image = previousImage;
+            }
+            if (previousFile === undefined) {
+                delete globalThis.File;
+            } else {
+                globalThis.File = previousFile;
+            }
+        }
+    });
+
     it("saveSceneName persists the name and triggers a render", async () => {
         let savedName = null;
         let renderCalled = false;
+        const patchedState = {};
         const scene = {
             id: "scene-1",
             name: "Old Name",
-            update: async (data) => { savedName = data.name; }
+            update: async (data) => {
+                savedName = data.name;
+                scene.name = data.name;
+            }
         };
         const feature = new SceneDesignFeature({
             sceneWorkspaceController: {
                 ...mockController,
                 getScenePropertiesScene: () => scene,
-                patchState: () => {},
+                patchState: (patch) => Object.assign(patchedState, patch),
                 stateStore: null
             },
             render: () => { renderCalled = true; },
@@ -541,6 +773,7 @@ describe("SceneDesignFeature", () => {
         await feature.saveSceneName("New Name");
 
         assert.equal(savedName, "New Name");
+        assert.equal(patchedState.sceneName, "New Name");
         assert.equal(renderCalled, true);
     });
 });

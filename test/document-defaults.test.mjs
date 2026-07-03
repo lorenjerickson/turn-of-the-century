@@ -7,9 +7,9 @@ import {
 } from "../module/document-defaults.mjs";
 
 describe("Foundry document defaults", () => {
-    it("gives new tokens enabled vision with a 60-foot range", () => {
+    it("gives new tokens enabled vision with a 120-foot range", () => {
         assert.deepEqual(buildNewTokenVisionDefaults(), {
-            sight: { enabled: true, range: 60 }
+            sight: { enabled: true, range: 120 }
         });
     });
 

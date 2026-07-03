@@ -781,6 +781,76 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         assert.deepEqual(finalState.roundHistory[0].timeline, finalState.timeline);
     });
 
+    it("generates previous-round narration asynchronously when the next round starts", async () => {
+        const fetchCalls = [];
+        const hookCalls = [];
+        globalThis.Hooks.callAll = (hookName, payload) => {
+            hookCalls.push({ hookName, payload });
+        };
+        globalThis.game.settings.get = (_scope, key) => {
+            if (key === "openaiApiKey") return "test-key";
+            if (key === "encounterActionPointBudget") return 1;
+            if (key === "encounterMovementFeetPerAp") return 10;
+            return undefined;
+        };
+        globalThis.fetch = async (url, options = {}) => {
+            fetchCalls.push({ url: String(url), options });
+            if (String(url).includes("/responses")) {
+                return {
+                    ok: true,
+                    json: async () => ({
+                        output_text: JSON.stringify({
+                            round: 1,
+                            narrative: "The first round resolves in a hard rush of smoke and brass.",
+                            links: [],
+                            gmNotes: ["ready"]
+                        })
+                    })
+                };
+            }
+            return {
+                ok: true,
+                text: async () => "Round narrative prompt with schema constraints supplied by the generation service."
+            };
+        };
+
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        const harness = buildCombatHarness({
+            apBudget: 1,
+            plans: {
+                "c-a": [],
+                "c-b": []
+            },
+            withWeapon: false
+        });
+
+        const encounter = new TurnOfTheCenturyEncounter(harness.combat);
+        await encounter.beginEncounterResolution();
+        await encounter.stepEncounterResolution(1);
+        assert.equal(harness.getState().phase, "roundComplete");
+
+        const nextState = await encounter.initializeEncounterRound();
+        assert.equal(nextState.roundHistory[0].roundNarrative.status, "pending");
+
+        for (let attempt = 0; attempt < 10 && harness.getState().roundHistory[0].roundNarrative.status === "pending"; attempt += 1) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+
+        const finalNarrative = harness.getState().roundHistory[0].roundNarrative;
+        assert.equal(finalNarrative.status, "complete");
+        assert.equal(finalNarrative.narrative, "The first round resolves in a hard rush of smoke and brass.");
+        assert.deepEqual(finalNarrative.gmNotes, ["ready"]);
+
+        const responseCall = fetchCalls.find((call) => call.url.includes("/responses"));
+        assert.ok(responseCall, "OpenAI response request made after next round starts");
+        const body = JSON.parse(responseCall.options.body);
+        assert.match(body.input, /"timeline"/);
+        assert.match(body.input, /"tickNarratives"/);
+        assert.match(body.input, /"deterministicRoundSummary"/);
+        assert.ok(fetchCalls.some((call) => call.url.includes("prompts/encounter-round-narrative-result.md")));
+        assert.ok(hookCalls.some((call) => call.hookName === "totcEncounterRoundNarrativeUpdated"));
+    });
+
     it("does not choose a fallback target for an untargeted attack", async () => {
         const { TurnOfTheCenturyEncounter } = await loadCombatModule();
         const attackAction = {

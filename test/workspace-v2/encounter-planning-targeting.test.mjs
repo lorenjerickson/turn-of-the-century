@@ -59,6 +59,57 @@ async function selectAndConfirmAction(clickHandlers, panel, actionDataset) {
 }
 
 describe("EncounterPlanningFeature targeting", () => {
+    it("sends encounter attack roll requests to player owners from actor ownership data", () => {
+        dieRollRequestManager.activeRequests.clear();
+        globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { OWNER: 3 } };
+        globalThis.game = {
+            user: { id: "gm", name: "GM", isGM: true },
+            users: [
+                { id: "gm", name: "GM", isGM: true },
+                { id: "player-1", name: "Ada's Player", isGM: false }
+            ]
+        };
+
+        const combatant = {
+            id: "combatant-1",
+            name: "Ada Price",
+            actor: {
+                id: "actor-1",
+                ownership: { "player-1": 3 },
+                items: new Map()
+            }
+        };
+        const combat = {
+            id: "combat-1",
+            combatants: new Map([[combatant.id, combatant]])
+        };
+        const feature = new EncounterPlanningFeature({ render: () => {} });
+
+        feature._requestEncounterAttackRolls({
+            combat,
+            combatantId: combatant.id,
+            actionIndex: 0,
+            action: {
+                id: "strike",
+                actionId: "strike",
+                type: "attack",
+                label: "Strike",
+                requiresToHit: true,
+                toHitBonus: 2
+            }
+        });
+
+        const request = dieRollRequestManager.getAllRequests()
+            .find((entry) => entry.combatId === "combat-1" && entry.combatantId === "combatant-1");
+
+        assert.ok(request, "attack roll request should be created");
+        assert.deepEqual(request.recipientIds, ["player-1"]);
+        assert.equal(request.getFormulaFor("player-1"), "1d20 + 2");
+
+        dieRollRequestManager.activeRequests.clear();
+        delete globalThis.CONST;
+    });
+
     it("builds Close and Engage draft clauses with a reserved follow-up action budget", async () => {
         let draftPlan = { clauses: [] };
         const combat = {

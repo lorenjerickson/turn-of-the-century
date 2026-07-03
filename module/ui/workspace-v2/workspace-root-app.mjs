@@ -11,6 +11,7 @@ import {
     buildInspectorPanelModel
 } from "./panels/inspector-panel.mjs";
 import { MediaFeature } from "./controllers/media-feature.mjs";
+import { CodexFeature } from "./controllers/codex-feature.mjs";
 import { getSceneBackgroundSource } from "./scene-background-source.mjs";
 import { totcLogger } from "./logger.mjs";
 import {
@@ -22,7 +23,6 @@ import {
     getCompendiumPacks,
     loadUnifiedCompendiumItems
 } from "./compendium-items.mjs";
-const DEFAULT_ITEM_ICON = "icons/svg/item-bag.svg";
 
 import {
     CompendiumCacheController
@@ -116,8 +116,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this._nativeCanvasViewSceneId = "";
         this._activePlanEditSlot = null;
         this._wiredElement = null;
-        this.codexSearchQuery = "";
-        this.codexTypeFilter = "";
 
         this._textInputDebounceTimers = new Map();
         this._gridCalibrationPreviewTimer = null;
@@ -214,6 +212,13 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             announce: (message) => this.gamemasterFeature?.announceGeneratedContent(message)
         });
         this.registerFeature(this.marketFeature);
+        this.codexFeature = new CodexFeature({
+            compendiumCacheController: this.compendiumCacheController,
+            createItem: (data, options) => ItemDocumentClass.create(data, options),
+            render: (options) => this.render(options),
+            escapeHTML: (value) => this.#escapeHTML(value)
+        });
+        this.registerFeature(this.codexFeature);
         this.mediaFeature = new MediaFeature({
             layoutEngine: this.layoutEngine,
             panelRegistry: this.panelRegistry,
@@ -375,7 +380,8 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             { event: "totcEncounterPlanUpdated", handler: this._encounterRefreshHandler },
             { event: "totcEncounterCombatantReadyChanged", handler: this._encounterRefreshHandler },
             { event: "totcEncounterPlanningStarted", handler: this._encounterRefreshHandler },
-            { event: "totcEncounterRoundResolved", handler: this._encounterRefreshHandler }
+            { event: "totcEncounterRoundResolved", handler: this._encounterRefreshHandler },
+            { event: "totcEncounterRoundNarrativeUpdated", handler: this._encounterRefreshHandler }
         ]);
     }
 
@@ -429,7 +435,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             }
         }
 
-        const codexItems = await this.compendiumCacheController.getItems();
         const inspectorPanel = buildInspectorPanelModel({
             activePanel: activeWorkspacePanel,
             scene,
@@ -462,11 +467,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             panelVisibility,
             layout: activeLayout,
             dockWeights: this.layoutEngine.getDockWeightLayout(),
-            codexSearchQuery: this.codexSearchQuery,
-            codexTypeFilter: this.codexTypeFilter,
-            codexItems,
-
-            codexLoadingState: this.compendiumCacheController.loadingFailureMessage,
+            codexPanel: null,
             mediaBrowserPanel: null,
             diceRollFeedPanel: null,
             dieRollRequestPanel: null,
@@ -535,13 +536,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
 
         this.#wireLoggingPanelHandlers();
-
-        this.element?.querySelectorAll("[data-action='codex-type-filter']")?.forEach((select) => {
-            select.addEventListener("change", async () => {
-                this.codexTypeFilter = select.value;
-                await this.render({ force: false });
-            });
-        });
 
         for (const feature of this.features) {
             if (typeof feature.bind === "function") {
@@ -859,7 +853,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     async #handleDebouncedTextInput(action, value) {
         switch (action) {
             case "codex-search": {
-                this.codexSearchQuery = value;
+                this.codexFeature.setSearchQuery(value);
                 await this.render({ force: false });
                 focusWorkspaceTextInputAtEnd(this.element, "codex-search");
                 break;

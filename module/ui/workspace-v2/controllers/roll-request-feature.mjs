@@ -46,10 +46,49 @@ export class RollRequestFeature extends WorkspaceFeature {
 
         this._rootElement = null;
         this._rollLockHandler = null;
+        this._acceptedPlanningRollResultKeys = new Set();
+    }
+
+    #planningRollResultKey(request = {}, recipientId = "") {
+        const requestId = String(request?.id ?? "").trim();
+        const userId = String(recipientId ?? "").trim();
+        if (!requestId || !userId) return "";
+        return `${requestId}:${userId}`;
+    }
+
+    #forgetAcceptedPlanningRollResults(request = {}) {
+        const requestId = String(request?.id ?? "").trim();
+        if (!requestId) return;
+        for (const key of Array.from(this._acceptedPlanningRollResultKeys)) {
+            if (key.startsWith(`${requestId}:`)) this._acceptedPlanningRollResultKeys.delete(key);
+        }
+    }
+
+    async #acceptCompletedPlanningRollOnce({ request = null, recipientId = "", result = null } = {}) {
+        const key = this.#planningRollResultKey(request, recipientId);
+        if (!key || this._acceptedPlanningRollResultKeys.has(key)) return false;
+        const accepted = await acceptCompletedPlanningRoll({
+            change: {
+                type: "result",
+                request,
+                recipientId,
+                result
+            }
+        });
+        if (accepted) this._acceptedPlanningRollResultKeys.add(key);
+        return accepted;
     }
 
     async #handleDieRollRequestChange(change = {}) {
-        await acceptCompletedPlanningRoll({ change });
+        if (change?.type === "result") {
+            await this.#acceptCompletedPlanningRollOnce({
+                request: change.request,
+                recipientId: change.recipientId,
+                result: change.result
+            });
+        } else if (change?.type === "request" || change?.type === "cancel") {
+            this.#forgetAcceptedPlanningRollResults(change.request);
+        }
         const userId = String(globalThis.game?.user?.id ?? "");
         const isGM = Boolean(globalThis.game?.user?.isGM);
         const hasRelevantPendingRequest = !isGM && dieRollRequestManager
@@ -78,10 +117,29 @@ export class RollRequestFeature extends WorkspaceFeature {
         })).filter((user) => user.id);
     }
 
+    async #acceptResolvedVisiblePlanningRolls({ userId = "", isGM = false } = {}) {
+        const requests = dieRollRequestManager.getVisibleRequests({ userId, isGM });
+        for (const request of requests) {
+            if (request?.isPending) {
+                this.#forgetAcceptedPlanningRollResults(request);
+                continue;
+            }
+            for (const [recipientId, result] of Object.entries(request?.results ?? {})) {
+                await this.#acceptCompletedPlanningRollOnce({
+                    request,
+                    recipientId,
+                    result
+                });
+            }
+        }
+        return requests;
+    }
+
     async prepareContext(context) {
         const userId = globalThis.game?.user?.id;
         const isGM = Boolean(globalThis.game?.user?.isGM);
         const workspaceUsers = this.#getWorkspaceUsers();
+        const visibleRequests = await this.#acceptResolvedVisiblePlanningRolls({ userId, isGM });
         context.dieRollRequestPanel = buildDieRollRequestPanelModel({
             userId,
             isGM,
@@ -89,7 +147,7 @@ export class RollRequestFeature extends WorkspaceFeature {
         });
         context.diceRollFeedPanel = buildDiceRollFeedPanelModel({
             messages: globalThis.game?.messages?.contents ?? globalThis.game?.messages ?? [],
-            rollRequests: dieRollRequestManager.getVisibleRequests({ userId, isGM }),
+            rollRequests: visibleRequests,
             users: workspaceUsers,
             limit: 20
         });

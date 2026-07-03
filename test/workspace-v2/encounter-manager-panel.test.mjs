@@ -234,20 +234,22 @@ describe("encounter manager panel", () => {
         assert.equal(resolvingModel.canStepNext, true);
     });
 
-    it("renders round narrative summaries before compact combatant plan details", () => {
+    it("renders the current tick, player-style combatant plans, and last-round summary", () => {
         const html = renderEncounterManagerPanel(buildEncounterManagerPanelModel({ combat: combatFixture() }), { escapeHTML });
 
         assert.match(html, /class="totc-v2-encounter-manager"/);
         assert.match(html, /Round 4/);
-        assert.match(html, /<h3>Round Narrative<\/h3>/);
-        assert.match(html, /data-tick="2"/);
-        assert.match(html, /Ada Price moves 20 ft\./);
+        assert.match(html, /<h3>Current Second<\/h3>/);
         assert.match(html, /data-tick="3"/);
         assert.match(html, /Briggs hunkers down\./);
         assert.match(html, /class="totc-v2-encounter-manager__tick-narrative is-current" data-tick="3"/);
         assert.match(html, /<h3>Combatant Plans<\/h3>/);
         assert.match(html, /class="totc-v2-encounter-manager__actor-plan"/);
+        assert.match(html, /class="totc-v2-encounter-panel__bar"/);
+        assert.match(html, /class="totc-v2-encounter-panel__orders"/);
         assert.match(html, /class="totc-v2-encounter-manager__actor-ready is-resolved">Resolved<\/span>/);
+        assert.match(html, /<h3>Last Round<\/h3>/);
+        assert.match(html, /Ada Price moves 20 ft\./);
         assert.match(html, /data-action="encounter-manager-start-round"/);
         assert.doesNotMatch(html, /turn-order roll/i);
         assert.match(html, /data-action="encounter-manager-set-phase" data-phase="locked"/);
@@ -258,22 +260,63 @@ describe("encounter manager panel", () => {
         assert.match(html, />Prev Second<\/button>/);
         assert.match(html, />Next Second<\/button>/);
         assert.doesNotMatch(html, /totc-v2-encounter-manager__plan/);
-        assert.doesNotMatch(html, /totc-v2-encounter-manager__current-line/);
-        assert.doesNotMatch(html, /totc-v2-encounter-manager__segment/);
+        assert.doesNotMatch(html, /totc-v2-encounter-manager__order-clause/);
+        assert.doesNotMatch(html, /totc-v2-encounter-manager__tick-outline/);
     });
 
-    it("prefers resolved tick narrative summaries for the GM storytelling view", () => {
+    it("prefers generated previous-round narration from round history", () => {
+        const combat = planningDraftCombatFixture();
+        combat.encounterState.roundHistory = [
+            {
+                round: 3,
+                tickNarratives: [
+                    { tick: 1, summary: "Deterministic fallback line." }
+                ],
+                roundNarrative: {
+                    status: "complete",
+                    narrative: "The previous round ends with [Ada's decisive strike].",
+                    links: [
+                        {
+                            id: "round-3-exchange-1",
+                            text: "Ada's decisive strike",
+                            type: "attack-resolution",
+                            combatantIds: ["combatant-1", "combatant-2"],
+                            actionId: "strike",
+                            itemId: "",
+                            timelineEntryIds: [],
+                            rollRequestIds: [],
+                            rollResultIds: [],
+                            clauseIds: []
+                        }
+                    ],
+                    gmNotes: []
+                }
+            }
+        ];
+
+        const model = buildEncounterManagerPanelModel({ combat });
+        const html = renderEncounterManagerPanel(model, { escapeHTML });
+
+        assert.equal(model.lastRoundNarrative.status, "complete");
+        assert.match(html, /The previous round ends with/);
+        assert.match(html, /data-link-id="round-3-exchange-1"/);
+        assert.doesNotMatch(html, /Deterministic fallback line/);
+    });
+
+    it("shows only the current tick narrative while resolving", () => {
         const model = buildEncounterManagerPanelModel({ combat: resolvingCombatFixture() });
         const html = renderEncounterManagerPanel(model, { escapeHTML });
 
         assert.equal(model.tickNarratives[0].summary, "Horus pursues Mallory. Mallory raises her galvanic rifle to her cheek.");
         assert.equal(model.tickNarratives[1].summary, "Horus closes with Mallory. Mallory sights down the barrel and shoots.");
+        assert.equal(model.currentTickNarrative.summary, "Horus closes with Mallory. Mallory sights down the barrel and shoots.");
         assert.equal(model.tickNarratives[1].current, true);
-        assert.match(html, /Horus pursues Mallory\. Mallory raises her galvanic rifle to her cheek\./);
         assert.match(html, /Horus closes with Mallory\. Mallory sights down the barrel and shoots\./);
+        assert.doesNotMatch(html, /Horus pursues Mallory\. Mallory raises her galvanic rifle to her cheek\./);
+        assert.doesNotMatch(html, /<h3>Last Round<\/h3>/);
     });
 
-    it("renders generated tick narration alongside the plan tick summary", () => {
+    it("renders generated tick narration without inline plan summaries or factual outlines", () => {
         const combat = resolvingCombatFixture();
         combat.encounterState.resolution.tickNarratives[1] = {
             tick: 2,
@@ -290,11 +333,11 @@ describe("encounter manager panel", () => {
         assert.equal(model.tickNarratives[1].summary, "Horus closes with Mallory. Mallory sights down the barrel and shoots.");
         assert.equal(model.tickNarratives[1].generatedNarrative, "Horus barrels through the fog as Mallory's galvanic rifle spits a hard white flash.");
         assert.match(html, /class="totc-v2-encounter-manager__tick-story">Horus barrels through the fog/);
-        assert.match(html, /<strong>Plan tick:<\/strong> Horus closes with Mallory\. Mallory sights down the barrel and shoots\./);
-        assert.match(html, /class="totc-v2-encounter-manager__tick-outline">- Horus closes with Mallory/);
+        assert.doesNotMatch(html, /<strong>Plan tick:<\/strong>/);
+        assert.doesNotMatch(html, /class="totc-v2-encounter-manager__tick-outline">- Horus closes with Mallory/);
     });
 
-    it("builds and renders GM order clauses with current tick highlighting", () => {
+    it("builds order clauses for detail popups without rendering them inline", () => {
         const model = buildEncounterManagerPanelModel({ combat: resolvingCombatFixture() });
         const ada = model.actors[0];
 
@@ -305,13 +348,13 @@ describe("encounter manager panel", () => {
         assert.deepEqual(ada.orders[0].clauses[0].relatedCombatantIds, ["combatant-2"]);
 
         const html = renderEncounterManagerPanel(model, { escapeHTML });
-        assert.match(html, /class="totc-v2-encounter-manager__order is-active"/);
-        assert.match(html, /class="totc-v2-encounter-manager__order-clause is-active"/);
-        assert.match(html, /data-related-combatant-ids="combatant-2"/);
-        assert.match(html, /Move toward the alley gate/);
+        assert.match(html, /class="totc-v2-encounter-panel__orders"/);
+        assert.doesNotMatch(html, /class="totc-v2-encounter-manager__order is-active"/);
+        assert.doesNotMatch(html, /class="totc-v2-encounter-manager__order-clause is-active"/);
+        assert.doesNotMatch(html, /data-related-combatant-ids="combatant-2"/);
     });
 
-    it("includes accepted die roll results in rendered order details", () => {
+    it("renders linked narrative popup details for accepted die roll results", () => {
         const combat = combatFixture();
         combat.encounterState.perCombatant["combatant-1"].plan[1] = {
             id: "strike",
@@ -335,6 +378,32 @@ describe("encounter manager panel", () => {
                 }
             ]
         };
+        combat.encounterState.resolution = {
+            status: "complete",
+            currentTick: 3,
+            totalTicks: 6,
+            tickNarratives: [
+                {
+                    tick: 3,
+                    summary: "Ada Price strikes Briggs.",
+                    generatedNarrative: "Ada Price drives her cane into [Briggs's ribs].",
+                    links: [
+                        {
+                            id: "tick-3-exchange-1",
+                            text: "Briggs's ribs",
+                            type: "attack-resolution",
+                            combatantIds: ["combatant-1", "combatant-2"],
+                            actionId: "strike",
+                            itemId: "",
+                            timelineEntryIds: [],
+                            rollRequestIds: ["roll-hit"],
+                            rollResultIds: ["roll-hit", "roll-damage"],
+                            clauseIds: []
+                        }
+                    ]
+                }
+            ]
+        };
 
         const model = buildEncounterManagerPanelModel({ combat });
         const strike = model.actors[0].orders[1];
@@ -345,7 +414,10 @@ describe("encounter manager panel", () => {
         );
 
         const html = renderEncounterManagerPanel(model, { escapeHTML });
-        assert.match(html, /totc-v2-encounter-manager__order-rolls/);
+        assert.match(html, /data-action="encounter-manager-narrative-detail"/);
+        assert.match(html, /data-link-id="tick-3-exchange-1"/);
+        assert.match(html, /totc-v2-encounter-manager__narrative-detail/);
+        assert.match(html, /Briggs&#039;s ribs|Briggs's ribs/);
         assert.match(html, /toHit/);
         assert.match(html, /17/);
         assert.match(html, /1d20 \+ 5/);
@@ -390,6 +462,122 @@ describe("encounter manager panel", () => {
         assert.match(html, /data-action="encounter-manager-resolve-round" disabled/);
     });
 
+    it("enables round resolution after confirmed plan rolls are accepted", () => {
+        const combat = planningDraftCombatFixture();
+        combat.encounterState.perCombatant["combatant-1"] = {
+            ready: true,
+            plan: [{ id: "move", type: "movement", label: "Move", apCost: 2 }],
+            draftPlan: { lifecycle: "locked", clauses: [] }
+        };
+        combat.encounterState.perCombatant["combatant-2"].ready = true;
+        combat.encounterState.perCombatant["combatant-2"].draftPlan.lifecycle = "locked";
+        combat.encounterState.perCombatant["combatant-2"].plan[0].planningLocked = true;
+        combat.encounterState.perCombatant["combatant-2"].plan[0].planningRollResults = [
+            {
+                requestId: "roll-1",
+                rollType: "attack",
+                rollSubType: "toHit",
+                result: { total: 18 }
+            }
+        ];
+
+        const model = buildEncounterManagerPanelModel({
+            combat,
+            rollRequests: [
+                {
+                    id: "roll-1",
+                    combatId: "combat-1",
+                    combatantId: "combatant-2",
+                    actionIndex: 0,
+                    label: "Briggs: Strike",
+                    rollType: "attack",
+                    rollSubType: "toHit",
+                    recipientIds: ["player-1"],
+                    results: { "player-1": { total: 18 } },
+                    status: "resolved",
+                    isPending: false,
+                    getFormulaFor: () => "1d20 + 2"
+                }
+            ],
+            users: [{ id: "player-1", name: "Player", isGM: false }]
+        });
+        const html = renderEncounterManagerPanel(model, { escapeHTML });
+
+        assert.equal(model.pendingRequiredRolls, 0);
+        assert.equal(model.rollQueue.pendingRequestCount, 0);
+        assert.equal(model.canResolveRound, true);
+        assert.doesNotMatch(html, /data-action="encounter-manager-resolve-round" disabled/);
+    });
+
+    it("keeps round resolution disabled while encounter roll requests are pending", () => {
+        const combat = planningDraftCombatFixture();
+        combat.encounterState.perCombatant["combatant-1"] = {
+            ready: true,
+            plan: [
+                { id: "move", type: "movement", label: "Move", apCost: 3 },
+                { id: "hunker", type: "defense", label: "Hunker Down", apCost: 3 }
+            ],
+            draftPlan: { lifecycle: "locked", clauses: [] }
+        };
+        combat.encounterState.perCombatant["combatant-2"] = {
+            ready: true,
+            plan: [
+                {
+                    id: "shoot",
+                    actionId: "shoot",
+                    type: "composite",
+                    label: "Close and Engage",
+                    apCost: 6,
+                    planningLocked: false,
+                    planningRollResults: []
+                }
+            ],
+            draftPlan: { lifecycle: "locked", clauses: [] }
+        };
+        const rollRequests = [
+            {
+                id: "to-hit",
+                combatId: "combat-1",
+                combatantId: "combatant-2",
+                actionIndex: 0,
+                label: "Close and Engage: to hit",
+                rollType: "attack",
+                rollSubType: "toHit",
+                recipientIds: ["player-1"],
+                results: {},
+                status: "pending",
+                isPending: true,
+                getFormulaFor: () => "1d20 + 4"
+            },
+            {
+                id: "damage",
+                combatId: "combat-1",
+                combatantId: "combatant-2",
+                actionIndex: 0,
+                label: "Close and Engage: damage",
+                rollType: "attack",
+                rollSubType: "damage",
+                recipientIds: ["player-1"],
+                results: {},
+                status: "pending",
+                isPending: true,
+                getFormulaFor: () => "1d6"
+            }
+        ];
+
+        const model = buildEncounterManagerPanelModel({
+            combat,
+            rollRequests,
+            users: [{ id: "player-1", name: "Player", isGM: false }]
+        });
+        const html = renderEncounterManagerPanel(model, { escapeHTML });
+
+        assert.equal(model.pendingRequiredRolls, 0);
+        assert.equal(model.rollQueue.pendingRequestCount, 2);
+        assert.equal(model.canResolveRound, false);
+        assert.match(html, /data-action="encounter-manager-resolve-round" disabled/);
+    });
+
     it("renders encounter roll requests in the GM manager with GM auto-roll controls", () => {
         const combat = planningDraftCombatFixture();
         const request = {
@@ -426,9 +614,46 @@ describe("encounter manager panel", () => {
         assert.match(html, /data-action="encounter-manager-roll-request"/);
     });
 
+    it("lets the GM roll pending encounter requests for a player recipient", () => {
+        const combat = planningDraftCombatFixture();
+        const request = {
+            id: "encounter-combat-1-combatant-combatant-2-action-0-attack",
+            combatId: "combat-1",
+            combatantId: "combatant-2",
+            actionIndex: 0,
+            label: "Briggs: Strike",
+            rollType: "attack",
+            rollSubType: "toHit",
+            dice: [{ count: 1, faces: 20 }],
+            modifiers: [{ label: "Action bonus", value: 2 }],
+            recipientIds: ["player-1"],
+            results: {},
+            status: "pending",
+            isPending: true,
+            getFormulaFor: () => "1d20 + 2"
+        };
+
+        const model = buildEncounterManagerPanelModel({
+            combat,
+            rollRequests: [request],
+            users: [{ id: "player-1", name: "Ada's Player", isGM: false }]
+        });
+
+        assert.equal(model.rollQueue.hasPendingGmRequests, false);
+        assert.equal(model.rollQueue.requests[0].hasPendingRecipients, true);
+
+        const html = renderEncounterManagerPanel(model, { escapeHTML });
+        assert.match(html, /Briggs: Strike/);
+        assert.match(html, /Roll Ada&#39;s Player|Roll Ada's Player/);
+        assert.match(html, /data-action="encounter-manager-roll-request"/);
+        assert.match(html, /data-recipient-id="player-1"/);
+        assert.match(html, /data-action="encounter-manager-auto-roll-gm"\s+disabled/);
+    });
+
     it("refreshes the workspace when draft plans change so the GM can observe composition", () => {
         assert.match(workspaceRootSource, /totcEncounterDraftPlanUpdated/);
         assert.match(workspaceRootSource, /totcEncounterPlanUpdated/);
+        assert.match(workspaceRootSource, /totcEncounterRoundNarrativeUpdated/);
         assert.match(workspaceRootSource, /registerFamily\("encounter"/);
     });
 

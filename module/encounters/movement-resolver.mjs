@@ -132,7 +132,7 @@ function movementStepPixels({ action = null, token = null, targetToken = null, s
         ?? scene?.grid?.distance
         ?? 5
     ) || 5;
-    const stepFeet = Math.max(1, toNumber(action?.movementFeetPerAp, fallbackFeetPerAp || 10));
+    const stepFeet = Math.max(1, toNumber(action?.movementFeetPerAp, fallbackFeetPerAp || 5));
     return (stepFeet / feetPerSquare) * gridSize;
 }
 

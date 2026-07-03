@@ -1,7 +1,7 @@
 export const TOTC_ENCOUNTER_PHASES = ["planning", "locked", "resolving", "roundComplete"];
 
 export const TOTC_BASE_ACTION_POINT_BUDGET = 6;
-export const TOTC_MOVEMENT_FEET_PER_AP = 10;
+export const TOTC_MOVEMENT_FEET_PER_AP = 5;
 
 /**
  * Base action catalog — actions available to all combatants regardless of equipment.
@@ -12,7 +12,7 @@ export const TOTC_MOVEMENT_FEET_PER_AP = 10;
  */
 export const TOTC_ACTION_CATALOG = {
     /**
-     * Move: spend 1 AP per 10ft of movement. Variable AP 1–6.
+     * Move: spend 1 AP per 5ft of movement. Variable AP 1–6.
      * CPI = 0 — movement is continuous, position updates each AP slot.
      */
     move: {
@@ -23,7 +23,7 @@ export const TOTC_ACTION_CATALOG = {
         apMin: 1,
         apMax: 6,
         variableAp: true,
-        movementFeetPerAp: 10,
+        movementFeetPerAp: TOTC_MOVEMENT_FEET_PER_AP,
         requiresToHit: false,
         toHitBonus: 0,
         completionPhaseIncrement: 0,
@@ -58,8 +58,36 @@ export const TOTC_ACTION_CATALOG = {
         autoResolve: false,
         interruptible: true,
         requiresTarget: false,
+        targetingRangeFeet: 5,
         tickNarrativeFragments: [
             "{{Owner.name}} opens the way."
+        ],
+        isReaction: false,
+        reactionTriggerType: ""
+    },
+
+    /**
+     * Close: operate an adjacent door, chest, hatch, window, or similar openable.
+     */
+    close: {
+        id: "close",
+        label: "Close",
+        description: "Close an adjacent door, chest, hatch, window, or similar openable.",
+        type: "utility",
+        apCost: 1,
+        apMin: 1,
+        apMax: 1,
+        variableAp: false,
+        requiresToHit: false,
+        toHitBonus: 0,
+        completionPhaseIncrement: 0,
+        cpiPerFeet: 0,
+        autoResolve: false,
+        interruptible: true,
+        requiresTarget: false,
+        targetingRangeFeet: 5,
+        tickNarrativeFragments: [
+            "{{Owner.name}} closes it."
         ],
         isReaction: false,
         reactionTriggerType: ""
@@ -79,7 +107,7 @@ export const TOTC_ACTION_CATALOG = {
         apMin: 1,
         apMax: 6,
         variableAp: true,
-        movementFeetPerAp: 10,
+        movementFeetPerAp: TOTC_MOVEMENT_FEET_PER_AP,
         requiresToHit: false,
         toHitBonus: 0,
         completionPhaseIncrement: 0,
@@ -108,7 +136,7 @@ export const TOTC_ACTION_CATALOG = {
         apMin: 1,
         apMax: 6,
         variableAp: true,
-        movementFeetPerAp: 10,
+        movementFeetPerAp: TOTC_MOVEMENT_FEET_PER_AP,
         requiresToHit: false,
         toHitBonus: 0,
         completionPhaseIncrement: 0,
@@ -137,7 +165,7 @@ export const TOTC_ACTION_CATALOG = {
         apMin: 1,
         apMax: 6,
         variableAp: true,
-        movementFeetPerAp: 10,
+        movementFeetPerAp: TOTC_MOVEMENT_FEET_PER_AP,
         requiresToHit: false,
         toHitBonus: 0,
         completionPhaseIncrement: 0,

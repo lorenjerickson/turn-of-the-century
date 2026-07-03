@@ -65,10 +65,12 @@ describe("Encounter panel styles", () => {
         assert.match(styles, /\.totc-v2-encounter-manager__draft-state\.is-confirmedAwaitingRolls/);
     });
 
-    it("styles GM round narration as tick summaries instead of AP slot bars", () => {
-        assert.match(styles, /\.totc-v2-encounter-manager__tick-narratives/);
+    it("styles GM narration as current tick text with linked detail popups", () => {
         assert.match(styles, /\.totc-v2-encounter-manager__tick-narrative\.is-current/);
         assert.match(styles, /\.totc-v2-encounter-manager__tick-label/);
+        assert.match(styles, /\.totc-v2-encounter-manager__narrative-link/);
+        assert.match(styles, /\.totc-v2-encounter-manager__narrative-detail/);
+        assert.match(styles, /\.totc-v2-encounter-manager__last-round/);
         assert.doesNotMatch(styles, /\.totc-v2-encounter-manager__plan\s*\{/);
         assert.doesNotMatch(styles, /\.totc-v2-encounter-manager__segment\s*\{/);
     });

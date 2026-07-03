@@ -7,6 +7,9 @@ import {
     getSceneBackgroundSource
 } from "../scene-background-source.mjs";
 import {
+    normalizeSceneBackgroundDimensions
+} from "../scene-background-dimensions.mjs";
+import {
     buildGridCalibrationModel,
     GRID_CAL_PHASE_HINTS
 } from "./grid-calibration.mjs";
@@ -30,23 +33,13 @@ function positiveNumber(value, fallback) {
     return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
 }
 
-function normalizeImageDimensions(dimensions = null) {
-    const width = Number(dimensions?.width ?? dimensions?.naturalWidth ?? 0);
-    const height = Number(dimensions?.height ?? dimensions?.naturalHeight ?? 0);
-    if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) return null;
-    return {
-        width: Math.round(width),
-        height: Math.round(height)
-    };
-}
-
 export async function loadImageDimensions(source = "", { ImageClass = globalThis.Image } = {}) {
     const src = String(source ?? "").trim();
     if (!src || typeof ImageClass !== "function") return null;
 
     return new Promise((resolve) => {
         const image = new ImageClass();
-        image.onload = () => resolve(normalizeImageDimensions(image));
+        image.onload = () => resolve(normalizeSceneBackgroundDimensions(image));
         image.onerror = () => resolve(null);
         image.src = src;
     });
@@ -132,6 +125,7 @@ export function buildSceneBackgroundUploadTarget({ sceneName = "", filename = ""
  */
 export function buildScenePropertiesPanelModel({
     scene = null,
+    sceneName: sceneNameOverride = undefined,
     actors = [],
     gridCalibrationState = null,
     sceneToolsState = null,
@@ -140,7 +134,9 @@ export function buildScenePropertiesPanelModel({
     error = ""
 } = {}) {
     const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
-    const sceneName = String(scene?.name ?? "").trim();
+    const sceneName = sceneNameOverride === undefined
+        ? String(scene?.name ?? "").trim()
+        : String(sceneNameOverride ?? "").trim();
     const backgroundPath = getSceneBackgroundSource(scene);
     const accept = SCENE_BACKGROUND_IMAGE_EXTENSIONS.map((ext) => `.${ext}`).join(",");
     const target = buildSceneBackgroundUploadTarget({
@@ -311,7 +307,7 @@ export function renderSceneMapToolbar(panelId = "", state = {}, { escapeHTML = s
 export function buildSceneBackgroundUpdateData(backgroundPath = "", { dimensions = null } = {}) {
     const src = String(backgroundPath ?? "").trim();
     if (!src) return {};
-    const size = normalizeImageDimensions(dimensions);
+    const size = normalizeSceneBackgroundDimensions(dimensions);
     return {
         img: src,
         "background.src": src,
@@ -323,7 +319,7 @@ export function buildSceneBackgroundUpdateData(backgroundPath = "", { dimensions
 export function buildSceneLevelBackgroundUpdateData(backgroundPath = "", { dimensions = null } = {}) {
     const src = String(backgroundPath ?? "").trim();
     if (!src) return {};
-    const size = normalizeImageDimensions(dimensions);
+    const size = normalizeSceneBackgroundDimensions(dimensions);
     return {
         "background.src": src,
         ...(size ? { x: 0, y: 0, width: size.width, height: size.height } : {})
@@ -333,7 +329,7 @@ export function buildSceneLevelBackgroundUpdateData(backgroundPath = "", { dimen
 export function buildSceneLevelBackgroundCreationData(backgroundPath = "", { name = "", dimensions = null } = {}) {
     const src = String(backgroundPath ?? "").trim();
     if (!src) return {};
-    const size = normalizeImageDimensions(dimensions);
+    const size = normalizeSceneBackgroundDimensions(dimensions);
     return {
         name: String(name ?? "").trim() || "Ground Level",
         ...(size ? { x: 0, y: 0, width: size.width, height: size.height } : {}),
@@ -343,7 +339,7 @@ export function buildSceneLevelBackgroundCreationData(backgroundPath = "", { nam
 }
 
 function buildSceneDimensionUpdateData(dimensions = null) {
-    const size = normalizeImageDimensions(dimensions);
+    const size = normalizeSceneBackgroundDimensions(dimensions);
     return size ? { width: size.width, height: size.height } : {};
 }
 

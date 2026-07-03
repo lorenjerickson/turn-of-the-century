@@ -31,7 +31,7 @@ beforeEach(() => {
         settings: {
             get: (_scope, key) => {
                 if (key === "encounterActionPointBudget") return 6;
-                if (key === "encounterMovementFeetPerAp") return 10;
+                if (key === "encounterMovementFeetPerAp") return 5;
                 return undefined;
             }
         }
@@ -69,10 +69,10 @@ describe("TurnOfTheCenturyEncounter actions", () => {
         const encounter = new TurnOfTheCenturyEncounter(combat);
         const actions = encounter.getAvailableActionsForCombatant("combatant-1");
 
-        assert.deepEqual(actions.map((action) => action.id), ["move", "open", "pursue", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"]);
-        assert.deepEqual(actions.map((action) => action.label), ["Move", "Open", "Close and Engage", "Follow", "Evade", "Wait", "Hunker Down", "Dodge", "Overwatch"]);
+        assert.deepEqual(actions.map((action) => action.id), ["move", "open", "close", "pursue", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"]);
+        assert.deepEqual(actions.map((action) => action.label), ["Move", "Open", "Close", "Close and Engage", "Follow", "Evade", "Wait", "Hunker Down", "Dodge", "Overwatch"]);
         assert.equal(actions.every((action) => action.itemId === null), true);
-        assert.equal(actions.find((action) => action.id === "move").movementFeetPerAp, 10);
+        assert.equal(actions.find((action) => action.id === "move").movementFeetPerAp, 5);
         assert.equal(actions.find((action) => action.id === "wait").requiresDuration, true);
         for (const id of ["pursue", "follow", "avoid"]) {
             assert.equal(actions.find((action) => action.id === id).requiresTarget, true, `${id} should require a target token`);
@@ -101,7 +101,7 @@ describe("TurnOfTheCenturyEncounter actions", () => {
         const encounter = new TurnOfTheCenturyEncounter(combat);
         const actions = encounter.getAvailableActionsForCombatant("combatant-from-turns");
 
-        assert.deepEqual(actions.map((action) => action.id), ["move", "open", "pursue", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"]);
+        assert.deepEqual(actions.map((action) => action.id), ["move", "open", "close", "pursue", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"]);
         assert.equal(encounter.getCombatantState("combatant-from-turns")?.ready, false);
     });
 

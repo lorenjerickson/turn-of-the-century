@@ -25,7 +25,7 @@ export function buildEncounterMovementOverlayModel({
     token = null,
     scene = null,
     maxAp = 0,
-    feetPerAp = 10,
+    feetPerAp = 5,
     feetPerSquare = 5,
     gridSize = null,
     offsetX = null,
@@ -33,7 +33,7 @@ export function buildEncounterMovementOverlayModel({
 } = {}) {
     const cellSize = positiveNumber(gridSize ?? scene?.grid?.size, 100);
     const gridDistance = positiveNumber(feetPerSquare ?? scene?.grid?.distance, 5);
-    const movementFeetPerAp = positiveNumber(feetPerAp, 10);
+    const movementFeetPerAp = positiveNumber(feetPerAp, 5);
     const actionPoints = Math.max(0, Math.floor(numberOr(maxAp, 0)));
     const maxFeet = actionPoints * movementFeetPerAp;
     const maxPixels = (maxFeet / gridDistance) * cellSize;

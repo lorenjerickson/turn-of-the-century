@@ -411,6 +411,63 @@ describe("EncounterPlanningService.lockCombatantActionRoll", () => {
         assert.equal(action.planningRollResults.length, 1);
     });
 
+    it("finalizes a stale awaiting-roll draft when duplicate accepted rolls already satisfy requirements", async () => {
+        const state = makeState({
+            overrides: {
+                perCombatant: {
+                    c1: {
+                        plan: [
+                            {
+                                id: "attack",
+                                type: "attack",
+                                apCost: 2,
+                                planningLocked: true,
+                                rollRequirements: [
+                                    { rollType: "attack", rollSubType: "toHit" },
+                                    { rollType: "attack", rollSubType: "damage" }
+                                ],
+                                planningRollResults: [
+                                    { requestId: "to-hit", rollType: "attack", rollSubType: "toHit", result: { total: 18 } },
+                                    { requestId: "damage", rollType: "attack", rollSubType: "damage", result: { total: 6 } }
+                                ]
+                            }
+                        ],
+                        draftPlan: {
+                            lifecycle: "confirmedAwaitingRolls",
+                            clauses: [{ clauseId: "clause-1", actionId: "attack", type: "attack", apCost: 2 }]
+                        },
+                        ready: false,
+                        committedAt: 0
+                    }
+                }
+            }
+        });
+        const { service, getState, emitted } = makeService({ initialState: state });
+
+        await service.lockCombatantActionRoll("c1", 0, {
+            requestId: "damage",
+            rollType: "attack",
+            rollSubType: "damage",
+            result: { total: 6 }
+        });
+
+        const combatantState = getState().perCombatant.c1;
+        assert.equal(combatantState.ready, true);
+        assert.equal(combatantState.draftPlan.lifecycle, "locked");
+        assert.equal(combatantState.plan[0].planningRollResults.length, 2);
+        assert.ok(emitted.some((entry) => entry.eventName === "draftPlanUpdated"));
+        assert.ok(emitted.some((entry) => entry.eventName === "combatantReadyChanged"));
+
+        const emittedCount = emitted.length;
+        await service.lockCombatantActionRoll("c1", 0, {
+            requestId: "damage",
+            rollType: "attack",
+            rollSubType: "damage",
+            result: { total: 6 }
+        });
+        assert.equal(emitted.length, emittedCount);
+    });
+
     it("accumulates multiple rolls with different requestIds", async () => {
         const { service, getState } = makeService({ initialState: makeStateWithPlan() });
 
@@ -1046,5 +1103,46 @@ describe("EncounterPlanningService draft plans", () => {
         });
         assert.equal(getState().perCombatant.c1.ready, true);
         assert.equal(getState().perCombatant.c1.draftPlan.lifecycle, "locked");
+    });
+
+    it("does not let a nested damage roll satisfy a to-hit requirement", async () => {
+        const { service, getState } = makeService({
+            initialState: makeState({
+                overrides: {
+                    perCombatant: {
+                        c1: {
+                            plan: [],
+                            draftPlan: {
+                                clauses: [
+                                    {
+                                        actionId: "strike",
+                                        type: "attack",
+                                        label: "Strike",
+                                        apCost: 2,
+                                        requiresTarget: true,
+                                        targetId: "c2",
+                                        rollRequirements: [
+                                            { rollType: "attack", rollSubType: "toHit" },
+                                            { rollType: "attack", rollSubType: "damage" }
+                                        ]
+                                    }
+                                ]
+                            },
+                            ready: false,
+                            committedAt: 0
+                        }
+                    }
+                }
+            })
+        });
+
+        await service.confirmCombatantDraftPlan("c1");
+        await service.lockCombatantActionRoll("c1", 0, {
+            requestId: "damage",
+            result: { total: 6, rollType: "attack", rollSubType: "damage" }
+        });
+
+        assert.equal(getState().perCombatant.c1.ready, false);
+        assert.equal(getState().perCombatant.c1.draftPlan.lifecycle, "confirmedAwaitingRolls");
     });
 });

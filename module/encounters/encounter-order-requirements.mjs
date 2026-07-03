@@ -57,8 +57,10 @@ function adjacentGridCell(left = null, right = null, { scene = null, sourceToken
 }
 
 function actionRangeFeet(action = {}) {
-    const explicitRange = toNumber(action.targetingRangeFeet, 0);
-    if (explicitRange > 0) return explicitRange;
+    const explicitRange = action.targetingRangeFeet === null || action.targetingRangeFeet === undefined || action.targetingRangeFeet === ""
+        ? null
+        : toNumber(action.targetingRangeFeet, 0);
+    if (explicitRange !== null) return Math.max(0, explicitRange);
 
     const requirementRange = toNumber(action.positioningRequirement?.rangeFeet, 0);
     if (requirementRange > 0) return requirementRange;
@@ -133,7 +135,7 @@ export function evaluateOrderPositioningRequirement({
     }
 
     if (["weaponrange", "range", "lineofsight"].includes(requirementType)) {
-        const rangeFeet = Math.max(5, toNumber(requirement.rangeFeet, actionRangeFeet(action)));
+        const rangeFeet = Math.max(0, toNumber(requirement.rangeFeet, actionRangeFeet(action)));
         return { applies: true, satisfied: distance <= rangeFeet, requirement: { ...requirement, rangeFeet }, distanceFeet: distance, sourcePosition, targetPosition };
     }
 
@@ -144,7 +146,7 @@ export function buildImpliedMovementAction(action = {}, positioning = {}) {
     const requirement = positioning.requirement ?? inferOrderPositioningRequirement(action);
     if (!requirement) return null;
 
-    const movementFeetPerAp = Math.max(1, toNumber(action.movementFeetPerAp, 10));
+    const movementFeetPerAp = Math.max(1, toNumber(action.movementFeetPerAp, 5));
     const base = {
         id: "impliedMove",
         actionId: "impliedMove",

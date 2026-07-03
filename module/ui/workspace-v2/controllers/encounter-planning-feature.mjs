@@ -15,8 +15,7 @@ import {
     findEncounterTargetTokenAtPoint
 } from "../encounter-targeting-overlay.mjs";
 import {
-    buildPlayerEncounterPanelModel,
-    renderPlayerEncounterPanel
+    buildPlayerEncounterPanelModel
 } from "../panels/player-encounter-panel.mjs";
 import {
     buildEncounterPlannerForCombatant
@@ -140,11 +139,6 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         );
     }
 
-    render(panel, context) {
-        if (String(panel?.id ?? "") !== "encounter") return undefined;
-        return renderPlayerEncounterPanel(context?.playerEncounterPanel, { escapeHTML: this.escapeHTML });
-    }
-
     /**
      * Bind delegated click, drag, and pointer resize events on the workspace root element.
      */
@@ -255,7 +249,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
                         combatantId,
                         actionIndex: index,
                         maxAp: Math.max(1, Number(clause.apCost ?? 0) + remainingAp),
-                        feetPerAp: clause.movementFeetPerAp || 10,
+                        feetPerAp: clause.movementFeetPerAp || 5,
                         draftDecision: "movementDestination"
                     });
                     this.renderCallback({ force: false });
@@ -349,7 +343,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
                             combatantId,
                             actionIndex,
                             maxAp: Math.max(1, Number(selectedAction.apMax ?? selectedAction.apCost ?? 1) || 1),
-                            feetPerAp: selectedAction.movementFeetPerAp || 10,
+                            feetPerAp: selectedAction.movementFeetPerAp || 5,
                             draftDecision: "movementDestination"
                         });
                         this.renderCallback({ force: false });
@@ -383,7 +377,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
                         combatantId,
                         actionIndex,
                         maxAp: selectedAction.apMax,
-                        feetPerAp: selectedAction.movementFeetPerAp || 10,
+                        feetPerAp: selectedAction.movementFeetPerAp || 5,
                         pendingAction: true
                     });
                 }
@@ -731,7 +725,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             token: projectedToken,
             scene,
             maxAp: interaction.maxAp,
-            feetPerAp: interaction.feetPerAp || 10,
+            feetPerAp: interaction.feetPerAp || 5,
             feetPerSquare: Number(scene.grid?.distance ?? 5) || 5,
             gridSize: Number(scene.grid?.size ?? 100) || 100
         });
@@ -1177,7 +1171,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             requiresEngagementAction,
             requiresMovementDestination: isMovement && !requiresTarget,
             requiresToHit: Boolean(actionData.requiresToHit),
-            movementFeetPerAp: Number(actionData.movementFeetPerAp ?? 10) || 10,
+            movementFeetPerAp: Number(actionData.movementFeetPerAp ?? 5) || 5,
             targetingRangeFeet: Number(actionData.targetingRangeFeet ?? 0) || 0,
             rangeType: String(actionData.rangeType ?? ""),
             damageFormula: String(actionData.damageFormula ?? ""),
@@ -1201,7 +1195,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         const apCost = isMovement
             ? effectAp
             : Math.max(1, positioningAp + effectAp);
-        const movementFeetPerAp = Math.max(1, Number(actionData.movementFeetPerAp ?? 10) || 10);
+        const movementFeetPerAp = Math.max(1, Number(actionData.movementFeetPerAp ?? 5) || 5);
         const planAction = {
             ...actionData,
             apCost,
@@ -1283,7 +1277,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         if (!planAction) return;
 
         const apCost = Math.max(1, Number(planAction.apCost ?? 1) || 1);
-        const movementFeetPerAp = Math.max(1, Number(planAction.movementFeetPerAp ?? 10) || 10);
+        const movementFeetPerAp = Math.max(1, Number(planAction.movementFeetPerAp ?? 5) || 5);
         if (planAction.requiresTarget) {
             this._beginEncounterTargetingInteraction({
                 combat,
@@ -1336,7 +1330,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         this.renderCallback({ force: false });
     }
 
-    _beginEncounterMovementInteraction({ combat = null, combatantId = "", actionIndex = -1, maxAp = 0, feetPerAp = 10, pendingAction = false, draftDecision = "" } = {}) {
+    _beginEncounterMovementInteraction({ combat = null, combatantId = "", actionIndex = -1, maxAp = 0, feetPerAp = 5, pendingAction = false, draftDecision = "" } = {}) {
         const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
         const token = this._getEncounterMovementToken({ combat, combatantId, scene });
         if (!scene || !token || Number(maxAp) <= 0) {
@@ -1353,7 +1347,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             sceneId: String(scene.id ?? scene._id ?? ""),
             tokenId: String(token.id ?? token._id ?? token.document?.id ?? ""),
             maxAp: Math.max(1, Math.floor(Number(maxAp) || 1)),
-            feetPerAp: Math.max(1, Number(feetPerAp) || 10),
+            feetPerAp: Math.max(1, Number(feetPerAp) || 5),
             pendingAction: Boolean(pendingAction)
         };
         this.targetingInteraction = null;
@@ -1747,7 +1741,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         this.renderCallback({ force: false });
     }
 
-    _buildEncounterMovementSelectionUpdate({ selectedCell = null, token = null, scene = null, combat = null, combatantId = "", actionIndex = -1, action = null, feetPerAp = 10, useDraftPlan = false } = {}) {
+    _buildEncounterMovementSelectionUpdate({ selectedCell = null, token = null, scene = null, combat = null, combatantId = "", actionIndex = -1, action = null, feetPerAp = 5, useDraftPlan = false } = {}) {
         if (!selectedCell || !token || !scene || !action) return null;
 
         const requiredAp = Number(selectedCell?.requiredAp ?? selectedCell);
@@ -1778,7 +1772,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             target: { x: targetX, y: targetY },
             scene
         });
-        const movementFeetPerAp = Math.max(1, Number(action.movementFeetPerAp ?? feetPerAp ?? 10) || 10);
+        const movementFeetPerAp = Math.max(1, Number(action.movementFeetPerAp ?? feetPerAp ?? 5) || 5);
 
         return {
             action: {
@@ -1950,15 +1944,27 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         };
     }
 
+    _userOwnsActor(user = null, actor = null) {
+        if (!user || !actor) return false;
+        if (typeof actor.testUserPermission === "function") {
+            return Boolean(actor.testUserPermission(user, "OWNER"));
+        }
+        const userId = String(user?.id ?? "").trim();
+        if (!userId) return false;
+        const ownerLevel = Number(globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OWNER ?? 3) || 3;
+        return Number(actor?.ownership?.[userId] ?? 0) >= ownerLevel;
+    }
+
     _resolveEncounterRollRecipientIds(combatant = null) {
         const users = this._collectionContents(game?.users);
         const ownerIds = users
-            .filter((user) => !user?.isGM && combatant?.actor?.testUserPermission?.(user, "OWNER"))
+            .filter((user) => !user?.isGM && this._userOwnsActor(user, combatant?.actor))
             .map((user) => String(user?.id ?? "").trim())
             .filter(Boolean);
         if (ownerIds.length) return ownerIds;
 
         const currentUserId = String(game?.user?.id ?? "").trim();
+        if (!game?.user?.isGM && combatant?.actor?.isOwner && currentUserId) return [currentUserId];
         return currentUserId ? [currentUserId] : [];
     }
 

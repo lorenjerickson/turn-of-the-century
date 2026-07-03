@@ -13,6 +13,10 @@ import {
     renderScenePropertiesPanel,
     slugifySceneName
 } from "../../module/ui/workspace-v2/panels/scene-properties-panel.mjs";
+import {
+    normalizeSceneBackgroundDimensions,
+    snapSceneBackgroundDimension
+} from "../../module/ui/workspace-v2/scene-background-dimensions.mjs";
 
 function toolbarButton(html, command) {
     return Array.from(html.matchAll(/<button type="button"[\s\S]*?<\/button>/g))
@@ -43,6 +47,15 @@ describe("Scene properties panel", () => {
     it("requires a scene name and supported image extension before upload", () => {
         assert.equal(buildSceneBackgroundUploadTarget({ sceneName: "", filename: "map.webp" }).valid, false);
         assert.equal(buildSceneBackgroundUploadTarget({ sceneName: "Whitechapel", filename: "map.txt" }).valid, false);
+    });
+
+    it("snaps scene background dimensions to grid-friendly 50 pixel boundaries", () => {
+        assert.equal(snapSceneBackgroundDimension(1920), 1900);
+        assert.equal(snapSceneBackgroundDimension(1080), 1100);
+        assert.deepEqual(normalizeSceneBackgroundDimensions({ width: 2426, height: 1574 }), {
+            width: 2450,
+            height: 1550
+        });
     });
 
     it("reads scene name and legacy background via scene.img", () => {
@@ -98,6 +111,24 @@ describe("Scene properties panel", () => {
             scene: { id: "scene-draft", name: "" }
         });
         assert.equal(model.uploadEnabled, false);
+    });
+
+    it("uses draft scene name state before the backing scene document name", () => {
+        const blankDraft = buildScenePropertiesPanelModel({
+            scene: { id: "scene-draft", name: "New Scene" },
+            sceneName: ""
+        });
+        const namedDraft = buildScenePropertiesPanelModel({
+            scene: { id: "scene-draft", name: "New Scene" },
+            sceneName: "Rookery Yard"
+        });
+
+        assert.equal(blankDraft.sceneName, "");
+        assert.equal(blankDraft.uploadEnabled, false);
+        assert.equal(namedDraft.sceneName, "Rookery Yard");
+        assert.equal(namedDraft.uploadEnabled, true);
+        assert.equal(namedDraft.target.slug, "rookery-yard");
+        assert.equal(namedDraft.target.path, "");
     });
 
     it("reads isDefault from scene flags", () => {

@@ -45,6 +45,48 @@ describe("encounter order requirements", () => {
         assert.equal(result.distanceFeet, 10);
     });
 
+    it("requires Close and Engage positioning to use the selected action range", () => {
+        const requirement = inferOrderPositioningRequirement({
+            type: "attack",
+            intentType: "attackTarget",
+            targetId: "c2",
+            targetingRangeFeet: 5
+        });
+        const result = evaluateOrderPositioningRequirement({
+            action: {
+                type: "attack",
+                intentType: "attackTarget",
+                targetId: "c2",
+                targetingRangeFeet: 5
+            },
+            sourceToken: token("t1", 0, 0),
+            targetToken: token("t2", 200, 0),
+            scene
+        });
+
+        assert.equal(requirement.rangeFeet, 5);
+        assert.equal(result.applies, true);
+        assert.equal(result.satisfied, false);
+        assert.equal(result.distanceFeet, 10);
+    });
+
+    it("preserves explicit self range", () => {
+        const result = evaluateOrderPositioningRequirement({
+            action: {
+                type: "attack",
+                intentType: "attackTarget",
+                targetId: "c2",
+                targetingRangeFeet: 0
+            },
+            sourceToken: token("t1", 0, 0),
+            targetToken: token("t2", 0, 0),
+            scene
+        });
+
+        assert.equal(result.requirement.rangeFeet, 0);
+        assert.equal(result.satisfied, true);
+    });
+
     it("evaluates object adjacency for location-backed interaction orders", () => {
         const result = evaluateOrderPositioningRequirement({
             action: {

@@ -151,6 +151,44 @@ describe("Campaign view panel", () => {
         assert.doesNotMatch(html, /<h5>Scenario Id<\/h5>/);
     });
 
+    it("renders encounter NPC object records as readable detail and edit text", () => {
+        const items = makeItems();
+        items[2] = {
+            ...items[2],
+            system: {
+                scenarioId: "scenario-a",
+                description: "<p>Generated encounter text saved on the document.</p>",
+                npcs: {
+                    0: {
+                        name: "Foreman Vale",
+                        role: "Strikebreaker",
+                        motivation: "keep the ledger hidden",
+                        knows: "the boiler room escape route"
+                    },
+                    1: "[object Object]"
+                }
+            }
+        };
+        const model = buildCampaignViewPanelModel({
+            items,
+            expandedIds: ["campaign-a", "scenario-a"],
+            selectedId: "encounter-a"
+        });
+        const viewHtml = renderCampaignViewPanel(model, { escapeHTML });
+        const editHtml = renderCampaignViewPanel({
+            ...model,
+            editing: true,
+            detailEdits: {}
+        }, { escapeHTML });
+
+        assert.match(viewHtml, /Foreman Vale - Strikebreaker/);
+        assert.match(viewHtml, /Motivation: keep the ledger hidden/);
+        assert.match(viewHtml, /Key detail: the boiler room escape route/);
+        assert.match(editHtml, /Foreman Vale - Strikebreaker/);
+        assert.doesNotMatch(viewHtml, /\[object Object\]/);
+        assert.doesNotMatch(editHtml, /\[object Object\]/);
+    });
+
     it("renders campaign hierarchy rows as drag/drop items", () => {
         const model = buildCampaignViewPanelModel({
             items: makeItems(),

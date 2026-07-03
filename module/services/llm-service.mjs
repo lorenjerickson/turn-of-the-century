@@ -19,6 +19,7 @@ export const GENERATION_PROMPT_PATHS = Object.freeze({
     scenario: "prompts/scenario.md",
     "encounter-design": "prompts/encounter-design.md",
     "encounter-round-tick-narrative-result": "prompts/encounter-round-tick-narrative-result.md",
+    "encounter-round-narrative-result": "prompts/encounter-round-narrative-result.md",
     actor: "prompts/actor.md",
     pawn: "prompts/actor.md",
     location: "prompts/location.md"
@@ -72,7 +73,8 @@ const GENERATION_JSON_SCHEMAS = Object.freeze({
     campaign: `{"name": "Campaign Title", "system": {"profile": {"summary": "Brief summary", "environment": "HTML", "culture": "HTML", "socialClimate": "HTML", "antagonist": {"name": "", "concept": "", "motivations": "HTML"}}}}`,
     scenario: `{"name": "Scenario Title", "system": {"profile": {"summary": "Brief summary", "description": "HTML", "historicalNotes": "HTML", "resolutionCriteria": "HTML"}}}`,
     "encounter-design": `{"name": "Encounter Title", "system": {"profile": {"summary": "Brief summary", "description": "HTML", "hazards": "HTML", "npcs": []}}}`,
-    "encounter-round-tick-narrative-result": `{"tick": 1, "narrative": "Concise player-facing tick narration", "gmNotes": []}`,
+    "encounter-round-tick-narrative-result": `{"tick": 1, "narrative": "Concise player-facing tick narration with [linked exchange] when useful", "links": [{"id": "tick-1-exchange-1", "text": "linked exchange", "type": "attack-resolution", "combatantIds": [], "actionId": "", "itemId": "", "timelineEntryIds": [], "rollRequestIds": [], "rollResultIds": [], "clauseIds": []}], "gmNotes": []}`,
+    "encounter-round-narrative-result": `{"round": 1, "narrative": "Concise read-aloud previous-round narration with [linked exchange] when useful", "links": [{"id": "round-1-exchange-1", "text": "linked exchange", "type": "attack-resolution", "combatantIds": [], "actionId": "", "itemId": "", "timelineEntryIds": [], "rollRequestIds": [], "rollResultIds": [], "clauseIds": []}], "gmNotes": []}`,
     actor: `{"name": "Actor Name", "system": {"profile": {"role": "Role", "faction": "Faction", "summary": "Brief summary", "tags": []}, "biography": "HTML", "notes": "HTML", "classification": {"category": "npc", "species": "Human", "profession": "Profession"}, "progression": {"level": 1, "challenge": ""}, "abilities": {"str": {"value": 10}, "dex": {"value": 10}, "con": {"value": 10}, "int": {"value": 10}, "wis": {"value": 10}, "cha": {"value": 10}, "san": {"value": 10}}, "inventory": {"pack": {"itemIds": []}, "combat": {"readyWeaponIds": []}}, "traits": {"languages": []}}}`,
     pawn: `{"name": "NPC Name", "system": {"profile": {"summary": "Brief summary", "role": "Role", "faction": "Faction"}, "biography": "HTML", "notes": "HTML", "pawn": {"role": "Role", "threat": 1, "disposition": "neutral"}}}`,
     location: `{"name": "Location Name", "system": {"locationType": "village/market/city/district/etc", "profile": {"summary": "Brief summary", "description": "HTML", "notes": "HTML"}, "features": [{"name": "Feature Name", "description": "Brief desc"}]}}`

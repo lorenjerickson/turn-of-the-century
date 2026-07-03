@@ -59,13 +59,19 @@ function mockWeaponItem({
     id = "item-001",
     name = "Test Weapon",
     variants = [],
-    description = ""
+    description = "",
+    classification = "simpleMelee",
+    physical = {},
+    damage = {}
 } = {}) {
     return {
         id,
         name,
         system: {
             description,
+            classification,
+            damage,
+            physical,
             actions: { variants }
         }
     };
@@ -137,6 +143,7 @@ describe("buildUniversalActions", () => {
             [
                 ["move", "Move"],
                 ["open", "Open"],
+                ["close", "Close"],
                 ["pursue", "Close and Engage"],
                 ["follow", "Follow"],
                 ["avoid", "Evade"],
@@ -148,14 +155,21 @@ describe("buildUniversalActions", () => {
         );
     });
 
-    it("keeps Open fixed at 1 AP while duration-based actions remain variable", () => {
+    it("keeps Open and Close fixed at 1 AP while duration-based actions remain variable", () => {
         const actions = buildUniversalActions();
         const open = actions.find((action) => action.id === "open");
+        const close = actions.find((action) => action.id === "close");
         const durationActionIds = ["dodge", "hunkDown", "overwatch", "wait", "follow", "avoid"];
         assert.equal(open.apCost, 1);
         assert.equal(open.apMin, 1);
         assert.equal(open.apMax, 1);
         assert.equal(open.variableAp, false);
+        assert.equal(open.targetingRangeFeet, 5);
+        assert.equal(close.apCost, 1);
+        assert.equal(close.apMin, 1);
+        assert.equal(close.apMax, 1);
+        assert.equal(close.variableAp, false);
+        assert.equal(close.targetingRangeFeet, 5);
         assert.equal(actions.find((action) => action.id === "move").variableAp, true);
         assert.equal(actions.find((action) => action.id === "pursue").requiresEngagementAction, true);
         for (const actionId of durationActionIds) {
@@ -168,7 +182,8 @@ describe("buildUniversalActions", () => {
     it("apMax is bounded by the supplied apBudget", () => {
         const actions = buildUniversalActions({ apBudget: 4 });
         assert.equal(actions.find((action) => action.id === "open").apMax, 1);
-        assert.ok(actions.filter((action) => action.id !== "open").every((a) => a.apMax === 4));
+        assert.equal(actions.find((action) => action.id === "close").apMax, 1);
+        assert.ok(actions.filter((action) => !["open", "close"].includes(action.id)).every((a) => a.apMax === 4));
     });
 
     it("move action carries movementFeetPerAp", () => {
@@ -188,12 +203,13 @@ describe("buildUniversalActions", () => {
         assert.ok(actions.every((a) => a.itemId === null));
     });
 
-    it("defaults apBudget to 6 and movementFeetPerAp to 10", () => {
+    it("defaults apBudget to 6 and movementFeetPerAp to 5", () => {
         const actions = buildUniversalActions();
         assert.equal(actions.find((action) => action.id === "open").apMax, 1);
-        assert.ok(actions.filter((action) => action.id !== "open").every((a) => a.apMax === 6));
+        assert.equal(actions.find((action) => action.id === "close").apMax, 1);
+        assert.ok(actions.filter((action) => !["open", "close"].includes(action.id)).every((a) => a.apMax === 6));
         const move = actions.find((a) => a.id === "move");
-        assert.equal(move.movementFeetPerAp, 10);
+        assert.equal(move.movementFeetPerAp, 5);
     });
 
     it("includes reaction metadata for dodge and overwatch", () => {
@@ -335,6 +351,110 @@ describe("getEnabledActionsForItem", () => {
             "{{Owner.name}} fires."
         ]);
     });
+
+    it("copies action effects from the item action variant", () => {
+        const item = mockWeaponItem({
+            variants: [{
+                id: "shock",
+                type: "attack",
+                label: "Shock",
+                apCost: 2,
+                requiresToHit: true,
+                toHitBonus: 0,
+                requirements: [],
+                effects: [{
+                    id: "stun",
+                    label: "Stun",
+                    type: "condition",
+                    target: "target",
+                    timing: "onComplete",
+                    operation: "grant",
+                    condition: "stunned"
+                }]
+            }]
+        });
+
+        const action = getEnabledActionsForItem(item)[0];
+
+        assert.deepEqual(action.effects, [{
+            id: "stun",
+            label: "Stun",
+            type: "condition",
+            target: "target",
+            timing: "onComplete",
+            operation: "grant",
+            condition: "stunned"
+        }]);
+    });
+
+    it("publishes effective range and damage type from weapon data", () => {
+        const item = mockWeaponItem({
+            name: "Boarding Pike",
+            classification: "simpleMelee",
+            physical: { range: { normal: 10, long: 10 } },
+            damage: { formula: "1d8", type: "piercing" },
+            variants: [{
+                id: "thrust",
+                type: "attack",
+                label: "Thrust",
+                apCost: 2,
+                requiresToHit: true,
+                toHitBonus: 0,
+                requirements: []
+            }]
+        });
+
+        const action = getEnabledActionsForItem(item)[0];
+
+        assert.equal(action.rangeType, "melee");
+        assert.equal(action.targetingRangeFeet, 10);
+        assert.equal(action.effectiveRangeFeet, 10);
+        assert.equal(action.damageType, "piercing");
+    });
+
+    it("defaults ranged weapon actions to the item's normal range", () => {
+        const item = mockWeaponItem({
+            name: "Webley Revolver",
+            classification: "firearm",
+            physical: { range: { normal: 40, long: 120 } },
+            damage: { formula: "1d8", type: "ballistic" },
+            variants: [{
+                id: "quickShot",
+                type: "attack",
+                label: "Quick Shot",
+                apCost: 2,
+                requiresToHit: true,
+                toHitBonus: 0,
+                requirements: []
+            }]
+        });
+
+        const action = getEnabledActionsForItem(item)[0];
+
+        assert.equal(action.rangeType, "normal");
+        assert.equal(action.targetingRangeFeet, 40);
+        assert.equal(action.effectiveRangeFeet, 40);
+    });
+
+    it("publishes explicit action range, including self range", () => {
+        const item = mockWeaponItem({
+            name: "Self Injector",
+            variants: [{
+                id: "injectSelf",
+                type: "consumable",
+                label: "Inject Self",
+                apCost: 1,
+                requiresToHit: false,
+                targetingRangeFeet: 0,
+                requirements: []
+            }]
+        });
+
+        const action = getEnabledActionsForItem(item)[0];
+
+        assert.equal(action.targetingRangeFeet, 0);
+        assert.equal(action.effectiveRangeFeet, 0);
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -348,6 +468,7 @@ describe("getEnabledActionsForActor", () => {
         assert.equal(actions.length, buildUniversalActions().length);
         assert.ok(actions.some((a) => a.id === "move"));
         assert.ok(actions.some((a) => a.id === "open"));
+        assert.ok(actions.some((a) => a.id === "close"));
         assert.ok(actions.some((a) => a.id === "hunkDown"));
         assert.ok(actions.some((a) => a.id === "dodge"));
         assert.ok(actions.some((a) => a.id === "overwatch"));
@@ -371,6 +492,7 @@ describe("getEnabledActionsForActor", () => {
         const actions = getEnabledActionsForActor(actor);
         assert.equal(actions[0].id, "move");
         assert.equal(actions[1].id, "open");
+        assert.equal(actions[2].id, "close");
         assert.equal(actions.at(-1).id, "item-001:meleeStrike");
     });
 

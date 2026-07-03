@@ -40,7 +40,7 @@ function durationText(clause = {}) {
 
 function movementDistanceText(clause = {}) {
     const explicitFeet = toNumber(clause.movementFeet, 0);
-    const feetPerAp = Math.max(1, toNumber(clause.movementFeetPerAp, 10));
+    const feetPerAp = Math.max(1, toNumber(clause.movementFeetPerAp, 5));
     const apCost = Math.max(0, toNumber(clause.apCost, 0));
     const feet = explicitFeet > 0 ? explicitFeet : feetPerAp * apCost;
     return `${Math.max(0, Math.round(feet))} feet`;

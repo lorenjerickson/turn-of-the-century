@@ -10,6 +10,40 @@ import { renderDesignIssuesPanel } from "../panels/design-issues-panel.mjs";
 import { renderEncounterManagerPanel } from "../panels/encounter-manager-panel.mjs";
 import { renderPlayerEncounterPanel } from "../panels/player-encounter-panel.mjs";
 
+function toArray(value) {
+    return Array.isArray(value) ? value : [];
+}
+
+function requestHasResult(request = {}, userId = "") {
+    if (typeof request.hasResult === "function") return request.hasResult(userId);
+    return Boolean(request.results?.[userId]);
+}
+
+function requestIsPending(request = {}) {
+    if (typeof request.isPending === "boolean") return request.isPending;
+    return ["pending", "rolling"].includes(String(request.status ?? "").trim());
+}
+
+function requestMatchesPlayerEncounter(request = {}, playerEncounterPanel = {}, userId = "") {
+    const combatId = String(playerEncounterPanel.combatId ?? "").trim();
+    const combatantId = String(playerEncounterPanel.combatantId ?? "").trim();
+    if (combatId && String(request?.combatId ?? "").trim() !== combatId) return false;
+    if (combatantId && String(request?.combatantId ?? "").trim() !== combatantId) return false;
+    if (!requestIsPending(request)) return false;
+    return !userId || !requestHasResult(request, userId);
+}
+
+function filterRollRequestsForPlayerEncounter(dieRollRequestPanel = {}, playerEncounterPanel = {}) {
+    const userId = String(dieRollRequestPanel.userId ?? "").trim();
+    const requests = toArray(dieRollRequestPanel.requests)
+        .filter((request) => requestMatchesPlayerEncounter(request, playerEncounterPanel, userId));
+    return {
+        ...dieRollRequestPanel,
+        request: requests[0] ?? null,
+        requests
+    };
+}
+
 export class WorkspacePanelHost {
     constructor({
         getFeatures = () => [],
@@ -88,14 +122,6 @@ export class WorkspacePanelHost {
             return this.#renderMapPanel(panel, context);
         }
 
-        if (panel.id === "codex") {
-            return this.#renderCodexPanel(context);
-        }
-
-
-
-
-
         if (panel.id === "inspector") {
             return renderInspectorPanel(context.inspectorPanel ?? {}, {
                 escapeHTML: (value) => this.escapeHTML(value)
@@ -128,11 +154,15 @@ export class WorkspacePanelHost {
 
         if (panel.id === "encounter") {
             const dieRollRequestPanel = context.dieRollRequestPanel ?? {};
-            const hasRollRequests = Boolean(dieRollRequestPanel.request)
-                || (Array.isArray(dieRollRequestPanel.requests) && dieRollRequestPanel.requests.length > 0);
+            const playerRollRequestPanel = filterRollRequestsForPlayerEncounter(
+                dieRollRequestPanel,
+                context.playerEncounterPanel ?? {}
+            );
+            const hasRollRequests = Boolean(playerRollRequestPanel.request)
+                || (Array.isArray(playerRollRequestPanel.requests) && playerRollRequestPanel.requests.length > 0);
             return renderPlayerEncounterPanel(context.playerEncounterPanel ?? {}, {
                 escapeHTML: (v) => this.escapeHTML(v),
-                rollRequestsMarkup: hasRollRequests ? this.renderRollRequests(dieRollRequestPanel) : ""
+                rollRequestsMarkup: hasRollRequests ? this.renderRollRequests(playerRollRequestPanel) : ""
             });
         }
 
@@ -174,65 +204,4 @@ export class WorkspacePanelHost {
         </figure>`;
     }
 
-    #renderCodexPanel(context = {}) {
-        const query = String(context.codexSearchQuery ?? "").trim().toLowerCase();
-        const typeFilter = String(context.codexTypeFilter ?? "").trim().toLowerCase();
-        const allEntries = Array.isArray(context.codexItems) ? context.codexItems : [];
-
-        let entries = allEntries;
-        if (query) entries = entries.filter((entry) => String(entry.name ?? "").toLowerCase().includes(query));
-        if (typeFilter) entries = entries.filter((entry) => String(entry.type ?? "item") === typeFilter);
-
-        const availableTypes = [...new Set(allEntries.map((e) => String(e.type ?? "item")))].sort();
-        const typeOptions = [
-            `<option value="">All types</option>`,
-            ...availableTypes.map((t) => {
-                const label = t.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-                return `<option value="${this.escapeHTML(t)}"${t === typeFilter ? " selected" : ""}>${this.escapeHTML(label)}</option>`;
-            })
-        ].join("");
-
-        const loadingState = context.codexLoadingState ?? null;
-        const isLoading = !loadingState && !allEntries.length;
-        const isFiltered = query || typeFilter;
-        let emptyMessage;
-        if (isFiltered && !entries.length && allEntries.length) {
-            emptyMessage = `No items match the current filter.`;
-        } else if (!allEntries.length && loadingState) {
-            emptyMessage = `Codex data unavailable: ${this.escapeHTML(loadingState)}`;
-        } else if (!allEntries.length) {
-            emptyMessage = "Loading Codex...";
-        } else {
-            emptyMessage = "No items found.";
-        }
-
-        return `
-        <section class="totc-v2-codex-panel">
-            <div class="totc-v2-codex-panel__controls">
-                <label class="totc-v2-codex-panel__search">
-                    <span>Search</span>
-                    <input type="search" data-action="codex-search" value="${this.escapeHTML(context.codexSearchQuery ?? "")}" placeholder="Filter by name">
-                </label>
-                <label class="totc-v2-codex-panel__type-filter">
-                    <span>Type</span>
-                    <select data-action="codex-type-filter">${typeOptions}</select>
-                </label>
-            </div>
-            <div class="totc-v2-codex-panel__summary">
-                ${allEntries.length} item${allEntries.length === 1 ? "" : "s"} available
-                ${isFiltered && allEntries.length ? `&mdash; ${entries.length} shown` : ""}
-            </div>
-            <div class="totc-v2-codex-panel__list" role="list">
-                ${entries.length ? entries.map((entry) => `
-                    <article class="totc-v2-codex-panel__entry" role="listitem" draggable="true" data-codex-item-draggable="true" data-entry-uuid="${this.escapeHTML(entry.uuid ?? "")}">
-                        <img class="totc-v2-codex-panel__entry-img" src="${this.escapeHTML(entry.img || "icons/svg/item-bag.svg")}" alt="">
-                        <div class="totc-v2-codex-panel__entry-main">
-                            <div class="totc-v2-codex-panel__entry-name">${this.escapeHTML(entry.name)}</div>
-                            <div class="totc-v2-codex-panel__entry-pack">${this.escapeHTML(entry.type ?? "item")} · ${this.escapeHTML(entry.packLabel)}</div>
-                            ${entry.description ? `<div class="totc-v2-codex-panel__entry-description">${this.escapeHTML(entry.description)}</div>` : ""}
-                        </div>
-                    </article>`).join("") : `<div class="totc-v2-codex-panel__empty${isLoading ? " is-loading" : ""}">${emptyMessage}</div>`}
-            </div>
-        </section>`;
-    }
 }

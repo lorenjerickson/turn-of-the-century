@@ -112,7 +112,21 @@ describe("GM assistant panel", () => {
                 summary: "A bad night at the warehouse.",
                 description: "<p>Crates and gaslight.</p>",
                 hazards: "<ul><li>Unstable boiler</li></ul>",
-                npcs: ["Foreman Vale"]
+                npcs: [
+                    "Foreman Vale",
+                    {
+                        name: "Mara Finch",
+                        role: "Clerk",
+                        motivation: "get clear of the warehouse before midnight"
+                    },
+                    {
+                        toObject: () => ({
+                            name: "Inspector Greaves",
+                            faction: "Metropolitan Police",
+                            knows: "which constable took a bribe"
+                        })
+                    }
+                ]
             }
         }, "encounter-design");
 
@@ -120,7 +134,11 @@ describe("GM assistant panel", () => {
             scenarioId: "",
             description: "<p>Crates and gaslight.</p>",
             hazards: "<ul><li>Unstable boiler</li></ul>",
-            npcs: ["Foreman Vale"]
+            npcs: [
+                "Foreman Vale",
+                "Mara Finch - Clerk. Motivation: get clear of the warehouse before midnight",
+                "Inspector Greaves - Metropolitan Police. Key detail: which constable took a bribe"
+            ]
         });
     });
 
@@ -156,6 +174,31 @@ describe("GM assistant panel", () => {
         assert.match(html, /Saved encounter prose/);
         assert.match(html, /A failing gas main/);
         assert.doesNotMatch(html, /scenario-a/);
+    });
+
+    it("renders generated encounter NPC object records as useful descriptions", () => {
+        const html = renderGeneratedAssistantContent({
+            system: {
+                npcs: [
+                    {
+                        name: "Foreman Vale",
+                        role: "Strikebreaker",
+                        faction: "Dock Company",
+                        motivation: "keep the ledger hidden",
+                        tactics: "summons loyal guards"
+                    },
+                    "{\"name\":\"Mara Finch\",\"description\":\"A worried clerk\",\"knows\":\"where the ledgers are kept\"}",
+                    "[object Object]"
+                ]
+            }
+        }, { escapeHTML });
+
+        assert.match(html, /Foreman Vale - Strikebreaker, Dock Company/);
+        assert.match(html, /Motivation: keep the ledger hidden/);
+        assert.match(html, /Tactics: summons loyal guards/);
+        assert.match(html, /Mara Finch/);
+        assert.match(html, /Key detail: where the ledgers are kept/);
+        assert.doesNotMatch(html, /\[object Object\]/);
     });
 
     it("renders accept and regenerate actions in a footer after the scrollable result content", () => {

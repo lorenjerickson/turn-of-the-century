@@ -211,7 +211,7 @@ export class EncounterNarrator {
         if (actionType === "movement" || result === "movementStep") {
             const movementFeet = Math.max(
                 1,
-                toNumber(action?.movementFeet || action?.movementFeetPerAp || getMovementFeetPerAp() || 10, 10)
+                toNumber(action?.movementFeet || action?.movementFeetPerAp || getMovementFeetPerAp() || 5, 5)
             );
             return `${combatantName} moved ${movementFeet} feet.`;
         }
@@ -225,9 +225,10 @@ export class EncounterNarrator {
             const misses = ["miss", "criticalfailure", "interrupted", "outofrange", "reacted", "failed"].includes(
                 result.toLowerCase()
             );
-            if (hits) return `${combatantName} fires ${weaponName} at ${targetName} and hits.`;
-            if (misses) return `${combatantName} fires ${weaponName} at ${targetName} and misses.`;
-            return `${combatantName} fires ${weaponName} at ${targetName}.`;
+            const attackPhrase = this.#defaultAttackPhrase(entry, { weaponName, targetName });
+            if (hits) return `${combatantName} ${attackPhrase} and hits.`;
+            if (misses) return `${combatantName} ${attackPhrase} and misses.`;
+            return `${combatantName} ${attackPhrase}.`;
         }
 
         if (actionType === "consumable") {
@@ -237,7 +238,7 @@ export class EncounterNarrator {
         if (actionId === "pursue" || actionId === "follow" || actionId === "avoid") {
             const movementFeet = Math.max(
                 1,
-                toNumber(action?.movementFeet || action?.movementFeetPerAp || getMovementFeetPerAp() || 10, 10)
+                toNumber(action?.movementFeet || action?.movementFeetPerAp || getMovementFeetPerAp() || 5, 5)
             );
             return `${combatantName} moved ${movementFeet} feet.`;
         }
@@ -360,6 +361,32 @@ export class EncounterNarrator {
         if (!itemId) return null;
         const item = this.#getItemDocument(entry);
         return String(item?.name ?? item?.label ?? action?.label ?? itemId).trim() || null;
+    }
+
+    #defaultAttackPhrase(entry = null, { weaponName = "weapon", targetName = "the target" } = {}) {
+        const itemDocument = this.#getItemDocument(entry);
+        const action = entry?.action ?? {};
+        const actionText = `${action?.actionLabel ?? ""} ${action?.label ?? ""} ${action?.actionId ?? ""} ${weaponName}`.toLowerCase();
+        const damageType = String(action?.damageType ?? itemDocument?.system?.damage?.type ?? "").trim().toLowerCase();
+        const classification = String(itemDocument?.system?.classification ?? action?.classification ?? "").trim();
+        const rangedClassifications = new Set(["simpleRanged", "martialRanged", "firearm", "explosive", "thrown"]);
+        const isRanged = rangedClassifications.has(classification)
+            || ["ballistic", "fire", "electric", "explosive"].includes(damageType)
+            || /\b(fire|shoot|shot|blast|pistol|revolver|rifle|carbine|gun|shotgun)\b/u.test(actionText);
+
+        if (isRanged) {
+            return `fires ${weaponName} at ${targetName}`;
+        }
+        if (/\b(stab|pierce|thrust|lunge|jab)\b/u.test(actionText) || damageType === "piercing") {
+            return `thrusts ${weaponName} at ${targetName}`;
+        }
+        if (/\b(slash|slice|cut|hack)\b/u.test(actionText) || damageType === "slashing") {
+            return `slashes ${targetName} with ${weaponName}`;
+        }
+        if (/\b(smash|bash|club|strike|hit|slam)\b/u.test(actionText) || damageType === "bludgeoning") {
+            return `strikes ${targetName} with ${weaponName}`;
+        }
+        return `attacks ${targetName} with ${weaponName}`;
     }
 
     #formatTickFlavor(entry = null, context = {}, itemDocument = null) {

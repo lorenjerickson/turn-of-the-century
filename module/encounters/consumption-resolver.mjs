@@ -1,3 +1,5 @@
+import { resolveActionRangeFeet } from "./action-range.mjs";
+
 // ---------------------------------------------------------------------------
 // Pure utilities (local copies — no shared module dependency)
 // ---------------------------------------------------------------------------
@@ -9,23 +11,6 @@ function toArray(value) {
 function toNumber(value, fallback = 0) {
     const n = Number(value);
     return Number.isFinite(n) ? n : fallback;
-}
-
-/**
- * Resolve the effective range in feet for a given action + item pair.
- * Local copy — avoids importing from combat.mjs.
- *
- * @param {object|null} action
- * @param {object|null} item  — Foundry Item document (only system.physical.range is accessed)
- * @returns {number}
- */
-function resolveActionRangeFeet(action, item) {
-    const rangeType = String(action?.rangeType ?? "melee").toLowerCase();
-    const normal = Number(item?.system?.physical?.range?.normal ?? (rangeType === "melee" ? 5 : 30));
-    const long = Number(item?.system?.physical?.range?.long ?? Math.max(normal, 60));
-    if (rangeType === "long") return Math.max(5, long || normal || 60);
-    if (rangeType === "normal") return Math.max(5, normal || 30);
-    return 5;
 }
 
 /**
@@ -110,7 +95,7 @@ export class ConsumptionResolver {
     // -------------------------------------------------------------------------
 
     /**
-     * Partition an array of tick effects into consume, movement, and damage
+     * Partition an array of tick effects into consume, action, movement, and damage
      * buckets. When multiple combatants emit a movement effect for the same
      * token, the effect from the combatant with the highest initiative wins.
      *
@@ -123,6 +108,7 @@ export class ConsumptionResolver {
      * @returns {{
      *   consumeEffects:  object[],
      *   movementEffects: object[],
+     *   actionEffects:   object[],
      *   damageEntries:   object[]
      * }}
      */
@@ -132,6 +118,7 @@ export class ConsumptionResolver {
         );
 
         const consumeEffects = [];
+        const actionEffects = [];
         const movementByToken = new Map();
         const damageByTarget = new Map();
 
@@ -142,6 +129,11 @@ export class ConsumptionResolver {
 
             if (type === "consumeAction") {
                 consumeEffects.push(effect);
+                continue;
+            }
+
+            if (type === "actionEffect") {
+                actionEffects.push(effect);
                 continue;
             }
 
@@ -173,6 +165,7 @@ export class ConsumptionResolver {
 
         return {
             consumeEffects,
+            actionEffects,
             movementEffects: [...movementByToken.values()].map((e) => e.effect),
             damageEntries: [...damageByTarget.values()]
         };
@@ -333,6 +326,47 @@ export class ConsumptionResolver {
         if (!actor || !item) return;
 
         await this.#applyItemAction({ item, actor, actionId, consume: true });
+    }
+
+    async applyActionEffect(effect = null) {
+        if (!effect || typeof effect !== "object") return;
+
+        const targetCombatantId = String(effect.targetCombatantId ?? "").trim();
+        if (!targetCombatantId) return;
+
+        const combatant = this.#resolveCombatant(targetCombatantId);
+        const actor = combatant?.actor ?? null;
+        if (!actor) return;
+
+        const actionEffect = effect.effect ?? {};
+        const type = String(actionEffect.type ?? "").trim();
+        const operation = String(actionEffect.operation ?? "").trim();
+        const condition = String(actionEffect.condition ?? "").trim();
+
+        if (type === "condition" && condition) {
+            if (typeof actor.toggleStatusEffect === "function") {
+                await actor.toggleStatusEffect(condition, { active: operation !== "remove" });
+                return;
+            }
+            if (typeof actor.createEmbeddedDocuments === "function" && operation !== "remove") {
+                await actor.createEmbeddedDocuments("ActiveEffect", [{
+                    name: String(actionEffect.label ?? condition),
+                    statuses: [condition],
+                    duration: { rounds: Math.max(0, toNumber(actionEffect.duration?.rounds, 0)) }
+                }]);
+            }
+            return;
+        }
+
+        const targetPath = String(actionEffect.path ?? actionEffect.resource ?? actionEffect.condition ?? "").trim();
+        if (!["healing", "damage", "resource"].includes(type) || !targetPath) return;
+
+        const current = toNumber(globalThis.foundry?.utils?.getProperty?.(actor, targetPath), 0);
+        const amount = Math.max(0, toNumber(actionEffect.value, 0));
+        const next = type === "damage" || operation === "subtract"
+            ? Math.max(0, current - amount)
+            : current + amount;
+        await actor.update?.({ [targetPath]: next });
     }
 
     /**

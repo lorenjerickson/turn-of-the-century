@@ -45,7 +45,7 @@ describe("encounter movement overlay", () => {
 
         const twoSquaresEast = findEncounterMovementOverlayCellAtPoint(model, { x: 450, y: 250 });
 
-        assert.equal(twoSquaresEast?.requiredAp, 1);
+        assert.equal(twoSquaresEast?.requiredAp, 2);
     });
 
     it("excludes squares that require opening a closed door", () => {
@@ -77,7 +77,7 @@ describe("encounter movement overlay", () => {
                 scene,
                 maxAp: 3
             });
-            assert.equal(findEncounterMovementOverlayCellAtPoint(openModel, { x: 250, y: 50 })?.requiredAp, 1);
+            assert.equal(findEncounterMovementOverlayCellAtPoint(openModel, { x: 250, y: 50 })?.requiredAp, 2);
         } finally {
             globalThis.CONST = constants;
         }
@@ -93,11 +93,11 @@ describe("encounter movement overlay", () => {
                 grid: { size: 100, distance: 5 },
                 walls: [{ c: [200, 0, 200, 200], move: 20, door: 0 }]
             },
-            maxAp: 3
+            maxAp: 6
         });
 
         const squareBeyondWall = findEncounterMovementOverlayCellAtPoint(model, { x: 250, y: 50 });
-        assert.equal(squareBeyondWall?.requiredAp, 3);
+        assert.equal(squareBeyondWall?.requiredAp, 6);
         assert.equal(squareBeyondWall?.distanceFeet > 10, true);
     });
 

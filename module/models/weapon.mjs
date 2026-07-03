@@ -1,4 +1,5 @@
 import { TOTC_ABILITY_KEYS, TOTC_EQUIPMENT_SLOT_KEYS } from "./actor.mjs";
+import { createActionEffectField } from "./action-effect.mjs";
 import { createModifierEntryField } from "./modifier.mjs";
 
 const {
@@ -85,8 +86,10 @@ function createActionVariantField({ defaultId = "weaponAttack", defaultLabel = "
         reloadsAmmo: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
         // Which range band this action uses: "melee" | "normal" | "long"
         rangeType: new StringField({ required: true, blank: false, initial: "normal" }),
+        targetingRangeFeet: new NumberField({ required: true, integer: true, min: 0, initial: 5 }),
         // Condition IDs applied on a successful hit (e.g. "stunned", "bleeding", "blinded")
         conditions: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] }),
+        effects: new ArrayField(createActionEffectField(), { required: true, initial: () => [] }),
                 // Completion phase increment: additional AP slots after action's last AP before effect lands.
         // Bullets = 0 (instantaneous). Thrown items = 1 (travel + landing). Lit fuse = 2+.
         completionPhaseIncrement: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
@@ -165,6 +168,8 @@ export class WeaponDataModel extends foundry.abstract.TypeDataModel {
                             apCost: 2,
                             requiresToHit: true,
                             toHitBonus: 0,
+                            targetingRangeFeet: 5,
+                            effects: [],
                             recapFormat: "{{Owner.name}} attacks with {{Item.name}}.",
                             notes: ""
                         }]

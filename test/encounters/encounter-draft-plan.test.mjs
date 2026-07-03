@@ -211,6 +211,10 @@ describe("encounter draft plan model", () => {
                 itemName: "surgical scalpel",
                 engageTargetingRangeFeet: 5,
                 engageRangeType: "melee",
+                rollRequirements: [
+                    { rollType: "attack", rollSubType: "toHit" },
+                    { rollType: "attack", rollSubType: "damage" }
+                ],
                 positioningAp: 4,
                 movementFeetPerAp: 10
             }]
@@ -223,6 +227,10 @@ describe("encounter draft plan model", () => {
         assert.equal(action.itemId, "scalpel");
         assert.equal(action.targetId, "target-1");
         assert.equal(action.requiresToHit, true);
+        assert.deepEqual(action.rollRequirements, [
+            { rollType: "attack", rollSubType: "toHit" },
+            { rollType: "attack", rollSubType: "damage" }
+        ]);
         assert.deepEqual(action.apEnvelope, { positioningAp: 4, effectAp: 2, maxAp: 6 });
         assert.equal(action.positioningRequirement.type, "weaponRange");
         assert.equal(action.positioningRequirement.rangeFeet, 5);

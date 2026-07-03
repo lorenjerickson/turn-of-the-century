@@ -38,6 +38,41 @@ test("locks the linked planning action when its recipient completes the roll", a
     }]]);
 });
 
+test("locks the linked planning action when the GM rolls for a player recipient", async () => {
+    const calls = [];
+    const combat = {
+        id: "combat-1",
+        phase: "planning",
+        lockCombatantActionRoll: async (...args) => calls.push(args)
+    };
+    const game = {
+        user: { id: "gm-1", isGM: true },
+        combat,
+        combats: { get: (id) => id === combat.id ? combat : null }
+    };
+    const request = {
+        id: "roll-1",
+        combatId: "combat-1",
+        combatantId: "combatant-1",
+        actionIndex: 0,
+        actionId: "strike",
+        rollType: "attack",
+        rollSubType: "toHit"
+    };
+
+    assert.equal(await acceptCompletedPlanningRoll({
+        game,
+        change: { type: "result", request, recipientId: "player-1", result: { total: 19 } }
+    }), true);
+    assert.deepEqual(calls, [["combatant-1", 0, {
+        requestId: "roll-1",
+        actionId: "strike",
+        rollType: "attack",
+        rollSubType: "toHit",
+        result: { total: 19 }
+    }]]);
+});
+
 test("ignores unlinked, non-planning, and other-player roll results", async () => {
     const calls = [];
     const combat = {

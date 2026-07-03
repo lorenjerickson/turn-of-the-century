@@ -1,4 +1,5 @@
 import { TOTC_ABILITY_KEYS, TOTC_ARMOR_SLOT_KEYS } from "./actor.mjs";
+import { createActionEffectField } from "./action-effect.mjs";
 import { createModifierEntryField } from "./modifier.mjs";
 
 const {
@@ -59,8 +60,10 @@ function createActionVariantField() {
         recapFormat: new StringField({ required: true, blank: true, initial: "" }),
         // Which range band this action uses: "melee" | "normal" | "long"
         rangeType: new StringField({ required: true, blank: false, initial: "melee" }),
+        targetingRangeFeet: new NumberField({ required: true, integer: true, min: 0, initial: 5 }),
         // Condition IDs applied on a successful hit (e.g. "stunned", "staggered", "prone")
         conditions: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] }),
+        effects: new ArrayField(createActionEffectField(), { required: true, initial: () => [] }),
         completionPhaseIncrement: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
         cpiPerFeet: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
         autoResolve: new BooleanField({ required: true, initial: false }),

@@ -67,6 +67,7 @@ export class CampaignFeature extends WorkspaceFeature {
 
         this.campaignViewDragState = null;
         this.promptDebounceTimer = null;
+        this.wiredElement = null;
     }
 
     async prepareContext(context) {
@@ -124,6 +125,7 @@ export class CampaignFeature extends WorkspaceFeature {
     }
 
     bind(rootElement) {
+        if (this.wiredElement === rootElement) return;
         this.wiredElement = rootElement;
 
         if (typeof rootElement?.addEventListener !== "function") return;
@@ -279,6 +281,7 @@ export class CampaignFeature extends WorkspaceFeature {
             const generateBtn = target?.closest("[data-action='gm-assistant-generate'], [data-action='gm-assistant-regenerate']");
             if (generateBtn) {
                 event.preventDefault();
+                event.stopPropagation();
                 await this.#handleGenerate(rootElement);
                 return;
             }
@@ -287,6 +290,7 @@ export class CampaignFeature extends WorkspaceFeature {
             const acceptBtn = target?.closest("[data-action='gm-assistant-accept']");
             if (acceptBtn) {
                 event.preventDefault();
+                event.stopPropagation();
                 await this.#handleAccept();
                 return;
             }

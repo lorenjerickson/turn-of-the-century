@@ -12,8 +12,15 @@
  * read-and-filter pass over existing document data.
  */
 
-import { getBaseActionCatalog } from "./action-catalog.mjs";
+import { getBaseActionCatalog, TOTC_MOVEMENT_FEET_PER_AP } from "./action-catalog.mjs";
+import { resolveActionRangeFeet, resolveActionRangeType } from "./action-range.mjs";
 import { evaluateRequirements } from "./action-template.mjs";
+
+function optionalNumber(value) {
+    if (value === null || value === undefined || value === "") return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+}
 
 // ---------------------------------------------------------------------------
 // Universal actions
@@ -29,9 +36,9 @@ import { evaluateRequirements } from "./action-template.mjs";
  * @param {number} options.movementFeetPerAp  Feet of movement per AP spent
  * @returns {object[]}
  */
-export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = 10 } = {}) {
+export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = TOTC_MOVEMENT_FEET_PER_AP } = {}) {
     const actionCatalog = getBaseActionCatalog();
-    const baseOrder = ["move", "open", "pursue", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"];
+    const baseOrder = ["move", "open", "close", "pursue", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"];
 
     return baseOrder
         .map((id) => actionCatalog[id])
@@ -74,6 +81,7 @@ export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = 10 } =
                 reactionTriggerType: String(variant.reactionTriggerType ?? ""),
                 rangeType: String(variant.rangeType ?? ""),
                 requirements: [],
+                effects: [],
                 itemId: null
             };
         });
@@ -99,43 +107,54 @@ export function getEnabledActionsForItem(item) {
 
     return variants
         .filter((variant) => evaluateRequirements(variant.requirements ?? [], item))
-        .map((variant) => ({
-            id: `${item.id}:${variant.id}`,
-            actionId: variant.id,
-            type: variant.type,
-            label: `${item.name}: ${variant.label}`,
-            actionLabel: String(variant.label ?? "").trim(),
-            actionNarrativeText: String(variant.actionNarrativeText ?? variant.narrativeText ?? "").trim(),
-            itemName: String(item.name ?? "").trim(),
-            description: String(item.system?.description ?? "").trim() || null,
-            apCost: Number(variant.apCost ?? 1),
-            apMin: Number(variant.apCost ?? 1),
-            apMax: Number(variant.apCost ?? 1),
-            variableAp: false,
-            movementFeetPerAp: 0,
-            movementFeet: 0,
-            requiresToHit: Boolean(variant.requiresToHit),
-            requiresTarget: Boolean(variant.requiresTarget),
-            requiresDuration: Boolean(variant.requiresDuration),
-            requiresEngagementAction: Boolean(variant.requiresEngagementAction),
-            requiresMovementDestination: Boolean(variant.requiresMovementDestination),
-            toHitBonus: Number(variant.toHitBonus ?? 0),
-            systemRollsAllowed: Boolean(variant.systemRollsAllowed || variant.allowSystemRolls),
-            allowSystemRolls: Boolean(variant.allowSystemRolls || variant.systemRollsAllowed),
-            recapFormat: String(variant.recapFormat ?? ""),
-            tickNarrativeFragments: Array.isArray(variant.tickNarrativeFragments)
-                ? variant.tickNarrativeFragments.map((fragment) => String(fragment ?? ""))
-                : [],
-            targetingRangeFeet: Number(variant.targetingRangeFeet ?? 0),
-            autoResolve: Boolean(variant.autoResolve),
-            interruptible: Boolean(variant.interruptible ?? true),
-            isReaction: Boolean(variant.isReaction),
-            reactionTriggerType: String(variant.reactionTriggerType ?? ""),
-            rangeType: String(variant.rangeType ?? ""),
-            requirements: variant.requirements ?? [],
-            itemId: item.id,
-            damageFormula: String(item.system?.damage?.formula ?? "").trim()
-        }));
+        .map((variant) => {
+            const actionRangeType = resolveActionRangeType(variant, item);
+            const effectiveRangeFeet = resolveActionRangeFeet({ ...variant, rangeType: actionRangeType }, item);
+            const explicitTargetingRangeFeet = optionalNumber(variant.targetingRangeFeet);
+            const targetingRangeFeet = explicitTargetingRangeFeet !== null
+                ? Math.max(0, explicitTargetingRangeFeet)
+                : effectiveRangeFeet;
+            return {
+                id: `${item.id}:${variant.id}`,
+                actionId: variant.id,
+                type: variant.type,
+                label: `${item.name}: ${variant.label}`,
+                actionLabel: String(variant.label ?? "").trim(),
+                actionNarrativeText: String(variant.actionNarrativeText ?? variant.narrativeText ?? "").trim(),
+                itemName: String(item.name ?? "").trim(),
+                description: String(item.system?.description ?? "").trim() || null,
+                apCost: Number(variant.apCost ?? 1),
+                apMin: Number(variant.apCost ?? 1),
+                apMax: Number(variant.apCost ?? 1),
+                variableAp: false,
+                movementFeetPerAp: 0,
+                movementFeet: 0,
+                requiresToHit: Boolean(variant.requiresToHit),
+                requiresTarget: Boolean(variant.requiresTarget),
+                requiresDuration: Boolean(variant.requiresDuration),
+                requiresEngagementAction: Boolean(variant.requiresEngagementAction),
+                requiresMovementDestination: Boolean(variant.requiresMovementDestination),
+                toHitBonus: Number(variant.toHitBonus ?? 0),
+                systemRollsAllowed: Boolean(variant.systemRollsAllowed || variant.allowSystemRolls),
+                allowSystemRolls: Boolean(variant.allowSystemRolls || variant.systemRollsAllowed),
+                recapFormat: String(variant.recapFormat ?? ""),
+                tickNarrativeFragments: Array.isArray(variant.tickNarrativeFragments)
+                    ? variant.tickNarrativeFragments.map((fragment) => String(fragment ?? ""))
+                    : [],
+                targetingRangeFeet,
+                effectiveRangeFeet: targetingRangeFeet,
+                autoResolve: Boolean(variant.autoResolve),
+                interruptible: Boolean(variant.interruptible ?? true),
+                isReaction: Boolean(variant.isReaction),
+                reactionTriggerType: String(variant.reactionTriggerType ?? ""),
+                rangeType: actionRangeType,
+                requirements: variant.requirements ?? [],
+                effects: Array.isArray(variant.effects) ? structuredClone(variant.effects) : [],
+                itemId: item.id,
+                damageFormula: String(item.system?.damage?.formula ?? "").trim(),
+                damageType: String(item.system?.damage?.type ?? "").trim()
+            };
+        });
 }
 
 // ---------------------------------------------------------------------------
@@ -156,10 +175,10 @@ export function getEnabledActionsForItem(item) {
  * @param {object} actor   A Foundry Actor document (or a compatible mock)
  * @param {object} [options]
  * @param {number} [options.apBudget=6]
- * @param {number} [options.movementFeetPerAp=10]
+ * @param {number} [options.movementFeetPerAp=5]
  * @returns {object[]}
  */
-export function getEnabledActionsForActor(actor, { apBudget = 6, movementFeetPerAp = 10 } = {}) {
+export function getEnabledActionsForActor(actor, { apBudget = 6, movementFeetPerAp = TOTC_MOVEMENT_FEET_PER_AP } = {}) {
     const universal = buildUniversalActions({ apBudget, movementFeetPerAp });
 
     if (!actor?.items?.contents) return universal;

@@ -75,6 +75,30 @@ describe("SceneWorkspaceController", () => {
         assert.equal(controller.getScenePropertiesScene(), boundScene);
     });
 
+    it("initializes created scenes as unnamed drafts in the properties panel", async () => {
+        const scene = { id: "scene-draft", name: "New Scene" };
+        const controller = new SceneWorkspaceController({
+            layoutEngine: layoutEngineStub(),
+            panelRegistry: { get: (id) => ({ id, defaultDock: "rightDock" }) },
+            stateStore: { async setUserLayout() {} },
+            sceneResolver: () => scene,
+            getCurrentScene: () => scene,
+            foundryRef: () => ({
+                documents: {
+                    Scene: {
+                        create: async () => scene
+                    }
+                }
+            })
+        });
+
+        const result = await controller.createSceneDesignScene();
+
+        assert.equal(result.ok, true);
+        assert.equal(controller.propertiesState.sceneId, "scene-draft");
+        assert.equal(controller.propertiesState.sceneName, "");
+    });
+
     it("keeps scene token collections in map view models", () => {
         const sceneTokens = { contents: [{ id: "token-a", name: "Ada" }] };
         const scene = { id: "scene-1", name: "Rookery Yard", tokens: sceneTokens };

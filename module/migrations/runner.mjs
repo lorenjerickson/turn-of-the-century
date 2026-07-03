@@ -1,4 +1,4 @@
-export const TOTC_WORLD_SCHEMA_VERSION = 19;
+export const TOTC_WORLD_SCHEMA_VERSION = 20;
 
 import { migrateTotcItems } from "./items.mjs";
 import { migrateTotcActionRecapFormats } from "./action-recap-formats.mjs";
@@ -19,6 +19,7 @@ export async function runTotcMigrations({
     seedMissingActors,
     migrateStarterActorAvatars,
     migrateStarterActorTokenArt,
+    migrateVisionAndScale,
     notify = true
 } = {}) {
     if (!game?.ready) throw new Error("Game is not ready yet.");
@@ -63,6 +64,9 @@ export async function runTotcMigrations({
     }
     if (typeof migrateStarterActorTokenArt !== "function") {
         throw new Error("runTotcMigrations requires a migrateStarterActorTokenArt function.");
+    }
+    if (typeof migrateVisionAndScale !== "function") {
+        throw new Error("runTotcMigrations requires a migrateVisionAndScale function.");
     }
 
     let appliedVersion = Number(currentVersion) || 0;
@@ -316,6 +320,21 @@ export async function runTotcMigrations({
         appliedVersion = 19;
     }
 
+    // v20: move distance scale to 5 ft/grid square and double actor/token sight ranges.
+    if (appliedVersion < 20) {
+        const report = await migrateVisionAndScale({
+            dryRun: false,
+            notify: false,
+            includeCompendiums: true
+        });
+        appliedSteps.push({
+            version: 20,
+            key: "vision-and-scale",
+            report
+        });
+        appliedVersion = 20;
+    }
+
     if (notify && appliedSteps.length) {
         const summary = appliedSteps
             .map((step) => {
@@ -378,6 +397,10 @@ export async function runTotcMigrations({
 
                 if (step.key === "action-tick-fragments") {
                     return `${step.key}: ${step.report.itemsUpdated} items updated`;
+                }
+
+                if (step.key === "vision-and-scale") {
+                    return `${step.key}: ${step.report.actorsUpdated} actors, ${step.report.tokensUpdated} tokens, ${step.report.scenesUpdated} scenes updated`;
                 }
 
                 return `${step.key}: ${step.report.worldActorsUpdated} world actors updated`;

@@ -40,10 +40,11 @@ function rollRequirementSatisfied(action = {}, requirement = {}) {
     const requiredType = String(requirement?.rollType ?? "").toLowerCase();
     const requiredSubType = String(requirement?.rollSubType ?? "").toLowerCase();
     return toArray(action.planningRollResults).some((result) => {
-        const resultType = String(result?.rollType ?? "").toLowerCase();
-        const resultSubType = String(result?.rollSubType ?? "").toLowerCase();
-        if (resultType && requiredType && resultType !== requiredType) return false;
-        if (resultSubType && requiredSubType && resultSubType !== requiredSubType) return false;
+        const nestedResult = result?.result && typeof result.result === "object" ? result.result : {};
+        const resultType = String(result?.rollType ?? nestedResult.rollType ?? "").toLowerCase();
+        const resultSubType = String(result?.rollSubType ?? nestedResult.rollSubType ?? "").toLowerCase();
+        if (requiredType && resultType !== requiredType) return false;
+        if (requiredSubType && resultSubType !== requiredSubType) return false;
         return true;
     });
 }
@@ -495,21 +496,14 @@ export class EncounterPlanningService {
             throw new Error(`Invalid action index: ${actionIndex}`);
         }
 
-        const requestId = String(roll?.requestId ?? "").trim();
-        if (requestId && toArray(action.planningRollResults).some(
-            (entry) => String(entry?.requestId ?? "") === requestId
-        )) {
-            return action;
-        }
-
-        action.planningLocked = true;
-        action.planningRollResults = [
-            ...toArray(action.planningRollResults),
-            this.#clone(roll)
-        ];
-        const finalizesConfirmedDraft = String(combatantState.draftPlan?.lifecycle ?? "") === "confirmedAwaitingRolls";
-        const awaitingRolls = finalizesConfirmedDraft ? hasUnresolvedPlanningRolls(combatantState.plan) : true;
-        if (finalizesConfirmedDraft) {
+        const finalizeConfirmedDraft = async () => {
+            const finalizesConfirmedDraft = String(combatantState.draftPlan?.lifecycle ?? "") === "confirmedAwaitingRolls";
+            const awaitingRolls = finalizesConfirmedDraft ? hasUnresolvedPlanningRolls(combatantState.plan) : true;
+            if (!finalizesConfirmedDraft) return { finalizesConfirmedDraft, awaitingRolls, changed: false };
+            const previousReady = Boolean(combatantState.ready);
+            const previousCommittedAt = Number(combatantState.committedAt ?? 0) || 0;
+            const previousLifecycle = String(combatantState.draftPlan?.lifecycle ?? "");
+            const previousLockedFlags = toArray(combatantState.plan).map((planAction) => Boolean(planAction?.planningLocked));
             combatantState.ready = !awaitingRolls;
             combatantState.committedAt = awaitingRolls ? 0 : this.#now();
             combatantState.draftPlan = {
@@ -522,7 +516,46 @@ export class EncounterPlanningService {
                 }
                 await this.#restorePlanningOrigin(combatantId, combatantState.plan);
             }
+            const lockedFlagsChanged = toArray(combatantState.plan).some(
+                (planAction, planIndex) => Boolean(planAction?.planningLocked) !== previousLockedFlags[planIndex]
+            );
+            const changed = previousReady !== Boolean(combatantState.ready)
+                || previousCommittedAt !== (Number(combatantState.committedAt ?? 0) || 0)
+                || previousLifecycle !== String(combatantState.draftPlan?.lifecycle ?? "")
+                || lockedFlagsChanged;
+            return { finalizesConfirmedDraft, awaitingRolls, changed };
+        };
+
+        const requestId = String(roll?.requestId ?? "").trim();
+        if (requestId && toArray(action.planningRollResults).some(
+            (entry) => String(entry?.requestId ?? "") === requestId
+        )) {
+            const { finalizesConfirmedDraft, awaitingRolls, changed } = await finalizeConfirmedDraft();
+            if (finalizesConfirmedDraft && changed) {
+                await this.#setState({ ...state, perCombatant });
+                this.#emit(DRAFT_PLAN_UPDATED, {
+                    combatantId,
+                    draftPlan: combatantState.draftPlan,
+                    perCombatantState: combatantState
+                });
+                this.#emit(COMBATANT_READY_CHANGED, {
+                    combatantId,
+                    ready: Boolean(combatantState.ready),
+                    perCombatantState: combatantState
+                });
+                if (!awaitingRolls) {
+                    await this.maybeAutoFinalizePlanning();
+                }
+            }
+            return action;
         }
+
+        action.planningLocked = true;
+        action.planningRollResults = [
+            ...toArray(action.planningRollResults),
+            this.#clone(roll)
+        ];
+        const { finalizesConfirmedDraft, awaitingRolls } = await finalizeConfirmedDraft();
         await this.#setState({ ...state, perCombatant });
         this.#emit(PLAN_UPDATED, {
             combatantId,
@@ -619,7 +652,7 @@ export class EncounterPlanningService {
             const min = clampActionCost(action.apMin ?? action.apCost ?? 1);
             const max = Math.max(min, clampActionCost(action.apMax ?? action.apCost ?? min));
             const nextCost = Math.max(min, Math.min(max, clampActionCost(apCost)));
-            const movementFeetPerAp = Number(action.movementFeetPerAp || getMovementFeetPerAp() || 10);
+            const movementFeetPerAp = Number(action.movementFeetPerAp || getMovementFeetPerAp() || 5);
 
             return {
                 ...action,

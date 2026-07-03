@@ -19,6 +19,8 @@
  *   than against the weapon's own fields.
  */
 
+import { createActionEffectField } from "../models/action-effect.mjs";
+
 const {
     ArrayField,
     BooleanField,
@@ -114,6 +116,7 @@ export function createActionVariantField({
         apCost: new NumberField({ required: true, integer: true, min: 1, initial: defaultApCost }),
         requiresToHit: new BooleanField({ required: true, initial: defaultRequiresToHit }),
         toHitBonus: new NumberField({ required: true, integer: true, initial: defaultToHitBonus }),
+        targetingRangeFeet: new NumberField({ required: true, integer: true, min: 0, initial: 5 }),
         recapFormat: new StringField({ required: true, blank: true, initial: "" }),
         tickNarrativeFragments: new ArrayField(
             new StringField({ required: true, blank: true, initial: "" }),
@@ -122,6 +125,10 @@ export function createActionVariantField({
         notes: new HTMLField({ required: true, blank: true }),
         requirements: new ArrayField(
             createActionRequirementField(),
+            { required: true, initial: () => [] }
+        ),
+        effects: new ArrayField(
+            createActionEffectField(),
             { required: true, initial: () => [] }
         )
     });

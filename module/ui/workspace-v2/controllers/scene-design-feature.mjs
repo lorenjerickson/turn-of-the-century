@@ -164,6 +164,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
         context.scenePropertiesPanel = buildScenePropertiesPanelModel({
             scene: scenePropertiesScene,
+            sceneName: scenePropertiesState.sceneName,
             actors: worldActors,
             gridCalibrationState: this.gridCalibrationController?.state,
             sceneToolsState: scenePropertiesScene
@@ -229,6 +230,49 @@ export class SceneDesignFeature extends WorkspaceFeature {
             // Clicks delegation
             rootElement.addEventListener("click", async (event) => {
                 const target = event.target;
+
+                // open-scene-map
+                const openSceneBtn = target?.closest("[data-action='open-scene-map']");
+                if (openSceneBtn) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const sceneId = String(openSceneBtn.dataset.sceneId ?? "").trim();
+                    if (!sceneId) return;
+
+                    if (event.detail > 1) {
+                        const scene = this.scenePort.getSceneById(sceneId);
+                        await activateScene(scene, { ui: this.uiRef(), logger: this.logger });
+                        this.renderCallback({ force: false });
+                        return;
+                    }
+
+                    const nextLayout = this.panelPort.openSceneMapPanel(sceneId);
+                    this.panelPort.bindScene(sceneId);
+
+                    const openedScene = this.scenePort.getSceneById(sceneId);
+                    this.activityLogger?.info?.("[open-scene-map] Map panel opened", {
+                        sceneId,
+                        sceneName: openedScene?.name ?? null,
+                        "scene.img": openedScene?.img ?? null,
+                        "_source.img": openedScene?._source?.img ?? null,
+                        "_source.background.src": openedScene?._source?.background?.src ?? null,
+                        "_source.texture.src": openedScene?._source?.texture?.src ?? null,
+                        "getSceneBackgroundSource()": getSceneBackgroundSource(openedScene)
+                    });
+
+                    await this.panelPort.saveUserLayout(nextLayout);
+                    this.renderCallback({ force: false });
+                    return;
+                }
+
+                // scenes-create-scene
+                const createSceneBtn = target?.closest("[data-action='scenes-create-scene']");
+                if (createSceneBtn) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    await this.executeDesignAction("scene.create", { panelId: "scenes" });
+                    return;
+                }
                 
                 // map-mode-select
                 const modeSelectBtn = target?.closest("[data-action='map-mode-select']");
@@ -379,6 +423,10 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
             rootElement.addEventListener("change", async (event) => {
                 const input = event.target;
+                if (input?.matches?.("[data-action='scene-properties-background-upload']")) {
+                    await this.#handleBackgroundUpload(input);
+                    return;
+                }
                 if (input?.matches?.(gridCalInputSelector)) {
                     this.syncGridCalibrationStateFromInputs(rootElement);
                     await this.flushGridCalibrationPreview();
@@ -407,7 +455,6 @@ export class SceneDesignFeature extends WorkspaceFeature {
             });
         });
 
-        this.#wireSceneListHandlers(rootElement);
         this.#wireScenePropertiesHandlers(rootElement);
 
         this.syncWallCommandCanvasListener();
@@ -953,56 +1000,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
     // Scene list and scene properties DOM wiring (moved from SceneWorkspaceController)
     // -------------------------------------------------------------------------
 
-    #wireSceneListHandlers(root) {
-        root?.querySelectorAll("[data-action='open-scene-map']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const sceneId = String(button.dataset.sceneId ?? "").trim();
-                if (!sceneId) return;
-
-                if (event.detail > 1) {
-                    const scene = this.scenePort.getSceneById(sceneId);
-                    await activateScene(scene, { ui: this.uiRef(), logger: this.logger });
-                    this.renderCallback({ force: false });
-                    return;
-                }
-
-                const nextLayout = this.panelPort.openSceneMapPanel(sceneId);
-                this.panelPort.bindScene(sceneId);
-
-                const openedScene = this.scenePort.getSceneById(sceneId);
-                this.activityLogger?.info?.("[open-scene-map] Map panel opened", {
-                    sceneId,
-                    sceneName: openedScene?.name ?? null,
-                    "scene.img": openedScene?.img ?? null,
-                    "_source.img": openedScene?._source?.img ?? null,
-                    "_source.background.src": openedScene?._source?.background?.src ?? null,
-                    "_source.texture.src": openedScene?._source?.texture?.src ?? null,
-                    "getSceneBackgroundSource()": getSceneBackgroundSource(openedScene)
-                });
-
-                await this.panelPort.saveUserLayout(nextLayout);
-                this.renderCallback({ force: false });
-            });
-        });
-
-        root?.querySelectorAll("[data-action='scenes-create-scene']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.executeDesignAction("scene.create", { panelId: "scenes" });
-            });
-        });
-    }
-
     #wireScenePropertiesHandlers(root) {
-        root?.querySelectorAll("[data-action='scene-properties-background-upload']")?.forEach((input) => {
-            input.addEventListener("change", async () => {
-                await this.#handleBackgroundUpload(input);
-            });
-        });
-
         root?.querySelectorAll("[data-action='scene-properties-sync-background-dimensions']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
@@ -1119,8 +1117,10 @@ export class SceneDesignFeature extends WorkspaceFeature {
     // -------------------------------------------------------------------------
 
     async saveSceneName(value = "") {
+        const sceneName = String(value ?? "").trim();
+        this.scenePort.patchScenePropertiesState({ sceneName });
         const scene = this.scenePort.getScenePropertiesScene();
-        const result = await updateSceneName(scene, value, {
+        const result = await updateSceneName(scene, sceneName, {
             logger: this.logger,
             activityLogger: this.activityLogger
         });
@@ -1141,7 +1141,10 @@ export class SceneDesignFeature extends WorkspaceFeature {
         const foundry = this.foundryRef();
         const ui = this.uiRef();
         const scene = this.scenePort.getScenePropertiesScene();
-        const sceneName = String(scene?.name ?? "").trim();
+        const sceneState = this.scenePort.getScenePropertiesState();
+        const sceneName = sceneState?.sceneName === undefined
+            ? String(scene?.name ?? "").trim()
+            : String(sceneState.sceneName ?? "").trim();
         const target = buildSceneBackgroundUploadTarget({ sceneName, filename: file.name });
 
         this.activityLogger?.info?.("[bg-upload] File selected", {

@@ -90,6 +90,7 @@ export const TOTC_ITEM_TRAITS = Object.freeze({
                 apCost: 1,
                 requiresToHit: true,
                 toHitBonus: 0,
+                targetingRangeFeet: 5,
                 requirements: []
             }
         ],
@@ -110,6 +111,7 @@ export const TOTC_ITEM_TRAITS = Object.freeze({
                 apCost: 2,
                 requiresToHit: true,
                 toHitBonus: 0,
+                targetingRangeFeet: 20,
                 requirements: []
             }
         ],
@@ -134,6 +136,7 @@ export const TOTC_ITEM_TRAITS = Object.freeze({
                 apCost: 2,
                 requiresToHit: true,
                 toHitBonus: 0,
+                targetingRangeFeet: 30,
                 requirements: []
             }
         ],
@@ -162,6 +165,7 @@ export const TOTC_ITEM_TRAITS = Object.freeze({
                 apCost: 2,
                 requiresToHit: true,
                 toHitBonus: -2,
+                targetingRangeFeet: 30,
                 requirements: []
             },
             {
@@ -171,6 +175,7 @@ export const TOTC_ITEM_TRAITS = Object.freeze({
                 apCost: 3,
                 requiresToHit: true,
                 toHitBonus: 0,
+                targetingRangeFeet: 30,
                 requirements: []
             }
         ],
@@ -264,6 +269,7 @@ export const TOTC_ITEM_TRAITS = Object.freeze({
                 apCost: 2,
                 requiresToHit: true,
                 toHitBonus: 1,
+                targetingRangeFeet: 5,
                 requirements: []
             }
         ],
@@ -325,6 +331,7 @@ export const TOTC_ITEM_TRAITS = Object.freeze({
                 apCost: 3,
                 requiresToHit: true,
                 toHitBonus: 0,
+                targetingRangeFeet: 20,
                 requirements: []
             }
         ],
@@ -353,6 +360,7 @@ export const TOTC_ITEM_TRAITS = Object.freeze({
                 apCost: 2,
                 requiresToHit: false,
                 toHitBonus: 0,
+                targetingRangeFeet: 0,
                 requirements: [
                     {
                         field: "system.quantity.value",
@@ -387,6 +395,7 @@ export const TOTC_ITEM_TRAITS = Object.freeze({
                 apCost: 1,
                 requiresToHit: false,
                 toHitBonus: 0,
+                targetingRangeFeet: 5,
                 requirements: [
                     {
                         field: "system.quantity.value",

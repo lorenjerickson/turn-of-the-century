@@ -8,6 +8,7 @@ import {
     getPlanningWarningSeconds
 } from "../encounters/action-catalog.mjs";
 import { getEnabledActionsForActor } from "../encounters/item-action-publisher.mjs";
+import { resolveActionRangeFeet } from "../encounters/action-range.mjs";
 import { dieRollRequestManager } from "../die-roll-request-manager.mjs";
 import { findGridMovementPath } from "../encounters/grid-pathfinding.mjs";
 import { applyLocalPlanningTokenPath } from "../encounters/planning-token-preview.mjs";
@@ -40,6 +41,7 @@ const ENCOUNTER_FLAG_KEY = "encounter";
  * @property {string} PLANNING_ENDED       - Fired when planning closes (phase leaves "planning").
  * @property {string} ROUND_STARTED        - Fired at the beginning of a new round, after state is initialized.
  * @property {string} ROUND_RESOLVED       - Fired after the AP timeline has been resolved and encounter state updated.
+ * @property {string} ROUND_NARRATIVE_UPDATED - Fired after async previous-round narrative generation writes to history.
  * @property {string} COMBATANT_READY_CHANGED - Fired when a combatant commits or un-commits their plan.
  * @property {string} PLAN_UPDATED         - Fired after a combatant's action plan is written.
  * @property {string} DRAFT_PLAN_UPDATED   - Fired after a combatant's narrative draft plan is written.
@@ -51,6 +53,7 @@ export const TOTC_ENCOUNTER_EVENTS = {
     PLANNING_ENDED: "planningEnded",
     ROUND_STARTED: "roundStarted",
     ROUND_RESOLVED: "roundResolved",
+    ROUND_NARRATIVE_UPDATED: "roundNarrativeUpdated",
     COMBATANT_READY_CHANGED: "combatantReadyChanged",
     PLAN_UPDATED: "planUpdated",
     DRAFT_PLAN_UPDATED: "draftPlanUpdated"
@@ -63,6 +66,7 @@ const TOTC_ENCOUNTER_HOOKS = {
     [TOTC_ENCOUNTER_EVENTS.PLANNING_ENDED]: "totcEncounterPlanningEnded",
     [TOTC_ENCOUNTER_EVENTS.ROUND_STARTED]: "totcEncounterRoundStarted",
     [TOTC_ENCOUNTER_EVENTS.ROUND_RESOLVED]: "totcEncounterRoundResolved",
+    [TOTC_ENCOUNTER_EVENTS.ROUND_NARRATIVE_UPDATED]: "totcEncounterRoundNarrativeUpdated",
     [TOTC_ENCOUNTER_EVENTS.COMBATANT_READY_CHANGED]: "totcEncounterCombatantReadyChanged",
     [TOTC_ENCOUNTER_EVENTS.PLAN_UPDATED]: "totcEncounterPlanUpdated",
     [TOTC_ENCOUNTER_EVENTS.DRAFT_PLAN_UPDATED]: "totcEncounterDraftPlanUpdated"
@@ -239,10 +243,11 @@ function actionRollRequirementSatisfied(action = {}, requirement = {}) {
     const requiredType = String(requirement?.rollType ?? "").toLowerCase();
     const requiredSubType = String(requirement?.rollSubType ?? "").toLowerCase();
     return toArray(action.planningRollResults).some((result) => {
-        const resultType = String(result?.rollType ?? "").toLowerCase();
-        const resultSubType = String(result?.rollSubType ?? "").toLowerCase();
-        if (resultType && requiredType && resultType !== requiredType) return false;
-        if (resultSubType && requiredSubType && resultSubType !== requiredSubType) return false;
+        const nestedResult = result?.result && typeof result.result === "object" ? result.result : {};
+        const resultType = String(result?.rollType ?? nestedResult.rollType ?? "").toLowerCase();
+        const resultSubType = String(result?.rollSubType ?? nestedResult.rollSubType ?? "").toLowerCase();
+        if (requiredType && resultType !== requiredType) return false;
+        if (requiredSubType && resultSubType !== requiredSubType) return false;
         return true;
     });
 }
@@ -477,7 +482,6 @@ export class TurnOfTheCenturyEncounter {
             checkItemAction: async (item, actor, actionId) => item.executeEncounterAction?.({ actor, actionId, consume: false }),
             publishRoundReplay: (timeline) => this.#publishRoundReplay(timeline),
             emit: (eventName, payload) => this.emit(eventName, payload),
-            generateTickNarrative: (opts) => this.#generateTickNarrativeResult(opts),
             movementResolver: this.#movementResolver,
             attackResolver: this.#attackResolver,
             reactionResolver: this.#reactionResolver,
@@ -945,7 +949,7 @@ export class TurnOfTheCenturyEncounter {
         if (!combatant?.actor) return [];
         return getEnabledActionsForActor(combatant.actor, {
             apBudget: this.apBudget,
-            movementFeetPerAp: Number(getMovementFeetPerAp() || 10)
+            movementFeetPerAp: Number(getMovementFeetPerAp() || 5)
         });
     }
 
@@ -1032,6 +1036,18 @@ export class TurnOfTheCenturyEncounter {
             ])
         );
 
+        const previousRoundNarrativeTarget = this.#previousRoundNarrativeTarget(previousState);
+        const canGeneratePreviousRoundNarrative = previousRoundNarrativeTarget && this.#hasNarrativeApiKey();
+        const roundHistory = canGeneratePreviousRoundNarrative
+            ? this.#roundHistoryWithNarrative(previousState.roundHistory, previousRoundNarrativeTarget.round, {
+                status: "pending",
+                narrative: "",
+                links: [],
+                gmNotes: [],
+                requestedAt: Date.now()
+            })
+            : toArray(previousState.roundHistory);
+
         const state = {
             initialized: true,
             phase,
@@ -1039,7 +1055,7 @@ export class TurnOfTheCenturyEncounter {
             actionCatalog: this.actionCatalog,
             perCombatant,
             timeline: [],
-            roundHistory: toArray(previousState.roundHistory),
+            roundHistory,
             currentEvaluationTick: 0,
             resolution: {
                 status: "idle",
@@ -1058,6 +1074,10 @@ export class TurnOfTheCenturyEncounter {
             this.emit(TOTC_ENCOUNTER_EVENTS.PLANNING_STARTED, { round: state.round, state });
         }
 
+        if (canGeneratePreviousRoundNarrative) {
+            void this.#generatePreviousRoundNarrative(previousRoundNarrativeTarget.round);
+        }
+
         return state;
     }
 
@@ -1069,28 +1089,100 @@ export class TurnOfTheCenturyEncounter {
         return this.state.resolution ?? null;
     }
 
-    async #generateTickNarrativeResult({
+    #hasNarrativeApiKey() {
+        return Boolean(String(game?.settings?.get?.("turn-of-the-century", OPENAI_API_KEY_SETTING) ?? "").trim());
+    }
+
+    #previousRoundNarrativeTarget(state = {}) {
+        if (state?.phase !== "roundComplete") return null;
+        const history = toArray(state.roundHistory);
+        const round = Number(state.round ?? this.#combat.round ?? 0);
+        const entry = [...history].reverse().find((candidate) => Number(candidate?.round ?? 0) === round) ?? history.at(-1) ?? null;
+        if (!entry) return null;
+        const roundNarrative = entry.roundNarrative ?? {};
+        if (roundNarrative.status === "complete" && String(roundNarrative.narrative ?? "").trim()) return null;
+        return { round: Number(entry.round ?? round), entry };
+    }
+
+    #roundHistoryWithNarrative(history = [], round = 0, roundNarrative = {}) {
+        return toArray(history).map((entry) => Number(entry?.round ?? 0) === Number(round)
+            ? {
+                ...entry,
+                roundNarrative: {
+                    ...(entry.roundNarrative ?? {}),
+                    ...foundry.utils.deepClone(roundNarrative)
+                }
+            }
+            : entry);
+    }
+
+    async #updateRoundNarrative(round = 0, roundNarrative = {}) {
+        const currentState = this.state;
+        const roundHistory = this.#roundHistoryWithNarrative(currentState.roundHistory, round, roundNarrative);
+        await this.#setState({ ...currentState, roundHistory });
+        this.emit(TOTC_ENCOUNTER_EVENTS.ROUND_NARRATIVE_UPDATED, { round, state: this.state });
+    }
+
+    async #generatePreviousRoundNarrative(round = 0) {
+        try {
+            const state = this.state;
+            const entry = toArray(state.roundHistory).find((candidate) => Number(candidate?.round ?? 0) === Number(round)) ?? null;
+            if (!entry) return;
+            const result = await this.#generateRoundNarrativeResult(entry);
+            const narrative = String(result?.narrative ?? "").trim();
+            await this.#updateRoundNarrative(round, {
+                status: narrative ? "complete" : "unavailable",
+                narrative,
+                links: this.#normalizeNarrativeLinks(result?.links),
+                gmNotes: toArray(result?.gmNotes).map((note) => String(note ?? "").trim()).filter(Boolean),
+                completedAt: Date.now()
+            });
+        } catch (error) {
+            await this.#updateRoundNarrative(round, {
+                status: "failed",
+                narrative: "",
+                links: [],
+                gmNotes: [`Round narrative generation failed: ${error?.message ?? error}`],
+                completedAt: Date.now()
+            });
+        }
+    }
+
+    #normalizeNarrativeLinks(links = []) {
+        return toArray(links).map((link) => ({
+            id: String(link?.id ?? "").trim(),
+            text: String(link?.text ?? "").trim(),
+            type: String(link?.type ?? "exchange").trim() || "exchange",
+            combatantIds: toArray(link?.combatantIds).map((entry) => String(entry ?? "").trim()).filter(Boolean),
+            actionId: String(link?.actionId ?? "").trim(),
+            itemId: String(link?.itemId ?? "").trim(),
+            timelineEntryIds: toArray(link?.timelineEntryIds).map((entry) => String(entry ?? "").trim()).filter(Boolean),
+            rollRequestIds: toArray(link?.rollRequestIds).map((entry) => String(entry ?? "").trim()).filter(Boolean),
+            rollResultIds: toArray(link?.rollResultIds).map((entry) => String(entry ?? "").trim()).filter(Boolean),
+            clauseIds: toArray(link?.clauseIds).map((entry) => String(entry ?? "").trim()).filter(Boolean)
+        })).filter((link) => link.id && link.text);
+    }
+
+    async #generateRoundNarrativeResult({
         round = 1,
-        tick = 0,
-        factualOutlineMarkdown = "",
-        factualOutline = [],
-        planSummary = "",
-        lines = []
+        timeline = [],
+        tickNarratives = []
     } = {}) {
         const apiKey = String(game?.settings?.get?.("turn-of-the-century", OPENAI_API_KEY_SETTING) ?? "").trim();
         if (!apiKey) return null;
 
         const prompt = JSON.stringify({
             round,
-            tick,
-            factualOutlineMarkdown,
-            factualOutline,
-            planTickSummary: planSummary,
-            resolvedTickFacts: lines
+            timeline,
+            tickNarratives,
+            deterministicRoundSummary: toArray(tickNarratives)
+                .map((tick) => String(tick?.summary ?? "").trim())
+                .filter(Boolean)
+                .join(" ")
         }, null, 2);
 
         return LLMService.generate(prompt, {
-            elementType: "encounter-round-tick-narrative-result"
+            elementType: "encounter-round-narrative-result"
         });
     }
 
@@ -1330,12 +1422,7 @@ export class TurnOfTheCenturyEncounter {
     }
 
     #resolveActionRangeFeet(action = null, item = null) {
-        const rangeType = String(action?.rangeType ?? "melee").toLowerCase();
-        const normal = Number(item?.system?.physical?.range?.normal ?? (rangeType === "melee" ? 5 : 30));
-        const long = Number(item?.system?.physical?.range?.long ?? Math.max(normal, 60));
-        if (rangeType === "long") return Math.max(5, long || normal || 60);
-        if (rangeType === "normal") return Math.max(5, normal || 30);
-        return 5;
+        return resolveActionRangeFeet(action, item);
     }
 
     #distanceBetweenCombatantsFeet(sourceCombatant, targetCombatant, { tokenPositions = null } = {}) {

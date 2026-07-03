@@ -102,7 +102,7 @@ export function buildGMAssistantDocumentSystemData(system = {}, elementType = ""
             scenarioId: source.scenarioId ?? "",
             description: source.description ?? profile.description ?? profile.summary ?? "",
             hazards: source.hazards ?? profile.hazards ?? "",
-            npcs: source.npcs ?? profile.npcs ?? []
+            npcs: normalizeGeneratedNpcRecords(source.npcs ?? profile.npcs ?? [])
         };
     }
 
@@ -150,10 +150,116 @@ function renderStringAsHTML(value, { escapeHTML }) {
         .join("");
 }
 
+function tryParseGeneratedRecord(value) {
+    if (typeof value !== "string") return value;
+    const text = value.trim();
+    if (text === "[object Object]") return "";
+    if (!text.startsWith("{") && !text.startsWith("[")) return value;
+    try {
+        return JSON.parse(text);
+    } catch {
+        return value;
+    }
+}
+
+function toGeneratedPlainValue(value) {
+    const parsed = tryParseGeneratedRecord(value);
+    if (!parsed || typeof parsed !== "object") return parsed;
+    if (Array.isArray(parsed)) return parsed.map(toGeneratedPlainValue);
+    if (typeof parsed.toObject === "function" || typeof parsed.toJSON === "function" || parsed._source) {
+        return getSerializableSystemData(parsed);
+    }
+    return parsed;
+}
+
+function formatGeneratedRecordValue(value) {
+    if (value == null || value === "") return "";
+    const parsed = toGeneratedPlainValue(value);
+    if (Array.isArray(parsed)) {
+        return parsed.map(formatGeneratedRecordValue).filter(Boolean).join("; ");
+    }
+    if (parsed && typeof parsed === "object") {
+        return Object.entries(parsed)
+            .filter(([key, childValue]) => !String(key).startsWith("_") && childValue != null && childValue !== "")
+            .map(([key, childValue]) => `${humanizeKey(key)}: ${formatGeneratedRecordValue(childValue)}`)
+            .filter(Boolean)
+            .join("; ");
+    }
+    return String(parsed ?? "").trim();
+}
+
+export function formatGeneratedNpcRecord(record = {}) {
+    const parsed = toGeneratedPlainValue(record);
+    if (typeof parsed === "string" || typeof parsed === "number" || typeof parsed === "boolean") {
+        return String(parsed ?? "").trim();
+    }
+    if (!parsed || typeof parsed !== "object") return "";
+
+    const name = String(parsed.name ?? parsed.title ?? parsed.label ?? parsed.actorName ?? "Unnamed NPC").trim();
+    const roleParts = [
+        parsed.role ?? parsed.archetype ?? parsed.type,
+        parsed.faction,
+        parsed.disposition
+    ].map(formatGeneratedRecordValue).filter(Boolean);
+    const description = formatGeneratedRecordValue(parsed.description ?? parsed.summary ?? parsed.profile?.summary ?? parsed.profile?.description);
+    const motivation = formatGeneratedRecordValue(parsed.motivation ?? parsed.motivations ?? parsed.goal ?? parsed.objective ?? parsed.want);
+    const tactics = formatGeneratedRecordValue(parsed.tactics ?? parsed.behavior ?? parsed.approach);
+    const stakes = formatGeneratedRecordValue(parsed.stakes ?? parsed.knows ?? parsed.secret ?? parsed.leverage);
+
+    const sentences = [];
+    const lead = roleParts.length ? `${name} - ${roleParts.join(", ")}` : name;
+    sentences.push(lead);
+    if (description) sentences.push(description);
+    if (motivation) sentences.push(`Motivation: ${motivation}`);
+    if (tactics) sentences.push(`Tactics: ${tactics}`);
+    if (stakes) sentences.push(`Key detail: ${stakes}`);
+
+    const usedKeys = new Set([
+        "name", "title", "label", "actorName", "role", "archetype", "type", "faction", "disposition",
+        "description", "summary", "profile", "motivation", "motivations", "goal", "objective", "want",
+        "tactics", "behavior", "approach", "stakes", "knows", "secret", "leverage"
+    ]);
+    const fallback = Object.entries(parsed)
+        .filter(([key, value]) => !usedKeys.has(key) && !String(key).startsWith("_") && value != null && value !== "")
+        .map(([key, value]) => `${humanizeKey(key)}: ${formatGeneratedRecordValue(value)}`)
+        .filter(Boolean);
+    sentences.push(...fallback);
+
+    return sentences.filter(Boolean).join(". ");
+}
+
+function normalizeGeneratedNpcRecords(records = []) {
+    const parsed = toGeneratedPlainValue(records);
+    const values = Array.isArray(parsed)
+        ? parsed
+        : parsed && typeof parsed === "object" && Object.keys(parsed).every((key) => /^\d+$/.test(key))
+            ? Object.entries(parsed).sort(([left], [right]) => Number(left) - Number(right)).map(([, value]) => value)
+            : [parsed];
+    return values.map(formatGeneratedNpcRecord).filter(Boolean);
+}
+
+function renderGeneratedNpcList(key, value, { escapeHTML }, titleTag) {
+    const title = humanizeKey(key);
+    const npcItems = normalizeGeneratedNpcRecords(value)
+        .map((entry) => `<li>${escapeHTML(entry)}</li>`)
+        .join("");
+    if (!npcItems) return "";
+    return `
+            <section class="totc-v2-gm-assistant__generated-section">
+                <${titleTag}>${escapeHTML(title)}</${titleTag}>
+                <ul class="totc-v2-gm-assistant__generated-list">${npcItems}</ul>
+            </section>`;
+}
+
 function renderGeneratedValue(key, value, { escapeHTML }, depth = 0) {
     if (value == null || value === "") return "";
     const title = humanizeKey(key);
     const titleTag = depth > 0 ? "h6" : "h5";
+    const isNpcList = String(key ?? "").toLowerCase() === "npcs";
+
+    if (isNpcList) {
+        return renderGeneratedNpcList(key, value, { escapeHTML }, titleTag);
+    }
 
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
         const body = renderStringAsHTML(value, { escapeHTML });

@@ -1,4 +1,8 @@
-import { renderGeneratedAssistantContent, getSerializableSystemData } from "./gm-assistant-panel.mjs";
+import {
+    formatGeneratedNpcRecord,
+    renderGeneratedAssistantContent,
+    getSerializableSystemData
+} from "./gm-assistant-panel.mjs";
 
 const CAMPAIGN_TYPE = "campaign";
 const SCENARIO_TYPE = "scenario";
@@ -446,11 +450,15 @@ function getEditFields(selected, detailEdits = {}) {
     }
 
     if (selected.type === ENCOUNTER_TYPE) {
-        const npcs = Array.isArray(sys.npcs) ? sys.npcs : [];
+        const npcs = Array.isArray(sys.npcs)
+            ? sys.npcs
+            : sys.npcs && typeof sys.npcs === "object" && Object.keys(sys.npcs).every((key) => /^\d+$/.test(key))
+                ? Object.entries(sys.npcs).sort(([left], [right]) => Number(left) - Number(right)).map(([, value]) => value)
+                : [];
         return [
             { path: "description", label: "Description", fieldType: "html", value: val("description", String(sys.description ?? "")) },
             { path: "hazards", label: "Hazards", fieldType: "html", value: val("hazards", String(sys.hazards ?? "")) },
-            { path: "npcs", label: "NPCs (one per line)", fieldType: "array", value: val("npcs", npcs.join("\n")) }
+            { path: "npcs", label: "NPCs (one per line)", fieldType: "array", value: val("npcs", npcs.map(formatGeneratedNpcRecord).filter(Boolean).join("\n")) }
         ];
     }
 

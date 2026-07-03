@@ -359,7 +359,7 @@ describe("starter-actor-token-art migration entrypoint wiring", () => {
     });
 
     it("runner schema version is at least 17", () => {
-        assert.match(runnerSource, /TOTC_WORLD_SCHEMA_VERSION = 1[7-9]/);
+        assert.match(runnerSource, /TOTC_WORLD_SCHEMA_VERSION = (1[7-9]|[2-9]\d*)/);
     });
 
     it("runner requires migrateStarterActorTokenArt as an injected dependency", () => {

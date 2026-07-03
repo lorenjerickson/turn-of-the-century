@@ -1,3 +1,5 @@
+import { resolveActionRangeFeet } from "./action-range.mjs";
+
 // ---------------------------------------------------------------------------
 // Pure utilities (local copies — no shared module dependency)
 // ---------------------------------------------------------------------------
@@ -25,23 +27,6 @@ function clampActionCost(value) {
 // ---------------------------------------------------------------------------
 // Pure helpers — no port access, no Foundry globals
 // ---------------------------------------------------------------------------
-
-/**
- * Resolve the effective range in feet for an action, mirroring the logic in
- * AttackResolver and combat.mjs so overwatch range checks are consistent.
- *
- * @param {object|null} action
- * @param {object|null} item  Foundry Item document or plain item-like object.
- * @returns {number}
- */
-function resolveActionRangeFeet(action = null, item = null) {
-    const rangeType = String(action?.rangeType ?? "melee").toLowerCase();
-    const normal = Number(item?.system?.physical?.range?.normal ?? (rangeType === "melee" ? 5 : 30));
-    const long = Number(item?.system?.physical?.range?.long ?? Math.max(normal, 60));
-    if (rangeType === "long") return Math.max(5, long || normal || 60);
-    if (rangeType === "normal") return Math.max(5, normal || 30);
-    return 5;
-}
 
 /**
  * Normalise an action object from the actor's available-actions list into the

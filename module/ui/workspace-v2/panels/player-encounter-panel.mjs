@@ -332,7 +332,7 @@ function actionDataAttributes(action, escapeHTML) {
     ].map(([key, value]) => `data-${key}="${escapeHTML(String(value ?? ""))}"`).join(" ");
 }
 
-function renderPlanBar(model, escapeHTML) {
+export function renderPlanBar(model, escapeHTML) {
     const planned = model.plannedActions ?? [];
     let currentTick = 1;
     const segmentsMarkup = planned.map((action) => {
@@ -382,7 +382,7 @@ function renderPlanBar(model, escapeHTML) {
     </ul>`;
 }
 
-function renderOrderList(model, escapeHTML) {
+export function renderOrderList(model, escapeHTML) {
     const planned = model.plannedActions ?? [];
     if (!planned.length) {
         return `<div class="totc-v2-encounter-panel__orders-empty">No orders planned.</div>`;

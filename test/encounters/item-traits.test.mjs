@@ -66,6 +66,7 @@ describe("composeActionsFromTraits", () => {
         assert.equal(variants[0].id, "meleeStrike");
         assert.equal(variants[0].type, "attack");
         assert.equal(variants[0].apCost, 1);
+        assert.equal(variants[0].targetingRangeFeet, 5);
         assert.ok(variants[0].requiresToHit);
         assert.deepEqual(variants[0].requirements, []);
     });
@@ -76,6 +77,8 @@ describe("composeActionsFromTraits", () => {
         assert.ok(ids.includes("meleeStrike"),  "missing meleeStrike");
         assert.ok(ids.includes("thrownAttack"), "missing thrownAttack");
         assert.equal(variants.length, 2);
+        assert.equal(variants.find((v) => v.id === "meleeStrike").targetingRangeFeet, 5);
+        assert.equal(variants.find((v) => v.id === "thrownAttack").targetingRangeFeet, 20);
     });
 
     it("composes versatileGrip to add twoHandedStrike", () => {
@@ -100,12 +103,14 @@ describe("composeActionsFromTraits", () => {
 
         it("injects ammo-loaded requirement into quickShot", () => {
             const qs = variants.find((v) => v.id === "quickShot");
+            assert.equal(qs.targetingRangeFeet, 30);
             const req = qs.requirements.find((r) => r.field === "system.ammunition.loaded" && r.op === "gt");
             assert.ok(req, "quickShot missing ammo-loaded requirement");
         });
 
         it("injects ammo-loaded requirement into aimedShot", () => {
             const as = variants.find((v) => v.id === "aimedShot");
+            assert.equal(as.targetingRangeFeet, 30);
             const req = as.requirements.find((r) => r.field === "system.ammunition.loaded" && r.op === "gt");
             assert.ok(req, "aimedShot missing ammo-loaded requirement");
         });

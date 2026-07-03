@@ -12,7 +12,10 @@ export async function acceptCompletedPlanningRoll({
     if (change?.type !== "result") return false;
     const request = change.request;
     const recipientId = String(change.recipientId ?? "").trim();
-    if (!request || !recipientId || recipientId !== String(game?.user?.id ?? "")) return false;
+    const currentUserId = String(game?.user?.id ?? "").trim();
+    const currentUserIsGM = Boolean(game?.user?.isGM);
+    if (!request || !recipientId) return false;
+    if (!currentUserIsGM && recipientId !== currentUserId) return false;
     if (!request.combatId || !request.combatantId || !Number.isInteger(request.actionIndex)) return false;
 
     const combat = collectionGet(game?.combats, request.combatId)
@@ -29,4 +32,3 @@ export async function acceptCompletedPlanningRoll({
     });
     return true;
 }
-

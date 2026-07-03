@@ -291,7 +291,7 @@
     "socket": true,
     "initiative": "1d20",
     "grid": {
-        "distance": 10,
+        "distance": 5,
         "units": "ft"
     },
     "primaryTokenAttribute": "resources.health",

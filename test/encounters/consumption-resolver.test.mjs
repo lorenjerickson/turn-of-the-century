@@ -64,20 +64,34 @@ describe("ConsumptionResolver.buildTickReconcilePlan", () => {
     it("returns empty buckets for no effects", () => {
         const r = makeResolver();
         const result = r.buildTickReconcilePlan({ tickEffects: [], orderedCombatants: [] });
-        assert.deepEqual(result, { consumeEffects: [], movementEffects: [], damageEntries: [] });
+        assert.deepEqual(result, { consumeEffects: [], actionEffects: [], movementEffects: [], damageEntries: [] });
     });
 
     it("routes consumeAction effects to consumeEffects bucket", () => {
         const r = makeResolver();
         const effect = { type: "consumeAction", combatantId: "c1", itemId: "i1", actionId: "a1" };
-        const { consumeEffects, movementEffects, damageEntries } = r.buildTickReconcilePlan({
+        const { consumeEffects, actionEffects, movementEffects, damageEntries } = r.buildTickReconcilePlan({
             tickEffects: [effect],
             orderedCombatants: []
         });
         assert.equal(consumeEffects.length, 1);
+        assert.equal(actionEffects.length, 0);
         assert.equal(movementEffects.length, 0);
         assert.equal(damageEntries.length, 0);
         assert.equal(consumeEffects[0], effect);
+    });
+
+    it("routes action effects to actionEffects bucket", () => {
+        const r = makeResolver();
+        const effect = { type: "actionEffect", sourceCombatantId: "c1", targetCombatantId: "c2", effect: { type: "condition" } };
+        const { actionEffects, consumeEffects, movementEffects, damageEntries } = r.buildTickReconcilePlan({
+            tickEffects: [effect],
+            orderedCombatants: []
+        });
+        assert.deepEqual(actionEffects, [effect]);
+        assert.equal(consumeEffects.length, 0);
+        assert.equal(movementEffects.length, 0);
+        assert.equal(damageEntries.length, 0);
     });
 
     it("routes movement effects and deduplicates by highest initiative", () => {
@@ -126,7 +140,7 @@ describe("ConsumptionResolver.buildTickReconcilePlan", () => {
         const r = makeResolver();
         const effect = { type: "teleport", combatantId: "c1" };
         const result = r.buildTickReconcilePlan({ tickEffects: [effect], orderedCombatants: [] });
-        assert.deepEqual(result, { consumeEffects: [], movementEffects: [], damageEntries: [] });
+        assert.deepEqual(result, { consumeEffects: [], actionEffects: [], movementEffects: [], damageEntries: [] });
     });
 });
 
@@ -384,6 +398,68 @@ describe("ConsumptionResolver.applyConsumeActionEffect", () => {
         const r = makeResolver({ itemActionLog });
         await r.applyConsumeActionEffect({ combatantId: "c1", itemId: "", actionId: "a1" });
         assert.equal(itemActionLog.length, 0);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// applyActionEffect
+// ---------------------------------------------------------------------------
+
+describe("ConsumptionResolver.applyActionEffect", () => {
+    it("applies condition effects to the designated target combatant", async () => {
+        const statusLog = [];
+        const actor = {
+            id: "target-actor",
+            toggleStatusEffect: async (statusId, options) => statusLog.push({ statusId, options })
+        };
+        const r = makeResolver({ combatants: { target: { id: "target", actor } } });
+
+        await r.applyActionEffect({
+            type: "actionEffect",
+            sourceCombatantId: "source",
+            targetCombatantId: "target",
+            effect: {
+                type: "condition",
+                operation: "grant",
+                condition: "stunned"
+            }
+        });
+
+        assert.deepEqual(statusLog, [{ statusId: "stunned", options: { active: true } }]);
+    });
+
+    it("applies resource increments to the configured effect path", async () => {
+        const originalFoundry = globalThis.foundry;
+        globalThis.foundry = {
+            utils: {
+                getProperty: (object, path) => String(path).split(".").reduce((current, key) => current?.[key], object)
+            }
+        };
+        try {
+            const updates = [];
+            const actor = {
+                id: "target-actor",
+                system: { resources: { health: { value: 4 } } },
+                update: async (patch) => updates.push(patch)
+            };
+            const r = makeResolver({ combatants: { target: { id: "target", actor } } });
+
+            await r.applyActionEffect({
+                type: "actionEffect",
+                sourceCombatantId: "source",
+                targetCombatantId: "target",
+                effect: {
+                    type: "resource",
+                    operation: "add",
+                    path: "system.resources.health.value",
+                    value: 3
+                }
+            });
+
+            assert.deepEqual(updates, [{ "system.resources.health.value": 7 }]);
+        } finally {
+            globalThis.foundry = originalFoundry;
+        }
     });
 });
 

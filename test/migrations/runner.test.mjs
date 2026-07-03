@@ -11,8 +11,8 @@ before(() => {
 });
 
 describe("runTotcMigrations", () => {
-    it("exports TOTC_WORLD_SCHEMA_VERSION as 19", () => {
-        assert.equal(TOTC_WORLD_SCHEMA_VERSION, 19);
+    it("exports TOTC_WORLD_SCHEMA_VERSION as 20", () => {
+        assert.equal(TOTC_WORLD_SCHEMA_VERSION, 20);
     });
 
     it("throws when seedMissingActors is not a function", async () => {
@@ -33,7 +33,8 @@ describe("runTotcMigrations", () => {
                 migrateStarterCompendiums: noop,
                 seedMissingActors: undefined,
                 migrateStarterActorAvatars: noop,
-                migrateStarterActorTokenArt: noop
+                migrateStarterActorTokenArt: noop,
+                migrateVisionAndScale: noop
             }),
             /seedMissingActors/
         );
@@ -57,7 +58,8 @@ describe("runTotcMigrations", () => {
                 migrateStarterCompendiums: noop,
                 seedMissingActors: noop,
                 migrateStarterActorAvatars: undefined,
-                migrateStarterActorTokenArt: noop
+                migrateStarterActorTokenArt: noop,
+                migrateVisionAndScale: noop
             }),
             /migrateStarterActorAvatars/
         );
@@ -81,7 +83,8 @@ describe("runTotcMigrations", () => {
                 migrateStarterCompendiums: noop,
                 seedMissingActors: noop,
                 migrateStarterActorAvatars: noop,
-                migrateStarterActorTokenArt: undefined
+                migrateStarterActorTokenArt: undefined,
+                migrateVisionAndScale: noop
             }),
             /migrateStarterActorTokenArt/
         );
@@ -105,9 +108,35 @@ describe("runTotcMigrations", () => {
                 migrateStarterCompendiums: noop,
                 seedMissingActors: noop,
                 migrateStarterActorAvatars: noop,
-                migrateStarterActorTokenArt: noop
+                migrateStarterActorTokenArt: noop,
+                migrateVisionAndScale: noop
             }),
             /migrateActionTickFragments/
+        );
+    });
+
+    it("throws when migrateVisionAndScale is not a function", async () => {
+        const noop = async () => ({});
+        await assert.rejects(
+            () => runTotcMigrations({
+                currentVersion: 100,
+                migrateActorProfiles: noop,
+                migrateActorProfessions: noop,
+                migrateActorEconomy: noop,
+                migrateEquipmentSlots: noop,
+                migrateEncounterActions: noop,
+                migrateModifiers: noop,
+                migrateActionRecapFormats: noop,
+                migrateItemIcons: noop,
+                migrateUnlockActions: noop,
+                migrateActionTickFragments: noop,
+                migrateStarterCompendiums: noop,
+                seedMissingActors: noop,
+                migrateStarterActorAvatars: noop,
+                migrateStarterActorTokenArt: noop,
+                migrateVisionAndScale: undefined
+            }),
+            /migrateVisionAndScale/
         );
     });
 
@@ -120,6 +149,7 @@ describe("runTotcMigrations", () => {
         let tokenArtCalled = false;
         let handArmorCalled = false;
         let tickFragmentsCalled = false;
+        let visionAndScaleCalled = false;
         const noop = async () => ({});
         const seedMissingActors = async () => {
             seedCalled = true;
@@ -153,6 +183,10 @@ describe("runTotcMigrations", () => {
             tickFragmentsCalled = true;
             return { itemsScanned: 9, itemsUpdated: 6, changedDocuments: [] };
         };
+        const migrateVisionAndScale = async () => {
+            visionAndScaleCalled = true;
+            return { actorsUpdated: 2, tokensUpdated: 3, scenesUpdated: 1 };
+        };
 
         const result = await runTotcMigrations({
             currentVersion: 11,
@@ -170,6 +204,7 @@ describe("runTotcMigrations", () => {
             seedMissingActors,
             migrateStarterActorAvatars,
             migrateStarterActorTokenArt,
+            migrateVisionAndScale,
             notify: false
         });
 
@@ -181,7 +216,8 @@ describe("runTotcMigrations", () => {
         assert.equal(tokenArtCalled, true);
         assert.equal(handArmorCalled, true);
         assert.equal(tickFragmentsCalled, true);
-        assert.equal(result.toVersion, 19);
+        assert.equal(visionAndScaleCalled, true);
+        assert.equal(result.toVersion, 20);
         const step = result.applied.find((s) => s.key === "seed-missing-actors");
         assert.ok(step, "seed-missing-actors step should be present");
         assert.equal(step.version, 12);
@@ -214,11 +250,16 @@ describe("runTotcMigrations", () => {
         assert.ok(tickFragmentStep, "action-tick-fragments step should be present");
         assert.equal(tickFragmentStep.version, 19);
         assert.equal(tickFragmentStep.report.itemsUpdated, 6);
+        const visionStep = result.applied.find((s) => s.key === "vision-and-scale");
+        assert.ok(visionStep, "vision-and-scale step should be present");
+        assert.equal(visionStep.version, 20);
+        assert.equal(visionStep.report.actorsUpdated, 2);
     });
 
-    it("runs v18 hand-armor split and v19 tick fragments when currentVersion is 17", async () => {
+    it("runs v18 hand-armor split, v19 tick fragments, and v20 vision scale when currentVersion is 17", async () => {
         let handArmorCalled = false;
         let tickFragmentsCalled = false;
+        let visionAndScaleCalled = false;
         const noop = async () => ({});
         const migrateEquipmentSlots = async () => {
             handArmorCalled = true;
@@ -227,6 +268,10 @@ describe("runTotcMigrations", () => {
         const migrateActionTickFragments = async () => {
             tickFragmentsCalled = true;
             return { itemsScanned: 3, itemsUpdated: 3, changedDocuments: [] };
+        };
+        const migrateVisionAndScale = async () => {
+            visionAndScaleCalled = true;
+            return { actorsUpdated: 1, tokensUpdated: 0, scenesUpdated: 1 };
         };
 
         const result = await runTotcMigrations({
@@ -245,21 +290,28 @@ describe("runTotcMigrations", () => {
             seedMissingActors: noop,
             migrateStarterActorAvatars: noop,
             migrateStarterActorTokenArt: noop,
+            migrateVisionAndScale,
             notify: false
         });
 
         assert.equal(handArmorCalled, true);
         assert.equal(tickFragmentsCalled, true);
-        assert.equal(result.toVersion, 19);
-        assert.deepEqual(result.applied.map((step) => step.key), ["hand-armor-equipment-slot", "action-tick-fragments"]);
+        assert.equal(visionAndScaleCalled, true);
+        assert.equal(result.toVersion, 20);
+        assert.deepEqual(result.applied.map((step) => step.key), ["hand-armor-equipment-slot", "action-tick-fragments", "vision-and-scale"]);
     });
 
-    it("runs only v19 tick fragments when currentVersion is 18", async () => {
+    it("runs v19 tick fragments and v20 vision scale when currentVersion is 18", async () => {
         let tickFragmentsCalled = false;
+        let visionAndScaleCalled = false;
         const noop = async () => ({});
         const migrateActionTickFragments = async () => {
             tickFragmentsCalled = true;
             return { itemsScanned: 3, itemsUpdated: 2, changedDocuments: [] };
+        };
+        const migrateVisionAndScale = async () => {
+            visionAndScaleCalled = true;
+            return { actorsUpdated: 1, tokensUpdated: 1, scenesUpdated: 1 };
         };
 
         const result = await runTotcMigrations({
@@ -278,15 +330,17 @@ describe("runTotcMigrations", () => {
             seedMissingActors: noop,
             migrateStarterActorAvatars: noop,
             migrateStarterActorTokenArt: noop,
+            migrateVisionAndScale,
             notify: false
         });
 
         assert.equal(tickFragmentsCalled, true);
-        assert.equal(result.toVersion, 19);
-        assert.deepEqual(result.applied.map((step) => step.key), ["action-tick-fragments"]);
+        assert.equal(visionAndScaleCalled, true);
+        assert.equal(result.toVersion, 20);
+        assert.deepEqual(result.applied.map((step) => step.key), ["action-tick-fragments", "vision-and-scale"]);
     });
 
-    it("skips v12 through v19 when currentVersion is already 19", async () => {
+    it("runs only v20 vision scale when currentVersion is already 19", async () => {
         let seedCalled = false;
         let avatarsCalled = false;
         let recapCalled = false;
@@ -295,6 +349,7 @@ describe("runTotcMigrations", () => {
         let tokenArtCalled = false;
         let handArmorCalled = false;
         let tickFragmentsCalled = false;
+        let visionAndScaleCalled = false;
         const noop = async () => ({});
         const seedMissingActors = async () => { seedCalled = true; return {}; };
         const migrateActionRecapFormats = async () => { recapCalled = true; return {}; };
@@ -304,6 +359,10 @@ describe("runTotcMigrations", () => {
         const migrateStarterActorTokenArt = async () => { tokenArtCalled = true; return {}; };
         const migrateEquipmentSlots = async () => { handArmorCalled = true; return {}; };
         const migrateActionTickFragments = async () => { tickFragmentsCalled = true; return {}; };
+        const migrateVisionAndScale = async () => {
+            visionAndScaleCalled = true;
+            return { actorsUpdated: 1, tokensUpdated: 2, scenesUpdated: 3 };
+        };
 
         const result = await runTotcMigrations({
             currentVersion: 19,
@@ -321,6 +380,7 @@ describe("runTotcMigrations", () => {
             seedMissingActors,
             migrateStarterActorAvatars,
             migrateStarterActorTokenArt,
+            migrateVisionAndScale,
             notify: false
         });
 
@@ -332,6 +392,36 @@ describe("runTotcMigrations", () => {
         assert.equal(tokenArtCalled, false);
         assert.equal(handArmorCalled, false);
         assert.equal(tickFragmentsCalled, false);
+        assert.equal(visionAndScaleCalled, true);
+        assert.equal(result.toVersion, 20);
+        assert.deepEqual(result.applied.map((step) => step.key), ["vision-and-scale"]);
+    });
+
+    it("skips v12 through v20 when currentVersion is already 20", async () => {
+        let visionAndScaleCalled = false;
+        const noop = async () => ({});
+
+        const result = await runTotcMigrations({
+            currentVersion: 20,
+            migrateActorProfiles: noop,
+            migrateActorProfessions: noop,
+            migrateActorEconomy: noop,
+            migrateEquipmentSlots: noop,
+            migrateEncounterActions: noop,
+            migrateModifiers: noop,
+            migrateActionRecapFormats: noop,
+            migrateItemIcons: noop,
+            migrateUnlockActions: noop,
+            migrateActionTickFragments: noop,
+            migrateStarterCompendiums: noop,
+            seedMissingActors: noop,
+            migrateStarterActorAvatars: noop,
+            migrateStarterActorTokenArt: noop,
+            migrateVisionAndScale: async () => { visionAndScaleCalled = true; return {}; },
+            notify: false
+        });
+
+        assert.equal(visionAndScaleCalled, false);
         assert.equal(result.applied.length, 0);
     });
 });

@@ -175,6 +175,48 @@ describe("RollRequestFeature", () => {
         assert.equal(context.dieRollRequestPanel.users.length, 2);
     });
 
+    it("accepts already-resolved visible planning rolls while preparing context", async () => {
+        const lockCalls = [];
+        const combat = {
+            id: "combat-1",
+            phase: "planning",
+            lockCombatantActionRoll: async (...args) => lockCalls.push(args)
+        };
+        globalThis.game.combat = combat;
+        globalThis.game.combats = { get: (id) => id === combat.id ? combat : null };
+        visibleRequests = [
+            {
+                id: "roll-1",
+                combatId: "combat-1",
+                combatantId: "combatant-1",
+                actionIndex: 0,
+                actionId: "strike",
+                rollType: "attack",
+                rollSubType: "toHit",
+                isPending: false,
+                results: {
+                    "player-1": { total: 18 }
+                }
+            }
+        ];
+        const feature = new RollRequestFeature({
+            layoutEngine: mockLayoutEngine,
+            panelRegistry: mockPanelRegistry,
+            stateStore: mockStateStore
+        });
+
+        await feature.prepareContext({});
+        await feature.prepareContext({});
+
+        assert.deepEqual(lockCalls, [["combatant-1", 0, {
+            requestId: "roll-1",
+            actionId: "strike",
+            rollType: "attack",
+            rollSubType: "toHit",
+            result: { total: 18 }
+        }]]);
+    });
+
     it("prepares context with diceRollFeedPanel built from messages and visible requests", async () => {
         globalThis.game.messages = {
             contents: [

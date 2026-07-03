@@ -1,4 +1,4 @@
-export const DEFAULT_TOKEN_VISION_RANGE = 60;
+export const DEFAULT_TOKEN_VISION_RANGE = 120;
 export const DEFAULT_SCENE_FOG_MODE = 1;
 
 export function buildNewTokenVisionDefaults() {

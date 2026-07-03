@@ -251,6 +251,7 @@ export class SceneWorkspaceController {
 
         this.state = {
             sceneId,
+            sceneName: "",
             status: "New scene created. Enter a name, then upload a background image.",
             error: ""
         };

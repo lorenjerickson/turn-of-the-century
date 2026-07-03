@@ -1,4 +1,5 @@
 import { TOTC_EQUIPMENT_SLOT_KEYS, TOTC_SKILL_CONFIG } from "./actor.mjs";
+import { createActionEffectField } from "./action-effect.mjs";
 import { createModifierEntryField } from "./modifier.mjs";
 
 const {
@@ -73,12 +74,14 @@ function createActionVariantField({ defaultId = "useItem", defaultLabel = "Use I
         toHitBonus: new NumberField({ required: true, integer: true, initial: 0 }),
         // Which range band this action uses: "melee" | "normal" | "long"
         rangeType: new StringField({ required: true, blank: false, initial: "melee" }),
+        targetingRangeFeet: new NumberField({ required: true, integer: true, min: 0, initial: 5 }),
         // Targeting (relevant for support/utility actions)
         targetSelf: new BooleanField({ required: true, initial: false }),
         targetAlly: new BooleanField({ required: true, initial: false }),
         requiresAdjacency: new BooleanField({ required: true, initial: false }),
         // Condition IDs applied on a successful hit or use
                 conditions: new ArrayField(new StringField({ required: true, blank: false }), { required: true, initial: () => [] }),
+        effects: new ArrayField(createActionEffectField(), { required: true, initial: () => [] }),
         completionPhaseIncrement: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
         cpiPerFeet: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
         autoResolve: new BooleanField({ required: true, initial: false }),
@@ -138,6 +141,8 @@ export class ItemDataModel extends foundry.abstract.TypeDataModel {
                             apCost: 1,
                             requiresToHit: false,
                             toHitBonus: 0,
+                            targetingRangeFeet: 5,
+                            effects: [],
                             recapFormat: "{{Owner.name}} uses {{Item.name}}.",
                             notes: ""
                         }]

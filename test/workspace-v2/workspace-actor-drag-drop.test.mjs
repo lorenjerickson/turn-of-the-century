@@ -22,6 +22,10 @@ const workspacePanelHostSource = readFileSync(
     join(rootDir, "module/ui/workspace-v2/controllers/workspace-panel-host.mjs"),
     "utf8"
 );
+const codexPanelSource = readFileSync(
+    join(rootDir, "module/ui/workspace-v2/panels/codex-panel.mjs"),
+    "utf8"
+);
 const styles = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
 describe("workspace actor drag and drop", () => {
@@ -121,8 +125,8 @@ describe("workspace actor drag and drop", () => {
     });
 
     it("supports codex item drags onto actor editor forms", () => {
-        assert.match(workspacePanelHostSource, /data-codex-item-draggable="true"/);
-        assert.match(workspacePanelHostSource, /draggable="true"[\s\S]*data-entry-uuid=/);
+        assert.match(codexPanelSource, /data-codex-item-draggable="true"/);
+        assert.match(codexPanelSource, /draggable="true"[\s\S]*data-entry-uuid=/);
         assert.match(actorWorkspaceControllerSource, /const CODEX_ITEM_DRAG_MIME = "application\/x-totc-codex-item";/);
         assert.match(actorWorkspaceControllerSource, /event\.dataTransfer\.setData\(CODEX_ITEM_DRAG_MIME, payload\)/);
         assert.match(actorWorkspaceControllerSource, /event\.dataTransfer\.setData\(TEXT_PLAIN_MIME, payload\)/);

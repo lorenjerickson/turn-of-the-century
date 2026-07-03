@@ -184,6 +184,32 @@ describe("CampaignFeature", () => {
         assert.equal(rerendered, true);
     });
 
+    it("does not stack delegated listeners when rebound after renders", () => {
+        const feature = new CampaignFeature({
+            layoutEngine: mockLayoutEngine,
+            panelRegistry: mockPanelRegistry
+        });
+
+        const listenerCounts = {};
+        const rootElement = {
+            addEventListener: (event) => {
+                listenerCounts[event] = (listenerCounts[event] ?? 0) + 1;
+            }
+        };
+
+        feature.bind(rootElement);
+        feature.bind(rootElement);
+
+        assert.equal(listenerCounts.click, 1);
+        assert.equal(listenerCounts.change, 1);
+        assert.equal(listenerCounts.input, 1);
+        assert.equal(listenerCounts.dragstart, 1);
+        assert.equal(listenerCounts.dragend, 1);
+        assert.equal(listenerCounts.dragover, 1);
+        assert.equal(listenerCounts.dragleave, 1);
+        assert.equal(listenerCounts.drop, 1);
+    });
+
     it("handles inputs and debounces prompt set", async () => {
         let rerendered = false;
         const feature = new CampaignFeature({
@@ -264,7 +290,8 @@ describe("CampaignFeature", () => {
         };
         const event = {
             target: button,
-            preventDefault: () => {}
+            preventDefault: () => {},
+            stopPropagation: () => {}
         };
 
         await clickHandlers[0](event);

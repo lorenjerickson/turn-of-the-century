@@ -134,7 +134,7 @@ describe("scene design actions", () => {
     it("adds detected image dimensions when creating a scene from a background", async () => {
         let createdData = null;
         const service = new SceneDesignService({
-            imageDimensionsLoader: async () => ({ width: 3200, height: 1800 }),
+            imageDimensionsLoader: async () => ({ width: 3226, height: 1774 }),
             SceneClass: {
                 create: async (data) => {
                     createdData = data;
@@ -148,10 +148,10 @@ describe("scene design actions", () => {
         });
 
         assert.equal(result.ok, true);
-        assert.equal(createdData.width, 3200);
-        assert.equal(createdData.height, 1800);
-        assert.equal(createdData.levels[0].width, 3200);
-        assert.equal(createdData.levels[0].height, 1800);
+        assert.equal(createdData.width, 3250);
+        assert.equal(createdData.height, 1750);
+        assert.equal(createdData.levels[0].width, 3250);
+        assert.equal(createdData.levels[0].height, 1750);
     });
 
     it("refuses to create scenes from unorganized media paths", async () => {
@@ -173,6 +173,22 @@ describe("scene design actions", () => {
     });
 
     it("delegates workspace scene creation to the app when available", async () => {
+        let created = false;
+        const result = await createSceneDesignScene({
+            app: {
+                createSceneDesignScene: async () => {
+                    created = true;
+                    return { ok: true, silent: true };
+                }
+            }
+        });
+
+        assert.equal(result.ok, true);
+        assert.equal(result.silent, true);
+        assert.equal(created, true);
+    });
+
+    it("keeps the legacy workspace scene creation hook as a fallback", async () => {
         let created = false;
         const result = await createSceneDesignScene({
             app: {

@@ -48,14 +48,52 @@ The JSON object must have this shape:
 {
   "tick": number,
   "narrative": string,
+  "links": [
+    {
+      "id": string,
+      "text": string,
+      "type": string,
+      "combatantIds": string[],
+      "actionId": string,
+      "itemId": string,
+      "timelineEntryIds": string[],
+      "rollRequestIds": string[],
+      "rollResultIds": string[],
+      "clauseIds": string[]
+    }
+  ],
   "gmNotes": string[]
 }
 
 Field requirements:
 
 - `tick`: the tick number supplied in the input.
-- `narrative`: one concise paragraph describing the visible fictional result of the tick.
+- `narrative`: one concise paragraph describing the visible fictional result of the tick. When a phrase should open a GM detail popup, wrap only that exact phrase in square brackets, such as `[striking the fleeing Cyrano]`.
+- `links`: metadata for every bracketed phrase in `narrative`. Use an empty array when no phrase needs mechanical detail.
 - `gmNotes`: brief GM-only notes only when the input contains ambiguous, hidden, or adjudication-relevant facts. Use an empty array when no notes are needed.
+
+## Narrative Link Requirements
+
+Use narrative links for mechanically meaningful exchanges that a GM may need to inspect during play, such as attacks, damage, saves, reactions, interruptions, evasions, collisions, contested movement, forced movement, recovery, or any result whose rolls or clauses matter.
+
+For each linked phrase:
+
+- `id`: a stable id for this tick, such as `tick-3-exchange-1`.
+- `text`: the exact bracketed phrase from `narrative`, without brackets.
+- `type`: a concise category such as `attack-resolution`, `reaction`, `interruption`, `movement-resolution`, `damage`, or `contest`.
+- `combatantIds`: ids of the actors directly involved, using only ids supplied in the input.
+- `actionId`: the supplied action id when one action is central to the exchange, otherwise an empty string.
+- `itemId`: the supplied item id when an item is central to the exchange, otherwise an empty string.
+- `timelineEntryIds`: supplied timeline entry ids that support the exchange, or an empty array.
+- `rollRequestIds`: supplied roll request ids that support the exchange, or an empty array.
+- `rollResultIds`: supplied roll result ids that support the exchange, or an empty array.
+- `clauseIds`: supplied order clause ids that support the exchange, or an empty array.
+
+Do not invent ids. If the input does not provide an id for a field, use an empty string or empty array for that field.
+
+Every bracketed phrase in `narrative` must have exactly one matching entry in `links`, and every `links[].text` value must appear once in the narrative inside square brackets.
+
+Use links sparingly. Link the compact phrase that best identifies the exchange, not whole sentences and not ordinary flavor with no mechanical consequence.
 
 ## Narrative Requirements
 
@@ -154,6 +192,7 @@ Output:
 {
   "tick": 3,
   "narrative": "Horus brings the heron blade round in a broad, murderous arc just as Hera's temporal sceptre discharges with a white crack of light. The bolt strikes him squarely in the chest, locking his body in place before the blade can fall.",
+  "links": [],
   "gmNotes": []
 }
 
@@ -174,6 +213,7 @@ Output:
 {
   "tick": 2,
   "narrative": "Mallory settles the galvanic carbine against her shoulder, its brass fittings ticking softly as she follows Horus through the fog. Horus presses forward, closing the distance while the weapon's faint charge gathers in the damp air between them.",
+  "links": [],
   "gmNotes": []
 }
 

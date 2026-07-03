@@ -38,6 +38,7 @@ import {
     migrateSeedMissingWorldActors,
     migrateTotcStarterActorAvatars,
     migrateTotcStarterActorTokenArt,
+    migrateTotcVisionAndScale,
     migrateTotcEquipmentSlots,
     runTotcMigrations
 } from "./module/migrations.mjs";
@@ -355,6 +356,7 @@ async function maybeRunAutomatedMigrations() {
             seedMissingActors: migrateSeedMissingWorldActors,
             migrateStarterActorAvatars: migrateTotcStarterActorAvatars,
             migrateStarterActorTokenArt: migrateTotcStarterActorTokenArt,
+            migrateVisionAndScale: migrateTotcVisionAndScale,
             notify: true
         });
 
@@ -470,7 +472,7 @@ Hooks.once("init", () => {
         scope: "world",
         config: false,
         type: Number,
-        default: 10
+        default: 5
     });
 
     game.settings.register("turn-of-the-century", ENCOUNTER_PLANNING_WARNING_SECONDS_SETTING, {
@@ -562,6 +564,7 @@ Hooks.once("ready", async () => {
         seedMissingActors: migrateSeedMissingWorldActors,
         migrateStarterActorAvatars: migrateTotcStarterActorAvatars,
         migrateStarterActorTokenArt: migrateTotcStarterActorTokenArt,
+        migrateVisionAndScale: migrateTotcVisionAndScale,
         run: async () => {
             const result = await runTotcMigrations({
                 currentVersion: game.settings.get("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING),
@@ -579,6 +582,7 @@ Hooks.once("ready", async () => {
                 seedMissingActors: migrateSeedMissingWorldActors,
                 migrateStarterActorAvatars: migrateTotcStarterActorAvatars,
                 migrateStarterActorTokenArt: migrateTotcStarterActorTokenArt,
+                migrateVisionAndScale: migrateTotcVisionAndScale,
                 notify: true
             });
             await game.settings.set("turn-of-the-century", WORLD_SCHEMA_VERSION_SETTING, result.toVersion);
@@ -983,6 +987,14 @@ Hooks.on("preCreateToken", (tokenDoc, data, options, userId) => {
 
 Hooks.on("preCreateScene", (sceneDoc) => {
     sceneDoc.updateSource(buildNewSceneVisionDefaults());
+});
+
+Hooks.on("preCreateActor", (actorDoc) => {
+    const tokenDefaults = buildNewTokenVisionDefaults();
+    actorDoc.updateSource({
+        "prototypeToken.sight.enabled": tokenDefaults.sight.enabled,
+        "prototypeToken.sight.range": tokenDefaults.sight.range
+    });
 });
 
 Hooks.on("controlToken", (token, controlled) => {

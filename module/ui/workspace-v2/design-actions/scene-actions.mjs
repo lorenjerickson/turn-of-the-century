@@ -7,6 +7,7 @@ import {
 } from "../../../foundry-v14-runtime.mjs";
 import { getSceneBackgroundSource } from "../scene-background-source.mjs";
 import { buildNewSceneVisionDefaults } from "../../../document-defaults.mjs";
+import { normalizeSceneBackgroundDimensions } from "../scene-background-dimensions.mjs";
 import {
     applyDetectedWallsToScene,
     buildDetectedWallDocumentData,
@@ -108,20 +109,10 @@ function titleCaseFromSlug(value = "") {
     return words.map((word) => word.slice(0, 1).toUpperCase() + word.slice(1)).join(" ") || "New Scene";
 }
 
-function normalizeImageDimensions(dimensions = null) {
-    const width = Number(dimensions?.width ?? dimensions?.naturalWidth ?? 0);
-    const height = Number(dimensions?.height ?? dimensions?.naturalHeight ?? 0);
-    if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) return null;
-    return {
-        width: Math.round(width),
-        height: Math.round(height)
-    };
-}
-
 async function loadImageDimensionsFromSource(source = "", context = {}) {
-    if (context.imageDimensions) return normalizeImageDimensions(context.imageDimensions);
+    if (context.imageDimensions) return normalizeSceneBackgroundDimensions(context.imageDimensions);
     if (typeof context.imageDimensionsLoader === "function") {
-        return normalizeImageDimensions(await context.imageDimensionsLoader(source, context));
+        return normalizeSceneBackgroundDimensions(await context.imageDimensionsLoader(source, context));
     }
 
     const ImageClass = context.ImageClass ?? globalThis.Image;
@@ -130,7 +121,7 @@ async function loadImageDimensionsFromSource(source = "", context = {}) {
 
     return new Promise((resolve) => {
         const image = new ImageClass();
-        image.onload = () => resolve(normalizeImageDimensions(image));
+        image.onload = () => resolve(normalizeSceneBackgroundDimensions(image));
         image.onerror = () => resolve(null);
         image.src = src;
     });
@@ -184,7 +175,7 @@ export function buildSceneCreationData({ backgroundPath = "", name = "", navigat
     const safeBackgroundPath = String(backgroundPath ?? "").trim();
     const filename = normalizeSlashPath(safeBackgroundPath).split("/").pop() ?? "";
     const sceneName = String(name ?? "").trim() || titleCaseFromSlug(filename);
-    const size = normalizeImageDimensions(dimensions);
+    const size = normalizeSceneBackgroundDimensions(dimensions);
 
     return {
         name: sceneName,
@@ -548,6 +539,10 @@ export async function createSceneFromBackgroundPath({ backgroundPath = "", name 
 }
 
 export async function createSceneDesignScene(context = {}) {
+    if (typeof context.app?.createSceneDesignScene === "function") {
+        return context.app.createSceneDesignScene();
+    }
+
     if (typeof context.app?._createSceneDesignScene === "function") {
         return context.app._createSceneDesignScene();
     }

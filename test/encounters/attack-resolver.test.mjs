@@ -152,6 +152,31 @@ describe("AttackResolver.resolveAttack — guards", () => {
 
         assert.equal(outcome.result, "outOfRange");
     });
+
+    it("keeps melee weapons at 5 feet when an action is incorrectly marked normal range", async () => {
+        const attackerToken = { id: "t1", _id: "t1", x: 0, y: 0, width: 1, height: 1 };
+        const targetToken = { id: "t2", _id: "t2", x: 200, y: 0, width: 1, height: 1 };
+        const attacker = makeCombatant("c1", "Alice", makeActor("a1"), attackerToken);
+        const target = makeCombatant("c2", "Bob", makeActor("a2"), targetToken);
+        const knife = {
+            system: {
+                classification: "simpleMelee",
+                damage: { formula: "1", bonus: 0 }
+            }
+        };
+        attacker.actor.items = { get: (id) => (id === "knife" ? knife : null) };
+        const resolver = makeResolver({ allCombatants: [attacker, target], rollSequence: [20, 3] });
+
+        const outcome = await resolver.resolveAttack({
+            combatant: attacker,
+            action: makeAction({ targetId: "c2", rangeType: "normal", itemId: "knife" }),
+            evaluationSnapshot: null,
+            applyEffects: false
+        });
+
+        assert.equal(outcome.result, "outOfRange");
+        assert.match(outcome.detail, /10 ft > 5 ft/);
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -215,6 +240,35 @@ describe("AttackResolver.resolveAttack — hit", () => {
         assert.equal(outcome.roll, 10);
         assert.equal(outcome.damage, 4);
         assert.deepEqual(rollLog, []);
+    });
+
+    it("uses nested planning damage roll metadata when resolving a hit", async () => {
+        const attackerToken = sameSpotToken("t1");
+        const targetToken = sameSpotToken("t2");
+        const attacker = makeCombatant("c1", "Alice", makeActor("a1", { strBonus: 3 }), attackerToken);
+        const target = makeCombatant("c2", "Bob", makeActor("a2", { armorClass: 12 }), targetToken);
+
+        const applyDamageLog = [];
+        const resolver = makeResolver({ allCombatants: [attacker, target], applyDamageLog });
+
+        const outcome = await resolver.resolveAttack({
+            combatant: attacker,
+            action: makeAction({
+                targetId: "c2",
+                rangeType: "melee",
+                systemRollsAllowed: false,
+                planningRollResults: [
+                    { requestId: "to-hit", result: { total: 10, rollType: "attack", rollSubType: "toHit" } },
+                    { requestId: "damage", result: { total: 7, rollType: "attack", rollSubType: "damage" } }
+                ]
+            }),
+            evaluationSnapshot: null,
+            applyEffects: true
+        });
+
+        assert.equal(outcome.result, "hit");
+        assert.equal(outcome.damage, 7);
+        assert.deepEqual(applyDamageLog, [{ combatantId: "c2", amount: 7 }]);
     });
 
     it("fails instead of silently rolling when a required planning attack roll is missing", async () => {

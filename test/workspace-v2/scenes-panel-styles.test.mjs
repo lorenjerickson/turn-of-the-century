@@ -10,4 +10,12 @@ describe("Scenes panel styles", () => {
 
         assert.match(rule, /grid-template-rows:\s*auto auto minmax\(0,\s*1fr\);/);
     });
+
+    it("keeps scene rows tall enough to preview their background thumbnails", () => {
+        const entryRule = styles.match(/\.turn-of-the-century \.totc-v2-scenes-panel__entry\s*\{[^}]+\}/)?.[0] ?? "";
+        const mainRule = styles.match(/\.turn-of-the-century \.totc-v2-scenes-panel__entry-main\s*\{[^}]+\}/)?.[0] ?? "";
+
+        assert.match(entryRule, /min-height:\s*4\.5rem;/);
+        assert.match(mainRule, /height:\s*100%;/);
+    });
 });

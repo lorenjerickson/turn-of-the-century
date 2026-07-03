@@ -147,9 +147,13 @@ describe("WorkspacePanelHost", () => {
     });
 
     it("renders the player encounter panel for the encounter workspace panel", () => {
+        let renderedRollRequestIds = [];
         const host = new WorkspacePanelHost({
             escapeHTML,
-            renderRollRequests: () => `<section class="totc-v2-die-roll-request-panel"><button type="button" data-action="die-roll-request-roll">Roll</button></section>`
+            renderRollRequests: (panel) => {
+                renderedRollRequestIds = (panel.requests ?? []).map((request) => request.id);
+                return `<section class="totc-v2-die-roll-request-panel">${renderedRollRequestIds.map((id) => `<button type="button" data-action="die-roll-request-roll" data-request-id="${id}">Roll</button>`).join("")}</section>`;
+            }
         });
 
         const html = host.renderPanelBodyContent({ id: "encounter", title: "Encounter" }, {
@@ -164,6 +168,7 @@ describe("WorkspacePanelHost", () => {
                     defenseRating: 14,
                     effects: []
                 },
+                combatId: "combat-1",
                 combatantId: "combatant-1",
                 encounterName: "Rookery Ambush",
                 phase: "planning",
@@ -194,16 +199,41 @@ describe("WorkspacePanelHost", () => {
                 historyRows: []
             },
             dieRollRequestPanel: {
+                userId: "user-1",
                 request: { id: "req1" },
-                requests: [{ id: "req1" }]
+                requests: [
+                    {
+                        id: "req1",
+                        combatId: "combat-1",
+                        combatantId: "combatant-1",
+                        isPending: true,
+                        results: {}
+                    },
+                    {
+                        id: "off-token",
+                        combatId: "combat-1",
+                        combatantId: "combatant-2",
+                        isPending: true,
+                        results: {}
+                    },
+                    {
+                        id: "resolved",
+                        combatId: "combat-1",
+                        combatantId: "combatant-1",
+                        isPending: true,
+                        results: { "user-1": { total: 12 } }
+                    }
+                ]
             }
         });
 
+        assert.deepEqual(renderedRollRequestIds, ["req1"]);
         assert.match(html, /totc-v2-encounter-panel/);
         assert.match(html, /totc-v2-encounter-narrative/);
         assert.match(html, /data-action="encounter-narrative-phrase"/);
         assert.match(html, /totc-v2-encounter-panel__roll-requests/);
         assert.match(html, /data-action="die-roll-request-roll"/);
+        assert.doesNotMatch(html, /off-token/);
         assert.doesNotMatch(html, /data-action="encounter-plan-bar"/);
     });
 
@@ -244,7 +274,7 @@ describe("WorkspacePanelHost", () => {
 
         assert.match(html, /totc-v2-encounter-manager/);
         assert.match(html, /data-action="encounter-manager-resolve-round"/);
-        assert.match(html, /<h3>Round Narrative<\/h3>/);
+        assert.match(html, /<h3>Current Second<\/h3>/);
         assert.match(html, /Ada Price moves through the smoke\./);
         assert.match(html, /<h3>Combatant Plans<\/h3>/);
         assert.match(html, /totc-v2-encounter-manager__actor-plan/);

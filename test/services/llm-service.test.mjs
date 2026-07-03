@@ -64,6 +64,10 @@ describe("LLMService", () => {
             GENERATION_PROMPT_PATHS["encounter-round-tick-narrative-result"],
             "prompts/encounter-round-tick-narrative-result.md"
         );
+        assert.equal(
+            GENERATION_PROMPT_PATHS["encounter-round-narrative-result"],
+            "prompts/encounter-round-narrative-result.md"
+        );
         assert.equal(GENERATION_PROMPT_PATHS.actor, "prompts/actor.md");
         assert.equal(GENERATION_PROMPT_PATHS.pawn, "prompts/actor.md");
         assert.equal(GENERATION_PROMPT_PATHS.location, "prompts/location.md");
@@ -144,7 +148,8 @@ describe("LLMService", () => {
         assert.equal(promptUrl, "systems/turn-of-the-century/prompts/encounter-round-tick-narrative-result.md");
         assert.ok(systemPrompt.includes("Tick Narrative Prompt From File"));
         assert.ok(systemPrompt.includes("\"tick\": 1"));
-        assert.ok(systemPrompt.includes("\"narrative\": \"Concise player-facing tick narration\""));
+        assert.ok(systemPrompt.includes("\"narrative\": \"Concise player-facing tick narration with [linked exchange] when useful\""));
+        assert.ok(systemPrompt.includes("\"links\": [{\"id\": \"tick-1-exchange-1\""));
     });
 
     it("loads location prep prompts from the prompts folder", async () => {
