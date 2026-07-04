@@ -122,6 +122,35 @@ describe("ActorManagementFeature", () => {
         assert.equal(feature.actorWorkspaceController.editorState.mode, "edit");
     });
 
+    it("keeps manually opened pawn details when a hero token remains selected", async () => {
+        globalThis.game.actors.contents = [
+            { id: "actor-1", name: "Ada", type: "hero", system: { inventory: { equipment: {} } } },
+            { id: "actor-pawn", name: "Dockside Bravo", type: "pawn", system: { inventory: { equipment: {} } } }
+        ];
+        selectedTokenIds.add("token-1");
+
+        const feature = new ActorManagementFeature({
+            layoutEngine: mockLayoutEngine,
+            panelRegistry: mockPanelRegistry,
+            getSelectedTokenIds: () => selectedTokenIds
+        });
+
+        await feature.prepareContext({ gm: { isGM: true } });
+        assert.equal(feature.actorWorkspaceController.editorState.actorId, "actor-1");
+
+        feature.actorWorkspaceController.setTypeFilter("pawn");
+        assert.equal(feature.actorWorkspaceController.openDetails("actor-pawn"), true);
+
+        const context = { gm: { isGM: true } };
+        await feature.prepareContext(context);
+
+        assert.equal(feature.actorWorkspaceController.editorState.actorId, "actor-pawn");
+        assert.equal(context.actorEditorPanel.actorId, "actor-pawn");
+        assert.equal(context.actorEditorPanel.actorType, "pawn");
+        assert.equal(context.actorListPanel.typeFilter, "pawn");
+        assert.deepEqual(context.actorListPanel.entries.map((entry) => entry.id), ["actor-pawn"]);
+    });
+
     it("renders actors and actor-editor panels", () => {
         const feature = new ActorManagementFeature({
             layoutEngine: mockLayoutEngine,

@@ -137,6 +137,8 @@ async function saveActorTokenImageToWorld(actorName, b64Data) {
 const ActorDocumentClass = requireActorDocumentClass();
 
 export class ActorManagementFeature extends WorkspaceFeature {
+    #lastActorDetailTokenSelectionKey = "";
+
     constructor({
         layoutEngine,
         panelRegistry,
@@ -253,6 +255,9 @@ export class ActorManagementFeature extends WorkspaceFeature {
     #syncActorDetailsToTokenSelection(scene) {
         if (this.actorWorkspaceController.state.editorState.mode === "create") return;
         const selectedTokenIds = this.getSelectedTokenIds();
+        const tokenSelectionKey = [...selectedTokenIds].sort().join("\u0000");
+        if (tokenSelectionKey === this.#lastActorDetailTokenSelectionKey) return;
+        this.#lastActorDetailTokenSelectionKey = tokenSelectionKey;
         if (!selectedTokenIds.size) return;
         const actor = this.#resolveActorFromSelectedSceneTokens(scene);
         if (actor?.id) {
