@@ -33,6 +33,23 @@ function positiveNumber(value, fallback) {
     return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
 }
 
+function normalizedUnitInterval(value, fallback = 0) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.min(1, Math.max(0, numeric));
+}
+
+export function getSceneIlluminationLevel(scene = null) {
+    const darkness = scene?.environment?.darknessLevel
+        ?? scene?._source?.environment?.darknessLevel
+        ?? 0;
+    return Number((1 - normalizedUnitInterval(darkness, 0)).toFixed(2));
+}
+
+function formatIlluminationPercent(illuminationLevel = 1) {
+    return `${Math.round(normalizedUnitInterval(illuminationLevel, 1) * 100)}%`;
+}
+
 export async function loadImageDimensions(source = "", { ImageClass = globalThis.Image } = {}) {
     const src = String(source ?? "").trim();
     if (!src || typeof ImageClass !== "function") return null;
@@ -143,6 +160,7 @@ export function buildScenePropertiesPanelModel({
         sceneName,
         filename: backgroundPath ? backgroundPath.split("/").pop() : ""
     });
+    const illuminationLevel = getSceneIlluminationLevel(scene);
 
     return {
         sceneId,
@@ -154,6 +172,8 @@ export function buildScenePropertiesPanelModel({
         uploadEnabled: Boolean(scene && sceneName),
         dimensionSyncEnabled: Boolean(scene && backgroundPath),
         deleteEnabled: Boolean(scene),
+        illuminationLevel,
+        illuminationPercent: formatIlluminationPercent(illuminationLevel),
         sceneToolsPanelId: sceneId ? `map:${sceneId}` : "",
         sceneToolsState: sceneToolsState ?? {},
         sceneToolActions: Array.isArray(sceneToolActions)
@@ -447,6 +467,17 @@ export function renderScenePropertiesPanel(model = {}, {
                 <input type="file" data-action="scene-properties-background-upload" accept="${accept}" ${uploadDisabled}>
             </label>
             ${model.backgroundPath ? `<div class="totc-v2-scene-properties-panel__bg-path">${escapeHTML(model.backgroundPath)}</div>` : ""}
+            <label class="totc-v2-scene-properties-panel__field totc-v2-scene-properties-panel__field--range">
+                <span>Illumination <output data-role="scene-properties-illumination-output">${escapeHTML(model.illuminationPercent ?? "100%")}</output></span>
+                <input
+                    type="range"
+                    data-action="scene-properties-illumination"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value="${escapeHTML(model.illuminationLevel ?? 1)}"
+                    ${sceneActionDisabled}>
+            </label>
         </div>
         <footer class="totc-v2-scene-properties-panel__actions">
             <label class="totc-v2-scene-properties-panel__default-label">

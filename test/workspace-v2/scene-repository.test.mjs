@@ -3,7 +3,10 @@ import { describe, it } from "node:test";
 
 import {
     activateScene,
+    buildSceneIlluminationUpdateData,
     deleteScene,
+    normalizeSceneIlluminationLevel,
+    updateSceneIllumination,
     updateSceneName,
     toggleDefaultScene
 } from "../../module/ui/workspace-v2/scene-repository.mjs";
@@ -124,6 +127,46 @@ describe("updateSceneName", () => {
 
         assert.equal(result.ok, false);
         assert.ok(result.error.includes("Scene name save failed"));
+        assert.equal(errors.length, 1);
+    });
+});
+
+describe("scene illumination", () => {
+    it("clamps illumination and maps it to Foundry scene darkness", () => {
+        assert.equal(normalizeSceneIlluminationLevel("-1"), 0);
+        assert.equal(normalizeSceneIlluminationLevel("2"), 1);
+        assert.deepEqual(buildSceneIlluminationUpdateData(0.65), {
+            "environment.darknessLevel": 0.35
+        });
+    });
+
+    it("updates scene environment darkness for the provided scene only", async () => {
+        let received = null;
+        const scene = {
+            id: "scene-1",
+            update: async (data) => { received = data; }
+        };
+
+        const result = await updateSceneIllumination(scene, "0.25", {
+            activityLogger: { info: () => {} }
+        });
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(received, { "environment.darknessLevel": 0.75 });
+    });
+
+    it("reports failures when illumination cannot be saved", async () => {
+        const errors = [];
+        const result = await updateSceneIllumination({
+            id: "scene-1",
+            update: async () => { throw new Error("locked"); }
+        }, 0.5, {
+            logger: { error: (...args) => errors.push(args) },
+            activityLogger: { info: () => {}, error: () => {} }
+        });
+
+        assert.equal(result.ok, false);
+        assert.ok(result.error.includes("Scene illumination update failed"));
         assert.equal(errors.length, 1);
     });
 });

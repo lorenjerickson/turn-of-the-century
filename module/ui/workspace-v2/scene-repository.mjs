@@ -80,6 +80,51 @@ export async function updateSceneName(scene, name, { logger, activityLogger } = 
     }
 }
 
+export function normalizeSceneIlluminationLevel(value, fallback = 1) {
+    const numeric = Number(value);
+    const resolved = Number.isFinite(numeric) ? numeric : Number(fallback);
+    if (!Number.isFinite(resolved)) return 1;
+    return Math.min(1, Math.max(0, resolved));
+}
+
+export function buildSceneIlluminationUpdateData(illuminationLevel = 1) {
+    const illumination = normalizeSceneIlluminationLevel(illuminationLevel);
+    return {
+        "environment.darknessLevel": Number((1 - illumination).toFixed(2))
+    };
+}
+
+/**
+ * Persists the illumination level to a single scene document through Foundry's
+ * scene environment field. Returns `{ ok: true }` on success or `{ ok: false, error }`.
+ *
+ * @param {object|null} scene
+ * @param {number|string} illuminationLevel
+ * @param {{ logger?: object, activityLogger?: object }} options
+ */
+export async function updateSceneIllumination(scene, illuminationLevel, { logger, activityLogger } = {}) {
+    if (!scene) return { ok: false, error: "No scene is available for illumination changes." };
+    if (typeof scene.update !== "function") return { ok: false, error: "Scene illumination update is not available." };
+
+    const updateData = buildSceneIlluminationUpdateData(illuminationLevel);
+    try {
+        activityLogger?.info?.("[scene-illumination] Updating scene illumination", {
+            sceneId: scene.id,
+            illuminationLevel: normalizeSceneIlluminationLevel(illuminationLevel),
+            updateData
+        });
+        await scene.update(updateData);
+        return { ok: true };
+    } catch (error) {
+        logger?.error?.("[turn-of-the-century] Scene illumination update failed", error);
+        activityLogger?.error?.("[scene-illumination] FAILED", {
+            sceneId: scene?.id,
+            error: error?.message ?? String(error)
+        });
+        return { ok: false, error: "Scene illumination update failed." };
+    }
+}
+
 /**
  * Sets or clears the default scene flag for a scene document.
  *

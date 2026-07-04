@@ -7,6 +7,7 @@ import {
     buildSceneLevelBackgroundUpdateData,
     buildSceneBackgroundUpdateData,
     buildSceneBackgroundUploadTarget,
+    getSceneIlluminationLevel,
     loadImageDimensions,
     buildScenePropertiesPanelModel,
     resolveScenePropertiesMapPanelScene,
@@ -96,6 +97,20 @@ describe("Scene properties panel", () => {
             }
         });
         assert.equal(model.backgroundPath, "assets/images/scenes/whitechapel.webp");
+    });
+
+    it("reads illumination from scene environment darkness", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: {
+                id: "scene-b",
+                name: "Whitechapel",
+                environment: { darknessLevel: 0.35 }
+            }
+        });
+
+        assert.equal(getSceneIlluminationLevel({ _source: { environment: { darknessLevel: 0.8 } } }), 0.2);
+        assert.equal(model.illuminationLevel, 0.65);
+        assert.equal(model.illuminationPercent, "65%");
     });
 
     it("disables upload when no scene is provided", () => {
@@ -405,8 +420,24 @@ describe("Scene properties panel", () => {
         assert.match(html, /data-action="scene-properties-sync-background-dimensions" disabled/);
         assert.match(html, /data-action="scene-properties-delete"/);
         assert.match(html, /data-action="scene-properties-set-default"/);
+        assert.match(html, /data-action="scene-properties-illumination"/);
+        assert.match(html, /data-role="scene-properties-illumination-output">100%<\/output>/);
         assert.match(html, /Grid Calibration/);
         assert.match(html, /data-action="grid-cal-start"/);
+    });
+
+    it("renders the scene illumination slider with the current value", () => {
+        const html = renderScenePropertiesPanel(buildScenePropertiesPanelModel({
+            scene: { id: "scene-a", name: "Whitechapel", environment: { darknessLevel: 0.25 } }
+        }));
+
+        assert.match(html, /Illumination/);
+        assert.match(html, /data-action="scene-properties-illumination"/);
+        assert.match(html, /min="0"/);
+        assert.match(html, /max="1"/);
+        assert.match(html, /step="0.05"/);
+        assert.match(html, /value="0.75"/);
+        assert.match(html, />75%<\/output>/);
     });
 
     it("enables background dimension sync when a scene has a background", () => {

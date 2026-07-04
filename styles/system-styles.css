@@ -1416,6 +1416,26 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     text-transform: none;
 }
 
+.turn-of-the-century .totc-v2-scene-properties-panel__field--range > span {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__field--range output {
+    color: #e2e8f0;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    min-width: 3ch;
+    text-align: right;
+}
+
+.turn-of-the-century .totc-v2-scene-properties-panel__field--range input[type="range"] {
+    padding-left: 0;
+    padding-right: 0;
+    width: 100%;
+}
+
 .turn-of-the-century .totc-v2-scene-properties-panel__field.is-disabled {
     opacity: 0.58;
 }

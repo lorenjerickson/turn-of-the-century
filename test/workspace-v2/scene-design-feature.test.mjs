@@ -530,6 +530,88 @@ describe("SceneDesignFeature", () => {
         assert.equal(renderCalled, true);
     });
 
+    it("deletes scenes through delegated scene-properties clicks after later renders", async () => {
+        let delegatedClickHandler = null;
+        const root = {
+            ownerDocument: { addEventListener: () => {}, removeEventListener: () => {} },
+            addEventListener: (type, handler) => {
+                if (type === "click") delegatedClickHandler = handler;
+            },
+            querySelectorAll: () => []
+        };
+        let deleted = false;
+        let removedPanelScene = null;
+        let renderCount = 0;
+        const patchedState = {};
+        const scene = {
+            id: "scene-1",
+            name: "Rookery Yard",
+            delete: async () => {
+                deleted = true;
+            }
+        };
+        const feature = new SceneDesignFeature({
+            scenePort: {
+                getCurrentScene: () => scene,
+                getViewedScene: () => scene,
+                getSceneById: () => scene,
+                getScenes: () => [scene],
+                getScenePropertiesScene: () => scene,
+                getScenePropertiesState: () => patchedState,
+                patchScenePropertiesState: (patch) => Object.assign(patchedState, patch),
+                getDesignActionScene: (_panel, fallback) => fallback,
+                getActorById: () => null,
+                getActors: () => [],
+                getCombat: () => null,
+                getCanvas: () => ({ tokens: { controlled: [] } }),
+                getUi: () => globalThis.ui,
+                getFoundry: () => globalThis.foundry,
+                isGM: () => true
+            },
+            panelPort: {
+                getLayout: () => ({ root: { centerDock: { stacks: [] } } }),
+                getPrimaryActivePanel: () => null,
+                getActiveCenterMapPanel: () => null,
+                getPanelDefinition: () => null,
+                isMapPanel: () => false,
+                getPanelSceneId: () => "",
+                makeSceneMapPanelDef: () => null,
+                openSceneMapPanel: () => ({}),
+                bindScene: () => {},
+                saveUserLayout: async () => {},
+                removeDeletedSceneMapPanel: async (deletedScene) => {
+                    removedPanelScene = deletedScene;
+                    return {};
+                },
+                openScenePropertiesPanel: async () => {},
+                createSceneDesignScene: async () => ({ ok: true })
+            },
+            confirmRef: () => () => true,
+            render: () => { renderCount += 1; },
+            logger: { error: () => {} }
+        });
+
+        feature.bind(root);
+        feature.bind(root);
+        assert.equal(typeof delegatedClickHandler, "function");
+
+        const deleteButton = {
+            closest: (selector) => selector === "[data-action='scene-properties-delete']" ? deleteButton : null
+        };
+        await delegatedClickHandler({
+            target: deleteButton,
+            preventDefault: () => {},
+            stopPropagation: () => {}
+        });
+
+        assert.equal(deleted, true);
+        assert.equal(removedPanelScene, scene);
+        assert.equal(patchedState.sceneId, "");
+        assert.equal(patchedState.status, "Deleted Rookery Yard.");
+        assert.equal(patchedState.error, "");
+        assert.equal(renderCount, 1);
+    });
+
     it("syncs background dimensions through the scene properties sync action", async () => {
         const previousImage = globalThis.Image;
         class TestImage {
@@ -745,6 +827,84 @@ describe("SceneDesignFeature", () => {
                 globalThis.File = previousFile;
             }
         }
+    });
+
+    it("updates scene illumination through the scene properties slider", async () => {
+        let changeHandler = null;
+        const root = {
+            ownerDocument: { addEventListener: () => {}, removeEventListener: () => {} },
+            addEventListener: (type, handler) => {
+                if (type === "change") changeHandler = handler;
+            },
+            querySelectorAll: () => []
+        };
+        let receivedUpdate = null;
+        let outputText = "";
+        const scene = {
+            id: "scene-1",
+            update: async (data) => {
+                receivedUpdate = data;
+            }
+        };
+        const patchedState = {};
+        const feature = new SceneDesignFeature({
+            scenePort: {
+                getCurrentScene: () => scene,
+                getViewedScene: () => scene,
+                getSceneById: () => scene,
+                getScenes: () => [scene],
+                getScenePropertiesScene: () => scene,
+                getScenePropertiesState: () => patchedState,
+                patchScenePropertiesState: (patch) => Object.assign(patchedState, patch),
+                getDesignActionScene: (_panel, fallback) => fallback,
+                getActorById: () => null,
+                getActors: () => [],
+                getCombat: () => null,
+                getCanvas: () => ({ tokens: { controlled: [] } }),
+                getUi: () => globalThis.ui,
+                getFoundry: () => globalThis.foundry,
+                isGM: () => true
+            },
+            panelPort: {
+                getLayout: () => ({ root: { centerDock: { stacks: [] } } }),
+                getPrimaryActivePanel: () => null,
+                getActiveCenterMapPanel: () => null,
+                getPanelDefinition: () => null,
+                isMapPanel: () => false,
+                getPanelSceneId: () => "",
+                makeSceneMapPanelDef: () => null,
+                openSceneMapPanel: () => ({}),
+                bindScene: () => {},
+                saveUserLayout: async () => {},
+                removeDeletedSceneMapPanel: async () => {},
+                openScenePropertiesPanel: async () => {},
+                createSceneDesignScene: async () => ({ ok: true })
+            },
+            render: () => {},
+            activityLogger: { info: () => {}, error: () => {} },
+            logger: { error: () => {} }
+        });
+
+        feature.bind(root);
+
+        const input = {
+            value: "0.4",
+            matches: (selector) => selector === "[data-action='scene-properties-illumination']",
+            closest: () => ({
+                querySelector: (selector) => selector === "[data-role='scene-properties-illumination-output']"
+                    ? {
+                        set textContent(value) { outputText = value; },
+                        get textContent() { return outputText; }
+                    }
+                    : null
+            })
+        };
+        await changeHandler({ target: input });
+
+        assert.deepEqual(receivedUpdate, { "environment.darknessLevel": 0.6 });
+        assert.equal(outputText, "40%");
+        assert.equal(patchedState.status, "Scene illumination updated.");
+        assert.equal(patchedState.error, "");
     });
 
     it("saveSceneName persists the name and triggers a render", async () => {

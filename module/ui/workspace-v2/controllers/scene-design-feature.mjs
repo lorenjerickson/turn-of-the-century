@@ -41,6 +41,8 @@ import { uploadSceneBackgroundFile } from "../design-actions/scene-actions.mjs";
 import {
     activateScene,
     deleteScene,
+    normalizeSceneIlluminationLevel,
+    updateSceneIllumination,
     updateSceneName,
     toggleDefaultScene
 } from "../scene-repository.mjs";
@@ -273,6 +275,14 @@ export class SceneDesignFeature extends WorkspaceFeature {
                     await this.executeDesignAction("scene.create", { panelId: "scenes" });
                     return;
                 }
+
+                const deleteSceneBtn = target?.closest("[data-action='scene-properties-delete']");
+                if (deleteSceneBtn) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    await this.#handleSceneDelete();
+                    return;
+                }
                 
                 // map-mode-select
                 const modeSelectBtn = target?.closest("[data-action='map-mode-select']");
@@ -425,6 +435,10 @@ export class SceneDesignFeature extends WorkspaceFeature {
                 const input = event.target;
                 if (input?.matches?.("[data-action='scene-properties-background-upload']")) {
                     await this.#handleBackgroundUpload(input);
+                    return;
+                }
+                if (input?.matches?.("[data-action='scene-properties-illumination']")) {
+                    await this.#handleIlluminationChange(input);
                     return;
                 }
                 if (input?.matches?.(gridCalInputSelector)) {
@@ -1013,25 +1027,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                const scene = this.scenePort.getScenePropertiesScene();
-                if (!scene) {
-                    this.scenePort.patchScenePropertiesState({ status: "", error: "No scene is available to delete." });
-                    this.renderCallback({ force: false });
-                    return;
-                }
-                const sceneName = String(scene.name ?? "this scene");
-                const confirmed = this.confirmRef?.()?.(`Delete scene "${sceneName}"? This cannot be undone.`) ?? false;
-                if (!confirmed) return;
-
-                const result = await deleteScene(scene, { logger: this.logger });
-                if (!result.ok) {
-                    this.scenePort.patchScenePropertiesState({ status: "", error: result.error });
-                    this.renderCallback({ force: false });
-                    return;
-                }
-                await this.panelPort.removeDeletedSceneMapPanel(scene);
-                this.scenePort.patchScenePropertiesState({ sceneId: "", status: `Deleted ${result.name}.`, error: "" });
-                this.renderCallback({ force: false });
+                await this.#handleSceneDelete();
             });
         });
 
@@ -1046,6 +1042,12 @@ export class SceneDesignFeature extends WorkspaceFeature {
                     { logger: this.logger, activityLogger: this.activityLogger }
                 );
                 this.renderCallback({ force: false });
+            });
+        });
+
+        root?.querySelectorAll("[data-action='scene-properties-illumination']")?.forEach((input) => {
+            input.addEventListener("input", () => {
+                this.#syncIlluminationOutput(input);
             });
         });
 
@@ -1110,6 +1112,49 @@ export class SceneDesignFeature extends WorkspaceFeature {
                 }
             });
         });
+    }
+
+    async #handleSceneDelete() {
+        const scene = this.scenePort.getScenePropertiesScene();
+        if (!scene) {
+            this.scenePort.patchScenePropertiesState({ status: "", error: "No scene is available to delete." });
+            this.renderCallback({ force: false });
+            return;
+        }
+        const sceneName = String(scene.name ?? "this scene");
+        const confirmed = this.confirmRef?.()?.(`Delete scene "${sceneName}"? This cannot be undone.`) ?? false;
+        if (!confirmed) return;
+
+        const result = await deleteScene(scene, { logger: this.logger });
+        if (!result.ok) {
+            this.scenePort.patchScenePropertiesState({ status: "", error: result.error });
+            this.renderCallback({ force: false });
+            return;
+        }
+        await this.panelPort.removeDeletedSceneMapPanel(scene);
+        this.scenePort.patchScenePropertiesState({ sceneId: "", status: `Deleted ${result.name}.`, error: "" });
+        this.renderCallback({ force: false });
+    }
+
+    #syncIlluminationOutput(input) {
+        const value = normalizeSceneIlluminationLevel(input?.value, 1);
+        const output = input?.closest?.(".totc-v2-scene-properties-panel__field")
+            ?.querySelector?.("[data-role='scene-properties-illumination-output']");
+        if (output) output.textContent = `${Math.round(value * 100)}%`;
+    }
+
+    async #handleIlluminationChange(input) {
+        this.#syncIlluminationOutput(input);
+        const scene = this.scenePort.getScenePropertiesScene();
+        const result = await updateSceneIllumination(scene, input?.value, {
+            logger: this.logger,
+            activityLogger: this.activityLogger
+        });
+        this.scenePort.patchScenePropertiesState({
+            status: result.ok ? "Scene illumination updated." : "",
+            error: result.ok ? "" : result.error
+        });
+        this.renderCallback({ force: false });
     }
 
     // -------------------------------------------------------------------------
