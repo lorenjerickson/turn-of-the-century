@@ -7,4 +7,3 @@
 - when an action is selected that requires a target, default to target selection rather than requiring a click in the plan
 - group actions by type (movement, item, etc.)
 - conditionally dodge in a chosen direction, 1-5 fail, 6-12 success in an randomm direction, 12-20 success in chosen direction
-

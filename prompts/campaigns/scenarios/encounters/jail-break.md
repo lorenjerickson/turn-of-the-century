@@ -2,7 +2,7 @@
 
 Use this prompt together with the encounter generation prep prompt. Generate an encounter called `Jail Break` for the `Eyes Wide Open` scenario in the `The Enemy Within` campaign for the Turn of the Century game system.
 
-This prompt is for encounter generation only. Do not generate a complete scenario, full campaign material, finished stat blocks, exhaustive room keys, or a scripted solution. The output should create a focused first encounter that a GM can run immediately and that can later support map, pawn, hazard, and follow-on encounter generation.
+This prompt is for a single encounter within the established scenario and campaign. The output should create a focused first encounter that a GM can run immediately and that can later support map, pawn, hazard, and follow-on encounter generation.
 
 ## Campaign and Scenario Context
 
@@ -35,6 +35,8 @@ The overheard conversation must end with the female voice saying exactly:
 As soon as those words are spoken, all the lights in the prison go out. A moment later, the same voice, now clearly speaking to the party, says exactly:
 
 `Let's have some fun.`
+
+In total darkness the party hears the sound of old metal scraping and a small squeal of hinges indicating their cell door has just cracked open.
 
 The party must then find their way out of a pitch-black maze of twists and turns beneath or within Scotland Yard. Ominous sounds in the distance suggest that they are not alone. These sounds should be frightening but not yet fully explained: dragging metal, wet respiration, claws or tools on stone, a childlike sob that repeats too mechanically, a gaoler's whistle from an impossible direction, something heavy moving through a drain, or the ticking of a clockwork mechanism that changes speed when the party speaks.
 
