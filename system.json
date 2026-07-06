@@ -19,6 +19,7 @@
         "turn-of-the-century.mjs"
     ],
     "styles": [
+        "module/vendor/dockview/dockview.css",
         "styles/system-styles.css"
     ],
     "packs": [

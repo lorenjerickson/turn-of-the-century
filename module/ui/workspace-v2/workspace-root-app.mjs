@@ -58,7 +58,7 @@ import { SceneDesignFeature } from "./controllers/scene-design-feature.mjs";
 import { CampaignFeature } from "./controllers/campaign-feature.mjs";
 import { ActorManagementFeature } from "./controllers/actor-management-feature.mjs";
 import { RollRequestFeature } from "./controllers/roll-request-feature.mjs";
-import { WorkspaceLayoutFeature } from "./controllers/workspace-layout-feature.mjs";
+import { DockviewWorkspaceLayoutFeature } from "./controllers/dockview-workspace-layout-feature.mjs";
 import { GamemasterFeature } from "./controllers/gamemaster-feature.mjs";
 import { createSceneDesignRuntime } from "./scene-design-runtime.mjs";
 import { dieRollRequestManager } from "../../die-roll-request-manager.mjs";
@@ -284,7 +284,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
             hooksController: this.hooksController
         });
         this.registerFeature(this.gamemasterFeature);
-        this.workspaceLayoutFeature = new WorkspaceLayoutFeature({
+        this.workspaceLayoutFeature = new DockviewWorkspaceLayoutFeature({
             layoutEngine: this.layoutEngine,
             stateStore: this.stateStore,
             panelRegistry: this.panelRegistry,

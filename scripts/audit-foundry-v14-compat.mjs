@@ -5,6 +5,7 @@ import process from "node:process";
 const ROOT = process.cwd();
 const SOURCE_ROOTS = ["module"];
 const EXTRA_FILES = ["turn-of-the-century.mjs"];
+const EXCLUDED_SOURCE_PREFIXES = ["module/vendor/"];
 
 const BANNED_PATTERNS = [
     { name: "global FilePicker", pattern: /globalThis\.FilePicker|\bwindow\.FilePicker\b/ },
@@ -36,6 +37,7 @@ function listMjsFiles(dir) {
     const entries = fs.readdirSync(abs, { withFileTypes: true });
     return entries.flatMap((entry) => {
         const rel = path.join(dir, entry.name);
+        if (EXCLUDED_SOURCE_PREFIXES.some((prefix) => rel.startsWith(prefix))) return [];
         if (entry.isDirectory()) return listMjsFiles(rel);
         return entry.isFile() && rel.endsWith(".mjs") ? [rel] : [];
     });

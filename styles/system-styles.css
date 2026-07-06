@@ -7728,3 +7728,198 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
     color: rgba(255,255,255,0.5);
     word-break: break-all;
 }
+
+/* ── Dockview Workspace Shell ───────────────────────────────── */
+.turn-of-the-century .totc-workspace-v2-shell--dockview,
+.turn-of-the-century .totc-workspace-v2-shell--dockview .totc-workspace-v2-shell__main,
+.turn-of-the-century .totc-v2-dockview-layout,
+.turn-of-the-century .totc-v2-dockview-host {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.turn-of-the-century .totc-workspace-v2-shell--dockview {
+    pointer-events: none;
+}
+
+.turn-of-the-century .totc-v2-dockview-layout {
+    position: relative;
+    overflow: hidden;
+    background: rgba(12, 12, 15, 0.9);
+    pointer-events: none;
+    --dv-background-color: rgba(17, 18, 25, 0.92);
+    --dv-paneview-active-outline-color: rgba(222, 180, 93, 0.65);
+    --dv-tabs-and-actions-container-background-color: linear-gradient(180deg, rgba(65, 38, 18, 0.96), rgba(43, 24, 12, 0.98));
+    --dv-activegroup-visiblepanel-tab-background-color: rgba(222, 180, 93, 0.18);
+    --dv-activegroup-hiddenpanel-tab-background-color: rgba(24, 18, 16, 0.82);
+    --dv-inactivegroup-visiblepanel-tab-background-color: rgba(24, 18, 16, 0.82);
+    --dv-inactivegroup-hiddenpanel-tab-background-color: rgba(18, 18, 22, 0.9);
+    --dv-activegroup-visiblepanel-tab-color: #f5d083;
+    --dv-activegroup-hiddenpanel-tab-color: #d9c49d;
+    --dv-inactivegroup-visiblepanel-tab-color: #d9c49d;
+    --dv-inactivegroup-hiddenpanel-tab-color: #a9987c;
+    --dv-separator-border: rgba(180, 130, 52, 0.55);
+    --dv-tabs-container-scrollbar-color: rgba(222, 180, 93, 0.38);
+    --dv-sash-color: rgba(180, 130, 52, 0.28);
+    --dv-active-sash-color: rgba(222, 180, 93, 0.65);
+}
+
+.turn-of-the-century .totc-v2-dockview-host,
+.turn-of-the-century .totc-v2-dockview-host .dv-shell,
+.turn-of-the-century .totc-v2-dockview-host .dv-shell-middle-column,
+.turn-of-the-century .totc-v2-dockview-host .dv-root-wrapper,
+.turn-of-the-century .totc-v2-dockview-host .dockview,
+.turn-of-the-century .totc-v2-dockview-host .dv-grid-view,
+.turn-of-the-century .totc-v2-dockview-host .dv-branch-node,
+.turn-of-the-century .totc-v2-dockview-host .dv-split-view-container,
+.turn-of-the-century .totc-v2-dockview-host .dv-view-container,
+.turn-of-the-century .totc-v2-dockview-host .dv-groupview,
+.turn-of-the-century .totc-v2-dockview-host .dv-tabs-and-actions-container,
+.turn-of-the-century .totc-v2-dockview-host .dv-tab,
+.turn-of-the-century .totc-v2-dockview-host .dv-default-tab,
+.turn-of-the-century .totc-v2-dockview-host .dv-sash,
+.turn-of-the-century .totc-v2-dockview-host .dv-floating-box {
+    pointer-events: auto;
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-shell,
+.turn-of-the-century .totc-v2-dockview-host .dv-shell-middle-column,
+.turn-of-the-century .totc-v2-dockview-host .dv-root-wrapper,
+.turn-of-the-century .totc-v2-dockview-host .dv-grid-view,
+.turn-of-the-century .totc-v2-dockview-host .dv-branch-node,
+.turn-of-the-century .totc-v2-dockview-host .dv-split-view-container,
+.turn-of-the-century .totc-v2-dockview-host .dv-view-container {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-shell {
+    position: relative;
+    overflow: hidden;
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-split-view-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-split-view-container .dv-view-container {
+    position: relative;
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-split-view-container .dv-sash-container {
+    position: absolute;
+    inset: 0;
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-split-view-container .dv-view-container .dv-view {
+    position: absolute;
+    height: 100%;
+    box-sizing: border-box;
+    overflow: auto;
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-split-view-container.dv-vertical > .dv-view-container > .dv-view {
+    width: 100%;
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash {
+    width: 4px;
+    height: 100%;
+    cursor: ew-resize;
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash {
+    width: 100%;
+    height: 4px;
+    cursor: ns-resize;
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-split-view-container .dv-sash-container .dv-sash {
+    position: absolute;
+    z-index: 99;
+    background: var(--dv-sash-color);
+    outline: none;
+    touch-action: none;
+    user-select: none;
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-split-view-container .dv-sash-container .dv-sash:hover,
+.turn-of-the-century .totc-v2-dockview-host .dv-split-view-container .dv-sash-container .dv-sash:active {
+    background: var(--dv-active-sash-color);
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-groupview {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--dv-group-view-background-color, rgba(18, 20, 30, 0.96));
+}
+
+.turn-of-the-century .totc-v2-dockview-host .dv-groupview > .dv-content-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    outline: none;
+}
+
+.turn-of-the-century .totc-v2-dockview-panel {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: rgba(18, 20, 30, 0.96);
+}
+
+.turn-of-the-century .totc-v2-dockview-panel > * {
+    height: 100%;
+    min-height: 0;
+}
+
+.turn-of-the-century .totc-workspace-v2-shell--dockview.has-native-canvas-aperture .totc-v2-dockview-layout,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture {
+    background: transparent;
+}
+
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .totc-v2-dockview-host,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-shell,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-shell-middle-column,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-root-wrapper,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-grid-view,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-branch-node,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-split-view-container,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-view-container,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-view,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-groupview,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-content-container {
+    pointer-events: none;
+}
+
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-tabs-and-actions-container,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-tabs-container,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-tab,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-default-tab,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-default-tab *,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-void-container,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-sash,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-floating-overlay-host,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-resize-container,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .totc-v2-dockview-panel:not(.totc-v2-dockview-panel--native-map) {
+    pointer-events: auto;
+}
+
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .totc-v2-native-map-group,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .totc-v2-native-map-group > .dv-content-container,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .totc-v2-native-map-group .totc-v2-dockview-panel {
+    background: transparent;
+}
+
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .totc-v2-dockview-panel--native-map,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .totc-v2-dockview-panel--native-map * {
+    background: transparent;
+    pointer-events: none;
+}
