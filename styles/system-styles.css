@@ -2804,6 +2804,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     border: 1px solid rgba(148, 163, 184, 0.25);
     border-radius: 0;
     display: grid;
+    flex: 1 1 0;
     gap: 0;
     grid-template-rows: auto 1fr;
     min-height: 0;
@@ -3083,7 +3084,6 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     color: #dbeafe;
     display: flex;
     flex-direction: column;
-    height: 100%;
     min-height: 0;
     overflow: hidden;
     padding: 0.45rem;
@@ -4102,10 +4102,10 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 
 .turn-of-the-century .totc-v2-encounter-panel__planning-view {
     display: flex;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     flex-direction: column;
     gap: 0.55rem;
-    min-height: 12rem;
+    min-height: 0;
     min-width: 0;
     position: relative;
 }
@@ -4115,11 +4115,12 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     border: 1px solid rgba(148, 163, 184, 0.24);
     border-radius: 6px;
     display: flex;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     flex-direction: column;
     gap: 0.7rem;
     justify-content: flex-start;
     min-height: 8rem;
+    overflow: auto;
     padding: 0.85rem;
 }
 
@@ -4477,6 +4478,23 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
+}
+
+.turn-of-the-century .totc-v2-encounter-popup__group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.turn-of-the-century .totc-v2-encounter-popup__group-title {
+    color: #cbd5e1;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin: 0.35rem 0 0.05rem;
+    padding: 0 0.15rem;
+    text-align: left;
+    text-transform: uppercase;
 }
 
 .turn-of-the-century .totc-v2-encounter-popup__search {
@@ -5010,7 +5028,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 .turn-of-the-century .totc-v2-encounter-manager__actors {
     align-content: start;
     display: grid;
-    gap: 0.4rem;
+    gap: 0.25rem;
     grid-template-columns: 1fr;
     overflow: visible;
     position: relative;
@@ -5021,25 +5039,25 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 }
 
 .turn-of-the-century .totc-v2-encounter-manager__actor-plan {
-    background: rgba(2, 6, 23, 0.32);
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 5px;
+    background: rgba(2, 6, 23, 0.22);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 4px;
     display: grid;
-    gap: 0.3rem;
-    padding: 0.35rem;
+    gap: 0.22rem;
+    padding: 0.28rem;
 }
 
 .turn-of-the-century .totc-v2-encounter-manager__actor-planner {
     display: grid;
-    gap: 0.35rem;
+    gap: 0.2rem;
     min-width: 0;
 }
 
 .turn-of-the-century .totc-v2-encounter-manager__actor-plan-label {
     align-items: center;
-    display: flex;
-    gap: 0.4rem;
-    justify-content: space-between;
+    display: grid;
+    gap: 0.3rem;
+    grid-template-columns: minmax(0, 1fr) max-content max-content;
     min-width: 0;
 }
 
@@ -5155,79 +5173,6 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 .turn-of-the-century .totc-v2-encounter-manager__actor-ready.is-resolved {
     border-color: rgba(196, 181, 253, 0.5);
     color: #ddd6fe;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__draft {
-    background: rgba(15, 23, 42, 0.5);
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 4px;
-    display: grid;
-    gap: 0.28rem;
-    padding: 0.42rem;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__draft.is-confirmedAwaitingRolls {
-    border-color: rgba(251, 191, 36, 0.42);
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__draft.is-locked {
-    border-color: rgba(134, 239, 172, 0.36);
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__draft header,
-.turn-of-the-century .totc-v2-encounter-manager__draft footer {
-    align-items: center;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    justify-content: space-between;
-    min-width: 0;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__draft-label {
-    color: #cbd5e1;
-    font-size: 0.62rem;
-    font-weight: 800;
-    letter-spacing: 0;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__draft-state {
-    border: 1px solid rgba(147, 197, 253, 0.38);
-    border-radius: 999px;
-    color: #bfdbfe;
-    font-size: 0.56rem;
-    font-weight: 800;
-    padding: 0.12rem 0.34rem;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__draft-state.is-confirmedAwaitingRolls {
-    border-color: rgba(251, 191, 36, 0.62);
-    color: #fde68a;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__draft-state.is-locked {
-    border-color: rgba(134, 239, 172, 0.52);
-    color: #bbf7d0;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__draft p {
-    color: #e2e8f0;
-    font-size: 0.7rem;
-    line-height: 1.35;
-    margin: 0;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__draft footer span,
-.turn-of-the-century .totc-v2-encounter-manager__draft footer strong {
-    color: #94a3b8;
-    font-size: 0.6rem;
-    font-weight: 700;
-}
-
-.turn-of-the-century .totc-v2-encounter-manager__draft footer strong {
-    color: #fbbf24;
 }
 
 .turn-of-the-century .totc-v2-encounter-manager__narrative {
@@ -7555,20 +7500,6 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
     letter-spacing: 0.03em;
     margin: 0.25rem;
     padding: 0.15rem 0.45rem;
-}
-
-@media (max-width: 1100px) {
-    .turn-of-the-century .totc-v2-layout {
-        grid-template-areas:
-            "top"
-            "center"
-            "left"
-            "right"
-            "bottom";
-        grid-template-columns: 1fr;
-        grid-template-rows: auto;
-        min-height: 0;
-    }
 }
 
 .turn-of-the-century .totc-planner-config-header {

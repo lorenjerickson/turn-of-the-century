@@ -27,13 +27,25 @@ function clampActionCost(value) {
     return Math.max(1, Math.floor(cost));
 }
 
+function isStaticDamageFormula(formula = "") {
+    const text = String(formula ?? "").trim();
+    if (!text) return true;
+    return Number.isFinite(Number(text));
+}
+
+function defaultRollRequirements(action = {}) {
+    if (!action.requiresToHit && action.type !== "attack") return [];
+    const requirements = [{ rollType: "attack", rollSubType: "toHit" }];
+    if (!isStaticDamageFormula(action.damageFormula)) {
+        requirements.push({ rollType: "attack", rollSubType: "damage" });
+    }
+    return requirements;
+}
+
 function normalizeRollRequirements(action = {}, cloneData = defaultClone) {
     const explicit = toArray(action.rollRequirements).map((requirement) => cloneData(requirement));
     if (explicit.length) return explicit;
-    if (action.requiresToHit || action.type === "attack") {
-        return [{ rollType: "attack", rollSubType: "toHit" }];
-    }
-    return [];
+    return defaultRollRequirements(action);
 }
 
 function rollRequirementSatisfied(action = {}, requirement = {}) {
@@ -131,6 +143,14 @@ function clampActionData(action, index = 0, cloneData = defaultClone) {
         planningLocked: Boolean(action.planningLocked),
         planningRollResults: toArray(action.planningRollResults).map((result) => cloneData(result)),
         rollRequirements: normalizeRollRequirements(action, cloneData),
+        effects: toArray(action.effects).map((effect) => cloneData(effect)),
+        doorId: String(action.doorId ?? ""),
+        doorName: String(action.doorName ?? ""),
+        doorOpenedDuringPlanning: Boolean(action.doorOpenedDuringPlanning),
+        targetX: optionalNumber(action.targetX),
+        targetY: optionalNumber(action.targetY),
+        effectAp: optionalNumber(action.effectAp),
+        positioningAp: optionalNumber(action.positioningAp),
         ...orderData
     };
 }

@@ -66,6 +66,13 @@ function apText(ap = 0) {
     return ` (${Math.max(0, Math.floor(toNumber(ap, 0)))} AP)`;
 }
 
+function positioningApText(clause = {}) {
+    const ap = Number(clause.positioningAp);
+    if (!Number.isFinite(ap)) return "";
+    const rounded = Math.max(0, Math.floor(ap));
+    return rounded === 1 ? "1 AP getting in range" : `${rounded} AP getting in range`;
+}
+
 function formatTemplate(template = "", context = {}) {
     const raw = text(template);
     if (!raw) return "";
@@ -267,18 +274,37 @@ function renderAttackClause(clause, clauseIndex) {
         selected: clause.itemNarrativeText || clause.itemName,
         placeholder: "select item"
     });
+    const positioningPhrase = clause.requiresPositioning
+        ? phrase({
+            clause,
+            clauseIndex,
+            decision: "positioning",
+            rootDecision: "positioning",
+            label: clause.positioningAp === null ? "[select approach]" : positioningApText(clause),
+            placeholder: clause.positioningAp === null
+        })
+        : null;
+    const positioningText = positioningPhrase ? ` after ${positioningPhrase.text}` : "";
     const templated = renderTemplatedClause(clause, clauseIndex, {
         actionText: text(clause.actionNarrativeText, "attacks"),
         itemText: itemPhrase.text,
         targetText: targetPhrase.text
     });
+    if (templated && positioningPhrase) {
+        return {
+            ...templated,
+            text: `${templated.text.replace(apLabel(clause), "")}${positioningText}${apLabel(clause)}`,
+            phrases: [...templated.phrases, positioningPhrase]
+        };
+    }
     if (templated) return templated;
 
     return {
-        text: `attacks ${targetPhrase.text} with ${itemPhrase.text}${apLabel(clause)}`,
+        text: `attacks ${targetPhrase.text}${positioningText} with ${itemPhrase.text}${apLabel(clause)}`,
         phrases: [
             phrase({ clause, clauseIndex, decision: "action", label: text(clause.actionNarrativeText, "attacks") }),
             targetPhrase,
+            ...(positioningPhrase ? [positioningPhrase] : []),
             itemPhrase
         ]
     };
@@ -368,11 +394,34 @@ function renderUtilityClause(clause, clauseIndex) {
         })
         : null;
     const durationSuffix = durationPhrase ? ` for ${durationPhrase.text}` : "";
+    const targetPhrase = clause.requiresTarget
+        ? selectedOrPlaceholder({
+            clause,
+            clauseIndex,
+            decision: "target",
+            selected: clause.targetName,
+            placeholder: "select target"
+        })
+        : null;
+    const positioningPhrase = clause.requiresPositioning
+        ? phrase({
+            clause,
+            clauseIndex,
+            decision: "positioning",
+            rootDecision: "positioning",
+            label: clause.positioningAp === null ? "[select approach]" : positioningApText(clause),
+            placeholder: clause.positioningAp === null
+        })
+        : null;
+    const targetSuffix = targetPhrase ? ` ${targetPhrase.text}` : "";
+    const positioningSuffix = positioningPhrase ? ` after ${positioningPhrase.text}` : "";
 
     return {
-        text: `${actionLabel}${durationSuffix}${apLabel(clause)}`,
+        text: `${actionLabel}${targetSuffix}${positioningSuffix}${durationSuffix}${apLabel(clause)}`,
         phrases: [
             phrase({ clause, clauseIndex, decision: "action", label: actionLabel }),
+            ...(targetPhrase ? [targetPhrase] : []),
+            ...(positioningPhrase ? [positioningPhrase] : []),
             ...(durationPhrase ? [durationPhrase] : [])
         ]
     };

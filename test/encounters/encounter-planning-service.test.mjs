@@ -901,6 +901,86 @@ describe("EncounterPlanningService draft plans", () => {
         assert.deepEqual(combatantState.plan[0].rollRequirements, [{ rollType: "attack", rollSubType: "toHit" }]);
     });
 
+    it("infers a damage roll requirement for confirmed dice-damage attacks", async () => {
+        const { service, getState } = makeService({
+            initialState: makeState({
+                overrides: {
+                    perCombatant: {
+                        c1: {
+                            plan: [],
+                            draftPlan: {
+                                clauses: [
+                                    {
+                                        actionId: "strike",
+                                        type: "attack",
+                                        label: "Strike",
+                                        apCost: 2,
+                                        requiresTarget: true,
+                                        targetId: "c2",
+                                        requiresToHit: true,
+                                        damageFormula: "1d8"
+                                    }
+                                ]
+                            },
+                            ready: false,
+                            committedAt: 0
+                        }
+                    }
+                }
+            })
+        });
+
+        const result = await service.confirmCombatantDraftPlan("c1");
+        const combatantState = getState().perCombatant.c1;
+
+        assert.equal(result.draftPlan.lifecycle, "confirmedAwaitingRolls");
+        assert.deepEqual(result.requiredRolls.map((roll) => roll.rollSubType), ["toHit", "damage"]);
+        assert.deepEqual(combatantState.plan[0].rollRequirements, [
+            { rollType: "attack", rollSubType: "toHit" },
+            { rollType: "attack", rollSubType: "damage" }
+        ]);
+    });
+
+    it("keeps confirmed dodge drafts awaiting the dodge result roll", async () => {
+        const { service, getState } = makeService({
+            initialState: makeState({
+                overrides: {
+                    perCombatant: {
+                        c1: {
+                            plan: [],
+                            draftPlan: {
+                                clauses: [
+                                    {
+                                        actionId: "dodge",
+                                        type: "movement",
+                                        label: "Dodge",
+                                        apCost: 1,
+                                        requiresMovementDestination: true,
+                                        movementTargetX: 100,
+                                        movementTargetY: 0,
+                                        rollRequirements: [{ rollType: "defense", rollSubType: "dodge" }]
+                                    }
+                                ]
+                            },
+                            ready: false,
+                            committedAt: 0
+                        }
+                    }
+                }
+            })
+        });
+
+        const result = await service.confirmCombatantDraftPlan("c1");
+        const combatantState = getState().perCombatant.c1;
+
+        assert.equal(result.draftPlan.lifecycle, "confirmedAwaitingRolls");
+        assert.equal(combatantState.ready, false);
+        assert.deepEqual(result.requiredRolls, [
+            { rollType: "defense", rollSubType: "dodge", actionIndex: 0, actionId: "dodge" }
+        ]);
+        assert.deepEqual(combatantState.plan[0].rollRequirements, [{ rollType: "defense", rollSubType: "dodge" }]);
+    });
+
     it("converts confirmed narrative clauses into resolution-compatible actions", async () => {
         const { service, getState } = makeService({
             initialState: makeState({

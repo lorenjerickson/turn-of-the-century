@@ -22,6 +22,24 @@ function optionalNumber(value) {
     return Number.isFinite(number) ? number : null;
 }
 
+function isStaticDamageFormula(formula = "") {
+    const text = String(formula ?? "").trim();
+    if (!text) return true;
+    return Number.isFinite(Number(text));
+}
+
+function attackRollRequirements(variant = {}, item = null) {
+    if (Array.isArray(variant.rollRequirements) && variant.rollRequirements.length) {
+        return structuredClone(variant.rollRequirements);
+    }
+    if (!variant.requiresToHit && variant.type !== "attack") return [];
+    const requirements = [{ rollType: "attack", rollSubType: "toHit" }];
+    if (!isStaticDamageFormula(item?.system?.damage?.formula)) {
+        requirements.push({ rollType: "attack", rollSubType: "damage" });
+    }
+    return requirements;
+}
+
 // ---------------------------------------------------------------------------
 // Universal actions
 // ---------------------------------------------------------------------------
@@ -38,7 +56,7 @@ function optionalNumber(value) {
  */
 export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = TOTC_MOVEMENT_FEET_PER_AP } = {}) {
     const actionCatalog = getBaseActionCatalog();
-    const baseOrder = ["move", "open", "close", "pursue", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"];
+    const baseOrder = ["move", "open", "close", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"];
 
     return baseOrder
         .map((id) => actionCatalog[id])
@@ -79,6 +97,9 @@ export function buildUniversalActions({ apBudget = 6, movementFeetPerAp = TOTC_M
                 interruptible: Boolean(variant.interruptible ?? true),
                 isReaction: Boolean(variant.isReaction),
                 reactionTriggerType: String(variant.reactionTriggerType ?? ""),
+                rollRequirements: Array.isArray(variant.rollRequirements)
+                    ? structuredClone(variant.rollRequirements)
+                    : [],
                 rangeType: String(variant.rangeType ?? ""),
                 requirements: [],
                 effects: [],
@@ -152,7 +173,8 @@ export function getEnabledActionsForItem(item) {
                 effects: Array.isArray(variant.effects) ? structuredClone(variant.effects) : [],
                 itemId: item.id,
                 damageFormula: String(item.system?.damage?.formula ?? "").trim(),
-                damageType: String(item.system?.damage?.type ?? "").trim()
+                damageType: String(item.system?.damage?.type ?? "").trim(),
+                rollRequirements: attackRollRequirements(variant, item)
             };
         });
 }

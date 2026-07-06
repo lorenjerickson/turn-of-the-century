@@ -75,19 +75,24 @@ export class ConsumptionResolver {
     /** @type {(source: object|null, target: object|null, opts?: { tokenPositions?: object|null }) => number} */
     #distanceBetweenCombatantsFeet;
 
+    /** @type {(params: { doorId: string, state: string, effect: object }) => Promise<void>} */
+    #applyDoorState;
+
     /**
      * @param {{
      *   resolveCombatant:              (combatantId: string) => object|null,
      *   applyItemAction:               (params: object) => Promise<void>,
      *   updateActorHealth:             (actor: object, nextHealth: number) => Promise<void>,
-     *   distanceBetweenCombatantsFeet: (source: object|null, target: object|null, opts?: object) => number
+     *   distanceBetweenCombatantsFeet: (source: object|null, target: object|null, opts?: object) => number,
+     *   applyDoorState?:              (params: object) => Promise<void>
      * }} ports
      */
-    constructor({ resolveCombatant, applyItemAction, updateActorHealth, distanceBetweenCombatantsFeet }) {
+    constructor({ resolveCombatant, applyItemAction, updateActorHealth, distanceBetweenCombatantsFeet, applyDoorState = async () => {} }) {
         this.#resolveCombatant = resolveCombatant;
         this.#applyItemAction = applyItemAction;
         this.#updateActorHealth = updateActorHealth;
         this.#distanceBetweenCombatantsFeet = distanceBetweenCombatantsFeet;
+        this.#applyDoorState = applyDoorState;
     }
 
     // -------------------------------------------------------------------------
@@ -331,19 +336,24 @@ export class ConsumptionResolver {
     async applyActionEffect(effect = null) {
         if (!effect || typeof effect !== "object") return;
 
-        const targetCombatantId = String(effect.targetCombatantId ?? "").trim();
-        if (!targetCombatantId) return;
-
-        const combatant = this.#resolveCombatant(targetCombatantId);
-        const actor = combatant?.actor ?? null;
-        if (!actor) return;
-
         const actionEffect = effect.effect ?? {};
         const type = String(actionEffect.type ?? "").trim();
         const operation = String(actionEffect.operation ?? "").trim();
         const condition = String(actionEffect.condition ?? "").trim();
 
+        if (type === "door") {
+            const doorId = String(actionEffect.doorId ?? "").trim();
+            if (!doorId) return;
+            await this.#applyDoorState({ doorId, state: operation || "open", effect: actionEffect });
+            return;
+        }
+
         if (type === "condition" && condition) {
+            const targetCombatantId = String(effect.targetCombatantId ?? "").trim();
+            if (!targetCombatantId) return;
+            const combatant = this.#resolveCombatant(targetCombatantId);
+            const actor = combatant?.actor ?? null;
+            if (!actor) return;
             if (typeof actor.toggleStatusEffect === "function") {
                 await actor.toggleStatusEffect(condition, { active: operation !== "remove" });
                 return;
@@ -360,6 +370,12 @@ export class ConsumptionResolver {
 
         const targetPath = String(actionEffect.path ?? actionEffect.resource ?? actionEffect.condition ?? "").trim();
         if (!["healing", "damage", "resource"].includes(type) || !targetPath) return;
+
+        const targetCombatantId = String(effect.targetCombatantId ?? "").trim();
+        if (!targetCombatantId) return;
+        const combatant = this.#resolveCombatant(targetCombatantId);
+        const actor = combatant?.actor ?? null;
+        if (!actor) return;
 
         const current = toNumber(globalThis.foundry?.utils?.getProperty?.(actor, targetPath), 0);
         const amount = Math.max(0, toNumber(actionEffect.value, 0));

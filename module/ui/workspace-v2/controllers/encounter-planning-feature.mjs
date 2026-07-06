@@ -25,6 +25,10 @@ import {
     replaceDraftClause
 } from "../../../encounters/encounter-draft-plan.mjs";
 import {
+    buildReachableDoorOverlayModel,
+    encounterDoorPlanningController
+} from "../../../encounters/encounter-door-planning.mjs";
+import {
     getNativeCanvasEventScenePoint,
     isPrimaryPointerButton,
     listenForNativeCanvasPointerDown
@@ -36,6 +40,7 @@ import {
 import { dieRollRequestManager } from "../../../die-roll-request-manager.mjs";
 
 const ENCOUNTER_MOVEMENT_HIGHLIGHT_LAYER = "totc-encounter-movement";
+const ENCOUNTER_DOOR_HIGHLIGHT_LAYER = "totc-encounter-doors";
 const ENCOUNTER_TARGETING_LOG_PREFIX = "[totc encounter targeting]";
 
 function describeEncounterToken(token = null) {
@@ -238,6 +243,17 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
                     return;
                 }
 
+                if (decision === "positioning" && clause) {
+                    this.activePlanEditSlot = {
+                        mode: "draftPositioning",
+                        index,
+                        maxPositioningAp: Math.max(0, Number(clause.maxPositioningAp ?? 0) || 0),
+                        helpText: "Choose how many AP to spend getting in range."
+                    };
+                    this.renderCallback({ force: false });
+                    return;
+                }
+
                 if (decision === "movementDestination" && clause) {
                     this.activePlanEditSlot = {
                         mode: "draftMovement",
@@ -305,6 +321,10 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             if (buttonClose) {
                 event.preventDefault();
                 event.stopPropagation();
+                if (String(this.activePlanEditSlot?.mode ?? "") === "draftDoor") {
+                    encounterDoorPlanningController.cancel();
+                    return;
+                }
                 this.activePlanEditSlot = null;
                 this.renderCallback({ force: false });
                 return;
@@ -332,6 +352,57 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
                         actionIndex,
                         selectedAction
                     });
+                    if (this._isEncounterOpenDoorAction(selectedAction)) {
+                        const remainingAp = Number(this.activePlanEditSlot?.remainingAp ?? selectedAction.apCost ?? 1);
+                        const token = this._getEncounterTargetingToken({ combat, combatantId });
+                        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
+                        this.activePlanEditSlot = {
+                            mode: "draftDoor",
+                            index: actionIndex,
+                            helpText: "Click a highlighted closed unlocked door."
+                        };
+                        encounterDoorPlanningController.beginInteraction({
+                            combat,
+                            combatantId,
+                            actionIndex,
+                            tokenId: String(token?.id ?? token?._id ?? token?.document?.id ?? ""),
+                            sceneId: String(scene?.id ?? scene?._id ?? ""),
+                            remainingAp,
+                            openAp: Math.max(1, Number(selectedAction.effectAp ?? selectedAction.apCost ?? 1) || 1),
+                            feetPerAp: Number(selectedAction.movementFeetPerAp ?? 5) || 5,
+                            rangeFeet: Number(selectedAction.targetingRangeFeet ?? 5) || 5,
+                            onComplete: () => {
+                                this._clearEncounterDoorNativeOverlay();
+                                this.activePlanEditSlot = null;
+                                this.renderCallback({ force: false });
+                            },
+                            onCancel: () => {
+                                this._clearEncounterDoorNativeOverlay();
+                                this.activePlanEditSlot = null;
+                                this.renderCallback({ force: false });
+                            }
+                        });
+                        this._syncEncounterDoorNativeOverlay();
+                        ui.notifications?.info?.("Click a highlighted closed unlocked door to open it.");
+                        this.renderCallback({ force: false });
+                        return;
+                    }
+                    if (selectedAction.requiresTarget || selectedAction.requiresToHit) {
+                        this.activePlanEditSlot = {
+                            mode: "draftTarget",
+                            index: actionIndex,
+                            helpText: "Choose a target on the map."
+                        };
+                        this._beginEncounterTargetingInteraction({
+                            combat,
+                            combatantId,
+                            actionIndex,
+                            action: selectedAction,
+                            draftDecision: "target"
+                        });
+                        this.renderCallback({ force: false });
+                        return;
+                    }
                     if (String(selectedAction.type ?? "").toLowerCase() === "movement" && !selectedAction.requiresTarget) {
                         this.activePlanEditSlot = {
                             mode: "draftMovement",
@@ -414,6 +485,27 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
                     durationAp,
                     apCost: durationAp
                 }), { truncateDownstream: true });
+                this.activePlanEditSlot = null;
+                this.renderCallback({ force: false });
+                return;
+            }
+
+            const positioningButton = event.target?.closest?.("[data-action='encounter-select-draft-positioning']");
+            if (positioningButton) {
+                event.preventDefault();
+                event.stopPropagation();
+                const combatantId = this._getEncounterPanelCombatantId(positioningButton);
+                const combat = this._getEncounterCombat(positioningButton);
+                const positioningAp = Math.max(0, Math.floor(Number(positioningButton.dataset.positioningAp ?? 0)) || 0);
+                await this._updateDraftClause(combat, combatantId, Number(positioningButton.dataset.clauseIndex), (clause) => {
+                    const effectAp = Math.max(1, Math.floor(Number(clause.effectAp ?? clause.apCost ?? 1)) || 1);
+                    return {
+                        ...clause,
+                        positioningAp,
+                        effectAp,
+                        apCost: Math.max(1, effectAp + positioningAp)
+                    };
+                }, { truncateDownstream: true });
                 this.activePlanEditSlot = null;
                 this.renderCallback({ force: false });
                 return;
@@ -515,7 +607,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
                 if (shouldCommit && typeof combat.confirmCombatantDraftPlan === "function") {
                     const result = await combat.confirmCombatantDraftPlan(combatantId);
                     for (const [actionIndex, action] of this._collectionContents(result?.plan).entries()) {
-                        this._requestEncounterAttackRolls({ combat, combatantId, actionIndex, action });
+                        this._requestEncounterPlanningRolls({ combat, combatantId, actionIndex, action });
                     }
                 } else if (typeof combat.setCombatantReady === "function") {
                     await combat.setCombatantReady(combatantId, shouldCommit);
@@ -560,6 +652,10 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
                     item.textContent
                 ].join(" ").toLowerCase();
                 item.hidden = Boolean(query && !haystack.includes(query));
+            }
+            for (const group of popup?.querySelectorAll?.(".totc-v2-encounter-popup__group") ?? []) {
+                const actions = Array.from(group.querySelectorAll?.("[data-action='encounter-select-popup-action']") ?? []);
+                group.hidden = actions.length > 0 && actions.every((action) => action.hidden);
             }
             for (const item of popup?.querySelectorAll?.("[data-action='encounter-select-draft-item']") ?? []) {
                 const haystack = [
@@ -668,6 +764,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
      */
     dispose() {
         this._clearEncounterMovementNativeOverlay();
+        this._clearEncounterDoorNativeOverlay();
         this._clearEncounterTargetingCanvasListener();
         this.wiredElement = null;
     }
@@ -769,6 +866,23 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             targetTokens,
             maxRangeFeet: interaction.rangeFeet,
             rangeType: interaction.rangeType
+        });
+    }
+
+    getDoorOverlayState(scene = null) {
+        const interaction = encounterDoorPlanningController.activeInteraction;
+        if (!interaction || !scene) return null;
+        const sceneId = String(scene.id ?? scene._id ?? "").trim();
+        if (sceneId && interaction.sceneId && sceneId !== interaction.sceneId) return null;
+        const token = this._collectionGet(this._getEncounterSceneTokens(scene), interaction.tokenId);
+        if (!token) return null;
+        return buildReachableDoorOverlayModel({
+            token,
+            scene,
+            remainingAp: interaction.remainingAp,
+            openAp: interaction.openAp,
+            feetPerAp: interaction.feetPerAp,
+            rangeFeet: interaction.rangeFeet
         });
     }
 
@@ -1027,6 +1141,10 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         };
     }
 
+    _isEncounterOpenDoorAction(action = {}) {
+        return String(action?.actionId ?? action?.id ?? "").trim().toLowerCase() === "open";
+    }
+
     _readConfiguredEncounterActionData(button = null) {
         const actionData = this._readEncounterActionData(button);
         if (!actionData) return null;
@@ -1142,7 +1260,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         const requiresTarget = Boolean(actionData.requiresTarget || actionData.requiresToHit);
         const requiresItem = Boolean(actionData.itemId) || type.toLowerCase() === "attack" || Boolean(actionData.requiresToHit);
         const requiresEngagementAction = Boolean(actionData.requiresEngagementAction);
-        const durationActionIds = new Set(["dodge", "hunkdown", "hunkerdown", "overwatch", "wait", "follow", "avoid", "evade"]);
+        const durationActionIds = new Set(["hunkdown", "hunkerdown", "overwatch", "wait", "follow", "avoid", "evade"]);
         const requiresDuration = Boolean(actionData.requiresDuration) || durationActionIds.has(actionKey);
         const rawApCost = Math.max(1, Math.floor(Number(actionData.apCost ?? actionData.apMin ?? 1)) || 1);
         const apCost = requiresEngagementAction
@@ -1154,6 +1272,9 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         }
         if (String(actionData.damageFormula ?? "").trim().match(/^(\d*)d(\d+)$/i)) {
             rollRequirements.push({ rollType: "attack", rollSubType: "damage" });
+        }
+        for (const requirement of this._collectionContents(actionData.rollRequirements)) {
+            rollRequirements.push({ ...requirement });
         }
         const clause = {
             clauseId: `draft-clause-${index + 1}`,
@@ -1168,13 +1289,16 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             requiresTarget,
             requiresItem,
             requiresDuration,
+            requiresPositioning: false,
             requiresEngagementAction,
-            requiresMovementDestination: isMovement && !requiresTarget,
+            requiresMovementDestination: Boolean(actionData.requiresMovementDestination) || (isMovement && !requiresTarget),
             requiresToHit: Boolean(actionData.requiresToHit),
             movementFeetPerAp: Number(actionData.movementFeetPerAp ?? 5) || 5,
             targetingRangeFeet: Number(actionData.targetingRangeFeet ?? 0) || 0,
             rangeType: String(actionData.rangeType ?? ""),
             damageFormula: String(actionData.damageFormula ?? ""),
+            effectAp: isMovement ? null : rawApCost,
+            positioningAp: isMovement || !requiresTarget ? null : 0,
             rollRequirements,
             narrativeTokens: []
         };
@@ -1367,6 +1491,11 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         this.movementCanvasRef = null;
     }
 
+    _clearEncounterDoorNativeOverlay() {
+        const gridLayer = this._getNativeGridHighlightLayer();
+        gridLayer?.clearHighlightLayer?.(ENCOUNTER_DOOR_HIGHLIGHT_LAYER);
+    }
+
     _syncEncounterMovementNativeOverlay() {
         const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
         const model = this.getMovementOverlayState(scene);
@@ -1385,6 +1514,29 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
                 color: cell.origin ? 0x38bdf8 : 0x22c55e,
                 border: cell.origin ? 0x0ea5e9 : 0x16a34a,
                 alpha: cell.origin ? 0.28 : 0.18
+            });
+        }
+    }
+
+    _syncEncounterDoorNativeOverlay() {
+        const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
+        const model = this.getDoorOverlayState(scene);
+        const gridLayer = this._getNativeGridHighlightLayer();
+        if (!model?.active || !gridLayer) {
+            this._clearEncounterDoorNativeOverlay();
+            return;
+        }
+
+        gridLayer.clearHighlightLayer?.(ENCOUNTER_DOOR_HIGHLIGHT_LAYER);
+        gridLayer.addHighlightLayer?.(ENCOUNTER_DOOR_HIGHLIGHT_LAYER);
+        const gridSize = Math.max(1, Number(scene?.grid?.size ?? 100) || 100);
+        for (const door of model.doors ?? []) {
+            gridLayer.highlightPosition?.(ENCOUNTER_DOOR_HIGHLIGHT_LAYER, {
+                x: Number(door.x ?? 0) - (gridSize / 2),
+                y: Number(door.y ?? 0) - (gridSize / 2),
+                color: 0xfacc15,
+                border: 0xf59e0b,
+                alpha: 0.26
             });
         }
     }
@@ -1475,14 +1627,107 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         return 5;
     }
 
+    _encounterTokenDistanceFeet(left = null, right = null, scene = null) {
+        const gridSize = Math.max(1, Number(scene?.grid?.size ?? left?.parent?.grid?.size ?? right?.parent?.grid?.size ?? 100) || 100);
+        const feetPerSquare = Math.max(1, Number(scene?.grid?.distance ?? left?.parent?.grid?.distance ?? right?.parent?.grid?.distance ?? 5) || 5);
+        const leftX = Number(left?.x ?? left?.document?.x ?? 0);
+        const leftY = Number(left?.y ?? left?.document?.y ?? 0);
+        const rightX = Number(right?.x ?? right?.document?.x ?? 0);
+        const rightY = Number(right?.y ?? right?.document?.y ?? 0);
+        return (Math.hypot(leftX - rightX, leftY - rightY) / gridSize) * feetPerSquare;
+    }
+
+    _buildDraftTargetPositioningUpdate({
+        combat = null,
+        combatantId = "",
+        actionIndex = 0,
+        clause = {},
+        sourceToken = null,
+        targetToken = null,
+        scene = null
+    } = {}) {
+        const isMovement = String(clause?.type ?? "").toLowerCase() === "movement";
+        const needsTarget = Boolean(clause?.requiresTarget || clause?.requiresToHit);
+        if (isMovement || !needsTarget || !sourceToken || !targetToken) {
+            return {
+                requiresPositioning: false,
+                positioningAp: isMovement || !needsTarget ? null : 0,
+                maxPositioningAp: 0
+            };
+        }
+
+        const combatant = this._getEncounterCombatant(combat, combatantId);
+        const projectedSource = this._projectEncounterTokenForPlan({
+            token: sourceToken,
+            combat,
+            combatantId,
+            beforeActionIndex: actionIndex,
+            useDraftPlan: true
+        });
+        const rangeFeet = this._resolveEncounterActionRangeFeet(clause, combatant?.actor ?? null);
+        const distanceFeet = this._encounterTokenDistanceFeet(projectedSource, targetToken, scene);
+        const effectAp = Math.max(1, Math.floor(Number(clause.effectAp ?? clause.apCost ?? 1)) || 1);
+        const draftPlan = normalizeDraftPlan(combat?.getCombatantDraftPlan?.(combatantId) ?? { clauses: [] }, {
+            apBudget: combat?.apBudget ?? 6
+        });
+        const spentBefore = draftPlan.clauses
+            .slice(0, Math.max(0, actionIndex))
+            .reduce((sum, entry) => sum + Math.max(0, Number(entry.apCost ?? 0) || 0), 0);
+        const availableForClause = Math.max(effectAp, Math.max(0, Number(draftPlan.apBudget ?? combat?.apBudget ?? 6) - spentBefore));
+        const maxPositioningAp = Math.max(0, availableForClause - effectAp);
+        const positioningRequirement = this._encounterPositioningRequirementForAction({
+            ...clause,
+            targetMode: "selectTarget",
+            effectAp
+        });
+
+        if (distanceFeet <= Math.max(0, rangeFeet)) {
+            return {
+                requiresPositioning: false,
+                positioningAp: 0,
+                maxPositioningAp,
+                effectAp,
+                apCost: effectAp,
+                apMax: Math.max(effectAp, effectAp + maxPositioningAp),
+                positioningRequirement
+            };
+        }
+
+        if (maxPositioningAp <= 0) {
+            return {
+                requiresPositioning: true,
+                positioningAp: 0,
+                maxPositioningAp: 0,
+                effectAp,
+                apCost: effectAp,
+                apMax: effectAp,
+                positioningRequirement
+            };
+        }
+
+        return {
+            requiresPositioning: true,
+            positioningAp: null,
+            maxPositioningAp,
+            effectAp,
+            apCost: effectAp,
+            apMax: effectAp + maxPositioningAp,
+            positioningRequirement
+        };
+    }
+
     _beginEncounterTargetingInteraction({ combat = null, combatantId = "", actionIndex = -1, action = null, draftDecision = "" } = {}) {
         const scene = canvas?.scene ?? game.scenes?.viewed ?? null;
         const token = this._getEncounterTargetingToken({ combat, combatantId, scene });
         const combatant = this._getEncounterCombatant(combat, combatantId);
         const rangeFeet = this._resolveEncounterActionRangeFeet(action, combatant?.actor ?? null);
         const rangeType = String(action?.rangeType ?? "melee").toLowerCase();
+        const actionType = String(action?.type ?? "").toLowerCase();
+        const selectionRangeFeet = draftDecision === "target" && actionType !== "movement"
+            ? Math.max(rangeFeet, 10000)
+            : rangeFeet;
 
-        if (!scene || !token || !combat || Number(actionIndex) < 0 || !Number.isFinite(rangeFeet) || rangeFeet <= 0) {
+        if (!scene || !token || !combat || Number(actionIndex) < 0 || !Number.isFinite(selectionRangeFeet) || selectionRangeFeet <= 0) {
             logEncounterTargeting("targeting did not start", {
                 reason: !scene ? "missing scene"
                     : !token ? "missing source token"
@@ -1492,7 +1737,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
                 combatId: String(combat?.id ?? ""),
                 combatantId: String(combatantId ?? ""),
                 actionIndex: Number(actionIndex),
-                rangeFeet,
+                rangeFeet: selectionRangeFeet,
                 sourceToken: describeEncounterToken(token),
                 sourceCombatant: describeEncounterCombatant(combatant)
             }, "warn");
@@ -1508,7 +1753,8 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             draftDecision: String(draftDecision ?? ""),
             sceneId: String(scene?.id ?? scene?._id ?? ""),
             tokenId: String(token?.id ?? token?._id ?? token?.document?.id ?? ""),
-            rangeFeet: Math.max(1, Math.round(rangeFeet)),
+            rangeFeet: Math.max(1, Math.round(selectionRangeFeet)),
+            actionRangeFeet: Math.max(1, Math.round(rangeFeet)),
             rangeType,
             actionId: String(action?.actionId ?? action?.id ?? ""),
             actionType: String(action?.type ?? ""),
@@ -1823,14 +2069,33 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
 
         if (interaction.draftDecision === "target") {
             const index = Number(interaction.actionIndex);
+            const draftClause = combat.getCombatantDraftPlan?.(interaction.combatantId)?.clauses?.[index] ?? {};
+            const sourceToken = this._collectionGet(this._getEncounterSceneTokens(scene), interaction.tokenId);
+            const positioningUpdate = this._buildDraftTargetPositioningUpdate({
+                combat,
+                combatantId: interaction.combatantId,
+                actionIndex: index,
+                clause: draftClause,
+                sourceToken,
+                targetToken: token,
+                scene
+            });
             await this._updateDraftClause(combat, interaction.combatantId, index, (clause) => ({
                 ...clause,
                 targetId: String(targetCombatant.id),
-                targetName: this._getEncounterCombatantDisplayName(targetCombatant, token)
+                targetName: this._getEncounterCombatantDisplayName(targetCombatant, token),
+                ...positioningUpdate
             }), { truncateDownstream: false });
             this.targetingInteraction = null;
             this._clearEncounterTargetingCanvasListener();
-            this.activePlanEditSlot = null;
+            this.activePlanEditSlot = positioningUpdate.requiresPositioning && positioningUpdate.positioningAp === null
+                ? {
+                    mode: "draftPositioning",
+                    index,
+                    maxPositioningAp: Math.max(0, Number(positioningUpdate.maxPositioningAp ?? 0) || 0),
+                    helpText: "Choose how many AP to spend getting in range."
+                }
+                : null;
             logEncounterTargeting("draft target committed", {
                 combatantId: String(interaction.combatantId ?? ""),
                 actionIndex: index,
@@ -1875,7 +2140,7 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             token: describeEncounterToken(token)
         });
         this._syncEncounterTargetIconsOverlay(combat, interaction.combatantId, scene);
-        this._requestEncounterAttackRolls({
+        this._requestEncounterPlanningRolls({
             combat,
             combatantId: interaction.combatantId,
             actionIndex: index,
@@ -1884,14 +2149,28 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
         this.renderCallback({ force: false });
     }
 
-    _requestEncounterAttackRolls({ combat = null, combatantId = "", actionIndex = -1, action = null } = {}) {
-        if (!combat || !action || !(action.requiresToHit || action.type === "attack")) return;
+    _requestEncounterAttackRolls(options = {}) {
+        this._requestEncounterPlanningRolls(options);
+    }
+
+    _requestEncounterPlanningRolls({ combat = null, combatantId = "", actionIndex = -1, action = null } = {}) {
+        if (!combat || !action) return;
         if (action.planningLocked || this._collectionContents(action.planningRollResults).length > 0) return;
 
         const recipientIds = this._resolveEncounterRollRecipientIds(combat.combatants?.get?.(combatantId));
         if (!recipientIds.length) return;
 
         const combatant = combat.combatants?.get?.(combatantId) ?? null;
+        const requirements = this._planningRollRequirementsForAction(action);
+        const actionIndexNumber = Math.max(0, Number(actionIndex) || 0);
+        const hasDamageRequirement = requirements.some((requirement) => (
+            String(requirement?.rollType ?? "") === "attack"
+            && String(requirement?.rollSubType ?? "") === "damage"
+        ));
+        if (!hasDamageRequirement && this._buildEncounterDamageRollRequest({ combat, combatant, action, actionIndex: actionIndexNumber })) {
+            requirements.push({ rollType: "attack", rollSubType: "damage" });
+        }
+        if (!requirements.length) return;
         const requestBase = {
             initiatorId: game?.user?.id ?? "",
             requestor: {
@@ -1903,28 +2182,37 @@ export class EncounterPlanningFeature extends WorkspaceFeature {
             actorId: String(combatant?.actor?.id ?? ""),
             combatId: String(combat.id ?? ""),
             combatantId: String(combatantId ?? ""),
-            actionIndex: Math.max(0, Number(actionIndex) || 0),
+            actionIndex: actionIndexNumber,
             actionId: String(action.actionId ?? action.id ?? "")
         };
-        dieRollRequestManager.sendRequest({
-            ...requestBase,
-            id: `encounter-${combat.id}-combatant-${combatantId}-action-${Math.max(0, Number(actionIndex) || 0)}-attack`,
-            rollType: "attack",
-            rollSubType: "toHit",
-            label: `${combatant?.name ?? "Combatant"}: ${action.label ?? "Attack"}`,
-            dice: [{ count: 1, faces: 20 }],
-            modifiers: Number(action.toHitBonus ?? 0)
-                ? [{ label: "Action bonus", value: Number(action.toHitBonus ?? 0) || 0, source: "action" }]
-                : []
-        });
-
-        const damageRequest = this._buildEncounterDamageRollRequest({ combat, combatant, action, actionIndex });
-        if (damageRequest) {
+        for (const requirement of requirements) {
+            const rollType = String(requirement.rollType ?? "").trim();
+            const rollSubType = String(requirement.rollSubType ?? "").trim();
+            const damageRequest = rollType === "attack" && rollSubType === "damage"
+                ? this._buildEncounterDamageRollRequest({ combat, combatant, action, actionIndex: actionIndexNumber })
+                : null;
+            const request = damageRequest ?? {
+                id: `encounter-${combat.id}-combatant-${combatantId}-action-${actionIndexNumber}-${rollType || "roll"}-${rollSubType || "check"}`,
+                rollType,
+                rollSubType,
+                label: `${combatant?.name ?? "Combatant"}: ${action.label ?? "Action"} ${rollSubType || rollType || "roll"}`,
+                dice: [{ count: 1, faces: 20 }],
+                modifiers: rollType === "attack" && rollSubType === "toHit" && Number(action.toHitBonus ?? 0)
+                    ? [{ label: "Action bonus", value: Number(action.toHitBonus ?? 0) || 0, source: "action" }]
+                    : []
+            };
             dieRollRequestManager.sendRequest({
                 ...requestBase,
-                ...damageRequest
+                ...request
             });
         }
+    }
+
+    _planningRollRequirementsForAction(action = {}) {
+        const explicit = this._collectionContents(action.rollRequirements).map((requirement) => ({ ...requirement }));
+        if (explicit.length) return explicit;
+        if (action.requiresToHit || action.type === "attack") return [{ rollType: "attack", rollSubType: "toHit" }];
+        return [];
     }
 
     _buildEncounterDamageRollRequest({ combat = null, combatant = null, action = null, actionIndex = -1 } = {}) {

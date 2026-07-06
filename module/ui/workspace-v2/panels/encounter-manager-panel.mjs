@@ -1,7 +1,7 @@
 import { buildEncounterOrderDisplay } from "../../../encounters/encounter-order-model.mjs";
 import { orderIdForAction } from "../../../encounters/encounter-order-clauses.mjs";
 import { renderDraftPlanNarrative } from "../../../encounters/encounter-draft-narrative.mjs";
-import { renderOrderList, renderPlanBar } from "./player-encounter-panel.mjs";
+import { renderPlanBar } from "./player-encounter-panel.mjs";
 
 function toArray(value) {
     return Array.isArray(value) ? value : [];
@@ -600,35 +600,6 @@ export function buildEncounterManagerPanelModel({ combat = null, rollRequests = 
     };
 }
 
-function renderDraftSummary(actor, escapeHTML) {
-    const draft = actor.draftSummary ?? null;
-    if (!draft) return "";
-    const lifecycle = String(draft.lifecycle ?? "drafting");
-    const missingText = toArray(draft.missingDecisions).length
-        ? `Needs ${toArray(draft.missingDecisions).join(", ")}.`
-        : draft.overBudget
-            ? "Over AP budget."
-            : draft.pendingRolls > 0
-                ? `${draft.pendingRolls} roll${draft.pendingRolls === 1 ? "" : "s"} pending.`
-                : draft.complete
-                    ? "Complete."
-                    : "Composition in progress.";
-
-    return `
-        <section class="totc-v2-encounter-manager__draft is-${escapeHTML(lifecycle)}" aria-label="${escapeHTML(actor.name)} draft plan">
-            <header>
-                <span class="totc-v2-encounter-manager__draft-label">Narrative Plan</span>
-                <span class="totc-v2-encounter-manager__draft-state is-${escapeHTML(lifecycle)}">${escapeHTML(draft.lifecycleLabel)}</span>
-            </header>
-            <p>${escapeHTML(draft.text)}</p>
-            <footer>
-                <span>${escapeHTML(String(draft.spentAp))} AP planned</span>
-                <span>${escapeHTML(String(draft.remainingAp))} AP unused</span>
-                <strong>${escapeHTML(missingText)}</strong>
-            </footer>
-        </section>`;
-}
-
 function encounterStatusLabel(actor, phase = "") {
     if (phase === "roundComplete") return "Resolved";
     if (actor.draftSummary?.lifecycle === "confirmedAwaitingRolls") return "Awaiting Rolls";
@@ -639,22 +610,22 @@ function encounterStatusLabel(actor, phase = "") {
 function renderActorPlan(actor, phase, escapeHTML) {
     const status = encounterStatusLabel(actor, phase);
     const statusClass = status.toLowerCase().replace(/\s+/g, "-");
+    const resetRollsButton = actor.canResetRolls
+        ? `<button type="button"
+                data-action="encounter-manager-reset-rolls"
+                data-combatant-id="${escapeHTML(actor.id)}">
+                Reset Rolls
+            </button>`
+        : "";
     return `
         <article class="totc-v2-encounter-manager__actor-plan">
             <header class="totc-v2-encounter-manager__actor-plan-label">
                 <span class="totc-v2-encounter-manager__actor-name">${escapeHTML(actor.name)}</span>
                 <span class="totc-v2-encounter-manager__actor-ready is-${escapeHTML(statusClass)}">${escapeHTML(status)}</span>
-                <button type="button"
-                    data-action="encounter-manager-reset-rolls"
-                    data-combatant-id="${escapeHTML(actor.id)}"
-                    ${actor.canResetRolls ? "" : "disabled"}>
-                    Reset Rolls
-                </button>
+                ${resetRollsButton}
             </header>
-            ${renderDraftSummary(actor, escapeHTML)}
             <div class="totc-v2-encounter-manager__actor-planner">
                 ${renderPlanBar(actor, escapeHTML)}
-                ${renderOrderList(actor, escapeHTML)}
             </div>
         </article>`;
 }

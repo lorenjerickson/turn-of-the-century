@@ -15,6 +15,9 @@ const DOWNSTREAM_FIELDS = Object.freeze([
     "requiresTarget",
     "requiresItem",
     "requiresDuration",
+    "requiresPositioning",
+    "positioningAp",
+    "effectAp",
     "requiresEngagementAction",
     "engageActionId",
     "engageActionAp",
@@ -122,6 +125,36 @@ function actionRangeFeet(action = {}) {
     return 5;
 }
 
+function intentTypeForClause(clause = {}) {
+    const type = text(clause.engageActionType ?? clause.type).toLowerCase();
+    if (type === "movement") return text(clause.actionId, "move");
+    if (type === "attack" || clause.requiresToHit || clause.engageRequiresToHit) return "attackTarget";
+    if (type === "consumable") return "useItem";
+    if (type === "utility") return "interactWithObject";
+    if (type === "defense") return "holdReaction";
+    return text(clause.actionId, type || "action");
+}
+
+function positioningRequirementForClause(clause = {}) {
+    if (clause.positioningRequirement && typeof clause.positioningRequirement === "object") {
+        return cloneValue(clause.positioningRequirement);
+    }
+    if (text(clause.type).toLowerCase() === "movement") return null;
+    if (!clause.requiresTarget && !clause.requiresToHit) return null;
+    if (clause.type === "attack" || clause.requiresToHit) {
+        return {
+            type: "weaponRange",
+            targetKind: "combatant",
+            rangeFeet: actionRangeFeet(clause)
+        };
+    }
+    return {
+        type: "adjacent",
+        targetKind: "combatant",
+        rangeFeet: 5
+    };
+}
+
 function engagementActionAp(clause = {}) {
     const explicit = optionalNumber(clause.engageActionAp ?? clause.effectAp);
     if (explicit !== null && explicit > 0) return Math.max(1, Math.floor(explicit));
@@ -138,6 +171,7 @@ function buildMissingDecisions(clause = {}) {
     const missing = [];
     if (!clause.actionId) missing.push("action");
     if (clause.requiresTarget && !clause.targetId) missing.push("target");
+    if (clause.requiresPositioning && clause.positioningAp === null) missing.push("positioning");
     if (clause.requiresEngagementAction && !clause.engageActionId) missing.push("engagementAction");
     if (clause.requiresItem && !clause.itemId) missing.push("item");
     if (clause.requiresDuration && clause.durationAp === null) missing.push("duration");
@@ -178,6 +212,7 @@ export function normalizeDraftClause(clause = {}, { index = 0, origin = null, cl
         requiresTarget: Boolean(source.requiresTarget),
         requiresItem: Boolean(source.requiresItem),
         requiresDuration: Boolean(source.requiresDuration),
+        requiresPositioning: Boolean(source.requiresPositioning),
         requiresEngagementAction: Boolean(source.requiresEngagementAction),
         engageActionId: text(source.engageActionId, ""),
         engageActionType: text(source.engageActionType, ""),
@@ -380,6 +415,11 @@ export function draftClauseToResolutionAction(clause = {}, { index = 0, cloneDat
     const projectedOrigin = normalizePosition(normalized.projectedOrigin);
     const projectedDestination = movementDestination(normalized);
     const source = cloneValue(normalized, cloneData);
+    const explicitPositioningAp = optionalNumber(normalized.positioningAp);
+    const explicitEffectAp = optionalNumber(normalized.effectAp);
+    const hasImpliedPositioning = normalized.requiresPositioning
+        || (explicitPositioningAp !== null && explicitPositioningAp > 0)
+        || Boolean(normalized.positioningRequirement);
 
     return {
         ...source,
@@ -403,7 +443,28 @@ export function draftClauseToResolutionAction(clause = {}, { index = 0, cloneDat
         movementOriginX: optionalNumber(normalized.movementOriginX) ?? projectedOrigin?.x ?? null,
         movementOriginY: optionalNumber(normalized.movementOriginY) ?? projectedOrigin?.y ?? null,
         movementDestinationX: projectedDestination?.x ?? null,
-        movementDestinationY: projectedDestination?.y ?? null
+        movementDestinationY: projectedDestination?.y ?? null,
+        ...(hasImpliedPositioning ? {
+            apEnvelope: {
+                positioningAp: Math.max(0, Math.floor(toNumber(explicitPositioningAp, 0))),
+                effectAp: Math.max(1, Math.floor(toNumber(explicitEffectAp, toNumber(normalized.apCost, 1)))),
+                maxAp: Math.max(1, toNumber(normalized.apCost, 1))
+            },
+            positioningRequirement: positioningRequirementForClause(normalized),
+            intentType: intentTypeForClause(normalized),
+            followThrough: {
+                type: "hold"
+            },
+            failureOutcome: {
+                type: "bestReachablePosition"
+            },
+            sourceAction: {
+                id: resolutionActionId,
+                actionId: resolutionActionId,
+                type: normalized.type,
+                itemId: text(normalized.itemId, "")
+            }
+        } : {})
     };
 }
 

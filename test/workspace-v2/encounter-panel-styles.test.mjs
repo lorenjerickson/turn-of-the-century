@@ -21,9 +21,12 @@ describe("Encounter panel styles", () => {
         assert.match(plannerRule, /flex:\s*1 1 auto/);
         assert.match(plannerRule, /flex-direction:\s*column/);
         assert.match(plannerRule, /overflow:\s*hidden/);
-        assert.match(planningViewRule, /flex:\s*1 1 auto/);
+        assert.match(planningViewRule, /flex:\s*1 1 0/);
+        assert.match(planningViewRule, /min-height:\s*0/);
         assert.match(planningViewRule, /position:\s*relative/);
+        assert.match(narrativeRule, /flex:\s*1 1 0/);
         assert.match(narrativeRule, /justify-content:\s*flex-start/);
+        assert.match(narrativeRule, /overflow:\s*auto/);
         assert.match(ordersRule, /flex:\s*0 0 auto/);
     });
 
@@ -58,11 +61,19 @@ describe("Encounter panel styles", () => {
         assert.match(rule, /margin-right:\s*0\.25rem;/);
     });
 
-    it("distinguishes GM draft lifecycle states in the encounter manager", () => {
-        assert.match(styles, /\.totc-v2-encounter-manager__draft\.is-confirmedAwaitingRolls/);
-        assert.match(styles, /\.totc-v2-encounter-manager__draft\.is-locked/);
+    it("styles the GM combatant plans as a dense stacked list", () => {
+        const actorsRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-manager__actors\s*\{[^}]+\}/)?.[0] ?? "";
+        const actorPlanRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-manager__actor-plan\s*\{[^}]+\}/)?.[0] ?? "";
+        const actorPlanLabelRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-manager__actor-plan-label\s*\{[^}]+\}/)?.[0] ?? "";
+
+        assert.match(actorsRule, /gap:\s*0\.25rem/);
+        assert.match(actorPlanRule, /gap:\s*0\.22rem/);
+        assert.match(actorPlanRule, /padding:\s*0\.28rem/);
+        assert.match(actorPlanLabelRule, /display:\s*grid/);
+        assert.match(actorPlanLabelRule, /grid-template-columns:\s*minmax\(0,\s*1fr\) max-content max-content/);
         assert.match(styles, /\.totc-v2-encounter-manager__actor-ready\.is-awaiting-rolls/);
-        assert.match(styles, /\.totc-v2-encounter-manager__draft-state\.is-confirmedAwaitingRolls/);
+        assert.doesNotMatch(styles, /\.totc-v2-encounter-manager__draft/);
+        assert.doesNotMatch(styles, /\.totc-v2-encounter-manager__draft-state/);
     });
 
     it("styles GM narration as current tick text with linked detail popups", () => {

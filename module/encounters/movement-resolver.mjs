@@ -65,6 +65,21 @@ function latestMovementEffectForCombatant(tickEffects = [], combatantId = "") {
         ?? null;
 }
 
+function firstPlanningRollTotal(action = {}, rollType = "", rollSubType = "") {
+    const type = String(rollType ?? "").toLowerCase();
+    const subType = String(rollSubType ?? "").toLowerCase();
+    const roll = toArray(action.planningRollResults).find((result) => {
+        const nested = result?.result && typeof result.result === "object" ? result.result : {};
+        const resultType = String(result?.rollType ?? nested.rollType ?? "").toLowerCase();
+        const resultSubType = String(result?.rollSubType ?? nested.rollSubType ?? "").toLowerCase();
+        if (type && resultType !== type) return false;
+        if (subType && resultSubType !== subType) return false;
+        return true;
+    });
+    const nested = roll?.result && typeof roll.result === "object" ? roll.result : {};
+    return roll ? toNumber(roll.total ?? nested.total, 0) : null;
+}
+
 function tokenPosition(token = null, tokenPositions = null) {
     const tokenId = String(token?.id ?? token?._id ?? "").trim();
     const override = tokenId ? tokenPositions?.[tokenId] : null;
@@ -117,6 +132,29 @@ function pathDistanceToPoint(path = [], targetPosition = null) {
     }
 
     return Number.POSITIVE_INFINITY;
+}
+
+function adjacentGridPositions(origin = null, gridSize = 100) {
+    const size = Math.max(1, toNumber(gridSize, 100));
+    const x = toNumber(origin?.x, 0);
+    const y = toNumber(origin?.y, 0);
+    return [
+        { x, y: y - size },
+        { x: x + size, y },
+        { x, y: y + size },
+        { x: x - size, y },
+        { x: x + size, y: y - size },
+        { x: x + size, y: y + size },
+        { x: x - size, y: y + size },
+        { x: x - size, y: y - size }
+    ].filter((position) => position.x >= 0 && position.y >= 0);
+}
+
+function reachableAdjacentGridPositions({ origin = null, scene = null, gridSize = 100 } = {}) {
+    return adjacentGridPositions(origin, gridSize).filter((position) => {
+        const path = findGridMovementPath({ start: origin, target: position, scene });
+        return path.length >= 2 && movementPathLength(path) <= (gridSize * Math.SQRT2) + Number.EPSILON;
+    });
 }
 
 function movementStepPixels({ action = null, token = null, targetToken = null, scene = null, fallbackFeetPerAp = 10 } = {}) {
@@ -173,19 +211,24 @@ export class MovementResolver {
     /** @type {() => object|null} */
     #getScene;
 
+    /** @type {() => number} */
+    #rng;
+
     /**
      * @param {{
      *   resolveTokenDocument:  (combatant: object) => object|null,
      *   resolveDeclaredTarget: (sourceCombatantId: string, targetCombatantId: string) => object|null,
      *   getMovementFeetPerAp:  () => number,
      *   getScene:              () => object|null
+     *   rng?:                  () => number
      * }} ports
      */
-    constructor({ resolveTokenDocument, resolveDeclaredTarget, getMovementFeetPerAp, getScene }) {
+    constructor({ resolveTokenDocument, resolveDeclaredTarget, getMovementFeetPerAp, getScene, rng = Math.random }) {
         this.#resolveTokenDocument = resolveTokenDocument;
         this.#resolveDeclaredTarget = resolveDeclaredTarget;
         this.#getMovementFeetPerAp = getMovementFeetPerAp;
         this.#getScene = getScene;
+        this.#rng = rng;
     }
 
     /**
@@ -283,6 +326,29 @@ export class MovementResolver {
 
         const currentX = toNumber(currentPosition.x, 0);
         const currentY = toNumber(currentPosition.y, 0);
+        const isDodge = movementMode === "dodge";
+
+        if (isDodge) {
+            const dodgeRoll = firstPlanningRollTotal(action, "defense", "dodge");
+            if (dodgeRoll !== null && dodgeRoll <= 5) return null;
+
+            const reachable = reachableAdjacentGridPositions({
+                origin: { x: currentX, y: currentY },
+                scene,
+                gridSize
+            });
+            if (!reachable.length) return null;
+
+            const intended = reachable.find((position) => sameGridCell(position, { x: targetX, y: targetY }, gridSize));
+            if (dodgeRoll !== null && dodgeRoll >= 12 && intended) {
+                targetX = intended.x;
+                targetY = intended.y;
+            } else {
+                const index = Math.min(reachable.length - 1, Math.floor(Math.max(0, this.#rng()) * reachable.length));
+                targetX = reachable[index].x;
+                targetY = reachable[index].y;
+            }
+        }
 
         const path = findGridMovementPath({
             start: { x: currentX, y: currentY },

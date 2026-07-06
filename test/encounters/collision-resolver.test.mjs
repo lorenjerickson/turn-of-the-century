@@ -62,9 +62,9 @@ function makeResolver({
         canResolveConflicts: () => canResolve,
         isActorProne: (actor) => proneCombatants.has(actor?.id),
         ownerUserIdForActor: (_actor) => "user1",
-        sendRollRequest: ({ member, combatant, tick }) => {
+        sendRollRequest: ({ member, combatant, ability = "dexterity", tick }) => {
             const id = `roll-${combatant?.id}-t${tick}`;
-            rollRequestLog.push({ id, combatantId: combatant?.id });
+            rollRequestLog.push({ id, combatantId: combatant?.id, ability });
             return { id };
         },
         waitForRollResolution: async (id) => {
@@ -422,6 +422,32 @@ describe("CollisionResolver.resolveTickEndGridConflicts — displacement", () =>
 
         const displacedEntry = timeline.find((e) => e.outcome?.result === "displaced");
         assert.equal(displacedEntry, undefined, "mixed outcomes → no displacement");
+    });
+
+    it("uses a contested Strength check and shunts the lower roller for dodge conflicts", async () => {
+        const c1 = makeCombatant("c1", { tokenId: "t1", str: 14 });
+        const c2 = makeCombatant("c2", { tokenId: "t2", str: 8 });
+        const snapshot = makeConflictingSnapshot(["t1", "t2"]);
+        const timeline = [];
+
+        const { resolver, rollRequestLog } = makeResolver({
+            combatants: [c1, c2],
+            rollResults: {
+                c1: { total: 17, dice: [{ value: 15, kept: true }] },
+                c2: { total: 9, dice: [{ value: 10, kept: true }] }
+            }
+        });
+
+        await resolver.resolveTickEndGridConflicts({
+            tick: 1,
+            snapshot,
+            timeline,
+            tickEffects: [{ type: "movement", actionId: "dodge", combatantId: "c1", tokenId: "t1", x: 0, y: 0 }]
+        });
+
+        assert.deepEqual(rollRequestLog.map((request) => request.ability), ["strength", "strength"]);
+        assert.notDeepEqual(snapshot.tokenPositions.t2, { x: 0, y: 0 });
+        assert.equal(timeline.find((entry) => entry.combatantId === "c2")?.outcome?.result, "displaced");
     });
 });
 

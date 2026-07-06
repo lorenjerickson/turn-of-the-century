@@ -5,6 +5,11 @@ import { describe, it } from "node:test";
 const styles = readFileSync(new URL("../../styles/system-styles.css", import.meta.url), "utf8");
 
 describe("Dock collapse styles", () => {
+    it("keeps dock grid areas consistent with renderer-managed grid tracks", () => {
+        assert.doesNotMatch(styles, /@media\s*\(max-width:\s*1100px\)\s*\{[\s\S]*grid-template-areas:/);
+        assert.match(styles, /grid-template-areas:\s*"left top right"\s*"left center right"\s*"left bottom right";/);
+    });
+
     it("hides stack content when a dock is collapsed", () => {
         assert.match(
             styles,

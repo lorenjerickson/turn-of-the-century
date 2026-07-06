@@ -234,7 +234,7 @@ describe("encounter manager panel", () => {
         assert.equal(resolvingModel.canStepNext, true);
     });
 
-    it("renders the current tick, player-style combatant plans, and last-round summary", () => {
+    it("renders the current tick, dense combatant plan rows, and last-round summary", () => {
         const html = renderEncounterManagerPanel(buildEncounterManagerPanelModel({ combat: combatFixture() }), { escapeHTML });
 
         assert.match(html, /class="totc-v2-encounter-manager"/);
@@ -246,7 +246,6 @@ describe("encounter manager panel", () => {
         assert.match(html, /<h3>Combatant Plans<\/h3>/);
         assert.match(html, /class="totc-v2-encounter-manager__actor-plan"/);
         assert.match(html, /class="totc-v2-encounter-panel__bar"/);
-        assert.match(html, /class="totc-v2-encounter-panel__orders"/);
         assert.match(html, /class="totc-v2-encounter-manager__actor-ready is-resolved">Resolved<\/span>/);
         assert.match(html, /<h3>Last Round<\/h3>/);
         assert.match(html, /Ada Price moves 20 ft\./);
@@ -259,6 +258,10 @@ describe("encounter manager panel", () => {
         assert.match(html, /data-action="encounter-manager-step-tick" data-direction="1"/);
         assert.match(html, />Prev Second<\/button>/);
         assert.match(html, />Next Second<\/button>/);
+        assert.doesNotMatch(html, /data-action="encounter-manager-reset-rolls"/);
+        assert.doesNotMatch(html, /class="totc-v2-encounter-panel__orders"/);
+        assert.doesNotMatch(html, /class="totc-v2-encounter-manager__draft/);
+        assert.doesNotMatch(html, /Narrative Plan/);
         assert.doesNotMatch(html, /totc-v2-encounter-manager__plan/);
         assert.doesNotMatch(html, /totc-v2-encounter-manager__order-clause/);
         assert.doesNotMatch(html, /totc-v2-encounter-manager__tick-outline/);
@@ -348,7 +351,7 @@ describe("encounter manager panel", () => {
         assert.deepEqual(ada.orders[0].clauses[0].relatedCombatantIds, ["combatant-2"]);
 
         const html = renderEncounterManagerPanel(model, { escapeHTML });
-        assert.match(html, /class="totc-v2-encounter-panel__orders"/);
+        assert.doesNotMatch(html, /class="totc-v2-encounter-panel__orders"/);
         assert.doesNotMatch(html, /class="totc-v2-encounter-manager__order is-active"/);
         assert.doesNotMatch(html, /class="totc-v2-encounter-manager__order-clause is-active"/);
         assert.doesNotMatch(html, /data-related-combatant-ids="combatant-2"/);
@@ -426,7 +429,7 @@ describe("encounter manager panel", () => {
         assert.match(html, /1d6 \+ 2/);
     });
 
-    it("shows player draft narratives and AP context before confirmation", () => {
+    it("builds draft summaries without rendering draft cards in the combatant plan list", () => {
         const model = buildEncounterManagerPanelModel({ combat: planningDraftCombatFixture() });
         const ada = model.actors[0];
 
@@ -437,12 +440,12 @@ describe("encounter manager panel", () => {
         assert.match(ada.draftSummary.text, /Ada Price attacks Brass Knuckles Briggs/);
 
         const html = renderEncounterManagerPanel(model, { escapeHTML });
-        assert.match(html, /class="totc-v2-encounter-manager__draft is-drafting"/);
-        assert.match(html, /Narrative Plan/);
-        assert.match(html, /Ada Price attacks Brass Knuckles Briggs/);
-        assert.match(html, /2 AP planned/);
-        assert.match(html, /4 AP unused/);
-        assert.match(html, /Needs item\./);
+        assert.doesNotMatch(html, /class="totc-v2-encounter-manager__draft/);
+        assert.doesNotMatch(html, /Narrative Plan/);
+        assert.doesNotMatch(html, /Ada Price attacks Brass Knuckles Briggs/);
+        assert.doesNotMatch(html, /2 AP planned/);
+        assert.doesNotMatch(html, /4 AP unused/);
+        assert.doesNotMatch(html, /Needs item\./);
     });
 
     it("distinguishes confirmed plans that are still waiting for rolls", () => {
@@ -456,9 +459,9 @@ describe("encounter manager panel", () => {
 
         const html = renderEncounterManagerPanel(model, { escapeHTML });
         assert.match(html, /class="totc-v2-encounter-manager__actor-ready is-awaiting-rolls">Awaiting Rolls<\/span>/);
-        assert.match(html, /class="totc-v2-encounter-manager__draft-state is-confirmedAwaitingRolls">Awaiting Rolls<\/span>/);
-        assert.match(html, /1 roll pending\./);
         assert.match(html, /data-action="encounter-manager-reset-rolls"/);
+        assert.doesNotMatch(html, /class="totc-v2-encounter-manager__draft-state/);
+        assert.doesNotMatch(html, /1 roll pending\./);
         assert.match(html, /data-action="encounter-manager-resolve-round" disabled/);
     });
 

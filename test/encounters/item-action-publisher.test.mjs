@@ -144,7 +144,6 @@ describe("buildUniversalActions", () => {
                 ["move", "Move"],
                 ["open", "Open"],
                 ["close", "Close"],
-                ["pursue", "Close and Engage"],
                 ["follow", "Follow"],
                 ["avoid", "Evade"],
                 ["wait", "Wait"],
@@ -159,7 +158,7 @@ describe("buildUniversalActions", () => {
         const actions = buildUniversalActions();
         const open = actions.find((action) => action.id === "open");
         const close = actions.find((action) => action.id === "close");
-        const durationActionIds = ["dodge", "hunkDown", "overwatch", "wait", "follow", "avoid"];
+        const durationActionIds = ["hunkDown", "overwatch", "wait", "follow", "avoid"];
         assert.equal(open.apCost, 1);
         assert.equal(open.apMin, 1);
         assert.equal(open.apMax, 1);
@@ -171,19 +170,24 @@ describe("buildUniversalActions", () => {
         assert.equal(close.variableAp, false);
         assert.equal(close.targetingRangeFeet, 5);
         assert.equal(actions.find((action) => action.id === "move").variableAp, true);
-        assert.equal(actions.find((action) => action.id === "pursue").requiresEngagementAction, true);
         for (const actionId of durationActionIds) {
             const action = actions.find((candidate) => candidate.id === actionId);
             assert.equal(action.variableAp, true, `${actionId} should be variable AP`);
             assert.equal(action.requiresDuration, true, `${actionId} should require duration`);
         }
+        const dodge = actions.find((action) => action.id === "dodge");
+        assert.equal(dodge.variableAp, false);
+        assert.equal(dodge.requiresDuration, false);
+        assert.equal(dodge.requiresMovementDestination, true);
+        assert.deepEqual(dodge.rollRequirements, [{ rollType: "defense", rollSubType: "dodge" }]);
     });
 
     it("apMax is bounded by the supplied apBudget", () => {
         const actions = buildUniversalActions({ apBudget: 4 });
         assert.equal(actions.find((action) => action.id === "open").apMax, 1);
         assert.equal(actions.find((action) => action.id === "close").apMax, 1);
-        assert.ok(actions.filter((action) => !["open", "close"].includes(action.id)).every((a) => a.apMax === 4));
+        assert.ok(actions.filter((action) => !["open", "close", "dodge"].includes(action.id)).every((a) => a.apMax === 4));
+        assert.equal(actions.find((action) => action.id === "dodge").apMax, 1);
     });
 
     it("move action carries movementFeetPerAp", () => {
@@ -207,7 +211,8 @@ describe("buildUniversalActions", () => {
         const actions = buildUniversalActions();
         assert.equal(actions.find((action) => action.id === "open").apMax, 1);
         assert.equal(actions.find((action) => action.id === "close").apMax, 1);
-        assert.ok(actions.filter((action) => !["open", "close"].includes(action.id)).every((a) => a.apMax === 6));
+        assert.ok(actions.filter((action) => !["open", "close", "dodge"].includes(action.id)).every((a) => a.apMax === 6));
+        assert.equal(actions.find((action) => action.id === "dodge").apMax, 1);
         const move = actions.find((a) => a.id === "move");
         assert.equal(move.movementFeetPerAp, 5);
     });
@@ -410,6 +415,10 @@ describe("getEnabledActionsForItem", () => {
         assert.equal(action.targetingRangeFeet, 10);
         assert.equal(action.effectiveRangeFeet, 10);
         assert.equal(action.damageType, "piercing");
+        assert.deepEqual(action.rollRequirements, [
+            { rollType: "attack", rollSubType: "toHit" },
+            { rollType: "attack", rollSubType: "damage" }
+        ]);
     });
 
     it("defaults ranged weapon actions to the item's normal range", () => {

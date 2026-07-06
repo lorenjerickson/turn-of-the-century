@@ -18,6 +18,19 @@ function toNumber(value, fallback = 0) {
     return Number.isFinite(number) ? number : fallback;
 }
 
+function conflictIncludesDodge(conflict = [], tickEffects = []) {
+    const dodgeCombatantIds = new Set(toArray(tickEffects)
+        .filter((effect) => String(effect?.type ?? "") === "movement" && String(effect?.actionId ?? "") === "dodge")
+        .map((effect) => String(effect?.combatantId ?? "")));
+    return conflict.some((member) => dodgeCombatantIds.has(String(member?.combatantId ?? "")));
+}
+
+function lowestContestTotal(entries = []) {
+    if (entries.length < 2) return null;
+    const sorted = [...entries].sort((left, right) => toNumber(left.total, 0) - toNumber(right.total, 0));
+    return toNumber(sorted[0]?.total, 0) < toNumber(sorted[1]?.total, 0) ? sorted[0] : null;
+}
+
 // ---------------------------------------------------------------------------
 
 /**
@@ -170,7 +183,7 @@ export class CollisionResolver {
      * }} options
      * @returns {Promise<object>} The post-resolution snapshot.
      */
-    async resolveTickEndGridConflicts({ tick = 0, snapshot = null, timeline = [], tickNarratives = [], perCombatant = {} } = {}) {
+    async resolveTickEndGridConflicts({ tick = 0, snapshot = null, timeline = [], tickNarratives = [], perCombatant = {}, tickEffects = [] } = {}) {
         if (!this.#canResolveConflicts()) return snapshot;
 
         const gridSize = Math.max(1, toNumber(this.#getGridSize(), 100));
@@ -185,6 +198,11 @@ export class CollisionResolver {
         await this.#applySnapshot(snapshot);
 
         for (const conflict of conflicts) {
+            if (conflictIncludesDodge(conflict, tickEffects)) {
+                await this.#resolveDodgeGridConflict({ conflict, tick, snapshot, timeline, perCombatant, combatants });
+                continue;
+            }
+
             const requests = conflict.map((member) => {
                 const combatant = combatants.find((c) => c?.id === member.combatantId) ?? null;
                 const actor = combatant?.actor ?? null;
@@ -295,6 +313,94 @@ export class CollisionResolver {
             timeline,
             tickNarratives,
             tokenPositionOverrides: snapshot?.tokenPositions ?? {}
+        });
+    }
+
+    async #resolveDodgeGridConflict({ conflict = [], tick = 0, snapshot = null, timeline = [], perCombatant = {}, combatants = [] } = {}) {
+        const requests = conflict.map((member) => {
+            const combatant = combatants.find((c) => c?.id === member.combatantId) ?? null;
+            const actor = combatant?.actor ?? null;
+            const recipientId = this.#ownerUserIdForActor(actor);
+            const strengthBonus = toNumber(actor?.system?.abilities?.str?.bonus, 0);
+            return {
+                member,
+                combatant,
+                recipientId,
+                request: this.#sendRollRequest({
+                    member,
+                    combatant,
+                    recipientId,
+                    strengthBonus,
+                    ability: "strength",
+                    tick
+                })
+            };
+        });
+
+        await this.#notifyAwaitingRolls({
+            tick,
+            timeline,
+            perCombatant,
+            requestIds: requests.map(({ request }) => request.id)
+        });
+
+        const resolvedRequests = await Promise.all(requests.map(async (entry) => ({
+            ...entry,
+            request: await this.#waitForRollResolution(entry.request.id)
+        })));
+        const contest = resolvedRequests.map(({ combatant, request, recipientId }) => ({
+            combatantId: combatant?.id,
+            total: toNumber(request?.results?.[recipientId]?.total, 0)
+        }));
+        const loser = lowestContestTotal(contest);
+        if (!loser) return;
+
+        const displaced = conflict.find((member) => member.combatantId === loser.combatantId);
+        const origin = snapshot?.tokenPositions?.[displaced?.tokenId];
+        const destination = adjacentFreePosition({
+            origin,
+            occupiedPositions: Object.entries(snapshot?.tokenPositions ?? {})
+                .filter(([tokenId]) => tokenId !== displaced?.tokenId)
+                .map(([, position]) => position),
+            gridSize: Math.max(1, toNumber(this.#getGridSize(), 100))
+        });
+        const combatant = combatants.find((candidate) => candidate?.id === loser.combatantId) ?? null;
+        const name = combatant?.name ?? "Combatant";
+
+        if (destination && displaced?.tokenId) {
+            snapshot.tokenPositions[displaced.tokenId] = destination;
+            timeline.push({
+                tick,
+                combatantId: loser.combatantId,
+                combatantName: name,
+                action: null,
+                outcome: {
+                    result: "displaced",
+                    total: loser.total,
+                    detail: `${name} loses the contested Strength check and is shunted to an adjacent square.`
+                }
+            });
+            return;
+        }
+
+        await this.#applyProneEffect(combatant);
+        const state = perCombatant?.[loser.combatantId];
+        if (state) {
+            state.spentAp += Math.max(0, toNumber(state.remainingAp, 0));
+            state.remainingAp = 0;
+            state.pointer = toArray(state.plan).length;
+            state.progress = 0;
+        }
+        timeline.push({
+            tick,
+            combatantId: loser.combatantId,
+            combatantName: name,
+            action: null,
+            outcome: {
+                result: "prone",
+                total: loser.total,
+                detail: `${name} loses the contested Strength check, cannot be shunted clear, and is knocked prone.`
+            }
         });
     }
 }

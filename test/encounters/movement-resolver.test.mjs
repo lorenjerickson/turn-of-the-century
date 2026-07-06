@@ -216,6 +216,82 @@ describe("MovementResolver.planMovement — absolute movement", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Dodge
+// ---------------------------------------------------------------------------
+
+describe("MovementResolver.planMovement — dodge", () => {
+    it("does not move when the locked dodge roll fails", () => {
+        const token = makeToken("t1", 100, 100);
+        const combatant = makeCombatant("c1", token);
+        const resolver = makeResolver();
+
+        const result = resolver.planMovement({
+            combatant,
+            action: makeAction({
+                id: "dodge",
+                actionId: "dodge",
+                apCost: 1,
+                movementFeetPerAp: 5,
+                movementTargetX: 200,
+                movementTargetY: 100,
+                planningRollResults: [{ rollType: "defense", rollSubType: "dodge", result: { total: 5 } }]
+            }),
+            tokenPositions: null,
+            tickEffects: []
+        });
+
+        assert.equal(result, null);
+    });
+
+    it("moves to the intended adjacent square on a high locked dodge roll", () => {
+        const token = makeToken("t1", 100, 100);
+        const combatant = makeCombatant("c1", token);
+        const resolver = makeResolver();
+
+        const result = resolver.planMovement({
+            combatant,
+            action: makeAction({
+                id: "dodge",
+                actionId: "dodge",
+                apCost: 1,
+                movementFeetPerAp: 5,
+                movementTargetX: 200,
+                movementTargetY: 100,
+                planningRollResults: [{ rollType: "defense", rollSubType: "dodge", result: { total: 12 } }]
+            }),
+            tokenPositions: null,
+            tickEffects: []
+        });
+
+        assert.deepEqual(result, { tokenId: "t1", x: 200, y: 100 });
+    });
+
+    it("chooses a reachable adjacent square on a middling locked dodge roll", () => {
+        const token = makeToken("t1", 100, 100);
+        const combatant = makeCombatant("c1", token);
+        const resolver = makeResolver({ movementFeetPerAp: 5 });
+
+        const result = resolver.planMovement({
+            combatant,
+            action: makeAction({
+                id: "dodge",
+                actionId: "dodge",
+                apCost: 1,
+                movementFeetPerAp: 5,
+                movementTargetX: 200,
+                movementTargetY: 100,
+                planningRollResults: [{ rollType: "defense", rollSubType: "dodge", result: { total: 8 } }]
+            }),
+            tokenPositions: null,
+            tickEffects: []
+        });
+
+        assert.ok(result !== null);
+        assert.equal(Math.max(Math.abs(result.x - 100), Math.abs(result.y - 100)), 100);
+    });
+});
+
+// ---------------------------------------------------------------------------
 // Pursue
 // ---------------------------------------------------------------------------
 

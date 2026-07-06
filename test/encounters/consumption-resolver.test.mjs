@@ -20,7 +20,8 @@ function makeResolver({
     combatants = {},
     itemActionLog = [],
     healthLog = [],
-    distances = {}
+    distances = {},
+    doorLog = []
 } = {}) {
     return new ConsumptionResolver({
         resolveCombatant: (id) => combatants[id] ?? null,
@@ -33,7 +34,8 @@ function makeResolver({
         distanceBetweenCombatantsFeet: (source, target, opts) => {
             const key = `${source?.id}-${target?.id}`;
             return distances[key] ?? Number.POSITIVE_INFINITY;
-        }
+        },
+        applyDoorState: async (entry) => doorLog.push(entry)
     });
 }
 
@@ -406,6 +408,26 @@ describe("ConsumptionResolver.applyConsumeActionEffect", () => {
 // ---------------------------------------------------------------------------
 
 describe("ConsumptionResolver.applyActionEffect", () => {
+    it("applies door effects without requiring a target combatant", async () => {
+        const doorLog = [];
+        const r = makeResolver({ doorLog });
+
+        await r.applyActionEffect({
+            type: "actionEffect",
+            sourceCombatantId: "source",
+            targetMode: "custom",
+            effect: {
+                type: "door",
+                operation: "open",
+                doorId: "door-1"
+            }
+        });
+
+        assert.equal(doorLog.length, 1);
+        assert.equal(doorLog[0].doorId, "door-1");
+        assert.equal(doorLog[0].state, "open");
+    });
+
     it("applies condition effects to the designated target combatant", async () => {
         const statusLog = [];
         const actor = {

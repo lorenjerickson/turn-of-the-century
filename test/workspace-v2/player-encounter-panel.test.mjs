@@ -352,6 +352,35 @@ describe("player encounter panel", () => {
         assert.doesNotMatch(html, /data-action="encounter-select-popup-action"[^>]*data-action-id="strike"/);
     });
 
+    it("groups action picker choices by action type in alphabetical group order", () => {
+        const model = buildPlayerEncounterPanelModel({
+            actor: actorFixture(),
+            planner: {
+                ...plannerFixture(),
+                availableActions: [
+                    { id: "wait", actionId: "wait", type: "utility", label: "Wait", apCost: 1, apMin: 1, apMax: 1 },
+                    { id: "move", actionId: "move", type: "movement", label: "Move", apCost: 1, apMin: 1, apMax: 4 },
+                    { id: "strike", actionId: "strike", type: "attack", label: "Strike", apCost: 1, apMin: 1, apMax: 1 },
+                    { id: "aimed", actionId: "aimed", type: "attack", label: "Aimed Shot", apCost: 1, apMin: 1, apMax: 1 },
+                    { id: "dodge", actionId: "dodge", type: "defense", label: "Dodge", apCost: 1, apMin: 1, apMax: 1 }
+                ]
+            },
+            combat: null,
+            activePlanEditSlot: {
+                mode: "draftAction",
+                index: 0,
+                remainingAp: 4
+            }
+        });
+        const html = renderPlayerEncounterPanel(model, { escapeHTML });
+
+        assert.deepEqual(model.availableActionGroups.map((group) => group.label), ["Attacks", "Defense", "Movement", "Utility"]);
+        assert.deepEqual(model.availableActionGroups[0].actions.map((action) => action.label), ["Aimed Shot", "Strike"]);
+        assert.ok(html.indexOf("data-action-group=\"Attacks\"") < html.indexOf("data-action-group=\"Defense\""));
+        assert.ok(html.indexOf("data-action-group=\"Defense\"") < html.indexOf("data-action-group=\"Movement\""));
+        assert.ok(html.indexOf("data-action-id=\"aimed\"") < html.indexOf("data-action-id=\"strike\""));
+    });
+
     it("does not render the legacy action popup while draft movement is awaiting a map destination", () => {
         const model = buildPlayerEncounterPanelModel({
             actor: actorFixture(),
@@ -408,6 +437,26 @@ describe("player encounter panel", () => {
         assert.match(html, /data-action="encounter-select-draft-duration"[^>]*data-duration-ap="1"/);
         assert.match(html, /data-action="encounter-select-draft-duration"[^>]*data-duration-ap="3"/);
         assert.doesNotMatch(html, /data-duration-ap="4"/);
+    });
+
+    it("renders approach AP choices for positioning narrative phrases", () => {
+        const model = buildPlayerEncounterPanelModel({
+            actor: actorFixture(),
+            planner: plannerFixture(),
+            combat: null,
+            activePlanEditSlot: {
+                mode: "draftPositioning",
+                index: 0,
+                maxPositioningAp: 3
+            }
+        });
+
+        const html = renderPlayerEncounterPanel(model, { escapeHTML });
+
+        assert.match(html, /Choose Approach/);
+        assert.match(html, /data-action="encounter-select-draft-positioning"[^>]*data-positioning-ap="0"/);
+        assert.match(html, /data-action="encounter-select-draft-positioning"[^>]*data-positioning-ap="3"/);
+        assert.doesNotMatch(html, /data-positioning-ap="4"/);
     });
 
     it("preserves duration requirements on rendered action choices", () => {

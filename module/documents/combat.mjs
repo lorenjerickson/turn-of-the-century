@@ -230,11 +230,21 @@ function lockedThroughIndex(plan = []) {
     return boundary;
 }
 
+function isStaticDamageFormula(formula = "") {
+    const text = String(formula ?? "").trim();
+    if (!text) return true;
+    return Number.isFinite(Number(text));
+}
+
 function actionRollRequirements(action = {}) {
     const requirements = toArray(action.rollRequirements);
     if (requirements.length) return requirements;
     if (action.requiresToHit || action.type === "attack") {
-        return [{ rollType: "attack", rollSubType: "toHit" }];
+        const inferred = [{ rollType: "attack", rollSubType: "toHit" }];
+        if (!isStaticDamageFormula(action.damageFormula)) {
+            inferred.push({ rollType: "attack", rollSubType: "damage" });
+        }
+        return inferred;
     }
     return [];
 }
@@ -393,19 +403,22 @@ export class TurnOfTheCenturyEncounter {
                 ));
                 return String(playerOwner?.id ?? anyOwner?.id ?? game.user?.id ?? "gm").trim();
             },
-            sendRollRequest: ({ member, combatant, recipientId, dexBonus, tick }) => {
+            sendRollRequest: ({ member, combatant, recipientId, dexBonus, strengthBonus, ability = "dexterity", tick }) => {
+                const abilityKey = String(ability ?? "dexterity").toLowerCase() === "strength" ? "strength" : "dexterity";
+                const abilityLabel = abilityKey === "strength" ? "Strength" : "Dexterity";
+                const modifier = abilityKey === "strength" ? strengthBonus : dexBonus;
                 return dieRollRequestManager.sendRequest({
-                    id: `encounter-${this.#combat.id}-round-${this.#combat.round || 1}-tick-${tick}-collision-${member.combatantId}`,
+                    id: `encounter-${this.#combat.id}-round-${this.#combat.round || 1}-tick-${tick}-collision-${abilityKey}-${member.combatantId}`,
                     initiatorId: game.user?.id ?? "",
                     requestor: { id: game.user?.id ?? "", name: game.user?.name ?? "GM", type: "gm" },
                     recipientIds: [recipientId],
                     actorId: combatant?.actor?.id ?? "",
                     tokenId: member.tokenId,
                     rollType: "ability",
-                    rollSubType: "dexterity",
-                    label: `${combatant?.name ?? "Actor"}: contested Dexterity`,
+                    rollSubType: abilityKey,
+                    label: `${combatant?.name ?? "Actor"}: contested ${abilityLabel}`,
                     dice: [{ count: 1, faces: 20 }],
-                    modifiers: [{ label: "Dexterity", value: dexBonus, source: "actor" }]
+                    modifiers: [{ label: abilityLabel, value: toNumber(modifier, 0), source: "actor" }]
                 });
             },
             waitForRollResolution: async (id) => dieRollRequestManager.waitForResolution(id),
@@ -464,7 +477,8 @@ export class TurnOfTheCenturyEncounter {
             updateActorHealth: async (actor, nextHealth) => {
                 await actor.update({ "system.resources.health.value": nextHealth });
             },
-            distanceBetweenCombatantsFeet: (source, target, opts) => this.#distanceBetweenCombatantsFeet(source, target, opts)
+            distanceBetweenCombatantsFeet: (source, target, opts) => this.#distanceBetweenCombatantsFeet(source, target, opts),
+            applyDoorState: async ({ doorId, state }) => this.#applyDoorState(doorId, state)
         });
         this.#resolutionEngine = new EncounterResolutionEngine({
             getState: () => this.state,
@@ -926,7 +940,9 @@ export class TurnOfTheCenturyEncounter {
     }
 
     async confirmCombatantDraftPlan(combatantId) {
-        return this.#planningService.confirmCombatantDraftPlan(combatantId);
+        const result = await this.#planningService.confirmCombatantDraftPlan(combatantId);
+        await this.#closePlanningPreviewDoors(result?.plan);
+        return result;
     }
 
     async clearCombatantDraftPlan(combatantId) {
@@ -1366,6 +1382,69 @@ export class TurnOfTheCenturyEncounter {
             await applyLocalPlanningTokenPath(tokenDocument, path);
             current = target;
         }
+    }
+
+    #doorStateValue(state = "closed") {
+        const key = String(state ?? "closed").trim().toLowerCase();
+        if (key === "open") return globalThis.CONST?.WALL_DOOR_STATES?.OPEN ?? 1;
+        if (key === "locked") return globalThis.CONST?.WALL_DOOR_STATES?.LOCKED ?? 2;
+        return globalThis.CONST?.WALL_DOOR_STATES?.CLOSED ?? 0;
+    }
+
+    #findWallDocument(doorId = "") {
+        const id = String(doorId ?? "").trim();
+        if (!id) return null;
+        const activeCanvas = globalThis.canvas ?? null;
+        const activeGame = globalThis.game ?? null;
+        const matchesDoorId = (wall = null) => [
+            wall?.id,
+            wall?._id,
+            wall?.document?.id,
+            wall?.document?._id
+        ].some((candidate) => String(candidate ?? "").trim() === id);
+        const scenes = [
+            activeCanvas?.scene,
+            this.#combat.scene,
+            ...(activeGame?.scenes?.contents ?? [])
+        ].filter(Boolean);
+
+        for (const scene of scenes) {
+            const direct = scene?.walls?.get?.(id) ?? null;
+            if (direct) return direct;
+            const match = collectionContents(scene?.walls).find(matchesDoorId) ?? null;
+            if (match) return match;
+        }
+
+        return [
+            ...collectionContents(activeCanvas?.walls?.placeables),
+            ...collectionContents(activeCanvas?.walls?.doors)
+        ].find(matchesDoorId) ?? null;
+    }
+
+    async #applyDoorState(doorId = "", state = "closed") {
+        const foundWall = this.#findWallDocument(doorId);
+        const wall = foundWall?.document ?? foundWall;
+        if (!wall) return false;
+        const ds = this.#doorStateValue(state);
+        if (typeof wall.update === "function") {
+            await wall.update({ ds });
+            return true;
+        }
+        if (typeof wall.updateSource === "function") {
+            wall.updateSource({ ds });
+            return true;
+        }
+        wall.ds = ds;
+        if (wall._source) wall._source.ds = ds;
+        return true;
+    }
+
+    async #closePlanningPreviewDoors(plan = []) {
+        const doorIds = new Set(toArray(plan)
+            .filter((action) => Boolean(action?.doorOpenedDuringPlanning))
+            .map((action) => String(action?.doorId ?? "").trim())
+            .filter(Boolean));
+        await Promise.all([...doorIds].map((doorId) => this.#applyDoorState(doorId, "closed")));
     }
 
     async #restorePlanningOrigins(perCombatant = {}) {

@@ -1841,6 +1841,79 @@ describe("TurnOfTheCenturyEncounter reactions and rewind", () => {
         assert.equal(stabber.actor.system.resources.health.value, 0);
     });
 
+    it("applies locked planning damage when an attack hits", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+
+        const revolver = makeWeaponItem({ id: "revolver-1", loaded: 2, damage: "1d8", normalRange: 30 });
+        const harness = buildMultiCombatHarness({
+            apBudget: 1,
+            combatants: [
+                {
+                    id: "c-a",
+                    actorId: "actor-a",
+                    name: "Shooter",
+                    tokenId: "token-a",
+                    x: 0,
+                    y: 0,
+                    initiative: 20,
+                    health: 20,
+                    items: [revolver],
+                    inventory: {
+                        equipment: { hands: { itemIds: ["revolver-1"] }, torso: { itemIds: [] }, belt: { itemIds: [] } },
+                        pack: { itemIds: [] }
+                    }
+                },
+                {
+                    id: "c-b",
+                    actorId: "actor-b",
+                    name: "Target",
+                    tokenId: "token-b",
+                    x: 0,
+                    y: 0,
+                    initiative: 10,
+                    health: 20,
+                    items: [],
+                    inventory: {
+                        equipment: { hands: { itemIds: [] }, torso: { itemIds: [] }, belt: { itemIds: [] } },
+                        pack: { itemIds: [] }
+                    }
+                }
+            ],
+            plans: {
+                "c-a": [{
+                    id: "revolver-1:shot",
+                    actionId: "shot",
+                    type: "attack",
+                    label: "Shoot",
+                    apCost: 1,
+                    itemId: "revolver-1",
+                    targetId: "c-b",
+                    requiresToHit: true,
+                    toHitBonus: 0,
+                    rangeType: "normal",
+                    damageFormula: "1d8",
+                    rollRequirements: [
+                        { rollType: "attack", rollSubType: "toHit" },
+                        { rollType: "attack", rollSubType: "damage" }
+                    ],
+                    planningRollResults: [
+                        { requestId: "to-hit", rollType: "attack", rollSubType: "toHit", result: { total: 15 } },
+                        { requestId: "damage", rollType: "attack", rollSubType: "damage", result: { total: 7 } }
+                    ]
+                }]
+            }
+        });
+
+        const encounter = new TurnOfTheCenturyEncounter(harness.combat);
+        const timeline = await encounter.resolveEncounterRound({ tickDelayMs: 0 });
+
+        const attack = timeline.find((entry) => entry.combatantId === "c-a" && entry.outcome?.result === "hit");
+        const target = harness.combatants.find((combatant) => combatant.id === "c-b");
+        assert.ok(attack, "expected attack to hit");
+        assert.equal(attack.outcome.damage, 7);
+        assert.equal(target.actor.system.resources.health.value, 13);
+    });
+
     it("reconciles at tick end and forfeits a prone actor's remaining plan", async () => {
         const { TurnOfTheCenturyEncounter } = await loadCombatModule();
         const { dieRollRequestManager } = await import("../../module/die-roll-request-manager.mjs");

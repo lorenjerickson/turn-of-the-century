@@ -174,6 +174,33 @@ describe("encounter draft plan model", () => {
         assert.equal(evade.label, "Evade");
     });
 
+    it("preserves location positioning and door effects for planned Open actions", () => {
+        const action = draftClauseToResolutionAction({
+            actionId: "open",
+            id: "open",
+            type: "utility",
+            label: "Open",
+            apCost: 3,
+            positioningAp: 2,
+            effectAp: 1,
+            requiresPositioning: true,
+            positioningRequirement: { type: "adjacent", targetKind: "location", rangeFeet: 5 },
+            targetX: 300,
+            targetY: 50,
+            doorId: "door-1",
+            doorOpenedDuringPlanning: true,
+            effects: [{ type: "door", operation: "open", target: "custom", doorId: "door-1" }]
+        });
+
+        assert.equal(action.actionId, "open");
+        assert.equal(action.apEnvelope.positioningAp, 2);
+        assert.equal(action.apEnvelope.effectAp, 1);
+        assert.deepEqual(action.positioningRequirement, { type: "adjacent", targetKind: "location", rangeFeet: 5 });
+        assert.equal(action.targetX, 300);
+        assert.equal(action.targetY, 50);
+        assert.equal(action.effects[0].type, "door");
+    });
+
     it("requires and converts Close and Engage follow-up actions with AP and range semantics", () => {
         const incomplete = normalizeDraftPlan({
             clauses: [{
@@ -234,6 +261,58 @@ describe("encounter draft plan model", () => {
         assert.deepEqual(action.apEnvelope, { positioningAp: 4, effectAp: 2, maxAp: 6 });
         assert.equal(action.positioningRequirement.type, "weaponRange");
         assert.equal(action.positioningRequirement.rangeFeet, 5);
+        assert.equal(action.failureOutcome.type, "bestReachablePosition");
+    });
+
+    it("converts targeted actions with approach AP into implied positioning orders", () => {
+        const incomplete = normalizeDraftPlan({
+            clauses: [{
+                actionId: "precisionStrike",
+                type: "attack",
+                label: "Precision Strike",
+                apCost: 2,
+                effectAp: 2,
+                positioningAp: null,
+                maxPositioningAp: 4,
+                requiresTarget: true,
+                requiresPositioning: true,
+                targetId: "target-1",
+                targetName: "Mallory",
+                requiresToHit: true,
+                itemId: "scalpel",
+                targetingRangeFeet: 5,
+                rangeType: "melee"
+            }]
+        }, { apBudget: 6 });
+
+        assert.deepEqual(incomplete.missingDecisions, [{ clauseId: "draft-clause-1", decision: "positioning" }]);
+
+        const [action] = draftPlanToResolutionActions({
+            clauses: [{
+                actionId: "precisionStrike",
+                type: "attack",
+                label: "Precision Strike",
+                apCost: 5,
+                effectAp: 2,
+                positioningAp: 3,
+                requiresTarget: true,
+                requiresPositioning: true,
+                targetId: "target-1",
+                targetName: "Mallory",
+                requiresToHit: true,
+                itemId: "scalpel",
+                targetingRangeFeet: 5,
+                rangeType: "melee"
+            }]
+        }, { apBudget: 6 });
+
+        assert.equal(action.actionId, "precisionStrike");
+        assert.equal(action.type, "attack");
+        assert.equal(action.apCost, 5);
+        assert.deepEqual(action.apEnvelope, { positioningAp: 3, effectAp: 2, maxAp: 5 });
+        assert.equal(action.positioningRequirement.type, "weaponRange");
+        assert.equal(action.positioningRequirement.rangeFeet, 5);
+        assert.equal(action.followThrough.type, "hold");
         assert.equal(action.failureOutcome.type, "bestReachablePosition");
     });
 

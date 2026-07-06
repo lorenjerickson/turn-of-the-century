@@ -116,6 +116,7 @@ import {
 } from "./module/document-defaults.mjs";
 import { refreshGmTokenVisionPreview } from "./module/canvas-vision-preview.mjs";
 import { PlanningVisibilityLock } from "./module/planning-visibility-lock.mjs";
+import { encounterDoorPlanningController } from "./module/encounters/encounter-door-planning.mjs";
 
 const WORLD_SCHEMA_VERSION_SETTING = "worldSchemaVersion";
 const ENCOUNTER_AP_BUDGET_SETTING = "encounterActionPointBudget";
@@ -996,6 +997,13 @@ Hooks.on("preCreateActor", (actorDoc) => {
         "prototypeToken.sight.range": tokenDefaults.sight.range
     });
 });
+
+Hooks.on("preUpdateWall", (wallDoc, change) => encounterDoorPlanningController.handlePreUpdateWall(wallDoc, change, {
+    game,
+    canvas,
+    ui,
+    foundryConstants: CONST
+}));
 
 Hooks.on("controlToken", (token, controlled) => {
     refreshGmTokenVisionPreview(token, controlled);

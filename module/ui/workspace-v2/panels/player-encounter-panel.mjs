@@ -103,6 +103,39 @@ function actionOptionModel(action = {}) {
     };
 }
 
+function actionGroupLabel(type = "") {
+    const normalized = String(type ?? "").trim().toLowerCase();
+    if (normalized === "attack") return "Attacks";
+    if (normalized === "consumable") return "Consumables";
+    if (normalized === "custom") return "Other";
+    if (normalized === "defense") return "Defense";
+    if (normalized === "movement") return "Movement";
+    if (normalized === "utility") return "Utility";
+    if (!normalized) return "Other";
+    return normalized
+        .replace(/[-_]+/g, " ")
+        .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function actionGroups(actions = []) {
+    const groupsByLabel = new Map();
+    for (const action of toArray(actions)) {
+        const label = actionGroupLabel(action.type);
+        const group = groupsByLabel.get(label) ?? { label, actions: [] };
+        group.actions.push(action);
+        groupsByLabel.set(label, group);
+    }
+
+    return [...groupsByLabel.values()]
+        .map((group) => ({
+            ...group,
+            actions: group.actions
+                .slice()
+                .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: "base" }))
+        }))
+        .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: "base" }));
+}
+
 function itemOptionModel(item = {}) {
     return {
         id: String(item.id ?? ""),
@@ -226,6 +259,7 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
     const availableActions = mappedActions
         .filter((action) => Boolean(action.id))
         .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: "base" }));
+    const availableActionGroups = actionGroups(availableActions);
     const availableItems = toArray(planner?.availableItems)
         .map(itemOptionModel)
         .filter((item) => Boolean(item.id));
@@ -282,6 +316,7 @@ export function buildPlayerEncounterPanelModel({ actor = null, planner = null, c
         progressPercent,
         resolutionStatus: String(resolution?.status ?? "idle"),
         availableActions,
+        availableActionGroups,
         plannedActions,
         hasPlannedActions: plannedActions.length > 0,
         historyRows: historyRowsFromTimeline({ planner, combat }),
@@ -524,19 +559,7 @@ function renderNarrativeActionPopover(model, escapeHTML) {
         .filter((action) => action.apMin <= Math.max(1, remainingAp))
         .filter((action) => mode !== "draftEngagementAction" || String(action.type ?? "").toLowerCase() !== "movement");
     const searchId = "totc-encounter-action-search";
-    const itemsMarkup = actions.map((action) => `
-        <button type="button" class="totc-v2-encounter-popup__item"
-            data-action="encounter-select-popup-action"
-            ${actionDataAttributes(action, escapeHTML)}
-            data-action-index="${escapeHTML(String(slot.index ?? 0))}">
-            ${action.img ? `<img src="${escapeHTML(action.img)}" alt="">` : `<span class="totc-v2-encounter-popup__item-fallback"><i class="fa-solid fa-bolt" aria-hidden="true"></i></span>`}
-            <div class="totc-v2-encounter-popup__item-info">
-                <span class="totc-v2-encounter-popup__item-label">${escapeHTML(action.label)}</span>
-                ${action.description ? `<span class="totc-v2-encounter-popup__item-desc">${escapeHTML(action.description)}</span>` : ""}
-            </div>
-            <span class="totc-v2-encounter-popup__item-ap">${escapeHTML(action.apLabel)}</span>
-        </button>
-    `).join("");
+    const itemsMarkup = renderActionGroups(actions, escapeHTML, String(slot.index ?? 0));
 
     return `
     <div class="totc-v2-encounter-popup-overlay">
@@ -633,6 +656,41 @@ function renderNarrativeDurationPopover(model, escapeHTML) {
     </div>`;
 }
 
+function renderNarrativePositioningPopover(model, escapeHTML) {
+    const slot = model.activePlanEditSlot;
+    if (!slot || String(slot.mode ?? "") !== "draftPositioning") return "";
+
+    const maxPositioningAp = Math.max(0, toNumber(slot.maxPositioningAp, 0));
+    const options = Array.from({ length: maxPositioningAp + 1 }, (_entry, index) => index);
+    const itemsMarkup = options.map((ap) => `
+        <button type="button" class="totc-v2-encounter-popup__item"
+            data-action="encounter-select-draft-positioning"
+            data-clause-index="${escapeHTML(String(slot.index ?? 0))}"
+            data-positioning-ap="${escapeHTML(String(ap))}">
+            <span class="totc-v2-encounter-popup__item-fallback"><i class="fa-solid fa-shoe-prints" aria-hidden="true"></i></span>
+            <div class="totc-v2-encounter-popup__item-info">
+                <span class="totc-v2-encounter-popup__item-label">${escapeHTML(ap === 1 ? "1 AP getting in range" : `${ap} AP getting in range`)}</span>
+            </div>
+            <span class="totc-v2-encounter-popup__item-ap">${escapeHTML(String(ap))} AP</span>
+        </button>
+    `).join("");
+
+    return `
+    <div class="totc-v2-encounter-popup-overlay">
+        <div class="totc-v2-encounter-popup">
+            <header class="totc-v2-encounter-popup__header">
+                <h4>Choose Approach</h4>
+                <button type="button" class="totc-v2-encounter-popup__close" data-action="encounter-close-popup" aria-label="Close dialog">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </header>
+            <div class="totc-v2-encounter-popup__list">
+                ${itemsMarkup}
+            </div>
+        </div>
+    </div>`;
+}
+
 function renderPlanEditPopup(model, escapeHTML) {
     const slot = model.activePlanEditSlot;
     if (!slot || slot.selectedAction) return "";
@@ -641,19 +699,7 @@ function renderPlanEditPopup(model, escapeHTML) {
     const remainingAp = slot.remainingAp;
     const actions = (model.availableActions ?? []).filter((action) => action.apMin <= remainingAp);
 
-    const itemsMarkup = actions.map((action) => `
-        <button type="button" class="totc-v2-encounter-popup__item"
-            data-action="encounter-select-popup-action"
-            ${actionDataAttributes(action, escapeHTML)}
-            data-action-index="${escapeHTML(String(slot.index))}">
-            ${action.img ? `<img src="${escapeHTML(action.img)}" alt="">` : `<span class="totc-v2-encounter-popup__item-fallback"><i class="fa-solid fa-bolt" aria-hidden="true"></i></span>`}
-            <div class="totc-v2-encounter-popup__item-info">
-                <span class="totc-v2-encounter-popup__item-label">${escapeHTML(action.label)}</span>
-                ${action.description ? `<span class="totc-v2-encounter-popup__item-desc">${escapeHTML(action.description)}</span>` : ""}
-            </div>
-            <span class="totc-v2-encounter-popup__item-ap">${escapeHTML(action.apLabel)}</span>
-        </button>
-    `).join("");
+    const itemsMarkup = renderActionGroups(actions, escapeHTML, String(slot.index ?? 0));
 
     return `
     <div class="totc-v2-encounter-popup-overlay">
@@ -669,6 +715,27 @@ function renderPlanEditPopup(model, escapeHTML) {
             </div>
         </div>
     </div>`;
+}
+
+function renderActionGroups(actions = [], escapeHTML, actionIndex = "0") {
+    return actionGroups(actions).map((group) => `
+        <section class="totc-v2-encounter-popup__group" data-action-group="${escapeHTML(group.label)}">
+            <h5 class="totc-v2-encounter-popup__group-title">${escapeHTML(group.label)}</h5>
+            ${group.actions.map((action) => `
+        <button type="button" class="totc-v2-encounter-popup__item"
+            data-action="encounter-select-popup-action"
+            ${actionDataAttributes(action, escapeHTML)}
+                    data-action-index="${escapeHTML(String(actionIndex))}">
+            ${action.img ? `<img src="${escapeHTML(action.img)}" alt="">` : `<span class="totc-v2-encounter-popup__item-fallback"><i class="fa-solid fa-bolt" aria-hidden="true"></i></span>`}
+            <div class="totc-v2-encounter-popup__item-info">
+                <span class="totc-v2-encounter-popup__item-label">${escapeHTML(action.label)}</span>
+                ${action.description ? `<span class="totc-v2-encounter-popup__item-desc">${escapeHTML(action.description)}</span>` : ""}
+            </div>
+            <span class="totc-v2-encounter-popup__item-ap">${escapeHTML(action.apLabel)}</span>
+        </button>
+            `).join("")}
+        </section>
+    `).join("");
 }
 
 function renderPlanConfiguration(model, escapeHTML) {
@@ -828,6 +895,7 @@ export function renderPlayerEncounterPanel(model = {}, {
                 ${renderNarrativeActionPopover(model, escapeHTML)}
                 ${renderNarrativeItemPopover(model, escapeHTML)}
                 ${renderNarrativeDurationPopover(model, escapeHTML)}
+                ${renderNarrativePositioningPopover(model, escapeHTML)}
             </div>
             <footer class="totc-v2-encounter-panel__actions">
                 <button type="button" data-action="encounter-clear-plan" ${model.canClearPlan ? "" : "disabled"}>Clear Unlocked</button>

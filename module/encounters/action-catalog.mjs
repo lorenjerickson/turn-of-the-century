@@ -94,37 +94,6 @@ export const TOTC_ACTION_CATALOG = {
     },
 
     /**
-     * Close and Engage: reserve part of the round to close on a selected target,
-     * then perform a chosen follow-up action as soon as the target is in range.
-     *
-     * The id remains `pursue` for compatibility with existing movement internals.
-     */
-    pursue: {
-        id: "pursue",
-        label: "Close and Engage",
-        type: "movement",
-        apCost: 1,
-        apMin: 1,
-        apMax: 6,
-        variableAp: true,
-        movementFeetPerAp: TOTC_MOVEMENT_FEET_PER_AP,
-        requiresToHit: false,
-        toHitBonus: 0,
-        completionPhaseIncrement: 0,
-        cpiPerFeet: 0,
-        autoResolve: false,
-        interruptible: true,
-        requiresTarget: true,
-        requiresEngagementAction: true,
-        targetingRangeFeet: 10000,
-        tickNarrativeFragments: [
-            "{{Owner.name}} closes with {{Target.name}}."
-        ],
-        isReaction: false,
-        reactionTriggerType: ""
-    },
-
-    /**
      * Follow: movement that mirrors a selected target combatant while trying to
      * preserve the current separation.
      */
@@ -242,20 +211,18 @@ export const TOTC_ACTION_CATALOG = {
     },
 
     /**
-     * Dodge: a dexterity-based reaction available to any combatant regardless of
-     * equipment. Declared as a reaction entry in the plan. If an incoming attack's
-     * effectSlot falls within the dodge's AP window, a contested roll is made:
-     * defender's dex modifier + d20 vs attacker's to-hit total. Dodge wins → attack
-     * negated. The only defensive reaction available without a parry-capable weapon.
+     * Dodge: a declared one-square evasive movement. The direction is selected
+     * during planning, while the 1d20 dodge result is rolled after confirmation.
      */
     dodge: {
         id: "dodge",
         label: "Dodge",
-        type: "defense",
+        type: "movement",
         apCost: 1,
         apMin: 1,
-        apMax: 2,
-        variableAp: true,
+        apMax: 1,
+        variableAp: false,
+        movementFeetPerAp: TOTC_MOVEMENT_FEET_PER_AP,
         requiresToHit: false,
         toHitBonus: 0,
         completionPhaseIncrement: 0,
@@ -263,11 +230,13 @@ export const TOTC_ACTION_CATALOG = {
         autoResolve: false,
         interruptible: false,
         requiresTarget: false,
-        requiresDuration: true,
+        requiresDuration: false,
+        requiresMovementDestination: true,
         isReaction: true,
         reactionTriggerType: "incomingAttack",
+        rollRequirements: [{ rollType: "defense", rollSubType: "dodge" }],
         tickNarrativeFragments: [
-            "{{Owner.name}} stays light on their feet."
+            "{{Owner.name}} dodges."
         ]
     },
 

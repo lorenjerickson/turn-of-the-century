@@ -486,6 +486,7 @@ export class EncounterResolutionEngine {
                     tickEffects.push({
                         type: "movement",
                         combatantId: combatant.id,
+                        actionId: String(action.actionId ?? action.id ?? ""),
                         ...movementEffect
                     });
                 }
@@ -758,7 +759,8 @@ export class EncounterResolutionEngine {
             snapshot: projectedEndState,
             timeline,
             tickNarratives,
-            perCombatant
+            perCombatant,
+            tickEffects
         });
 
         const narrative = this.#buildTickNarrative({
@@ -1351,6 +1353,24 @@ export class EncounterResolutionEngine {
                 sourceCombatantId: combatant.id,
                 targetCombatantId: pendingDamage.targetCombatantId,
                 amount: toNumber(pendingDamage.amount, 0)
+            });
+        }
+
+        for (const actionEffect of Array.isArray(action.effects) ? action.effects : []) {
+            if (!shouldApplyActionEffect(actionEffect, finalOutcome)) continue;
+            const targetMode = String(actionEffect?.target ?? "target");
+            const targetCombatantId = targetMode === "self"
+                ? combatant.id
+                : String(action.targetId ?? finalOutcome?.targetCombatantId ?? pendingDamage?.targetCombatantId ?? "").trim();
+            if (!targetCombatantId && !["area", "origin", "item", "custom"].includes(targetMode)) continue;
+            tickEffects.push({
+                type: "actionEffect",
+                sourceCombatantId: combatant.id,
+                targetCombatantId,
+                targetMode,
+                itemId: action.itemId,
+                actionId: action.actionId,
+                effect: actionEffect
             });
         }
 

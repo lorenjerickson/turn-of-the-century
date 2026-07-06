@@ -24,4 +24,15 @@ describe("Tab panel styles", () => {
     it("gives tab labels extra bottom padding for vertical balance", () => {
         assert.match(ruleFor(".turn-of-the-century .totc-v2-stack__tab"), /padding:\s*0\.42rem 0\.55rem 0\.68rem;/);
     });
+
+    it("stretches docked stacks to fill their dock track", () => {
+        const stackRule = ruleFor(".turn-of-the-century .totc-v2-stack");
+        const contentRule = ruleFor(".turn-of-the-century .totc-v2-stack__content");
+
+        assert.match(stackRule, /flex:\s*1 1 0;/);
+        assert.match(stackRule, /grid-template-rows:\s*auto 1fr;/);
+        assert.match(stackRule, /min-height:\s*0;/);
+        assert.doesNotMatch(contentRule, /height:\s*100%;/);
+        assert.match(contentRule, /min-height:\s*0;/);
+    });
 });

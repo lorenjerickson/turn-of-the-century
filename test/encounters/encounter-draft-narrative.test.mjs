@@ -43,6 +43,38 @@ describe("encounter draft narrative renderer", () => {
         ]);
     });
 
+    it("renders approach AP prompts for out-of-range target actions", () => {
+        const narrative = renderDraftPlanNarrative({
+            clauses: [{
+                actionId: "precisionStrike",
+                type: "attack",
+                label: "Precision Strike",
+                apCost: 2,
+                effectAp: 2,
+                positioningAp: null,
+                requiresTarget: true,
+                requiresPositioning: true,
+                targetId: "c2",
+                targetName: "Mallory",
+                requiresItem: true,
+                itemId: "scalpel",
+                itemName: "surgical scalpel"
+            }]
+        }, { subjectName: "Horus", apBudget: 6 });
+
+        assert.equal(narrative.text, "Horus attacks Mallory after [select approach] with surgical scalpel (2 AP).");
+        assert.deepEqual(
+            narrative.phrases.map((phrase) => [phrase.decision, phrase.text, phrase.placeholder]),
+            [
+                ["action", "attacks", false],
+                ["target", "Mallory", false],
+                ["positioning", "[select approach]", true],
+                ["item", "surgical scalpel", false]
+            ]
+        );
+        assert.deepEqual(narrative.missingDecisions, [{ clauseId: "draft-clause-1", decision: "positioning" }]);
+    });
+
     it("renders move clauses as distance while keeping destination phrase metadata", () => {
         const narrative = renderDraftPlanNarrative({
             clauses: [{

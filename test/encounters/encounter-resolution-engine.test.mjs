@@ -511,11 +511,13 @@ describe("EncounterResolutionEngine.evaluateTick — action resolution", () => {
             targetX: 500,
             targetY: 0,
             positioningRequirement: { type: "adjacent", targetKind: "location", rangeFeet: 5 },
-            apEnvelope: { positioningAp: 2, effectAp: 1, maxAp: 3 }
+            apEnvelope: { positioningAp: 2, effectAp: 1, maxAp: 3 },
+            effects: [{ type: "door", operation: "open", target: "custom", doorId: "door-1" }]
         });
         const perCombatant = { c1: { remainingAp: 3, spentAp: 0, progress: 0, pointer: 0, plan: [action] } };
         const timeline = [];
         const movementEffects = [];
+        const actionEffects = [];
 
         const r = makeNullResolvers();
         r.movementResolver.evaluateOrderPositioning = () => ({
@@ -528,8 +530,14 @@ describe("EncounterResolutionEngine.evaluateTick — action resolution", () => {
         });
         r.consumptionResolver.buildTickReconcilePlan = ({ tickEffects }) => {
             movementEffects.push(...tickEffects.filter((effect) => effect.type === "movement"));
-            return { consumeEffects: [], movementEffects: [], damageEntries: [] };
+            return {
+                consumeEffects: [],
+                movementEffects: tickEffects.filter((effect) => effect.type === "movement"),
+                actionEffects: tickEffects.filter((effect) => effect.type === "actionEffect"),
+                damageEntries: []
+            };
         };
+        r.consumptionResolver.applyActionEffect = async (effect) => actionEffects.push(effect);
         const engine = makeEngine({ combatants: [combatant], resolvers: r });
 
         await engine.evaluateTick({ tick: 1, perCombatant, timeline, tickNarratives: [], reactionRuntime: { consumedKeys: new Set() }, orderedCombatants: [combatant] });
@@ -540,6 +548,7 @@ describe("EncounterResolutionEngine.evaluateTick — action resolution", () => {
         assert.equal(perCombatant.c1.pointer, 0);
         assert.equal(perCombatant.c1.progress, 1);
         assert.equal(movementEffects[0].tokenId, "t1");
+        assert.equal(actionEffects.length, 0);
 
         r.movementResolver.evaluateOrderPositioning = () => ({
             applies: true,
@@ -553,6 +562,9 @@ describe("EncounterResolutionEngine.evaluateTick — action resolution", () => {
         assert.equal(timeline.at(-1).outcome.result, "resolved");
         assert.equal(timeline.at(-1).action.actionId, "open");
         assert.equal(timeline.at(-1).clauseType, "effect");
+        assert.equal(actionEffects.length, 1);
+        assert.equal(actionEffects[0].effect.type, "door");
+        assert.equal(actionEffects[0].effect.doorId, "door-1");
         assert.equal(perCombatant.c1.pointer, 1);
         assert.equal(perCombatant.c1.progress, 0);
     });

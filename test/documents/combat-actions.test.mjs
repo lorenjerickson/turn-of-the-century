@@ -69,12 +69,12 @@ describe("TurnOfTheCenturyEncounter actions", () => {
         const encounter = new TurnOfTheCenturyEncounter(combat);
         const actions = encounter.getAvailableActionsForCombatant("combatant-1");
 
-        assert.deepEqual(actions.map((action) => action.id), ["move", "open", "close", "pursue", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"]);
-        assert.deepEqual(actions.map((action) => action.label), ["Move", "Open", "Close", "Close and Engage", "Follow", "Evade", "Wait", "Hunker Down", "Dodge", "Overwatch"]);
+        assert.deepEqual(actions.map((action) => action.id), ["move", "open", "close", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"]);
+        assert.deepEqual(actions.map((action) => action.label), ["Move", "Open", "Close", "Follow", "Evade", "Wait", "Hunker Down", "Dodge", "Overwatch"]);
         assert.equal(actions.every((action) => action.itemId === null), true);
         assert.equal(actions.find((action) => action.id === "move").movementFeetPerAp, 5);
         assert.equal(actions.find((action) => action.id === "wait").requiresDuration, true);
-        for (const id of ["pursue", "follow", "avoid"]) {
+        for (const id of ["follow", "avoid"]) {
             assert.equal(actions.find((action) => action.id === id).requiresTarget, true, `${id} should require a target token`);
         }
     });
@@ -101,7 +101,7 @@ describe("TurnOfTheCenturyEncounter actions", () => {
         const encounter = new TurnOfTheCenturyEncounter(combat);
         const actions = encounter.getAvailableActionsForCombatant("combatant-from-turns");
 
-        assert.deepEqual(actions.map((action) => action.id), ["move", "open", "close", "pursue", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"]);
+        assert.deepEqual(actions.map((action) => action.id), ["move", "open", "close", "follow", "avoid", "wait", "hunkDown", "dodge", "overwatch"]);
         assert.equal(encounter.getCombatantState("combatant-from-turns")?.ready, false);
     });
 
@@ -241,6 +241,158 @@ describe("TurnOfTheCenturyEncounter actions", () => {
         assert.equal(encounter.getCombatantPlan(combatant.id)[1].planningLocked, false);
         await encounter.removeCombatantAction(combatant.id, 1);
         assert.deepEqual(encounter.getCombatantPlan(combatant.id).map((action) => action.id), ["move"]);
+    });
+
+    it("closes preview-opened doors when a draft plan is confirmed", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        globalThis.CONST = { WALL_DOOR_STATES: { CLOSED: 0, OPEN: 1, LOCKED: 2 } };
+        globalThis.game.user = { id: "player-1", isGM: false };
+
+        const wallUpdates = [];
+        const door = {
+            id: "door-1",
+            ds: 1,
+            update: async (patch) => {
+                wallUpdates.push(patch);
+                door.ds = patch.ds;
+            }
+        };
+        const scene = {
+            id: "scene-1",
+            walls: {
+                contents: [door],
+                get: (id) => id === door.id ? door : null
+            }
+        };
+        globalThis.canvas = { scene };
+
+        const combatant = {
+            id: "combatant-1",
+            initiative: 10,
+            actor: { isOwner: true, items: { contents: [] }, system: {} }
+        };
+        let storedState = {
+            phase: "planning",
+            apBudget: 6,
+            round: 1,
+            perCombatant: {
+                [combatant.id]: {
+                    ready: false,
+                    committedAt: 0,
+                    plan: [],
+                    draftPlan: {
+                        clauses: [{
+                            actionId: "open",
+                            id: "open",
+                            type: "utility",
+                            label: "Open",
+                            apCost: 1,
+                            effectAp: 1,
+                            doorId: "door-1",
+                            doorOpenedDuringPlanning: true,
+                            effects: [{ type: "door", operation: "open", target: "custom", doorId: "door-1" }]
+                        }]
+                    }
+                }
+            }
+        };
+        const combat = {
+            id: "combat-1",
+            round: 1,
+            scene,
+            combatants: {
+                contents: [combatant],
+                get: (id) => id === combatant.id ? combatant : null
+            },
+            getFlag: () => storedState,
+            setFlag: async (_scope, _key, state) => { storedState = structuredClone(state); }
+        };
+
+        const encounter = new TurnOfTheCenturyEncounter(combat);
+        await encounter.confirmCombatantDraftPlan(combatant.id);
+
+        assert.deepEqual(wallUpdates, [{ ds: 0 }]);
+        assert.equal(door.ds, 0);
+    });
+
+    it("opens planned doors during round evaluation from canvas wall placeables", async () => {
+        const { TurnOfTheCenturyEncounter } = await loadCombatModule();
+        globalThis.CONST = { WALL_DOOR_STATES: { CLOSED: 0, OPEN: 1, LOCKED: 2 } };
+        globalThis.game.user = { id: "gm-1", isGM: true };
+        globalThis.game.scenes = { contents: [] };
+
+        const wallUpdates = [];
+        const doorDocument = {
+            id: "door-1",
+            ds: 0,
+            update: async (patch) => {
+                wallUpdates.push(patch);
+                doorDocument.ds = patch.ds;
+            }
+        };
+        globalThis.canvas = {
+            scene: { id: "scene-1", tokens: { get: () => null } },
+            tokens: { placeables: [] },
+            walls: {
+                placeables: [{ document: doorDocument }],
+                doors: []
+            }
+        };
+
+        const combatant = {
+            id: "combatant-1",
+            name: "Ada",
+            initiative: 10,
+            actor: {
+                id: "actor-1",
+                items: { contents: [] },
+                system: { resources: { health: { value: 10 } } }
+            }
+        };
+        let storedState = {
+            initialized: true,
+            phase: "planning",
+            apBudget: 1,
+            round: 1,
+            timeline: [],
+            roundHistory: [],
+            perCombatant: {
+                [combatant.id]: {
+                    spentAp: 0,
+                    remainingAp: 1,
+                    pointer: 0,
+                    progress: 0,
+                    ready: true,
+                    committedAt: 1,
+                    plan: [{
+                        id: "open",
+                        actionId: "open",
+                        type: "utility",
+                        label: "Open",
+                        apCost: 1,
+                        effects: [{ type: "door", operation: "open", target: "custom", doorId: "door-1" }]
+                    }]
+                }
+            }
+        };
+        const combat = {
+            id: "combat-1",
+            round: 1,
+            scene: globalThis.canvas.scene,
+            combatants: {
+                contents: [combatant],
+                get: (id) => id === combatant.id ? combatant : null
+            },
+            getFlag: () => storedState,
+            setFlag: async (_scope, _key, state) => { storedState = structuredClone(state); }
+        };
+
+        const encounter = new TurnOfTheCenturyEncounter(combat);
+        const timeline = await encounter.resolveEncounterRound({ tickDelayMs: 0 });
+
+        assert.equal(timeline.at(-1).outcome.result, "resolved");
+        assert.deepEqual(wallUpdates, [{ ds: 1 }]);
+        assert.equal(doorDocument.ds, 1);
     });
 
     it("blocks encounter resolution while player-owned attack rolls are unresolved", async () => {
