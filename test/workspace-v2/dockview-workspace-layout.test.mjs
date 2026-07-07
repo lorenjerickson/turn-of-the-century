@@ -39,6 +39,10 @@ describe("Dockview workspace layout integration", () => {
         assert.match(dockviewFeatureSource, /normalizeDockviewSideEdgeGroupSizes/);
         assert.match(dockviewFeatureSource, /#configureEdgeGroupConstraints/);
         assert.match(dockviewFeatureSource, /setConstraints\?\.\(\{ minimumWidth: MIN_SIDE_DOCK_WIDTH \}\)/);
+        assert.match(dockviewFeatureSource, /sideDockWidthClampPending/);
+        assert.match(dockviewFeatureSource, /#configureEdgeGroupShellWidth/);
+        assert.match(dockviewFeatureSource, /view\.minimumSize = MIN_SIDE_DOCK_WIDTH/);
+        assert.match(dockviewFeatureSource, /#clampRestoredSideDockWidths/);
         assert.match(dockviewFeatureSource, /setHeaderPosition/);
         assert.match(dockviewFeatureSource, /#wireDockviewPanelVisibilityHandlers/);
         assert.match(dockviewFeatureSource, /stopImmediatePropagation/);
@@ -92,9 +96,10 @@ describe("Dockview workspace layout integration", () => {
 
     it("keeps Dockview regions full height while top-aligning panel view contents", () => {
         assert.match(stylesheetSource, /\.totc-v2-dockview-host \.dv-split-view-container \.dv-view-container \.dv-view \{[\s\S]*height: 100%;/);
-        assert.match(stylesheetSource, /\.totc-v2-dockview-panel \{[\s\S]*height: 100%;[\s\S]*justify-content: flex-start;[\s\S]*padding: 6px;/);
+        assert.match(stylesheetSource, /\.totc-v2-dockview-panel \{[\s\S]*height: 100%;[\s\S]*justify-content: flex-start;[\s\S]*overflow: hidden;[\s\S]*padding: 6px;/);
         assert.match(stylesheetSource, /\.totc-v2-dockview-panel > :not\(\.totc-v2-map-panel\) \{[\s\S]*flex: 0 0 auto;[\s\S]*height: auto;/);
         assert.match(stylesheetSource, /\.totc-v2-dockview-panel > \.totc-v2-map-panel \{[\s\S]*flex: 1 1 auto;/);
+        assert.match(stylesheetSource, /\.totc-v2-dockview-panel > \.totc-v2-actor-list-panel,[\s\S]*height: 100%;/);
         assert.match(stylesheetSource, /\.totc-v2-dockview-header-actions \{[\s\S]*display: flex;/);
     });
 });

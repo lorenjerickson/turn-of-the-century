@@ -7910,7 +7910,7 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
     height: 100%;
     min-height: 0;
     justify-content: flex-start;
-    overflow: auto;
+    overflow: hidden;
     padding: 6px;
     background: rgba(18, 20, 30, 0.96);
 }
@@ -7923,6 +7923,19 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
 
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-map-panel {
     flex: 1 1 auto;
+}
+
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-actor-list-panel,
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-actor-editor,
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-codex-panel,
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-scenes-panel,
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-market-panel,
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-player-panel,
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-gm-panel,
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-logging-panel {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
 }
 
 .turn-of-the-century .totc-workspace-v2-shell--dockview.has-native-canvas-aperture .totc-v2-dockview-layout,

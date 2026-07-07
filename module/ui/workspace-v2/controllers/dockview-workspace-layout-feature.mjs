@@ -38,6 +38,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         this.dockviewContext = null;
         this.dockviewDisposables = [];
         this.saveQueued = false;
+        this.sideDockWidthClampPending = false;
         this.activeDockviewMapPanel = null;
         this.dockviewPanelVisibilityRoot = null;
         this.onDockviewPanelVisibilityChange = this.#onDockviewPanelVisibilityChange.bind(this);
@@ -198,6 +199,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
                 const normalizedDockview = normalizeDockviewSideEdgeGroupSizes(dockviewState.dockview, MIN_SIDE_DOCK_WIDTH);
                 this.dockviewApi.fromJSON(normalizedDockview, { reuseExistingPanels: false });
                 this.#configureRestoredEdgeGroups();
+                this.sideDockWidthClampPending = true;
                 return;
             } catch (error) {
                 console.warn("[turn-of-the-century] Failed to restore Dockview workspace layout; using legacy workspace layout.", error);
@@ -264,6 +266,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         }
 
         this.#configureRestoredEdgeGroups();
+        this.sideDockWidthClampPending = true;
     }
 
     #addLegacyEdgeDock(layout, dockId, addedPanelIds) {
@@ -320,6 +323,27 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
     #configureEdgeGroupConstraints(groupApi, dockId) {
         if (dockId !== "leftDock" && dockId !== "rightDock") return;
         groupApi?.setConstraints?.({ minimumWidth: MIN_SIDE_DOCK_WIDTH });
+        this.#configureEdgeGroupShellWidth(dockId);
+        this.#resizeNarrowEdgeGroup(groupApi);
+    }
+
+    #configureEdgeGroupShellWidth(dockId) {
+        const position = DOCKVIEW_DOCK_POSITIONS[dockId];
+        const shell = this.dockviewApi?.component?._shellManager;
+        const view = position === "left" ? shell?._leftView : shell?._rightView;
+        if (!position || !view) return;
+
+        // Dockview only applies edge-view minimumSize at creation; restored edge
+        // groups are auto-created by fromJSON, so reassert the shell constraint.
+        const config = shell?._viewConfigs?.get?.(position);
+        if (config) config.minimumSize = MIN_SIDE_DOCK_WIDTH;
+        view.minimumSize = MIN_SIDE_DOCK_WIDTH;
+        if (Number.isFinite(view.lastExpandedSize) && view.lastExpandedSize < MIN_SIDE_DOCK_WIDTH) {
+            view.restoreExpandedSize?.(MIN_SIDE_DOCK_WIDTH);
+        }
+    }
+
+    #resizeNarrowEdgeGroup(groupApi) {
         const width = groupApi?.boundingBox?.width;
         if (Number.isFinite(width) && width > 0 && width < MIN_SIDE_DOCK_WIDTH) {
             groupApi.setSize?.({ width: MIN_SIDE_DOCK_WIDTH });
@@ -561,7 +585,28 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         const height = Math.round(rect?.height ?? 0);
         if (width > 0 && height > 0) {
             this.dockviewApi?.layout?.(width, height, true);
+            this.#clampRestoredSideDockWidths();
         }
+    }
+
+    #clampRestoredSideDockWidths() {
+        if (!this.sideDockWidthClampPending || !this.dockviewApi) return;
+        this.sideDockWidthClampPending = false;
+
+        const currentDockview = this.dockviewApi.toJSON?.();
+        const normalizedDockview = normalizeDockviewSideEdgeGroupSizes(currentDockview, MIN_SIDE_DOCK_WIDTH);
+        const didClamp = ["left", "right"].some((position) => (
+            currentDockview?.edgeGroups?.[position]?.size !== normalizedDockview?.edgeGroups?.[position]?.size
+        ));
+        if (!didClamp) return;
+
+        this.dockviewApi.fromJSON(normalizedDockview, { reuseExistingPanels: false });
+        this.#configureRestoredEdgeGroups();
+        const rect = this.dockviewRootElement?.getBoundingClientRect?.();
+        const width = Math.round(rect?.width ?? 0);
+        const height = Math.round(rect?.height ?? 0);
+        if (width > 0 && height > 0) this.dockviewApi.layout?.(width, height, true);
+        this.#queueDockviewSave();
     }
 
     #queueDockviewSave() {

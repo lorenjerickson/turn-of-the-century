@@ -78,7 +78,11 @@ describe("Actor management panel", () => {
     });
 
     it("styles actor list labels and rows with a reserved thumbnail column", () => {
+        assert.match(styles, /\.totc-v2-actor-list-panel\s*\{[\s\S]*grid-template-rows:\s*auto auto auto auto minmax\(0, 1fr\);/);
+        assert.match(styles, /\.totc-v2-dockview-panel > \.totc-v2-actor-list-panel,[\s\S]*height:\s*100%;[\s\S]*min-height:\s*0;/);
+        assert.match(styles, /\.totc-v2-dockview-panel\s*\{[\s\S]*overflow:\s*hidden;/);
         assert.match(styles, /\.totc-v2-actor-list-panel__filter,[\s\S]*\.totc-v2-actor-list-panel__search,[\s\S]*\{[\s\S]*justify-items:\s*start;[\s\S]*text-align:\s*left;/);
+        assert.match(styles, /\.totc-v2-actor-list-panel__list,[\s\S]*\.totc-v2-actor-editor__sections\s*\{[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*auto;/);
         assert.match(styles, /\.totc-v2-actor-list-panel__list\s*\{[\s\S]*justify-items:\s*stretch;[\s\S]*text-align:\s*left;/);
         assert.match(styles, /\.totc-v2-actor-list-panel__entry\s*\{[\s\S]*grid-template-columns:\s*auto 2\.2rem minmax\(0, 1fr\);/);
         assert.match(styles, /\.totc-v2-actor-list-panel__entry\s*\{[\s\S]*justify-items:\s*start;[\s\S]*text-align:\s*left;/);
