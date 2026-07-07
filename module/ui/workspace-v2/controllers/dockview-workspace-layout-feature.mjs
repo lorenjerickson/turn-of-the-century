@@ -18,9 +18,11 @@ import {
     themeDark
 } from "../../../vendor/dockview/main.esm.mjs";
 
+const MIN_SIDE_DOCK_WIDTH = 250;
+
 const EDGE_GROUP_SIZES = Object.freeze({
-    leftDock: { initialSize: 320, minimumSize: 220, collapsedSize: 44 },
-    rightDock: { initialSize: 360, minimumSize: 240, collapsedSize: 44 },
+    leftDock: { initialSize: 320, minimumSize: MIN_SIDE_DOCK_WIDTH, collapsedSize: 44 },
+    rightDock: { initialSize: 360, minimumSize: MIN_SIDE_DOCK_WIDTH, collapsedSize: 44 },
     topDock: { initialSize: 180, minimumSize: 120, collapsedSize: 38 },
     bottomDock: { initialSize: 220, minimumSize: 140, collapsedSize: 38 }
 });
