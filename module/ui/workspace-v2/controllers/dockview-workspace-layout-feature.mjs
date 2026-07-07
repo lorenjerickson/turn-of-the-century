@@ -25,6 +25,8 @@ const EDGE_GROUP_SIZES = Object.freeze({
     bottomDock: { initialSize: 220, minimumSize: 140, collapsedSize: 38 }
 });
 
+const EDGE_DOCK_IDS = Object.freeze(["leftDock", "topDock", "rightDock", "bottomDock"]);
+
 export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
     constructor(options = {}) {
         super(options);
@@ -142,7 +144,8 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             noPanelsOverlay: "emptyGroup",
             floatingGroupDragHandle: "titlebar",
             dndStrategy: "pointer",
-            createComponent: (options) => this.#createDockviewRenderer(options)
+            createComponent: (options) => this.#createDockviewRenderer(options),
+            createRightHeaderActionComponent: (group) => this.#createDockviewHeaderActions(group)
         });
 
         this.#restoreDockviewLayout(this.dockviewContext?.layout ?? this.layoutEngine?.getLayout());
@@ -235,7 +238,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             }
         }
 
-        for (const dockId of ["leftDock", "topDock", "rightDock", "bottomDock"]) {
+        for (const dockId of EDGE_DOCK_IDS) {
             this.#addLegacyEdgeDock(layout, dockId, addedPanelIds);
         }
 
@@ -293,20 +296,33 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             ...options
         });
         this.#configureEdgeGroupHeader(groupApi, dockId);
+        this.#configureEdgeGroupDropZones(groupApi, dockId);
         return groupApi;
     }
 
     #configureRestoredEdgeGroups() {
-        for (const dockId of ["leftDock", "topDock", "rightDock", "bottomDock"]) {
+        for (const dockId of EDGE_DOCK_IDS) {
             const position = DOCKVIEW_DOCK_POSITIONS[dockId];
             const groupApi = position ? this.dockviewApi?.getEdgeGroup?.(position) : null;
-            if (groupApi) this.#configureEdgeGroupHeader(groupApi, dockId);
+            if (groupApi) {
+                this.#configureEdgeGroupHeader(groupApi, dockId);
+                this.#configureEdgeGroupDropZones(groupApi, dockId);
+            }
         }
     }
 
     #configureEdgeGroupHeader(groupApi, dockId) {
         const headerPosition = dockId === "bottomDock" ? "bottom" : "top";
         groupApi?.setHeaderPosition?.(headerPosition);
+    }
+
+    #configureEdgeGroupDropZones(groupApi, dockId) {
+        const group = (this.dockviewApi?.groups ?? []).find((candidate) => candidate?.id === groupApi?.id);
+        const zones = dockId === "leftDock" || dockId === "rightDock"
+            ? ["top", "bottom", "center"]
+            : ["left", "right", "center"];
+        group?.model?.contentContainer?.dropTarget?.setTargetZones?.(zones);
+        group?.model?.contentContainer?.pointerDropTarget?.setTargetZones?.(zones);
     }
 
     #wireDockviewPanelVisibilityHandlers(rootElement) {
@@ -372,6 +388,125 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
     #hideDockviewPanel(panelId) {
         const existingPanel = this.dockviewApi?.getPanel?.(panelId);
         if (existingPanel) this.dockviewApi.removePanel(existingPanel);
+        this.#collapseEmptyEdgeGroups();
+    }
+
+    #createDockviewHeaderActions(group) {
+        const element = document.createElement("div");
+        element.classList.add("totc-v2-dockview-header-actions");
+
+        const buttons = {
+            minimize: this.#createDockviewHeaderButton("minimize", "Minimize active tab group", "fa-window-minimize"),
+            maximize: this.#createDockviewHeaderButton("maximize", "Maximize active tab group", "fa-window-maximize"),
+            detach: this.#createDockviewHeaderButton("detach", "Detach active tab", "fa-up-right-from-square"),
+            close: this.#createDockviewHeaderButton("close", "Close active tab", "fa-xmark")
+        };
+
+        for (const button of Object.values(buttons)) element.append(button);
+
+        const refresh = () => this.#refreshDockviewHeaderActions(group, buttons);
+        const disposables = [
+            group?.api?.onDidActivePanelChange?.(refresh),
+            this.dockviewApi?.onDidMaximizedGroupChange?.(refresh)
+        ].filter(Boolean);
+
+        return {
+            element,
+            init: () => {
+                element.addEventListener("click", (event) => this.#onDockviewHeaderActionClick(event, group));
+                refresh();
+            },
+            dispose: () => {
+                for (const disposable of disposables) disposable.dispose?.();
+                element.replaceChildren();
+            }
+        };
+    }
+
+    #createDockviewHeaderButton(action, title, icon) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.classList.add("totc-v2-dockview-header-action");
+        button.dataset.dockviewAction = action;
+        button.title = title;
+        button.setAttribute("aria-label", title);
+        button.innerHTML = `<i class="fa-solid ${icon}" aria-hidden="true"></i>`;
+        return button;
+    }
+
+    #refreshDockviewHeaderActions(group, buttons) {
+        const activePanel = group?.activePanel ?? null;
+        const locationType = group?.api?.location?.type ?? "";
+        buttons.minimize.disabled = locationType !== "edge";
+        buttons.maximize.disabled = !activePanel || locationType !== "grid";
+        buttons.detach.disabled = !activePanel || locationType === "floating" || locationType === "popout";
+        buttons.close.disabled = !activePanel;
+
+        const maximized = Boolean(group?.api?.isMaximized?.());
+        buttons.maximize.classList.toggle("is-active", maximized);
+        buttons.maximize.title = maximized ? "Restore active tab group" : "Maximize active tab group";
+        buttons.maximize.setAttribute("aria-label", buttons.maximize.title);
+    }
+
+    async #onDockviewHeaderActionClick(event, group) {
+        const button = event.target?.closest?.("[data-dockview-action]");
+        if (!button || button.disabled) return;
+        event.preventDefault();
+        event.stopPropagation();
+
+        const action = button.dataset.dockviewAction;
+        const activePanel = group?.activePanel ?? null;
+        if (action === "minimize") {
+            group?.api?.collapse?.();
+            this.#queueDockviewSave();
+            return;
+        }
+        if (action === "maximize") {
+            if (group?.api?.isMaximized?.()) group.api.exitMaximized();
+            else group?.api?.maximize?.();
+            this.#queueDockviewSave();
+            return;
+        }
+        if (action === "detach") {
+            this.#detachDockviewPanel(activePanel, group);
+            return;
+        }
+        if (action === "close") {
+            await this.#closeDockviewPanel(activePanel);
+        }
+    }
+
+    #detachDockviewPanel(panel, group) {
+        if (!panel) return;
+        const box = group?.api?.boundingBox ?? {};
+        this.dockviewApi?.addFloatingGroup?.(panel, {
+            position: {
+                left: Math.max(24, Math.round((box.left ?? 120) + 28)),
+                top: Math.max(24, Math.round((box.top ?? 120) + 28))
+            },
+            width: Math.max(360, Math.round(box.width ?? 420)),
+            height: Math.max(240, Math.round(box.height ?? 280))
+        });
+        this.#collapseEmptyEdgeGroups();
+        this.#queueDockviewSave();
+    }
+
+    async #closeDockviewPanel(panel) {
+        if (!panel) return;
+        this.dockviewApi?.removePanel?.(panel);
+        this.#collapseEmptyEdgeGroups();
+        const nextLegacyLayout = this.layoutEngine?.closePanel?.(panel.id) ?? this.layoutEngine?.getLayout?.();
+        await this.#saveDockviewStateWithLegacyLayout(nextLegacyLayout);
+        this.renderCallback({ force: false });
+    }
+
+    #collapseEmptyEdgeGroups() {
+        for (const dockId of EDGE_DOCK_IDS) {
+            const position = DOCKVIEW_DOCK_POSITIONS[dockId];
+            const groupApi = position ? this.dockviewApi?.getEdgeGroup?.(position) : null;
+            const group = (this.dockviewApi?.groups ?? []).find((candidate) => candidate?.id === groupApi?.id);
+            if (groupApi && !group?.panels?.length) groupApi.collapse?.();
+        }
     }
 
     async #saveDockviewStateWithLegacyLayout(legacyLayout) {
@@ -391,6 +526,10 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         }));
         this.#addDockviewDisposable(this.dockviewApi.onDidActivePanelChange(() => {
             this.#syncNativeCanvasApertureClass();
+            this.#queueDockviewSave();
+        }));
+        this.#addDockviewDisposable(this.dockviewApi.onDidRemoveView(() => {
+            this.#collapseEmptyEdgeGroups();
             this.#queueDockviewSave();
         }));
     }

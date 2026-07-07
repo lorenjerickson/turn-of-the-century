@@ -7868,16 +7868,61 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
     outline: none;
 }
 
+.turn-of-the-century .totc-v2-dockview-header-actions {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 2px;
+    height: 100%;
+    padding-inline: 3px;
+}
+
+.turn-of-the-century .totc-v2-dockview-header-action {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 3px;
+    color: #d9c49d;
+    cursor: pointer;
+    display: inline-flex;
+    height: 20px;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    width: 20px;
+}
+
+.turn-of-the-century .totc-v2-dockview-header-action:hover:not(:disabled),
+.turn-of-the-century .totc-v2-dockview-header-action.is-active {
+    background: rgba(222, 180, 93, 0.18);
+    color: #f5d083;
+}
+
+.turn-of-the-century .totc-v2-dockview-header-action:disabled {
+    cursor: default;
+    opacity: 0.35;
+}
+
 .turn-of-the-century .totc-v2-dockview-panel {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
     height: 100%;
     min-height: 0;
-    overflow: hidden;
+    justify-content: flex-start;
+    overflow: auto;
+    padding: 6px;
     background: rgba(18, 20, 30, 0.96);
 }
 
-.turn-of-the-century .totc-v2-dockview-panel > * {
-    height: 100%;
+.turn-of-the-century .totc-v2-dockview-panel > :not(.totc-v2-map-panel) {
+    flex: 0 0 auto;
+    height: auto;
     min-height: 0;
+}
+
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-map-panel {
+    flex: 1 1 auto;
 }
 
 .turn-of-the-century .totc-workspace-v2-shell--dockview.has-native-canvas-aperture .totc-v2-dockview-layout,
@@ -7918,8 +7963,15 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
     background: transparent;
 }
 
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-groupview:has(.totc-v2-dockview-panel--native-map),
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-groupview:has(.totc-v2-dockview-panel--native-map) > .dv-content-container,
+.turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .dv-groupview:has(.totc-v2-dockview-panel--native-map) .totc-v2-dockview-panel {
+    background: transparent;
+}
+
 .turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .totc-v2-dockview-panel--native-map,
 .turn-of-the-century .totc-v2-dockview-layout.has-native-canvas-aperture .totc-v2-dockview-panel--native-map * {
     background: transparent;
+    padding: 0;
     pointer-events: none;
 }
