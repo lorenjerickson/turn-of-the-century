@@ -10,6 +10,7 @@ import {
     getLegacyActiveCenterMapPanel,
     isDockviewWorkspaceLayout,
     isNativeMapPanel,
+    normalizeDockviewSideEdgeGroupSizes,
     withDockviewWorkspaceState
 } from "../../module/ui/workspace-v2/dockview-layout-state.mjs";
 
@@ -84,6 +85,23 @@ describe("dockview layout state", () => {
         assert.equal(isDockviewWorkspaceLayout(nextLayout), true);
         assert.deepEqual(getDockviewWorkspaceState(nextLayout).dockview, dockview);
         assert.deepEqual(nextLayout.root, layout.root);
+    });
+
+    it("normalizes restored side edge group widths without mutating saved state", () => {
+        const dockview = {
+            edgeGroups: {
+                left: { size: 58, visible: true, group: { id: "left" } },
+                right: { size: 249, visible: true, group: { id: "right" } },
+                top: { size: 90, visible: true, group: { id: "top" } }
+            }
+        };
+
+        const normalized = normalizeDockviewSideEdgeGroupSizes(dockview, 250);
+
+        assert.equal(normalized.edgeGroups.left.size, 250);
+        assert.equal(normalized.edgeGroups.right.size, 250);
+        assert.equal(normalized.edgeGroups.top.size, 90);
+        assert.equal(dockview.edgeGroups.left.size, 58);
     });
 
     it("falls back to the active legacy center map panel before Dockview mounts", () => {

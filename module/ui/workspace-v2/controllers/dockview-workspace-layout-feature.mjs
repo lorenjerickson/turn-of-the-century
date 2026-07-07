@@ -11,6 +11,7 @@ import {
     getDockviewWorkspaceState,
     getLegacyActiveCenterMapPanel,
     isNativeMapPanel,
+    normalizeDockviewSideEdgeGroupSizes,
     withDockviewWorkspaceState
 } from "../dockview-layout-state.mjs";
 import {
@@ -194,7 +195,8 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         const dockviewState = getDockviewWorkspaceState(layout);
         if (dockviewState?.dockview) {
             try {
-                this.dockviewApi.fromJSON(dockviewState.dockview, { reuseExistingPanels: false });
+                const normalizedDockview = normalizeDockviewSideEdgeGroupSizes(dockviewState.dockview, MIN_SIDE_DOCK_WIDTH);
+                this.dockviewApi.fromJSON(normalizedDockview, { reuseExistingPanels: false });
                 this.#configureRestoredEdgeGroups();
                 return;
             } catch (error) {
@@ -297,6 +299,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             ...EDGE_GROUP_SIZES[dockId],
             ...options
         });
+        this.#configureEdgeGroupConstraints(groupApi, dockId);
         this.#configureEdgeGroupHeader(groupApi, dockId);
         this.#configureEdgeGroupDropZones(groupApi, dockId);
         return groupApi;
@@ -307,9 +310,19 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             const position = DOCKVIEW_DOCK_POSITIONS[dockId];
             const groupApi = position ? this.dockviewApi?.getEdgeGroup?.(position) : null;
             if (groupApi) {
+                this.#configureEdgeGroupConstraints(groupApi, dockId);
                 this.#configureEdgeGroupHeader(groupApi, dockId);
                 this.#configureEdgeGroupDropZones(groupApi, dockId);
             }
+        }
+    }
+
+    #configureEdgeGroupConstraints(groupApi, dockId) {
+        if (dockId !== "leftDock" && dockId !== "rightDock") return;
+        groupApi?.setConstraints?.({ minimumWidth: MIN_SIDE_DOCK_WIDTH });
+        const width = groupApi?.boundingBox?.width;
+        if (Number.isFinite(width) && width > 0 && width < MIN_SIDE_DOCK_WIDTH) {
+            groupApi.setSize?.({ width: MIN_SIDE_DOCK_WIDTH });
         }
     }
 

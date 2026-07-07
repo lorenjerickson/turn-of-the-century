@@ -38,6 +38,21 @@ export function withDockviewWorkspaceState(layout = null, dockview = null) {
     return base;
 }
 
+export function normalizeDockviewSideEdgeGroupSizes(dockview = null, minimumWidth = 0) {
+    const normalized = cloneLayout(dockview);
+    const minWidth = Number.isFinite(minimumWidth) ? Math.max(0, minimumWidth) : 0;
+    if (!normalized || typeof normalized !== "object" || minWidth <= 0) return normalized;
+
+    for (const position of ["left", "right"]) {
+        const edgeGroup = normalized.edgeGroups?.[position];
+        if (!edgeGroup || typeof edgeGroup !== "object") continue;
+        const currentSize = Number(edgeGroup.size);
+        if (!Number.isFinite(currentSize) || currentSize < minWidth) edgeGroup.size = minWidth;
+    }
+
+    return normalized;
+}
+
 export function isNativeMapPanel(panel = null) {
     const id = String(panel?.id ?? "").trim();
     const baseId = String(panel?.baseId ?? "").trim();

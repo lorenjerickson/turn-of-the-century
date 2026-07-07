@@ -36,6 +36,9 @@ describe("Dockview workspace layout integration", () => {
         assert.match(dockviewFeatureSource, /const MIN_SIDE_DOCK_WIDTH = 250;/);
         assert.match(dockviewFeatureSource, /leftDock: \{ initialSize: 320, minimumSize: MIN_SIDE_DOCK_WIDTH/);
         assert.match(dockviewFeatureSource, /rightDock: \{ initialSize: 360, minimumSize: MIN_SIDE_DOCK_WIDTH/);
+        assert.match(dockviewFeatureSource, /normalizeDockviewSideEdgeGroupSizes/);
+        assert.match(dockviewFeatureSource, /#configureEdgeGroupConstraints/);
+        assert.match(dockviewFeatureSource, /setConstraints\?\.\(\{ minimumWidth: MIN_SIDE_DOCK_WIDTH \}\)/);
         assert.match(dockviewFeatureSource, /setHeaderPosition/);
         assert.match(dockviewFeatureSource, /#wireDockviewPanelVisibilityHandlers/);
         assert.match(dockviewFeatureSource, /stopImmediatePropagation/);
