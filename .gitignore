@@ -3,6 +3,9 @@ dist/
 .DS_Store
 node_modules/
 
+.claude/settings.local.json
+.claude/worktrees/
+
 packs/**/CURRENT
 packs/**/LOCK
 packs/**/LOG
