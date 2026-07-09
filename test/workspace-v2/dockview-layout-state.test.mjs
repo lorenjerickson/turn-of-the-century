@@ -33,7 +33,7 @@ describe("dockview layout state", () => {
             id: "map:scene-1",
             title: "Lobby",
             component: DOCKVIEW_PANEL_COMPONENTS.nativeMapAperture,
-            renderer: "always",
+            renderer: "onlyWhenVisible",
             params: {
                 panel: {
                     id: "map:scene-1",

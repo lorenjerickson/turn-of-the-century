@@ -106,8 +106,35 @@ describe("WorkspacePanelRegistry", () => {
             id: "scenes",
             title: "Scenes",
             defaultDock: "leftDock",
+            roleAccess: { gmOnly: true },
             contextTags: ["scene", "navigation"]
         });
+    });
+
+    it("hides requested GM-only panels from non-GM availability", () => {
+        const registry = new WorkspacePanelRegistry();
+        const nonGmPanelIds = registry.getAvailability({ isGM: false }).map((panel) => panel.id);
+
+        for (const panelId of [
+            "gamemaster",
+            "scenes",
+            "actors",
+            "campaign-view",
+            "inspector",
+            "design-issues",
+            "scene-properties",
+            "media-browser",
+            "campaign-builder",
+            "scenario-builder",
+            "encounter-manager",
+            "gm-assistant",
+            "travel",
+            "market",
+            "camp",
+            "logging"
+        ]) {
+            assert.equal(nonGmPanelIds.includes(panelId), false, `Expected ${panelId} to be hidden from non-GM users`);
+        }
     });
 
     it("does not register a generic map panel", () => {

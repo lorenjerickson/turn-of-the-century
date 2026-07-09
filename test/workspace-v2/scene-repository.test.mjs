@@ -3,9 +3,15 @@ import { describe, it } from "node:test";
 
 import {
     activateScene,
+    applySceneTokenVisionToTokensByType,
+    buildSceneTokenVisionByTypeFlagUpdateData,
     buildSceneIlluminationUpdateData,
     deleteScene,
+    getSceneTokenVisionByType,
     normalizeSceneIlluminationLevel,
+    normalizeSceneTokenVisionByType,
+    resetSceneFogOfWar,
+    updateSceneTokenVisionByType,
     updateSceneIllumination,
     updateSceneName,
     toggleDefaultScene
@@ -192,5 +198,212 @@ describe("toggleDefaultScene", () => {
     it("does nothing when scene is null", async () => {
         // Should not throw
         await toggleDefaultScene(null, null, true);
+    });
+});
+
+describe("resetSceneFogOfWar", () => {
+    it("deletes fog exploration documents scoped to the scene and refreshes canvas", async () => {
+        const deleteCalls = [];
+        const FogExploration = {
+            deleteDocuments: async (...args) => {
+                deleteCalls.push(args);
+            }
+        };
+        let fogCleared = false;
+        const perceptionUpdates = [];
+
+        const result = await resetSceneFogOfWar(
+            { id: "scene-1" },
+            {
+                game: {
+                    collections: {
+                        get: (name) => {
+                            if (name !== "FogExploration") return null;
+                            return {
+                                contents: [
+                                    { id: "fog-1", scene: "scene-1" },
+                                    { id: "fog-2", scene: "scene-2" }
+                                ],
+                                documentClass: FogExploration
+                            };
+                        }
+                    }
+                },
+                foundry: { documents: { FogExploration } },
+                canvas: {
+                    scene: { id: "scene-1" },
+                    fog: { clear: () => { fogCleared = true; } },
+                    perception: { update: (data) => perceptionUpdates.push(data) }
+                }
+            }
+        );
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(deleteCalls, [[ ["fog-1"] ]]);
+        assert.equal(fogCleared, true);
+        assert.deepEqual(perceptionUpdates, [{
+            initializeVision: true,
+            refreshVision: true,
+            refreshLighting: true
+        }]);
+    });
+
+    it("returns a not-available error when FogExploration APIs are unavailable", async () => {
+        const result = await resetSceneFogOfWar({ id: "scene-1" }, {
+            game: { collections: { get: () => null } },
+            foundry: {},
+            canvas: null
+        });
+        assert.equal(result.ok, false);
+        assert.match(result.error, /not available/i);
+    });
+});
+
+describe("scene token vision by type", () => {
+    it("normalizes and reads token vision settings", () => {
+        assert.deepEqual(normalizeSceneTokenVisionByType(null), {
+            hero: { enabled: true, range: 1 },
+            pawn: { enabled: true, range: 1 },
+            villain: { enabled: true, range: 1 }
+        });
+
+        const scene = {
+            flags: {
+                "turn-of-the-century": {
+                    sceneTokenVisionByType: {
+                        hero: { enabled: true, range: 0.2 },
+                        pawn: { enabled: false, range: 1.5 },
+                        villain: { enabled: true, range: 3 }
+                    }
+                }
+            }
+        };
+        assert.deepEqual(getSceneTokenVisionByType(scene), {
+            hero: { enabled: true, range: 0.2 },
+            pawn: { enabled: false, range: 1.5 },
+            villain: { enabled: true, range: 3 }
+        });
+    });
+
+    it("builds and saves token vision settings onto scene flags", async () => {
+        assert.deepEqual(buildSceneTokenVisionByTypeFlagUpdateData({
+            hero: { enabled: true, range: 0.5 }
+        }), {
+            "flags.turn-of-the-century.sceneTokenVisionByType": {
+                hero: { enabled: true, range: 0.5 },
+                pawn: { enabled: true, range: 1 },
+                villain: { enabled: true, range: 1 }
+            }
+        });
+
+        let updateData = null;
+        const result = await updateSceneTokenVisionByType({
+            id: "scene-1",
+            update: async (data) => { updateData = data; }
+        }, {
+            hero: { enabled: true, range: 0.5 },
+            pawn: { enabled: false, range: 1.5 },
+            villain: { enabled: true, range: 2 }
+        }, {
+            activityLogger: { info: () => {} }
+        });
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(updateData, {
+            "flags.turn-of-the-century.sceneTokenVisionByType": {
+                hero: { enabled: true, range: 0.5 },
+                pawn: { enabled: false, range: 1.5 },
+                villain: { enabled: true, range: 2 }
+            }
+        });
+    });
+
+    it("applies token vision only to selected tokens whose type is enabled", async () => {
+        let tokenUpdates = null;
+        const scene = {
+            id: "scene-1",
+            updateEmbeddedDocuments: async (_type, updates) => { tokenUpdates = updates; }
+        };
+
+        const result = await applySceneTokenVisionToTokensByType(scene, {
+            tokenDocuments: [
+                { id: "token-1", actor: { type: "hero" } },
+                { id: "token-2", actor: { type: "pawn" } },
+                { id: "token-3", actor: { type: "villain" } }
+            ],
+            settings: {
+                hero: { enabled: true, range: 0.5 },
+                pawn: { enabled: false, range: 1.5 },
+                villain: { enabled: true, range: 0.2 }
+            }
+        }, {
+            activityLogger: { info: () => {} }
+        });
+
+        assert.equal(result.ok, true);
+        assert.equal(result.appliedCount, 2);
+        assert.equal(result.skippedCount, 1);
+        assert.deepEqual(tokenUpdates, [
+            { _id: "token-1", "sight.enabled": true, "sight.range": 0.5 },
+            { _id: "token-3", "sight.enabled": true, "sight.range": 0.2 }
+        ]);
+    });
+
+    it("synchronizes all detection mode ranges when present", async () => {
+        let tokenUpdates = null;
+        const scene = {
+            id: "scene-1",
+            updateEmbeddedDocuments: async (_type, updates) => { tokenUpdates = updates; }
+        };
+
+        const result = await applySceneTokenVisionToTokensByType(scene, {
+            tokenDocuments: [{
+                id: "token-1",
+                actor: { type: "hero" },
+                detectionModes: [
+                    { id: "basicSight", enabled: true, range: 120 },
+                    { id: "feelTremor", enabled: true, range: 30 }
+                ]
+            }],
+            settings: {
+                hero: { enabled: true, range: 1 },
+                pawn: { enabled: true, range: 1 },
+                villain: { enabled: true, range: 1 }
+            }
+        }, {
+            activityLogger: { info: () => {} }
+        });
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(tokenUpdates, [{
+            _id: "token-1",
+            "sight.enabled": true,
+            "sight.range": 1,
+            detectionModes: [
+                { id: "basicSight", enabled: true, range: 1 },
+                { id: "feelTremor", enabled: true, range: 1 }
+            ]
+        }]);
+    });
+
+    it("returns ok when allowEmpty is true and no tokens are provided", async () => {
+        const scene = {
+            id: "scene-1",
+            updateEmbeddedDocuments: async () => {}
+        };
+
+        const result = await applySceneTokenVisionToTokensByType(scene, {
+            tokenDocuments: [],
+            settings: {
+                hero: { enabled: true, range: 1 },
+                pawn: { enabled: true, range: 1 },
+                villain: { enabled: true, range: 1 }
+            },
+            allowEmpty: true
+        });
+
+        assert.equal(result.ok, true);
+        assert.equal(result.appliedCount, 0);
+        assert.equal(result.selectedCount, 0);
     });
 });

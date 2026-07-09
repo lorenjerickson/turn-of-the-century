@@ -40,8 +40,12 @@ import { getSceneBackgroundSource } from "../scene-background-source.mjs";
 import { uploadSceneBackgroundFile } from "../design-actions/scene-actions.mjs";
 import {
     activateScene,
+    applySceneTokenVisionToTokensByType,
+    normalizeSceneTokenVisionByType,
     deleteScene,
     normalizeSceneIlluminationLevel,
+    resetSceneFogOfWar,
+    updateSceneTokenVisionByType,
     updateSceneIllumination,
     updateSceneName,
     toggleDefaultScene
@@ -439,6 +443,10 @@ export class SceneDesignFeature extends WorkspaceFeature {
                 }
                 if (input?.matches?.("[data-action='scene-properties-illumination']")) {
                     await this.#handleIlluminationChange(input);
+                    return;
+                }
+                if (input?.matches?.("[data-action='scene-token-vision-range'], [data-action='scene-token-vision-enabled']")) {
+                    await this.#handleSceneTokenVisionSettingsChange(rootElement);
                     return;
                 }
                 if (input?.matches?.(gridCalInputSelector)) {
@@ -1031,6 +1039,14 @@ export class SceneDesignFeature extends WorkspaceFeature {
             });
         });
 
+        root?.querySelectorAll("[data-action='scene-properties-reset-fog']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#handleSceneFogReset();
+            });
+        });
+
         root?.querySelectorAll("[data-action='scene-properties-set-default']")?.forEach((checkbox) => {
             checkbox.addEventListener("change", async (event) => {
                 event.preventDefault();
@@ -1058,6 +1074,14 @@ export class SceneDesignFeature extends WorkspaceFeature {
                 const scene = this.scenePort.getScenePropertiesScene();
                 await activateScene(scene, { ui: this.uiRef(), logger: this.logger });
                 this.renderCallback({ force: false });
+            });
+        });
+
+        root?.querySelectorAll("[data-action='scene-token-vision-apply-selected']")?.forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.#handleApplySelectedTokenVision(root);
             });
         });
 
@@ -1136,6 +1160,23 @@ export class SceneDesignFeature extends WorkspaceFeature {
         this.renderCallback({ force: false });
     }
 
+    async #handleSceneFogReset() {
+        const scene = this.scenePort.getScenePropertiesScene();
+        const result = await resetSceneFogOfWar(scene, {
+            game: globalThis.game,
+            foundry: this.foundryRef(),
+            canvas: this.canvasRef() ?? this.scenePort.getCanvas?.() ?? null,
+            logger: this.logger,
+            activityLogger: this.activityLogger
+        });
+
+        this.scenePort.patchScenePropertiesState({
+            status: result.ok ? "Fog of war reset for this scene." : "",
+            error: result.ok ? "" : result.error
+        });
+        this.renderCallback({ force: false });
+    }
+
     #syncIlluminationOutput(input) {
         const value = normalizeSceneIlluminationLevel(input?.value, 1);
         const output = input?.closest?.(".totc-v2-scene-properties-panel__field")
@@ -1153,6 +1194,132 @@ export class SceneDesignFeature extends WorkspaceFeature {
         this.scenePort.patchScenePropertiesState({
             status: result.ok ? "Scene illumination updated." : "",
             error: result.ok ? "" : result.error
+        });
+        this.renderCallback({ force: false });
+    }
+
+    #readSceneTokenVisionSettings(rootElement = this.wiredElement ?? this.boundDocument?.body ?? globalThis.document.body) {
+        const panel = rootElement?.querySelector?.(".totc-v2-scene-properties-panel__token-vision");
+        if (!panel) {
+            const scene = this.scenePort.getScenePropertiesScene();
+            return normalizeSceneTokenVisionByType(scene?.flags?.["turn-of-the-century"]?.sceneTokenVisionByType ?? null);
+        }
+
+        const settings = {};
+        const rangeInputs = Array.from(panel.querySelectorAll("[data-action='scene-token-vision-range']"));
+        for (const input of rangeInputs) {
+            const tokenType = String(input?.dataset?.tokenType ?? "").trim().toLowerCase();
+            if (!tokenType) continue;
+            const enabledInput = panel.querySelector(`[data-action='scene-token-vision-enabled'][data-token-type='${tokenType}']`);
+            settings[tokenType] = {
+                enabled: Boolean(enabledInput?.checked),
+                range: input?.value
+            };
+        }
+
+        return normalizeSceneTokenVisionByType(settings);
+    }
+
+    async #handleSceneTokenVisionSettingsChange(rootElement = this.wiredElement ?? this.boundDocument?.body ?? globalThis.document.body) {
+        const scene = this.scenePort.getScenePropertiesScene();
+        const settings = this.#readSceneTokenVisionSettings(rootElement);
+        const result = await updateSceneTokenVisionByType(scene, settings, {
+            logger: this.logger,
+            activityLogger: this.activityLogger
+        });
+
+        if (!result.ok) {
+            this.scenePort.patchScenePropertiesState({ status: "", error: result.error });
+            this.renderCallback({ force: false });
+            return;
+        }
+
+        const sceneTokenDocuments = Array.from(scene?.tokens?.contents ?? scene?.tokens ?? [])
+            .map((token) => token?.document ?? token)
+            .filter(Boolean);
+        const applyResult = await applySceneTokenVisionToTokensByType(scene, {
+            tokenDocuments: sceneTokenDocuments,
+            settings,
+            actors: this.scenePort.getActors?.() ?? this.getActors?.() ?? [],
+            allowEmpty: true
+        }, {
+            logger: this.logger,
+            activityLogger: this.activityLogger
+        });
+
+        if (!applyResult.ok) {
+            this.scenePort.patchScenePropertiesState({ status: "", error: applyResult.error });
+            this.renderCallback({ force: false });
+            return;
+        }
+
+        const canvas = this.canvasRef() ?? this.scenePort.getCanvas?.() ?? null;
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
+        if (sceneId && canvasSceneId && sceneId === canvasSceneId) {
+            canvas.perception?.update?.({
+                initializeVision: true,
+                refreshVision: true
+            });
+        }
+
+        this.scenePort.patchScenePropertiesState({ error: "" });
+    }
+
+    async #handleApplySelectedTokenVision(rootElement = this.wiredElement ?? this.boundDocument?.body ?? globalThis.document.body) {
+        const scene = this.scenePort.getScenePropertiesScene();
+        const sceneId = String(scene?.id ?? scene?._id ?? "").trim();
+        const canvas = this.canvasRef() ?? this.scenePort.getCanvas?.() ?? null;
+        const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
+        if (sceneId && canvasSceneId && sceneId !== canvasSceneId) {
+            this.scenePort.patchScenePropertiesState({
+                status: "",
+                error: "View this scene before applying token vision to selected tokens."
+            });
+            this.renderCallback({ force: false });
+            return;
+        }
+
+        const settings = this.#readSceneTokenVisionSettings(rootElement);
+        const saveResult = await updateSceneTokenVisionByType(scene, settings, {
+            logger: this.logger,
+            activityLogger: this.activityLogger
+        });
+        if (!saveResult.ok) {
+            this.scenePort.patchScenePropertiesState({ status: "", error: saveResult.error });
+            this.renderCallback({ force: false });
+            return;
+        }
+
+        const selectedTokenDocuments = Array.from(canvas?.tokens?.controlled ?? [])
+            .map((token) => token?.document ?? token)
+            .filter(Boolean);
+        const applyResult = await applySceneTokenVisionToTokensByType(scene, {
+            tokenDocuments: selectedTokenDocuments,
+            settings,
+            actors: this.scenePort.getActors?.() ?? this.getActors?.() ?? []
+        }, {
+            logger: this.logger,
+            activityLogger: this.activityLogger
+        });
+
+        if (!applyResult.ok) {
+            this.scenePort.patchScenePropertiesState({ status: "", error: applyResult.error });
+            this.renderCallback({ force: false });
+            return;
+        }
+
+        canvas?.perception?.update?.({
+            initializeVision: true,
+            refreshVision: true
+        });
+
+        const skippedLabel = applyResult.skippedCount > 0
+            ? ` (${applyResult.skippedCount} skipped)`
+            : "";
+        this.scenePort.patchScenePropertiesState({
+            status: `Applied token vision to ${applyResult.appliedCount} selected token${applyResult.appliedCount === 1 ? "" : "s"}${skippedLabel}.`,
+            error: ""
         });
         this.renderCallback({ force: false });
     }

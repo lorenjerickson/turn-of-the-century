@@ -14,6 +14,7 @@ import {
     GRID_CAL_PHASE_HINTS
 } from "./grid-calibration.mjs";
 import { isDefaultScene } from "../../../seeded-scenes.mjs";
+import { getSceneTokenVisionByType } from "../scene-repository.mjs";
 
 function safeEscape(value) {
     return String(value ?? "")
@@ -161,6 +162,7 @@ export function buildScenePropertiesPanelModel({
         filename: backgroundPath ? backgroundPath.split("/").pop() : ""
     });
     const illuminationLevel = getSceneIlluminationLevel(scene);
+    const tokenVisionByType = getSceneTokenVisionByType(scene);
 
     return {
         sceneId,
@@ -174,6 +176,7 @@ export function buildScenePropertiesPanelModel({
         deleteEnabled: Boolean(scene),
         illuminationLevel,
         illuminationPercent: formatIlluminationPercent(illuminationLevel),
+        tokenVisionByType,
         sceneToolsPanelId: sceneId ? `map:${sceneId}` : "",
         sceneToolsState: sceneToolsState ?? {},
         sceneToolActions: Array.isArray(sceneToolActions)
@@ -447,6 +450,7 @@ export function renderScenePropertiesPanel(model = {}, {
     const sceneTokens = Array.isArray(model.sceneTokens) ? model.sceneTokens : [];
     const gridCalibration = model.gridCalibration ?? { active: false };
     const sceneToolActions = Array.isArray(model.sceneToolActions) ? model.sceneToolActions : [];
+    const tokenVisionByType = model.tokenVisionByType ?? {};
 
     if (!model.sceneId) {
         return `
@@ -484,6 +488,7 @@ export function renderScenePropertiesPanel(model = {}, {
                 <input type="checkbox" data-action="scene-properties-set-default" ${model.isDefault ? "checked" : ""} ${sceneActionDisabled}> Default scene
             </label>
             <button type="button" data-action="scene-properties-sync-background-dimensions" ${model.dimensionSyncEnabled ? "" : "disabled"}>Fit Background</button>
+            <button type="button" data-action="scene-properties-reset-fog" ${sceneActionDisabled}>Reset Fog</button>
             <button type="button" class="totc-v2-scene-properties-panel__danger" data-action="scene-properties-delete" ${sceneActionDisabled}>Delete Scene</button>
         </footer>
         <section class="totc-v2-scene-properties-panel__tools">
@@ -506,6 +511,18 @@ export function renderScenePropertiesPanel(model = {}, {
                 </div>
             ` : ""}
             ${renderSceneMapToolbar(model.sceneToolsPanelId, model.sceneToolsState, { escapeHTML })}
+        </section>
+        <section class="totc-v2-scene-properties-panel__token-vision">
+            <header>
+                <h3>Token Vision by Type</h3>
+                <button type="button" data-action="scene-token-vision-apply-selected" ${sceneActionDisabled}>Apply to Selected Tokens</button>
+            </header>
+            <p class="totc-v2-scene-properties-panel__token-vision-note">Set per-type sight range, then apply to tokens selected on the viewed map.</p>
+            <div class="totc-v2-scene-properties-panel__token-vision-grid">
+                ${renderSceneTokenVisionTypeControl("hero", "Hero", tokenVisionByType.hero, { escapeHTML, sceneActionDisabled })}
+                ${renderSceneTokenVisionTypeControl("pawn", "Pawn", tokenVisionByType.pawn, { escapeHTML, sceneActionDisabled })}
+                ${renderSceneTokenVisionTypeControl("villain", "Villain", tokenVisionByType.villain, { escapeHTML, sceneActionDisabled })}
+            </div>
         </section>
         <section class="totc-v2-scene-properties-panel__grid" data-grid-calibration="${gridCalibration.active ? "true" : "false"}">
             <header>
@@ -551,6 +568,34 @@ export function renderScenePropertiesPanel(model = {}, {
             </div>
         </section>
     </section>`;
+}
+
+function renderSceneTokenVisionTypeControl(type, label, config = {}, { escapeHTML = safeEscape, sceneActionDisabled = "" } = {}) {
+    const enabled = config?.enabled !== false;
+    const range = Number(config?.range);
+    const safeRange = Number.isFinite(range) ? range : 1;
+    return `
+        <label class="totc-v2-scene-properties-panel__token-vision-type" data-token-type="${escapeHTML(type)}">
+            <span>${escapeHTML(label)}</span>
+            <input
+                type="number"
+                min="0"
+                max="9999"
+                step="0.1"
+                data-action="scene-token-vision-range"
+                data-token-type="${escapeHTML(type)}"
+                value="${escapeHTML(safeRange)}"
+                ${sceneActionDisabled}>
+            <span class="totc-v2-scene-properties-panel__token-vision-toggle">
+                <input
+                    type="checkbox"
+                    data-action="scene-token-vision-enabled"
+                    data-token-type="${escapeHTML(type)}"
+                    ${enabled ? "checked" : ""}
+                    ${sceneActionDisabled}>
+                Apply to ${escapeHTML(label)}
+            </span>
+        </label>`;
 }
 
 function renderScenePropertiesGridCalibration(model = {}, { escapeHTML = safeEscape } = {}) {

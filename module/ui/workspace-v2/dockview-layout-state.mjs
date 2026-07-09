@@ -68,7 +68,12 @@ export function createDockviewPanelDescriptor(panel = null) {
         component: nativeMapPanel
             ? DOCKVIEW_PANEL_COMPONENTS.nativeMapAperture
             : DOCKVIEW_PANEL_COMPONENTS.workspacePanel,
-        renderer: nativeMapPanel ? "always" : "onlyWhenVisible",
+        // Render inline (not "always"). The "always" render mode wraps the panel
+        // in a floating .dv-render-overlay layer outside .dv-groupview, which
+        // breaks the aperture transparency selectors and floats an
+        // event-capturing surface over the center tabs. The map aperture is an
+        // empty div with no DOM state, so inline rendering loses nothing.
+        renderer: "onlyWhenVisible",
         params: {
             panel: cloneLayout(panel)
         }

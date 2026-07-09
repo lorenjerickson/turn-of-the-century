@@ -447,18 +447,6 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
         const isGMUser = Boolean(game.user?.isGM);
         const panelVisibility = this.panelRegistry.getVisibilityModel(visiblePanels, { isGM: isGMUser });
-        if (!isGMUser) {
-            for (const panelId of visiblePanels) {
-                if (panelVisibility.some((panel) => panel.id === panelId)) continue;
-                const panelDef = this.panelRegistry.get(panelId);
-                if (!panelDef || panelDef.roleAccess?.internalOnly) continue;
-                panelVisibility.push({
-                    id: panelDef.id,
-                    title: panelDef.title,
-                    visible: true
-                });
-            }
-        }
         const context = {
             enabled: policy.enabled,
             debugGovernance: policy.debugGovernance,
@@ -506,6 +494,11 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     async _onRender(context, options) {
         await super._onRender(context, options);
+        // Mount/reconcile Dockview FIRST. It re-renders panel bodies (via the
+        // reconcile content refresh), so every handler wired below — and by the
+        // other features' bind() — must attach to the fresh content, not the
+        // stale nodes it replaces.
+        this.workspaceLayoutFeature?.bind?.(this.element);
         this.hooksController.bindAll();
         this.#syncNativeCanvasScene();
 
@@ -538,6 +531,9 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         this.#wireLoggingPanelHandlers();
 
         for (const feature of this.features) {
+            // Already bound first, above, so panel content is fresh before the
+            // rest of the features wire their handlers.
+            if (feature === this.workspaceLayoutFeature) continue;
             if (typeof feature.bind === "function") {
                 feature.bind(this.element);
             }

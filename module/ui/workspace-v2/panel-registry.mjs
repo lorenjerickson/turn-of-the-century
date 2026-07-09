@@ -10,7 +10,7 @@ function clonePanel(panel) {
 
 export const DEFAULT_WORKSPACE_PANELS = Object.freeze([
     { id: "gamemaster", title: "Gamemaster", roleAccess: { gmOnly: true }, contextTags: ["gm", "commands"] },
-    { id: "scenes", title: "Scenes", defaultDock: "leftDock", contextTags: ["scene", "navigation"] },
+    { id: "scenes", title: "Scenes", defaultDock: "leftDock", roleAccess: { gmOnly: true }, contextTags: ["scene", "navigation"] },
     { id: "actors", title: "Actors", defaultDock: "leftDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "actor", "search"] },
     { id: "actor-editor", title: "Actor Details", defaultDock: "rightDock", contextTags: ["actor", "design"] },
     { id: "campaign-view", title: "Campaign View", defaultDock: "leftDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "campaign", "scenario", "encounter", "navigation"] },
@@ -22,11 +22,11 @@ export const DEFAULT_WORKSPACE_PANELS = Object.freeze([
     { id: "scenario-builder", title: "Scenario Builder", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "scenario", "design"] },
     { id: "encounter-manager", title: "Encounter Manager", defaultDock: "leftDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "encounter", "combat"] },
     { id: "gm-assistant", title: "GM Assistant", defaultDock: "rightDock", roleAccess: { gmOnly: true }, contextTags: ["gm", "llm", "design"] },
-    { id: "travel", title: "Travel", contextTags: ["travel", "exploration"] },
+    { id: "travel", title: "Travel", roleAccess: { gmOnly: true }, contextTags: ["travel", "exploration"] },
     { id: "encounter", title: "Encounter Planner", defaultDock: "rightDock", contextTags: ["encounter", "combat"] },
-    { id: "market", title: "Market", contextTags: ["economy", "inventory"] },
+    { id: "market", title: "Market", roleAccess: { gmOnly: true }, contextTags: ["economy", "inventory"] },
     { id: "codex", title: "Codex", contextTags: ["items", "search"] },
-    { id: "camp", title: "Camp", contextTags: ["camp", "travel"] },
+    { id: "camp", title: "Camp", roleAccess: { gmOnly: true }, contextTags: ["camp", "travel"] },
     { id: "chat", title: "Chat and Messages", contextTags: ["chat", "messages"] },
     { id: "roll-feed", title: "Dice and Roll Feed", defaultDock: "bottomDock", contextTags: ["dice", "rolls", "messages"] },
     { id: "die-roll-request", title: "Die Roll Request", defaultDock: "bottomDock", roleAccess: { internalOnly: true }, contextTags: ["dice", "rolls", "request", "player"] },

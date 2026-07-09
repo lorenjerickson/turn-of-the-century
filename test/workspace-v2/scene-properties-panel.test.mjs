@@ -113,6 +113,45 @@ describe("Scene properties panel", () => {
         assert.equal(model.illuminationPercent, "65%");
     });
 
+    it("defaults token vision settings by actor type", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: {
+                id: "scene-b",
+                name: "Whitechapel"
+            }
+        });
+
+        assert.deepEqual(model.tokenVisionByType, {
+            hero: { enabled: true, range: 1 },
+            pawn: { enabled: true, range: 1 },
+            villain: { enabled: true, range: 1 }
+        });
+    });
+
+    it("reads token vision settings from scene flags", () => {
+        const model = buildScenePropertiesPanelModel({
+            scene: {
+                id: "scene-b",
+                name: "Whitechapel",
+                flags: {
+                    "turn-of-the-century": {
+                        sceneTokenVisionByType: {
+                            hero: { enabled: true, range: 0.5 },
+                            pawn: { enabled: false, range: 1.2 },
+                            villain: { enabled: true, range: 2 }
+                        }
+                    }
+                }
+            }
+        });
+
+        assert.deepEqual(model.tokenVisionByType, {
+            hero: { enabled: true, range: 0.5 },
+            pawn: { enabled: false, range: 1.2 },
+            villain: { enabled: true, range: 2 }
+        });
+    });
+
     it("disables upload when no scene is provided", () => {
         const model = buildScenePropertiesPanelModel({});
         assert.equal(model.sceneId, "");
@@ -418,6 +457,7 @@ describe("Scene properties panel", () => {
         assert.match(html, /data-action="scene-properties-name"/);
         assert.match(html, /data-action="scene-properties-background-upload"/);
         assert.match(html, /data-action="scene-properties-sync-background-dimensions" disabled/);
+        assert.match(html, /data-action="scene-properties-reset-fog"/);
         assert.match(html, /data-action="scene-properties-delete"/);
         assert.match(html, /data-action="scene-properties-set-default"/);
         assert.match(html, /data-action="scene-properties-illumination"/);

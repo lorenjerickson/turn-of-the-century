@@ -680,6 +680,106 @@ describe("SceneDesignFeature", () => {
         }
     });
 
+    it("resets fog of war through the scene properties action", async () => {
+        const previousGame = globalThis.game;
+        const listeners = {};
+        const resetFogButton = {
+            addEventListener(type, handler) { listeners[type] = handler; }
+        };
+        const root = {
+            ownerDocument: { addEventListener: () => {}, removeEventListener: () => {} },
+            addEventListener: () => {},
+            querySelectorAll: (selector) => {
+                if (selector === "[data-action='scene-properties-reset-fog']") return [resetFogButton];
+                return [];
+            }
+        };
+
+        const deletedFogCalls = [];
+        const FogExploration = {
+            deleteDocuments: async (...args) => { deletedFogCalls.push(args); }
+        };
+        globalThis.game = {
+            collections: {
+                get: (name) => {
+                    if (name !== "FogExploration") return null;
+                    return {
+                        contents: [{ id: "fog-1", scene: "scene-1" }],
+                        documentClass: FogExploration
+                    };
+                }
+            }
+        };
+
+        let fogCleared = false;
+        const perceptionUpdates = [];
+        const canvasRef = {
+            scene: { id: "scene-1" },
+            fog: { clear: () => { fogCleared = true; } },
+            perception: { update: (data) => perceptionUpdates.push(data) }
+        };
+        const patchedState = {};
+        const scene = { id: "scene-1", name: "Rookery Yard" };
+
+        try {
+            const feature = new SceneDesignFeature({
+                scenePort: {
+                    getCurrentScene: () => scene,
+                    getViewedScene: () => scene,
+                    getSceneById: () => scene,
+                    getScenes: () => [scene],
+                    getScenePropertiesScene: () => scene,
+                    getScenePropertiesState: () => patchedState,
+                    patchScenePropertiesState: (patch) => Object.assign(patchedState, patch),
+                    getDesignActionScene: (_panel, fallback) => fallback,
+                    getActorById: () => null,
+                    getActors: () => [],
+                    getCombat: () => null,
+                    getCanvas: () => canvasRef,
+                    getUi: () => globalThis.ui,
+                    getFoundry: () => globalThis.foundry,
+                    isGM: () => true
+                },
+                panelPort: {
+                    getLayout: () => ({ root: { centerDock: { stacks: [] } } }),
+                    getPrimaryActivePanel: () => null,
+                    getActiveCenterMapPanel: () => null,
+                    getPanelDefinition: () => null,
+                    isMapPanel: () => false,
+                    getPanelSceneId: () => "",
+                    makeSceneMapPanelDef: () => null,
+                    openSceneMapPanel: () => ({}),
+                    bindScene: () => {},
+                    saveUserLayout: async () => {},
+                    removeDeletedSceneMapPanel: async () => {},
+                    openScenePropertiesPanel: async () => {},
+                    createSceneDesignScene: async () => ({ ok: true })
+                },
+                foundryRef: () => ({ documents: { FogExploration } }),
+                canvasRef: () => canvasRef,
+                render: () => {},
+                activityLogger: { info: () => {}, error: () => {} },
+                logger: { error: () => {} }
+            });
+
+            feature.bind(root);
+            await listeners.click({ preventDefault() {}, stopPropagation() {} });
+
+            assert.deepEqual(deletedFogCalls, [[ ["fog-1"] ]]);
+            assert.equal(fogCleared, true);
+            assert.deepEqual(perceptionUpdates, [{
+                initializeVision: true,
+                refreshVision: true,
+                refreshLighting: true
+            }]);
+            assert.equal(patchedState.status, "Fog of war reset for this scene.");
+            assert.equal(patchedState.error, "");
+        } finally {
+            if (previousGame === undefined) delete globalThis.game;
+            else globalThis.game = previousGame;
+        }
+    });
+
     it("uploads a scene background with the scene name and applies it to the bound scene", async () => {
         const previousImage = globalThis.Image;
         const previousFile = globalThis.File;
@@ -907,6 +1007,106 @@ describe("SceneDesignFeature", () => {
         assert.equal(patchedState.error, "");
     });
 
+    it("auto-applies token vision settings to scene tokens when settings change", async () => {
+        let changeHandler = null;
+        const tokenVisionPanel = {
+            querySelectorAll: (selector) => {
+                if (selector === "[data-action='scene-token-vision-range']") {
+                    return [{ value: "1", dataset: { tokenType: "hero" } }];
+                }
+                return [];
+            },
+            querySelector: (selector) => {
+                if (selector.includes("data-token-type='hero'")) return { checked: true };
+                return null;
+            }
+        };
+        const root = {
+            ownerDocument: { addEventListener: () => {}, removeEventListener: () => {} },
+            addEventListener: (type, handler) => {
+                if (type === "change") changeHandler = handler;
+            },
+            querySelector: (selector) => selector === ".totc-v2-scene-properties-panel__token-vision" ? tokenVisionPanel : null,
+            querySelectorAll: () => []
+        };
+
+        let sceneFlagUpdate = null;
+        let tokenUpdates = null;
+        const perceptionUpdates = [];
+        const scene = {
+            id: "scene-1",
+            update: async (data) => { sceneFlagUpdate = data; },
+            updateEmbeddedDocuments: async (_type, updates) => { tokenUpdates = updates; },
+            tokens: {
+                contents: [{ id: "token-1", actor: { type: "hero" } }]
+            }
+        };
+        const patchedState = {};
+        const canvasRef = {
+            scene: { id: "scene-1" },
+            tokens: { controlled: [] },
+            perception: { update: (data) => perceptionUpdates.push(data) }
+        };
+        const feature = new SceneDesignFeature({
+            scenePort: {
+                getCurrentScene: () => scene,
+                getViewedScene: () => scene,
+                getSceneById: () => scene,
+                getScenes: () => [scene],
+                getScenePropertiesScene: () => scene,
+                getScenePropertiesState: () => patchedState,
+                patchScenePropertiesState: (patch) => Object.assign(patchedState, patch),
+                getDesignActionScene: (_panel, fallback) => fallback,
+                getActorById: () => null,
+                getActors: () => [],
+                getCombat: () => null,
+                getCanvas: () => canvasRef,
+                getUi: () => globalThis.ui,
+                getFoundry: () => globalThis.foundry,
+                isGM: () => true
+            },
+            panelPort: {
+                getLayout: () => ({ root: { centerDock: { stacks: [] } } }),
+                getPrimaryActivePanel: () => null,
+                getActiveCenterMapPanel: () => null,
+                getPanelDefinition: () => null,
+                isMapPanel: () => false,
+                getPanelSceneId: () => "",
+                makeSceneMapPanelDef: () => null,
+                openSceneMapPanel: () => ({}),
+                bindScene: () => {},
+                saveUserLayout: async () => {},
+                removeDeletedSceneMapPanel: async () => {},
+                openScenePropertiesPanel: async () => {},
+                createSceneDesignScene: async () => ({ ok: true })
+            },
+            canvasRef: () => canvasRef,
+            render: () => {},
+            activityLogger: { info: () => {}, error: () => {} },
+            logger: { error: () => {} }
+        });
+
+        feature.bind(root);
+        const input = {
+            matches: (selector) => selector === "[data-action='scene-token-vision-range'], [data-action='scene-token-vision-enabled']"
+        };
+        await changeHandler({ target: input });
+
+        assert.deepEqual(sceneFlagUpdate, {
+            "flags.turn-of-the-century.sceneTokenVisionByType": {
+                hero: { enabled: true, range: 1 },
+                pawn: { enabled: true, range: 1 },
+                villain: { enabled: true, range: 1 }
+            }
+        });
+        assert.deepEqual(tokenUpdates, [{
+            _id: "token-1",
+            "sight.enabled": true,
+            "sight.range": 1
+        }]);
+        assert.deepEqual(perceptionUpdates, [{ initializeVision: true, refreshVision: true }]);
+    });
+
     it("saveSceneName persists the name and triggers a render", async () => {
         let savedName = null;
         let renderCalled = false;
@@ -935,5 +1135,125 @@ describe("SceneDesignFeature", () => {
         assert.equal(savedName, "New Name");
         assert.equal(patchedState.sceneName, "New Name");
         assert.equal(renderCalled, true);
+    });
+
+    it("applies per-type token vision to selected scene tokens", async () => {
+        const listeners = {};
+        const applyButton = {
+            addEventListener(type, handler) { listeners[type] = handler; }
+        };
+
+        const enabledInputs = {
+            hero: { checked: true },
+            pawn: { checked: false },
+            villain: { checked: true }
+        };
+        const tokenVisionPanel = {
+            querySelectorAll: (selector) => {
+                if (selector === "[data-action='scene-token-vision-range']") {
+                    return [
+                        { value: "0.5", dataset: { tokenType: "hero" } },
+                        { value: "1.5", dataset: { tokenType: "pawn" } },
+                        { value: "0.25", dataset: { tokenType: "villain" } }
+                    ];
+                }
+                return [];
+            },
+            querySelector: (selector) => {
+                if (selector.includes("data-token-type='hero'")) return enabledInputs.hero;
+                if (selector.includes("data-token-type='pawn'")) return enabledInputs.pawn;
+                if (selector.includes("data-token-type='villain'")) return enabledInputs.villain;
+                return null;
+            }
+        };
+
+        const root = {
+            ownerDocument: { addEventListener: () => {}, removeEventListener: () => {} },
+            addEventListener: () => {},
+            querySelector: (selector) => selector === ".totc-v2-scene-properties-panel__token-vision" ? tokenVisionPanel : null,
+            querySelectorAll: (selector) => {
+                if (selector === "[data-action='scene-token-vision-apply-selected']") return [applyButton];
+                return [];
+            }
+        };
+
+        const patchedState = {};
+        let sceneFlagUpdate = null;
+        let tokenUpdates = null;
+        const scene = {
+            id: "scene-1",
+            update: async (data) => { sceneFlagUpdate = data; },
+            updateEmbeddedDocuments: async (_type, updates) => { tokenUpdates = updates; }
+        };
+        const selectedTokens = [
+            { document: { id: "token-1", actor: { type: "hero" } } },
+            { document: { id: "token-2", actor: { type: "pawn" } } },
+            { document: { id: "token-3", actor: { type: "villain" } } }
+        ];
+        const perceptionUpdates = [];
+        const canvasRef = {
+            scene: { id: "scene-1" },
+            tokens: { controlled: selectedTokens },
+            perception: {
+                update: (data) => perceptionUpdates.push(data)
+            }
+        };
+
+        const feature = new SceneDesignFeature({
+            scenePort: {
+                getCurrentScene: () => scene,
+                getViewedScene: () => scene,
+                getSceneById: () => scene,
+                getScenes: () => [scene],
+                getScenePropertiesScene: () => scene,
+                getScenePropertiesState: () => patchedState,
+                patchScenePropertiesState: (patch) => Object.assign(patchedState, patch),
+                getDesignActionScene: (_panel, fallback) => fallback,
+                getActorById: () => null,
+                getActors: () => [],
+                getCombat: () => null,
+                getCanvas: () => canvasRef,
+                getUi: () => globalThis.ui,
+                getFoundry: () => globalThis.foundry,
+                isGM: () => true
+            },
+            panelPort: {
+                getLayout: () => ({ root: { centerDock: { stacks: [] } } }),
+                getPrimaryActivePanel: () => null,
+                getActiveCenterMapPanel: () => null,
+                getPanelDefinition: () => null,
+                isMapPanel: () => false,
+                getPanelSceneId: () => "",
+                makeSceneMapPanelDef: () => null,
+                openSceneMapPanel: () => ({}),
+                bindScene: () => {},
+                saveUserLayout: async () => {},
+                removeDeletedSceneMapPanel: async () => {},
+                openScenePropertiesPanel: async () => {},
+                createSceneDesignScene: async () => ({ ok: true })
+            },
+            canvasRef: () => canvasRef,
+            render: () => {},
+            activityLogger: { info: () => {}, error: () => {} },
+            logger: { error: () => {} }
+        });
+
+        feature.bind(root);
+        await listeners.click({ preventDefault() {}, stopPropagation() {} });
+
+        assert.deepEqual(sceneFlagUpdate, {
+            "flags.turn-of-the-century.sceneTokenVisionByType": {
+                hero: { enabled: true, range: 0.5 },
+                pawn: { enabled: false, range: 1.5 },
+                villain: { enabled: true, range: 0.25 }
+            }
+        });
+        assert.deepEqual(tokenUpdates, [
+            { _id: "token-1", "sight.enabled": true, "sight.range": 0.5 },
+            { _id: "token-3", "sight.enabled": true, "sight.range": 0.25 }
+        ]);
+        assert.equal(patchedState.error, "");
+        assert.match(String(patchedState.status ?? ""), /Applied token vision to 2 selected tokens/);
+        assert.deepEqual(perceptionUpdates, [{ initializeVision: true, refreshVision: true }]);
     });
 });

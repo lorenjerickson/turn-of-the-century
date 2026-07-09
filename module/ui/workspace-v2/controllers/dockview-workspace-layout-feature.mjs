@@ -35,10 +35,13 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         super(options);
         this.dockviewApi = null;
         this.dockviewRootElement = null;
+        // Persistent Dockview host: survives Foundry re-renders (which replace
+        // the shell DOM) so the live Dockview instance and its geometry are kept
+        // and only reconciled, never torn down and rebuilt each render.
+        this.dockviewHostElement = null;
         this.dockviewContext = null;
         this.dockviewDisposables = [];
         this.saveQueued = false;
-        this.sideDockWidthClampPending = false;
         this.activeDockviewMapPanel = null;
         this.dockviewPanelVisibilityRoot = null;
         this.onDockviewPanelVisibilityChange = this.#onDockviewPanelVisibilityChange.bind(this);
@@ -123,9 +126,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         </div>
     </div>
     <main class="totc-workspace-v2-shell__main">
-        <section class="totc-v2-dockview-layout dockview-theme-dark${nativeCanvasShellClass}" data-dockview-layout-root="true">
-            <div class="totc-v2-dockview-host" data-dockview-root="true"></div>
-        </section>
+        <section class="totc-v2-dockview-layout dockview-theme-dark${nativeCanvasShellClass}" data-dockview-layout-root="true" data-dockview-mount="true"></section>
     </main>
 </section>`;
 
@@ -138,12 +139,35 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
     }
 
     #mountDockview(rootElement) {
-        const host = rootElement?.querySelector?.("[data-dockview-root='true']");
-        if (!host || host === this.dockviewRootElement) return;
+        const mount = rootElement?.querySelector?.("[data-dockview-mount='true']");
+        if (!mount) return;
 
-        this.#disposeDockview();
-        this.dockviewRootElement = host;
-        this.dockviewApi = createDockview(host, {
+        // Re-render replaces the shell DOM, so re-parent the persistent host
+        // (which still owns the live Dockview instance) into the fresh mount
+        // point instead of tearing Dockview down and rebuilding it.
+        if (!this.dockviewHostElement) {
+            this.dockviewHostElement = document.createElement("div");
+            this.dockviewHostElement.classList.add("totc-v2-dockview-host");
+        }
+        if (this.dockviewHostElement.parentElement !== mount) {
+            mount.appendChild(this.dockviewHostElement);
+        }
+
+        const layout = this.dockviewContext?.layout ?? this.layoutEngine?.getLayout();
+        if (this.dockviewApi) {
+            this.#reconcileDockviewLayout(layout);
+        } else {
+            this.#createDockview(layout);
+        }
+
+        this.#layoutDockviewNow();
+        globalThis.requestAnimationFrame?.(() => this.#layoutDockviewNow());
+        this.#syncNativeCanvasApertureClass();
+    }
+
+    #createDockview(layout) {
+        this.dockviewRootElement = this.dockviewHostElement;
+        this.dockviewApi = createDockview(this.dockviewHostElement, {
             theme: themeDark,
             noPanelsOverlay: "emptyGroup",
             floatingGroupDragHandle: "titlebar",
@@ -152,11 +176,8 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             createRightHeaderActionComponent: (group) => this.#createDockviewHeaderActions(group)
         });
 
-        this.#restoreDockviewLayout(this.dockviewContext?.layout ?? this.layoutEngine?.getLayout());
+        this.#restoreDockviewLayout(layout);
         this.#wireDockviewPersistence();
-        this.#layoutDockviewNow();
-        globalThis.requestAnimationFrame?.(() => this.#layoutDockviewNow());
-        this.#syncNativeCanvasApertureClass();
     }
 
     #createDockviewRenderer(options = {}) {
@@ -197,62 +218,122 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         if (dockviewState?.dockview) {
             try {
                 const normalizedDockview = normalizeDockviewSideEdgeGroupSizes(dockviewState.dockview, MIN_SIDE_DOCK_WIDTH);
+                // Force inline rendering on restore. A layout persisted before
+                // the aperture fix carries renderer:"always" on the map panel,
+                // which fromJSON would restore into a floating .dv-render-overlay
+                // outside .dv-groupview — breaking the aperture transparency.
+                for (const panel of Object.values(normalizedDockview?.panels ?? {})) {
+                    if (panel && typeof panel === "object") panel.renderer = "onlyWhenVisible";
+                }
+                // Pre-create edge groups with our real size constraints before
+                // fromJSON. Dockview's deserializer otherwise auto-creates any
+                // serialized edge group with only an `id`, dropping our minimum
+                // widths back to its collapsedSize+50 default. clear() treats
+                // edge groups as structural and preserves them, and the
+                // deserializer reuses any position that already exists, so our
+                // constraints survive the restore.
+                this.#precreateEdgeGroupsFromState(normalizedDockview);
                 this.dockviewApi.fromJSON(normalizedDockview, { reuseExistingPanels: false });
                 this.#configureRestoredEdgeGroups();
-                this.sideDockWidthClampPending = true;
-                return;
             } catch (error) {
-                console.warn("[turn-of-the-century] Failed to restore Dockview workspace layout; using legacy workspace layout.", error);
+                console.warn("[turn-of-the-century] Failed to restore saved Dockview geometry; rebuilding from the workspace layout.", error);
                 this.dockviewApi.clear();
             }
         }
 
-        this.#createDockviewLayoutFromLegacy(layout);
+        // The saved Dockview JSON only carries geometry. Reconcile against the
+        // layout engine (authoritative for which panels are open and where) so
+        // restored geometry is corrected to the current model, and so an empty
+        // Dockview (no saved geometry) is built entirely from the layout.
+        this.#reconcileDockviewLayout(layout);
     }
 
-    #createDockviewLayoutFromLegacy(layout = null) {
-        const addedPanelIds = new Set();
-        const centerStacks = layout?.root?.centerDock?.stacks ?? [];
-        let firstGridPanelId = "";
-
-        for (const stack of centerStacks) {
-            const referencePanelId = firstGridPanelId;
-            const stackPanels = stack?.panels ?? [];
-            for (const [panelIndex, panel] of stackPanels.entries()) {
-                const descriptor = createDockviewPanelDescriptor(panel);
-                if (!descriptor || addedPanelIds.has(descriptor.id)) continue;
-                const addOptions = { ...descriptor };
-                if (firstGridPanelId) {
-                    addOptions.position = {
-                        referencePanel: panelIndex === 0 ? referencePanelId : stackPanels[0]?.id,
-                        direction: panelIndex === 0 ? "right" : "within"
-                    };
-                }
-                addOptions.inactive = stack.activePanelId !== descriptor.id;
-                this.dockviewApi.addPanel(addOptions);
-                addedPanelIds.add(descriptor.id);
-                firstGridPanelId ||= descriptor.id;
-            }
-        }
-
-        if (!firstGridPanelId) {
-            const firstDescriptor = collectDockviewPanelDescriptors(layout)[0];
-            if (firstDescriptor) {
-                this.dockviewApi.addPanel(firstDescriptor);
-                addedPanelIds.add(firstDescriptor.id);
-                firstGridPanelId = firstDescriptor.id;
-            }
-        }
-
+    #precreateEdgeGroupsFromState(dockview) {
+        const edgeGroups = dockview?.edgeGroups;
+        if (!edgeGroups || typeof edgeGroups !== "object") return;
         for (const dockId of EDGE_DOCK_IDS) {
-            this.#addLegacyEdgeDock(layout, dockId, addedPanelIds);
+            const position = DOCKVIEW_DOCK_POSITIONS[dockId];
+            if (!edgeGroups[position] || this.dockviewApi.getEdgeGroup(position)) continue;
+            this.dockviewApi.addEdgeGroup(position, {
+                id: `totc-${dockId}`,
+                ...EDGE_GROUP_SIZES[dockId]
+            });
+        }
+    }
+
+    /**
+     * Reconcile the live Dockview instance to the layout engine: the model is
+     * authoritative for which panels are open and which dock they belong to,
+     * while Dockview keeps ownership of geometry (sizes, splits, drag state).
+     *
+     * Reconciliation is by panel existence, not exact group placement, so a
+     * panel the user has dragged to a different group is not yanked back — only
+     * genuinely new panels are added and genuinely closed panels are removed.
+     */
+    #reconcileDockviewLayout(layout = this.layoutEngine?.getLayout()) {
+        if (!this.dockviewApi) return;
+        const desired = this.#collectDesiredPanels(layout);
+
+        for (const panel of this.dockviewApi.panels ?? []) {
+            if (!desired.has(panel.id)) this.dockviewApi.removePanel(panel);
+        }
+
+        for (const spec of desired.values()) {
+            const existing = this.dockviewApi.getPanel(spec.panel.id);
+            if (existing) {
+                // Refresh the content of an already-mounted panel. Reconcile
+                // keeps the panel across re-renders, so without this its rendered
+                // body would stay stale (e.g. a scene deleted from the list).
+                existing.api?.updateParameters?.({ panel: spec.panel });
+                continue;
+            }
+            this.#addReconciledPanel(spec);
+            // Only activate freshly added panels the model marks active (e.g. a
+            // newly opened scene map). Existing panels are left as-is so a tab
+            // the user switched directly in Dockview is not reverted on the next
+            // render — Dockview owns live active-tab state.
+            if (spec.active) this.dockviewApi.getPanel(spec.panel.id)?.api?.setActive?.();
+        }
+
+        this.#removeEmptyEdgeGroups();
+    }
+
+    #collectDesiredPanels(layout = null) {
+        const desired = new Map();
+        for (const dockId of ["centerDock", ...EDGE_DOCK_IDS]) {
+            for (const stack of layout?.root?.[dockId]?.stacks ?? []) {
+                for (const panel of stack?.panels ?? []) {
+                    const id = String(panel?.id ?? "").trim();
+                    if (!id || desired.has(id)) continue;
+                    desired.set(id, { panel, dockId, active: stack.activePanelId === panel.id });
+                }
+            }
         }
 
         for (const floatingWindow of layout?.root?.floatingWindows ?? []) {
-            const descriptor = createDockviewPanelDescriptor(floatingWindow?.panel);
-            if (!descriptor || addedPanelIds.has(descriptor.id)) continue;
+            const panel = floatingWindow?.panel;
+            const id = String(panel?.id ?? "").trim();
+            if (!id || desired.has(id)) continue;
+            desired.set(id, { panel, floating: floatingWindow });
+        }
+
+        return desired;
+    }
+
+    #addReconciledPanel(spec) {
+        const descriptor = createDockviewPanelDescriptor(spec.panel);
+        if (!descriptor) return;
+
+        // Added panels activate themselves by default; add non-active model
+        // panels inactive so the model's active tab (not the last one added)
+        // ends up in front.
+        const inactive = !spec.active;
+
+        if (spec.floating) {
+            const floatingWindow = spec.floating;
             this.dockviewApi.addPanel({
                 ...descriptor,
+                inactive,
                 floating: {
                     position: {
                         top: Number.isFinite(floatingWindow.y) ? floatingWindow.y : 120,
@@ -262,47 +343,39 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
                     height: Number.isFinite(floatingWindow.height) ? floatingWindow.height : 280
                 }
             });
-            addedPanelIds.add(descriptor.id);
+            return;
         }
 
-        this.#configureRestoredEdgeGroups();
-        this.sideDockWidthClampPending = true;
-    }
-
-    #addLegacyEdgeDock(layout, dockId, addedPanelIds) {
-        const dock = layout?.root?.[dockId];
-        const position = DOCKVIEW_DOCK_POSITIONS[dockId];
-        const panels = (dock?.stacks ?? []).flatMap((stack) => stack?.panels ?? []);
-        if (!position || !panels.length) return;
-
-        const groupApi = this.#ensureEdgeGroup(dockId, { collapsed: Boolean(dock?.collapsed) });
-        let firstPanelId = "";
-
-        for (const panel of panels) {
-            const descriptor = createDockviewPanelDescriptor(panel);
-            if (!descriptor || addedPanelIds.has(descriptor.id)) continue;
+        if (spec.dockId === "centerDock") {
+            const referenceGroup = this.#getFirstGridGroup();
             this.dockviewApi.addPanel({
                 ...descriptor,
-                position: {
-                    referenceGroup: groupApi.id,
-                    direction: "within"
-                },
-                inactive: Boolean(firstPanelId)
+                inactive,
+                ...(referenceGroup ? { position: { referenceGroup: referenceGroup.id, direction: "within" } } : {})
             });
-            firstPanelId ||= descriptor.id;
-            addedPanelIds.add(descriptor.id);
+            return;
         }
+
+        const groupApi = this.#ensureEdgeGroup(spec.dockId);
+        if (!groupApi) return;
+        this.dockviewApi.addPanel({
+            ...descriptor,
+            inactive,
+            position: { referenceGroup: groupApi.id, direction: "within" }
+        });
     }
 
     #ensureEdgeGroup(dockId, options = {}) {
         const position = DOCKVIEW_DOCK_POSITIONS[dockId];
         if (!position) return null;
+        // Edge-group size constraints (minimumSize/initialSize/collapsedSize)
+        // are only honored at creation time, so they must be passed here rather
+        // than reasserted afterwards.
         const groupApi = this.dockviewApi.getEdgeGroup(position) ?? this.dockviewApi.addEdgeGroup(position, {
             id: `totc-${dockId}`,
             ...EDGE_GROUP_SIZES[dockId],
             ...options
         });
-        this.#configureEdgeGroupConstraints(groupApi, dockId);
         this.#configureEdgeGroupHeader(groupApi, dockId);
         this.#configureEdgeGroupDropZones(groupApi, dockId);
         return groupApi;
@@ -313,40 +386,9 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             const position = DOCKVIEW_DOCK_POSITIONS[dockId];
             const groupApi = position ? this.dockviewApi?.getEdgeGroup?.(position) : null;
             if (groupApi) {
-                this.#configureEdgeGroupConstraints(groupApi, dockId);
                 this.#configureEdgeGroupHeader(groupApi, dockId);
                 this.#configureEdgeGroupDropZones(groupApi, dockId);
             }
-        }
-    }
-
-    #configureEdgeGroupConstraints(groupApi, dockId) {
-        if (dockId !== "leftDock" && dockId !== "rightDock") return;
-        groupApi?.setConstraints?.({ minimumWidth: MIN_SIDE_DOCK_WIDTH });
-        this.#configureEdgeGroupShellWidth(dockId);
-        this.#resizeNarrowEdgeGroup(groupApi);
-    }
-
-    #configureEdgeGroupShellWidth(dockId) {
-        const position = DOCKVIEW_DOCK_POSITIONS[dockId];
-        const shell = this.dockviewApi?.component?._shellManager;
-        const view = position === "left" ? shell?._leftView : shell?._rightView;
-        if (!position || !view) return;
-
-        // Dockview only applies edge-view minimumSize at creation; restored edge
-        // groups are auto-created by fromJSON, so reassert the shell constraint.
-        const config = shell?._viewConfigs?.get?.(position);
-        if (config) config.minimumSize = MIN_SIDE_DOCK_WIDTH;
-        view.minimumSize = MIN_SIDE_DOCK_WIDTH;
-        if (Number.isFinite(view.lastExpandedSize) && view.lastExpandedSize < MIN_SIDE_DOCK_WIDTH) {
-            view.restoreExpandedSize?.(MIN_SIDE_DOCK_WIDTH);
-        }
-    }
-
-    #resizeNarrowEdgeGroup(groupApi) {
-        const width = groupApi?.boundingBox?.width;
-        if (Number.isFinite(width) && width > 0 && width < MIN_SIDE_DOCK_WIDTH) {
-            groupApi.setSize?.({ width: MIN_SIDE_DOCK_WIDTH });
         }
     }
 
@@ -427,7 +469,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
     #hideDockviewPanel(panelId) {
         const existingPanel = this.dockviewApi?.getPanel?.(panelId);
         if (existingPanel) this.dockviewApi.removePanel(existingPanel);
-        this.#collapseEmptyEdgeGroups();
+        this.#removeEmptyEdgeGroups();
     }
 
     #createDockviewHeaderActions(group) {
@@ -526,25 +568,29 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             width: Math.max(360, Math.round(box.width ?? 420)),
             height: Math.max(240, Math.round(box.height ?? 280))
         });
-        this.#collapseEmptyEdgeGroups();
+        this.#removeEmptyEdgeGroups();
         this.#queueDockviewSave();
     }
 
     async #closeDockviewPanel(panel) {
         if (!panel) return;
         this.dockviewApi?.removePanel?.(panel);
-        this.#collapseEmptyEdgeGroups();
+        this.#removeEmptyEdgeGroups();
         const nextLegacyLayout = this.layoutEngine?.closePanel?.(panel.id) ?? this.layoutEngine?.getLayout?.();
         await this.#saveDockviewStateWithLegacyLayout(nextLegacyLayout);
         this.renderCallback({ force: false });
     }
 
-    #collapseEmptyEdgeGroups() {
+    #removeEmptyEdgeGroups() {
         for (const dockId of EDGE_DOCK_IDS) {
             const position = DOCKVIEW_DOCK_POSITIONS[dockId];
             const groupApi = position ? this.dockviewApi?.getEdgeGroup?.(position) : null;
-            const group = (this.dockviewApi?.groups ?? []).find((candidate) => candidate?.id === groupApi?.id);
-            if (groupApi && !group?.panels?.length) groupApi.collapse?.();
+            if (!groupApi) continue;
+            const group = (this.dockviewApi?.groups ?? []).find((candidate) => candidate?.id === groupApi.id);
+            // Fully remove an emptied edge region rather than leaving a collapsed
+            // header strip. It is recreated on demand when a panel is redocked
+            // there through the panel-visibility menu (#ensureEdgeGroup).
+            if (!group?.panels?.length) this.dockviewApi?.removeEdgeGroup?.(position);
         }
     }
 
@@ -564,11 +610,18 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             this.#queueDockviewSave();
         }));
         this.#addDockviewDisposable(this.dockviewApi.onDidActivePanelChange(() => {
+            const previousMapId = this.activeDockviewMapPanel?.id ?? "";
             this.#syncNativeCanvasApertureClass();
             this.#queueDockviewSave();
+            // Switching to a different center map tab must re-view its scene on
+            // the native canvas. A render runs the root app's scene sync, which
+            // calls scene.view() for the newly active center map panel.
+            if ((this.activeDockviewMapPanel?.id ?? "") !== previousMapId) {
+                this.renderCallback({ force: false });
+            }
         }));
-        this.#addDockviewDisposable(this.dockviewApi.onDidRemoveView(() => {
-            this.#collapseEmptyEdgeGroups();
+        this.#addDockviewDisposable(this.dockviewApi.onDidRemovePanel(() => {
+            this.#removeEmptyEdgeGroups();
             this.#queueDockviewSave();
         }));
     }
@@ -585,28 +638,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         const height = Math.round(rect?.height ?? 0);
         if (width > 0 && height > 0) {
             this.dockviewApi?.layout?.(width, height, true);
-            this.#clampRestoredSideDockWidths();
         }
-    }
-
-    #clampRestoredSideDockWidths() {
-        if (!this.sideDockWidthClampPending || !this.dockviewApi) return;
-        this.sideDockWidthClampPending = false;
-
-        const currentDockview = this.dockviewApi.toJSON?.();
-        const normalizedDockview = normalizeDockviewSideEdgeGroupSizes(currentDockview, MIN_SIDE_DOCK_WIDTH);
-        const didClamp = ["left", "right"].some((position) => (
-            currentDockview?.edgeGroups?.[position]?.size !== normalizedDockview?.edgeGroups?.[position]?.size
-        ));
-        if (!didClamp) return;
-
-        this.dockviewApi.fromJSON(normalizedDockview, { reuseExistingPanels: false });
-        this.#configureRestoredEdgeGroups();
-        const rect = this.dockviewRootElement?.getBoundingClientRect?.();
-        const width = Math.round(rect?.width ?? 0);
-        const height = Math.round(rect?.height ?? 0);
-        if (width > 0 && height > 0) this.dockviewApi.layout?.(width, height, true);
-        this.#queueDockviewSave();
     }
 
     #queueDockviewSave() {
@@ -640,7 +672,12 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         for (const group of this.dockviewApi.groups ?? []) {
             if (group?.api?.location?.type !== "grid") continue;
             const panel = group.activePanel;
-            const panelModel = panel?.api?.getParameters?.()?.panel ?? null;
+            if (!panel) continue;
+            // Restored panels can briefly report empty parameters, so fall back
+            // to the panel id (which encodes the scene, e.g. "map:<sceneId>")
+            // rather than relying solely on serialized params.
+            const params = panel.api?.getParameters?.()?.panel;
+            const panelModel = { id: panel.id, ...(params && typeof params === "object" ? params : {}) };
             if (isNativeMapPanel(panelModel)) return { group, panel: panelModel, dockviewPanel: panel };
         }
         return null;
@@ -655,6 +692,8 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         this.dockviewApi?.dispose?.();
         this.dockviewApi = null;
         this.dockviewRootElement = null;
+        this.dockviewHostElement?.remove?.();
+        this.dockviewHostElement = null;
         this.activeDockviewMapPanel = null;
     }
 
