@@ -178,6 +178,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         });
 
         this.#restoreDockviewLayout(layout);
+        this.#auditLoadedSideDockMinimumWidths();
         this.#wireDockviewPersistence();
     }
 
@@ -248,6 +249,34 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         // restored geometry is corrected to the current model, and so an empty
         // Dockview (no saved geometry) is built entirely from the layout.
         this.#reconcileDockviewLayout(layout);
+    }
+
+    #auditLoadedSideDockMinimumWidths() {
+        if (!this.dockviewApi) return;
+
+        let corrected = false;
+        for (const dockId of ["leftDock", "rightDock"]) {
+            const position = DOCKVIEW_DOCK_POSITIONS[dockId];
+            if (!position) continue;
+
+            const groupApi = this.dockviewApi.getEdgeGroup(position);
+            if (!groupApi || groupApi.isCollapsed?.()) continue;
+
+            const minimumSize = Number(EDGE_GROUP_SIZES[dockId]?.minimumSize ?? MIN_SIDE_DOCK_WIDTH);
+            const currentSize = Number(this.dockviewApi?.toJSON?.()?.edgeGroups?.[position]?.size);
+            if (!Number.isFinite(currentSize) || currentSize >= minimumSize) continue;
+
+            groupApi.setSize?.(minimumSize);
+            this.edgeGroupExpandedSizes[dockId] = minimumSize;
+            corrected = true;
+        }
+
+        if (!corrected) return;
+
+        this.#layoutDockviewNow();
+        const dockviewState = this.dockviewApi?.toJSON?.();
+        this.#rememberEdgeGroupSizesFromDockviewState(dockviewState);
+        this.#queueDockviewSave();
     }
 
     #precreateEdgeGroupsFromState(dockview) {
