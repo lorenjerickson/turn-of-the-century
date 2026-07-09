@@ -71,6 +71,7 @@ const ItemDocumentClass = requireItemDocumentClass();
 const TEXT_INPUT_DEBOUNCE_MS = 300;
 const GRID_CALIBRATION_COLOR_PREVIEW_DEBOUNCE_MS = 100;
 const GRID_CALIBRATION_GEOMETRY_PREVIEW_DEBOUNCE_MS = 500;
+const MIN_SIDE_DOCK_WIDTH = 350;
 
 export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
     static get isSupported() {
@@ -402,11 +403,15 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
 
     async _prepareContext(options) {
         const policy = this.stateStore?.getPolicy?.() ?? { enabled: false, debugGovernance: false };
-        const userLayout = this.stateStore?.getUserLayout?.() ?? this.layoutEngine.getLayout();
+        const storedLayout = this.stateStore?.getUserLayout?.() ?? this.layoutEngine.getLayout();
+        const {
+            layout: userLayout,
+            changed: repairedPersistedLayout
+        } = this.#repairPersistedSideDockLayout(storedLayout);
         this.layoutEngine.setLayout(userLayout);
         const enforcedLayout = this.#enforceRequiredDocking();
-        if (enforcedLayout) {
-            await this.stateStore?.setUserLayout?.(enforcedLayout);
+        if (enforcedLayout || repairedPersistedLayout) {
+            await this.stateStore?.setUserLayout?.(enforcedLayout ?? this.layoutEngine.getLayout());
         }
         const activeLayout = this.layoutEngine.getLayout();
         const visiblePanels = this.#getVisiblePanelIds(activeLayout);
@@ -482,6 +487,38 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         });
 
         return context;
+    }
+
+    #repairPersistedSideDockLayout(layout) {
+        const sourceLayout = layout && typeof layout === "object" ? layout : null;
+        if (!sourceLayout) return { layout, changed: false };
+
+        const repairedLayout = foundry.utils.deepClone(sourceLayout);
+        let changed = false;
+        const dockviewEdgeGroups = repairedLayout?.dockviewWorkspace?.dockview?.edgeGroups;
+
+        for (const [dockId, position] of [["leftDock", "left"], ["rightDock", "right"]]) {
+            const dock = repairedLayout?.root?.[dockId];
+            const edgeGroup = dockviewEdgeGroups?.[position];
+
+            const savedSize = Number(edgeGroup?.size);
+            if (edgeGroup && (!Number.isFinite(savedSize) || savedSize < MIN_SIDE_DOCK_WIDTH)) {
+                edgeGroup.size = MIN_SIDE_DOCK_WIDTH;
+                changed = true;
+            }
+
+            if (edgeGroup?.collapsed === true) {
+                edgeGroup.collapsed = false;
+                changed = true;
+            }
+
+            if (dock && dock.collapsed === true) {
+                dock.collapsed = false;
+                changed = true;
+            }
+        }
+
+        return { layout: repairedLayout, changed };
     }
 
     async _renderHTML(context) {

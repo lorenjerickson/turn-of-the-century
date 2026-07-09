@@ -258,6 +258,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         if (!this.dockviewApi) return;
 
         const dockviewState = this.dockviewApi?.toJSON?.();
+        const legacyLayout = this.layoutEngine?.getLayout?.();
         let corrected = false;
         for (const dockId of ["leftDock", "rightDock"]) {
             const position = DOCKVIEW_DOCK_POSITIONS[dockId];
@@ -266,8 +267,8 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             const groupApi = this.dockviewApi.getEdgeGroup(position);
             if (!groupApi) continue;
 
-            const serializedEdge = dockviewState?.edgeGroups?.[position];
-            if (serializedEdge?.collapsed === true) continue;
+            const legacyCollapsed = Boolean(legacyLayout?.root?.[dockId]?.collapsed);
+            if (legacyCollapsed) continue;
 
             const group = (this.dockviewApi?.groups ?? []).find((candidate) => candidate?.id === groupApi?.id);
             if ((group?.panels?.length ?? 0) < 1) continue;
@@ -279,7 +280,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
 
             const minimumSize = Number(EDGE_GROUP_SIZES[dockId]?.minimumSize ?? MIN_SIDE_DOCK_WIDTH);
             const liveWidth = this.#getEdgeGroupLiveWidth(groupApi);
-            const persistedWidth = Number(serializedEdge?.size);
+            const persistedWidth = Number(dockviewState?.edgeGroups?.[position]?.size);
             const currentWidth = Number.isFinite(liveWidth) && liveWidth > 0
                 ? liveWidth
                 : persistedWidth;
@@ -683,7 +684,8 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
     async #saveDockviewStateWithLegacyLayout(legacyLayout) {
         const dockviewState = this.dockviewApi?.toJSON?.();
         this.#rememberEdgeGroupSizesFromDockviewState(dockviewState);
-        const nextLayout = withDockviewWorkspaceState(legacyLayout, dockviewState);
+        const nextLegacyLayout = this.#syncLegacyCollapsedFromDockviewState(legacyLayout, dockviewState);
+        const nextLayout = withDockviewWorkspaceState(nextLegacyLayout, dockviewState);
         await this.stateStore?.setUserLayout?.(nextLayout);
     }
 
@@ -736,9 +738,30 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             const currentLayout = this.layoutEngine?.getLayout?.() ?? {};
             const dockviewState = this.dockviewApi?.toJSON?.();
             this.#rememberEdgeGroupSizesFromDockviewState(dockviewState);
-            const nextLayout = withDockviewWorkspaceState(currentLayout, dockviewState);
+            const nextLegacyLayout = this.#syncLegacyCollapsedFromDockviewState(currentLayout, dockviewState);
+            const nextLayout = withDockviewWorkspaceState(nextLegacyLayout, dockviewState);
             void this.stateStore?.setUserLayout?.(nextLayout);
         });
+    }
+
+    #syncLegacyCollapsedFromDockviewState(layout = null, dockviewState = null) {
+        const nextLayout = layout && typeof layout === "object"
+            ? (globalThis.foundry?.utils?.deepClone
+                ? globalThis.foundry.utils.deepClone(layout)
+                : JSON.parse(JSON.stringify(layout)))
+            : {};
+        nextLayout.root ??= {};
+        const edgeGroups = dockviewState?.edgeGroups;
+
+        for (const dockId of EDGE_DOCK_IDS) {
+            const position = DOCKVIEW_DOCK_POSITIONS[dockId];
+            if (!position) continue;
+            const dock = nextLayout.root?.[dockId];
+            if (!dock || typeof dock !== "object") continue;
+            dock.collapsed = edgeGroups?.[position]?.collapsed === true;
+        }
+
+        return nextLayout;
     }
 
     #createDefaultEdgeGroupExpandedSizes() {

@@ -54,9 +54,11 @@ describe("Dockview workspace layout integration", () => {
         assert.match(dockviewFeatureSource, /this\.#auditLoadedSideDockMinimumWidths\(\);/);
         assert.match(dockviewFeatureSource, /#getEdgeGroupLiveWidth/);
         assert.match(dockviewFeatureSource, /group\?\.api\?\.boundingBox\?\.width/);
-        assert.match(dockviewFeatureSource, /serializedEdge\?\.collapsed === true/);
+        assert.match(dockviewFeatureSource, /legacyLayout\?\.root\?\.\[dockId\]\?\.collapsed/);
         assert.match(dockviewFeatureSource, /groupApi\.expand\?\.\(\)/);
         assert.match(dockviewFeatureSource, /groupApi\.setSize\?\.\(minimumSize\)/);
+        assert.match(dockviewFeatureSource, /#syncLegacyCollapsedFromDockviewState/);
+        assert.match(dockviewFeatureSource, /dock\.collapsed = edgeGroups\?\.\[position\]\?\.collapsed === true/);
         // Edge minimums are applied at creation via addEdgeGroup options; the
         // restore path pre-creates edge groups so fromJSON reuses them instead
         // of dropping our constraints to Dockview's default fallback.
@@ -93,6 +95,16 @@ describe("Dockview workspace layout integration", () => {
         assert.match(dockviewFeatureSource, /#addReconciledPanel/);
         // Reconcile removes panels no longer in the model and adds new ones.
         assert.match(dockviewFeatureSource, /if \(!desired\.has\(panel\.id\)\) this\.dockviewApi\.removePanel\(panel\)/);
+    });
+
+    it("repairs persisted side-dock server state before mounting Dockview", () => {
+        assert.match(rootAppSource, /#repairPersistedSideDockLayout/);
+        assert.match(rootAppSource, /const storedLayout = this\.stateStore\?\.getUserLayout\?\.\(\) \?\? this\.layoutEngine\.getLayout\(\);/);
+        assert.match(rootAppSource, /this\.layoutEngine\.setLayout\(userLayout\);/);
+        assert.match(rootAppSource, /if \(enforcedLayout \|\| repairedPersistedLayout\) \{/);
+        assert.match(rootAppSource, /edgeGroup\.size = MIN_SIDE_DOCK_WIDTH/);
+        assert.match(rootAppSource, /edgeGroup\.collapsed = false/);
+        assert.match(rootAppSource, /dock\.collapsed = false/);
     });
 
     it("restores Dockview header controls for the active tab group", () => {
