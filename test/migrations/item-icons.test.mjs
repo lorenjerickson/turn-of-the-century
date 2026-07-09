@@ -39,10 +39,10 @@ describe("item icon migration", () => {
 
     it("replaces exact legacy and temporary generic icons", () => {
         assert.deepEqual(buildItemIconUpdate(makeItem()), {
-            img: "modules/game-icons-net/blackbackground/acid-tube.svg"
+            img: "systems/turn-of-the-century/assets/images/icons/acid-tube.svg"
         });
         assert.deepEqual(buildItemIconUpdate(makeItem({ img: "icons/svg/pill.svg" })), {
-            img: "modules/game-icons-net/blackbackground/acid-tube.svg"
+            img: "systems/turn-of-the-century/assets/images/icons/acid-tube.svg"
         });
     });
 
@@ -90,9 +90,9 @@ describe("item icon migration", () => {
 
         assert.equal(report.itemsScanned, 4);
         assert.equal(report.itemsUpdated, 3);
-        assert.equal(worldItem.img, "modules/game-icons-net/blackbackground/acid-tube.svg");
-        assert.equal(actorItem.img, "modules/game-icons-net/blackbackground/lockpicks.svg");
-        assert.equal(packItem.img, "modules/game-icons-net/blackbackground/wire-coil.svg");
+        assert.equal(worldItem.img, "systems/turn-of-the-century/assets/images/icons/acid-tube.svg");
+        assert.equal(actorItem.img, "systems/turn-of-the-century/assets/images/icons/lockpicks.svg");
+        assert.equal(packItem.img, "systems/turn-of-the-century/assets/images/icons/wire-coil.svg");
         assert.equal(customItem.updates.length, 0);
         assert.deepEqual(lockStates, [false, true]);
     });

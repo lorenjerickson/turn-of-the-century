@@ -94,8 +94,8 @@ describe("encounter planner context", () => {
         assert.equal(planner.remainingAp, 5);
         assert.deepEqual(planner.queue.map((action) => action.id), ["dodge"]);
         assert.deepEqual(planner.availableActions.map((action) => action.id), ["move"]);
-        assert.equal(planner.queue[0].img, "modules/game-icons-net/blackbackground/dodge.svg");
-        assert.equal(planner.availableActions[0].img, "modules/game-icons-net/blackbackground/move.svg");
+        assert.equal(planner.queue[0].img, "systems/turn-of-the-century/assets/images/icons/dodge.svg");
+        assert.equal(planner.availableActions[0].img, "systems/turn-of-the-century/assets/images/icons/move.svg");
         assert.equal(planner.draftNarrative.text, "Rook Bruiser moves 10 feet (2 AP), then [select action].");
         assert.equal(planner.draftNarrative.phrases.find((phrase) => phrase.decision === "movementDestination").text, "10 feet");
     });

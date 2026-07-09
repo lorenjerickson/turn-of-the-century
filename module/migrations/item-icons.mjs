@@ -1,6 +1,6 @@
 import { withUnlockedCompendiumPack } from "./compendium-locking.mjs";
 
-const ICON_ROOT = "modules/game-icons-net/blackbackground";
+const ICON_ROOT = "systems/turn-of-the-century/assets/images/icons";
 
 const DEFAULT_ICONS_BY_TYPE = {
     consumable: "icons/svg/pill.svg",

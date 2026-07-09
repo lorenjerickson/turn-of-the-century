@@ -41,7 +41,6 @@ describe("static compendium pack content", () => {
     it("gives every bundled item an explicit icon and uses type-appropriate defaults", () => {
         const system = JSON.parse(readFileSync(join(rootDir, "system.json"), "utf8"));
         const itemPacks = system.packs.filter((pack) => pack.type === "Item");
-        const requiredPackages = new Set((system.relationships?.requires ?? []).map((relationship) => relationship.id));
 
         for (const pack of itemPacks) {
             const packPath = join(rootDir, pack.path);
@@ -61,12 +60,23 @@ describe("static compendium pack content", () => {
                     );
                 }
 
-                if (image.startsWith("modules/game-icons-net/")) {
-                    assert.equal(requiredPackages.has("game-icons-net"), true, "game-icons-net should be a required system dependency");
+                assert.equal(
+                    image.startsWith("modules/game-icons-net/"),
+                    false,
+                    `${pack.name}/${fileName} should not depend on game-icons-net module art`
+                );
+
+                if (image.startsWith("systems/turn-of-the-century/assets/images/icons/")) {
                     assert.match(
                         image,
-                        /^modules\/game-icons-net\/(?:black|white)background\/[a-z0-9_-]+\.svg$/,
-                        `${pack.name}/${fileName} should use a stable Game-icons.net path`
+                        /^systems\/turn-of-the-century\/assets\/images\/icons\/[a-z0-9_-]+\.svg$/,
+                        `${pack.name}/${fileName} should use a stable internal icon path`
+                    );
+                    const relativeImagePath = image.replace("systems/turn-of-the-century/", "");
+                    assert.equal(
+                        existsSync(join(rootDir, relativeImagePath)),
+                        true,
+                        `${pack.name}/${fileName} should reference a bundled icon file`
                     );
                 }
             }

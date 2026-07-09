@@ -1,4 +1,4 @@
-const GAME_ICONS_ROOT = "modules/game-icons-net/blackbackground";
+const GAME_ICONS_ROOT = "systems/turn-of-the-century/assets/images/icons";
 
 function gameIcon(name) {
     return `${GAME_ICONS_ROOT}/${name}.svg`;

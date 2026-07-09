@@ -6,12 +6,12 @@ import {
 } from "../../module/encounters/action-icons.mjs";
 
 describe("encounter action icons", () => {
-    it("assigns distinct installed Game-icons.net art to universal actions", () => {
+    it("assigns distinct internal icon art to universal actions", () => {
         const universalIds = ["move", "pursue", "follow", "avoid", "hunkDown", "dodge", "overwatch"];
         const icons = universalIds.map((id) => resolveActionIcon({ id }));
 
         assert.equal(new Set(icons).size, universalIds.length);
-        assert.equal(icons.every((icon) => icon.startsWith("modules/game-icons-net/blackbackground/")), true);
+        assert.equal(icons.every((icon) => icon.startsWith("systems/turn-of-the-century/assets/images/icons/")), true);
     });
 
     it("covers generated and legacy item action identifiers", () => {
@@ -38,7 +38,7 @@ describe("encounter action icons", () => {
         );
         assert.equal(
             resolveActionIcon({ id: "customDefense", type: "defense" }),
-            "modules/game-icons-net/blackbackground/bordered-shield.svg"
+            "systems/turn-of-the-century/assets/images/icons/bordered-shield.svg"
         );
         assert.equal(resolveActionIcon({}), "icons/svg/d20-grey.svg");
     });
