@@ -162,7 +162,11 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         }
 
         this.#layoutDockviewNow();
-        globalThis.requestAnimationFrame?.(() => this.#layoutDockviewNow());
+        this.#auditLoadedSideDockMinimumWidths();
+        globalThis.requestAnimationFrame?.(() => {
+            this.#layoutDockviewNow();
+            this.#auditLoadedSideDockMinimumWidths();
+        });
         this.#syncNativeCanvasApertureClass();
     }
 
@@ -178,7 +182,6 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         });
 
         this.#restoreDockviewLayout(layout);
-        this.#auditLoadedSideDockMinimumWidths();
         this.#wireDockviewPersistence();
     }
 
@@ -254,6 +257,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
     #auditLoadedSideDockMinimumWidths() {
         if (!this.dockviewApi) return;
 
+        const dockviewState = this.dockviewApi?.toJSON?.();
         let corrected = false;
         for (const dockId of ["leftDock", "rightDock"]) {
             const position = DOCKVIEW_DOCK_POSITIONS[dockId];
@@ -263,8 +267,12 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             if (!groupApi || groupApi.isCollapsed?.()) continue;
 
             const minimumSize = Number(EDGE_GROUP_SIZES[dockId]?.minimumSize ?? MIN_SIDE_DOCK_WIDTH);
-            const currentSize = Number(this.dockviewApi?.toJSON?.()?.edgeGroups?.[position]?.size);
-            if (!Number.isFinite(currentSize) || currentSize >= minimumSize) continue;
+            const liveWidth = this.#getEdgeGroupLiveWidth(groupApi);
+            const persistedWidth = Number(dockviewState?.edgeGroups?.[position]?.size);
+            const currentWidth = Number.isFinite(liveWidth) && liveWidth > 0
+                ? liveWidth
+                : persistedWidth;
+            if (!Number.isFinite(currentWidth) || currentWidth >= minimumSize) continue;
 
             groupApi.setSize?.(minimumSize);
             this.edgeGroupExpandedSizes[dockId] = minimumSize;
@@ -274,9 +282,20 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         if (!corrected) return;
 
         this.#layoutDockviewNow();
-        const dockviewState = this.dockviewApi?.toJSON?.();
-        this.#rememberEdgeGroupSizesFromDockviewState(dockviewState);
+        const refreshedDockviewState = this.dockviewApi?.toJSON?.();
+        this.#rememberEdgeGroupSizesFromDockviewState(refreshedDockviewState);
         this.#queueDockviewSave();
+    }
+
+    #getEdgeGroupLiveWidth(groupApi) {
+        const group = (this.dockviewApi?.groups ?? []).find((candidate) => candidate?.id === groupApi?.id);
+        const groupBoxWidth = Number(group?.api?.boundingBox?.width);
+        if (Number.isFinite(groupBoxWidth) && groupBoxWidth > 0) return groupBoxWidth;
+
+        const apiBoxWidth = Number(groupApi?.boundingBox?.width);
+        if (Number.isFinite(apiBoxWidth) && apiBoxWidth > 0) return apiBoxWidth;
+
+        return Number.NaN;
     }
 
     #precreateEdgeGroupsFromState(dockview) {

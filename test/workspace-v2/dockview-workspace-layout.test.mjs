@@ -52,6 +52,8 @@ describe("Dockview workspace layout integration", () => {
         assert.match(dockviewFeatureSource, /normalizeDockviewSideEdgeGroupSizes/);
         assert.match(dockviewFeatureSource, /#auditLoadedSideDockMinimumWidths/);
         assert.match(dockviewFeatureSource, /this\.#auditLoadedSideDockMinimumWidths\(\);/);
+        assert.match(dockviewFeatureSource, /#getEdgeGroupLiveWidth/);
+        assert.match(dockviewFeatureSource, /group\?\.api\?\.boundingBox\?\.width/);
         assert.match(dockviewFeatureSource, /groupApi\.isCollapsed\?\.\(\)/);
         assert.match(dockviewFeatureSource, /groupApi\.setSize\?\.\(minimumSize\)/);
         // Edge minimums are applied at creation via addEdgeGroup options; the
