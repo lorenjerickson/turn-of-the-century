@@ -264,11 +264,22 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             if (!position) continue;
 
             const groupApi = this.dockviewApi.getEdgeGroup(position);
-            if (!groupApi || groupApi.isCollapsed?.()) continue;
+            if (!groupApi) continue;
+
+            const serializedEdge = dockviewState?.edgeGroups?.[position];
+            if (serializedEdge?.collapsed === true) continue;
+
+            const group = (this.dockviewApi?.groups ?? []).find((candidate) => candidate?.id === groupApi?.id);
+            if ((group?.panels?.length ?? 0) < 1) continue;
+
+            if (groupApi.isCollapsed?.()) {
+                groupApi.expand?.();
+                this.#layoutDockviewNow();
+            }
 
             const minimumSize = Number(EDGE_GROUP_SIZES[dockId]?.minimumSize ?? MIN_SIDE_DOCK_WIDTH);
             const liveWidth = this.#getEdgeGroupLiveWidth(groupApi);
-            const persistedWidth = Number(dockviewState?.edgeGroups?.[position]?.size);
+            const persistedWidth = Number(serializedEdge?.size);
             const currentWidth = Number.isFinite(liveWidth) && liveWidth > 0
                 ? liveWidth
                 : persistedWidth;

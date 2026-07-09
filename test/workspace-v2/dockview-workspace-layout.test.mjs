@@ -54,7 +54,8 @@ describe("Dockview workspace layout integration", () => {
         assert.match(dockviewFeatureSource, /this\.#auditLoadedSideDockMinimumWidths\(\);/);
         assert.match(dockviewFeatureSource, /#getEdgeGroupLiveWidth/);
         assert.match(dockviewFeatureSource, /group\?\.api\?\.boundingBox\?\.width/);
-        assert.match(dockviewFeatureSource, /groupApi\.isCollapsed\?\.\(\)/);
+        assert.match(dockviewFeatureSource, /serializedEdge\?\.collapsed === true/);
+        assert.match(dockviewFeatureSource, /groupApi\.expand\?\.\(\)/);
         assert.match(dockviewFeatureSource, /groupApi\.setSize\?\.\(minimumSize\)/);
         // Edge minimums are applied at creation via addEdgeGroup options; the
         // restore path pre-creates edge groups so fromJSON reuses them instead
