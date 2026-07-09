@@ -91,15 +91,15 @@ describe("dockview layout state", () => {
         const dockview = {
             edgeGroups: {
                 left: { size: 58, visible: true, group: { id: "left" } },
-                right: { size: 249, visible: true, group: { id: "right" } },
+                right: { size: 349, visible: true, group: { id: "right" } },
                 top: { size: 90, visible: true, group: { id: "top" } }
             }
         };
 
-        const normalized = normalizeDockviewSideEdgeGroupSizes(dockview, 250);
+        const normalized = normalizeDockviewSideEdgeGroupSizes(dockview, 350);
 
-        assert.equal(normalized.edgeGroups.left.size, 250);
-        assert.equal(normalized.edgeGroups.right.size, 250);
+        assert.equal(normalized.edgeGroups.left.size, 350);
+        assert.equal(normalized.edgeGroups.right.size, 350);
         assert.equal(normalized.edgeGroups.top.size, 90);
         assert.equal(dockview.edgeGroups.left.size, 58);
     });

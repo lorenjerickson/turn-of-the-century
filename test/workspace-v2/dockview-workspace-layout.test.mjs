@@ -44,7 +44,7 @@ describe("Dockview workspace layout integration", () => {
     });
 
     it("configures edge groups and panel visibility without falling back to legacy docking defaults", () => {
-        assert.match(dockviewFeatureSource, /const MIN_SIDE_DOCK_WIDTH = 250;/);
+        assert.match(dockviewFeatureSource, /const MIN_SIDE_DOCK_WIDTH = 350;/);
         assert.match(dockviewFeatureSource, /leftDock: \{ initialSize: 320, minimumSize: MIN_SIDE_DOCK_WIDTH/);
         assert.match(dockviewFeatureSource, /rightDock: \{ initialSize: 360, minimumSize: MIN_SIDE_DOCK_WIDTH/);
         assert.match(dockviewFeatureSource, /topDock: \{ initialSize: 180, minimumSize: 120/);

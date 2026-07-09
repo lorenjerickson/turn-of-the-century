@@ -45,7 +45,7 @@ function buildModel(docks = {}) {
 }
 
 // ---- Build real serialized Dockview geometry matching a dock spec ----
-function buildGeometry(docks = {}, { narrow = false } = {}) {
+function buildGeometry(docks = {}, { narrow = false, edgeSizes = {} } = {}) {
     const host = makeContainer();
     const api = createDockview(host, { theme: themeDark, createComponent: rawRenderer });
     api.layout(1200, 800);
@@ -60,8 +60,10 @@ function buildGeometry(docks = {}, { narrow = false } = {}) {
             api.addPanel({ id: p.id, component: componentFor(p), params: { panel: p }, position: { referenceGroup: group.id, direction: "within" } });
         }
     };
-    addEdge("left", "totc-leftDock", { initialSize: 320, minimumSize: 250, collapsedSize: 44 }, docks.left);
+    addEdge("left", "totc-leftDock", { initialSize: 320, minimumSize: 350, collapsedSize: 44 }, docks.left);
     addEdge("top", "totc-topDock", { initialSize: 180, minimumSize: 120, collapsedSize: 38 }, docks.top);
+    addEdge("right", "totc-rightDock", { initialSize: 360, minimumSize: 350, collapsedSize: 44 }, docks.right);
+    addEdge("bottom", "totc-bottomDock", { initialSize: 220, minimumSize: 140, collapsedSize: 38 }, docks.bottom);
 
     api.layout(1200, 800);
     const serialized = api.toJSON();
@@ -71,6 +73,11 @@ function buildGeometry(docks = {}, { narrow = false } = {}) {
     if (narrow) {
         if (serialized.edgeGroups?.left) serialized.edgeGroups.left.size = 80;
         if (serialized.edgeGroups?.top) serialized.edgeGroups.top.size = 30;
+    }
+    for (const [position, size] of Object.entries(edgeSizes)) {
+        if (!serialized.edgeGroups?.[position]) continue;
+        if (!Number.isFinite(size)) continue;
+        serialized.edgeGroups[position].size = size;
     }
     return serialized;
 }
@@ -98,7 +105,17 @@ function makeFeature(getLayout, { renderPanelContent = () => "", render = () => 
 const mounts = [];
 async function mountFeature(initialLayout, options = {}) {
     const ref = { layout: initialLayout };
-    const feature = makeFeature(() => ref.layout, options);
+    const setUserLayout = options.setUserLayout ?? (async () => {});
+    const feature = new DockviewWorkspaceLayoutFeature({
+        layoutEngine: { getLayout: () => ref.layout, closePanel: () => ref.layout, restorePanel: () => ref.layout },
+        stateStore: { setUserLayout },
+        panelRegistry: { get: () => null },
+        panelHost: { renderPanelContent: options.renderPanelContent ?? (() => "") },
+        render: options.render ?? (() => {}),
+        escapeHTML: (s) => String(s ?? ""),
+        isGM: () => false,
+        isRollLocked: () => false
+    });
     const appEl = window.document.createElement("div");
     window.document.body.appendChild(appEl);
 
@@ -137,6 +154,7 @@ const edgeView = (feature, position) => {
 };
 const leftEdgeMin = (feature) => feature.dockviewApi?.component?._shellManager?._leftView?._expandedMinimumSize;
 const topEdgeMin = (feature) => feature.dockviewApi?.component?._shellManager?._topView?._expandedMinimumSize;
+const edgeSize = (feature, position) => Number(feature.dockviewApi?.toJSON?.()?.edgeGroups?.[position]?.size ?? 0);
 const hasPanel = (feature, id) => Boolean(feature.dockviewApi?.getPanel?.(id));
 
 describe("Dockview edge-dock restore behavior", () => {
@@ -144,12 +162,69 @@ describe("Dockview edge-dock restore behavior", () => {
         const docks = { center: [panel("center1")], left: [panel("left1")], top: [panel("top1")] };
         const { feature } = await mountFeature(layoutFor(docks, { narrow: true }));
 
-        assert.equal(leftEdgeMin(feature), 250, "left dock keeps 250px minimum");
+        assert.equal(leftEdgeMin(feature), 350, "left dock keeps 350px minimum");
         assert.equal(topEdgeMin(feature), 120, "top dock keeps 120px minimum");
 
         const restored = feature.dockviewApi.toJSON();
-        assert.ok(restored.edgeGroups.left.size >= 250, `left size clamped, got ${restored.edgeGroups.left.size}`);
+        assert.ok(restored.edgeGroups.left.size >= 350, `left size clamped, got ${restored.edgeGroups.left.size}`);
         assert.ok(restored.edgeGroups.top.size >= 120, `top size clamped, got ${restored.edgeGroups.top.size}`);
+    });
+
+    it("retains expanded left width when panels are removed then re-added", async () => {
+        const docks = { center: [panel("center1")], left: [panel("left1")] };
+        const mounted = await mountFeature(layoutFor(docks));
+
+        mounted.feature.dockviewApi.getEdgeGroup("left")?.setSize?.(520);
+        mounted.feature.dockviewApi.layout(1200, 800, true);
+        await flushMicrotasks();
+        const initialLeftSize = Math.round(edgeSize(mounted.feature, "left"));
+        assert.ok(initialLeftSize >= 350, `left dock keeps at least minimum width, got ${initialLeftSize}`);
+
+        await mounted.rerender(layoutFor({ center: [panel("center1")] }));
+        assert.equal(mounted.feature.dockviewApi.getEdgeGroup("left"), undefined, "left edge removed when emptied");
+
+        await mounted.rerender(layoutFor(docks));
+        assert.equal(hasPanel(mounted.feature, "left1"), true, "left panel restored");
+        assert.equal(Math.round(edgeSize(mounted.feature, "left")), initialLeftSize, "left dock width is restored, not reset to default");
+    });
+
+    it("persists edge widths and heights through state saves and session restore", async () => {
+        const docks = {
+            center: [panel("center1")],
+            left: [panel("left1")],
+            top: [panel("top1")],
+            bottom: [panel("bottom1")]
+        };
+        const savedLayouts = [];
+        const mounted = await mountFeature(layoutFor(docks), {
+            setUserLayout: async (layout) => savedLayouts.push(layout)
+        });
+
+        mounted.feature.dockviewApi.getEdgeGroup("left")?.setSize?.(540);
+        mounted.feature.dockviewApi.getEdgeGroup("top")?.setSize?.(260);
+        mounted.feature.dockviewApi.getEdgeGroup("bottom")?.setSize?.(310);
+        mounted.feature.dockviewApi.layout(1200, 800, true);
+        await flushMicrotasks();
+
+        const observedLeft = Math.round(edgeSize(mounted.feature, "left"));
+        const observedTop = Math.round(edgeSize(mounted.feature, "top"));
+        const observedBottom = Math.round(edgeSize(mounted.feature, "bottom"));
+
+        const persistedDockview = savedLayouts.at(-1)?.dockviewWorkspace?.dockview
+            ?? mounted.feature.dockviewApi.toJSON();
+        assert.equal(Math.round(persistedDockview.edgeGroups.left.size), observedLeft);
+        assert.equal(Math.round(persistedDockview.edgeGroups.top.size), observedTop);
+        assert.equal(Math.round(persistedDockview.edgeGroups.bottom.size), observedBottom);
+
+        mounted.feature.dispose?.();
+        mounted.appEl.remove?.();
+
+        const remountedLayout = withDockviewWorkspaceState(buildModel(docks), persistedDockview);
+        const remounted = await mountFeature(remountedLayout);
+
+        assert.equal(Math.round(edgeSize(remounted.feature, "left")), observedLeft);
+        assert.equal(Math.round(edgeSize(remounted.feature, "top")), observedTop);
+        assert.equal(Math.round(edgeSize(remounted.feature, "bottom")), observedBottom);
     });
 
     it("removes an emptied edge group entirely instead of leaving a collapsed strip", async () => {
@@ -239,12 +314,12 @@ describe("Dockview layout-engine reconciliation", () => {
         const docks = { center: [panel("center1")], left: [panel("left1")] };
         const mounted = await mountFeature(layoutFor(docks, {}));
         const instance = mounted.feature.dockviewApi;
-        assert.equal(leftEdgeMin(mounted.feature), 250);
+        assert.equal(leftEdgeMin(mounted.feature), 350);
 
         await mounted.rerender();
 
         assert.equal(mounted.feature.dockviewApi, instance, "Dockview is reconciled, not torn down and rebuilt");
-        assert.equal(leftEdgeMin(mounted.feature), 250, "edge constraints survive the re-render");
+        assert.equal(leftEdgeMin(mounted.feature), 350, "edge constraints survive the re-render");
         assert.ok(hasPanel(mounted.feature, "left1"));
     });
 });
