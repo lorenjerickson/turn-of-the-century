@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { JSDOM } from "jsdom";
 import { SceneDesignFeature } from "../../module/ui/workspace-v2/controllers/scene-design-feature.mjs";
 
 const mockController = {
@@ -23,6 +24,104 @@ const mockController = {
         })
     }
 };
+
+const flushEvents = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+function createScenePropertiesDomHarness({
+    scene,
+    canvas,
+    panelModel = {},
+    actors = []
+} = {}) {
+    const dom = new JSDOM("<!doctype html><main></main>", { url: "http://localhost" });
+    const root = dom.window.document.querySelector("main");
+    const patchedState = {};
+    const renderCalls = [];
+    const activeScene = scene ?? {
+        id: "scene-1",
+        name: "Scene One",
+        update: async () => {},
+        updateEmbeddedDocuments: async () => {},
+        tokens: { contents: [] }
+    };
+    const activeCanvas = canvas ?? {
+        scene: { id: activeScene.id },
+        tokens: { controlled: [] },
+        perception: { update: () => {} }
+    };
+    const feature = new SceneDesignFeature({
+        scenePort: {
+            getCurrentScene: () => activeScene,
+            getViewedScene: () => activeScene,
+            getSceneById: (id) => String(id ?? "") === String(activeScene.id ?? "") ? activeScene : null,
+            getScenes: () => [activeScene],
+            getScenePropertiesScene: () => activeScene,
+            getScenePropertiesState: () => patchedState,
+            patchScenePropertiesState: (patch) => Object.assign(patchedState, patch),
+            getDesignActionScene: (_panel, fallback) => fallback,
+            getActorById: () => null,
+            getActors: () => actors,
+            getCombat: () => null,
+            getCanvas: () => activeCanvas,
+            getUi: () => globalThis.ui,
+            getFoundry: () => globalThis.foundry,
+            isGM: () => true
+        },
+        panelPort: {
+            getLayout: () => ({ root: { centerDock: { stacks: [] } } }),
+            getPrimaryActivePanel: () => null,
+            getActiveCenterMapPanel: () => null,
+            getPanelDefinition: () => null,
+            isMapPanel: () => false,
+            getPanelSceneId: () => "",
+            makeSceneMapPanelDef: () => null,
+            openSceneMapPanel: () => ({}),
+            bindScene: () => {},
+            saveUserLayout: async () => {},
+            removeDeletedSceneMapPanel: async () => {},
+            openScenePropertiesPanel: async () => {},
+            createSceneDesignScene: async () => ({ ok: true })
+        },
+        canvasRef: () => activeCanvas,
+        render: (options) => renderCalls.push(options),
+        activityLogger: { info: () => {}, error: () => {} },
+        logger: { error: () => {} }
+    });
+
+    const renderPanel = (overrides = {}) => {
+        root.innerHTML = feature.render({ id: "scene-properties" }, {
+            gm: { isGM: true },
+            scenePropertiesPanel: {
+                sceneId: activeScene.id,
+                sceneName: activeScene.name,
+                illuminationLevel: 1,
+                illuminationPercent: "100%",
+                tokenVisionByType: {
+                    hero: { enabled: true, range: 1 },
+                    pawn: { enabled: true, range: 1 },
+                    villain: { enabled: true, range: 1 }
+                },
+                sceneTokens: [],
+                sceneToolActions: [],
+                sceneToolsState: {},
+                sceneToolsPanelId: "map:scene-1",
+                gridCalibration: { active: false },
+                uploadEnabled: false,
+                dimensionSyncEnabled: false,
+                isDefault: false,
+                status: "",
+                error: "",
+                ...panelModel,
+                ...overrides
+            }
+        });
+    };
+
+    renderPanel();
+    feature.bind(root);
+
+    return { dom, root, feature, renderPanel, patchedState, renderCalls };
+}
 
 describe("SceneDesignFeature", () => {
     it("owns toolbar and wall-selection state per scene", () => {
@@ -1105,6 +1204,126 @@ describe("SceneDesignFeature", () => {
             "sight.range": 1
         }]);
         assert.deepEqual(perceptionUpdates, [{ initializeVision: true, refreshVision: true }]);
+    });
+
+    it("keeps scene illumination working after Dockview replaces the scene properties body", async () => {
+        let receivedUpdate = null;
+        const scene = {
+            id: "scene-1",
+            name: "Scene One",
+            update: async (data) => { receivedUpdate = data; },
+            updateEmbeddedDocuments: async () => {},
+            tokens: { contents: [] }
+        };
+        const { root, renderPanel, patchedState } = createScenePropertiesDomHarness({ scene });
+
+        renderPanel({ illuminationLevel: 0.9, illuminationPercent: "90%" });
+        const slider = root.querySelector("[data-action='scene-properties-illumination']");
+        const output = root.querySelector("[data-role='scene-properties-illumination-output']");
+        slider.value = "0.35";
+        slider.dispatchEvent(new root.ownerDocument.defaultView.Event("input", { bubbles: true }));
+        assert.equal(output.textContent, "35%");
+
+        slider.dispatchEvent(new root.ownerDocument.defaultView.Event("change", { bubbles: true }));
+        await flushEvents();
+
+        assert.deepEqual(receivedUpdate, { "environment.darknessLevel": 0.65 });
+        assert.equal(patchedState.status, "Scene illumination updated.");
+        assert.equal(patchedState.error, "");
+    });
+
+    it("keeps token vision type controls working after Dockview replaces the scene properties body", async () => {
+        let sceneFlagUpdate = null;
+        let tokenUpdates = null;
+        const perceptionUpdates = [];
+        const scene = {
+            id: "scene-1",
+            name: "Scene One",
+            update: async (data) => { sceneFlagUpdate = data; },
+            updateEmbeddedDocuments: async (_type, updates) => { tokenUpdates = updates; },
+            tokens: {
+                contents: [
+                    { id: "token-hero", actor: { type: "hero" } },
+                    { id: "token-pawn", actor: { type: "pawn" } }
+                ]
+            }
+        };
+        const canvas = {
+            scene: { id: "scene-1" },
+            tokens: { controlled: [] },
+            perception: { update: (data) => perceptionUpdates.push(data) }
+        };
+        const { root, renderPanel, patchedState } = createScenePropertiesDomHarness({ scene, canvas });
+
+        renderPanel();
+        const heroRange = root.querySelector("[data-action='scene-token-vision-range'][data-token-type='hero']");
+        const pawnToggle = root.querySelector("[data-action='scene-token-vision-enabled'][data-token-type='pawn']");
+        heroRange.value = "2.5";
+        pawnToggle.checked = false;
+        heroRange.dispatchEvent(new root.ownerDocument.defaultView.Event("change", { bubbles: true }));
+        await flushEvents();
+
+        assert.deepEqual(sceneFlagUpdate, {
+            "flags.turn-of-the-century.sceneTokenVisionByType": {
+                hero: { enabled: true, range: 2.5 },
+                pawn: { enabled: false, range: 1 },
+                villain: { enabled: true, range: 1 }
+            }
+        });
+        assert.deepEqual(tokenUpdates, [{
+            _id: "token-hero",
+            "sight.enabled": true,
+            "sight.range": 2.5
+        }]);
+        assert.deepEqual(perceptionUpdates, [{ initializeVision: true, refreshVision: true }]);
+        assert.equal(patchedState.error, "");
+    });
+
+    it("keeps apply-selected token vision working after Dockview replaces the scene properties body", async () => {
+        let sceneFlagUpdate = null;
+        let tokenUpdates = null;
+        const perceptionUpdates = [];
+        const scene = {
+            id: "scene-1",
+            name: "Scene One",
+            update: async (data) => { sceneFlagUpdate = data; },
+            updateEmbeddedDocuments: async (_type, updates) => { tokenUpdates = updates; },
+            tokens: { contents: [] }
+        };
+        const canvas = {
+            scene: { id: "scene-1" },
+            tokens: {
+                controlled: [
+                    { document: { id: "selected-hero", actor: { type: "hero" } } },
+                    { document: { id: "selected-villain", actor: { type: "villain" } } }
+                ]
+            },
+            perception: { update: (data) => perceptionUpdates.push(data) }
+        };
+        const { root, renderPanel, patchedState } = createScenePropertiesDomHarness({ scene, canvas });
+
+        renderPanel();
+        root.querySelector("[data-action='scene-token-vision-range'][data-token-type='hero']").value = "3";
+        root.querySelector("[data-action='scene-token-vision-enabled'][data-token-type='villain']").checked = false;
+        root.querySelector("[data-action='scene-token-vision-apply-selected']")
+            .dispatchEvent(new root.ownerDocument.defaultView.MouseEvent("click", { bubbles: true }));
+        await flushEvents();
+
+        assert.deepEqual(sceneFlagUpdate, {
+            "flags.turn-of-the-century.sceneTokenVisionByType": {
+                hero: { enabled: true, range: 3 },
+                pawn: { enabled: true, range: 1 },
+                villain: { enabled: false, range: 1 }
+            }
+        });
+        assert.deepEqual(tokenUpdates, [{
+            _id: "selected-hero",
+            "sight.enabled": true,
+            "sight.range": 3
+        }]);
+        assert.deepEqual(perceptionUpdates, [{ initializeVision: true, refreshVision: true }]);
+        assert.equal(patchedState.error, "");
+        assert.match(String(patchedState.status ?? ""), /Applied token vision to 1 selected token \(1 skipped\)/);
     });
 
     it("saveSceneName persists the name and triggers a render", async () => {

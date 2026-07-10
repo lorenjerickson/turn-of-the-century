@@ -287,6 +287,48 @@ export class SceneDesignFeature extends WorkspaceFeature {
                     await this.#handleSceneDelete();
                     return;
                 }
+
+                const syncBackgroundDimensionsBtn = target?.closest("[data-action='scene-properties-sync-background-dimensions']");
+                if (syncBackgroundDimensionsBtn) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    await this.#handleBackgroundDimensionSync();
+                    return;
+                }
+
+                const resetFogBtn = target?.closest("[data-action='scene-properties-reset-fog']");
+                if (resetFogBtn) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    await this.#handleSceneFogReset();
+                    return;
+                }
+
+                const activateSceneBtn = target?.closest("[data-action='scene-properties-activate']");
+                if (activateSceneBtn) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const scene = this.scenePort.getScenePropertiesScene();
+                    await activateScene(scene, { ui: this.uiRef(), logger: this.logger });
+                    this.renderCallback({ force: false });
+                    return;
+                }
+
+                const applySelectedVisionBtn = target?.closest("[data-action='scene-token-vision-apply-selected']");
+                if (applySelectedVisionBtn) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    await this.#handleApplySelectedTokenVision(rootElement);
+                    return;
+                }
+
+                const deleteTokenBtn = target?.closest("[data-action='scene-token-delete']");
+                if (deleteTokenBtn) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    await this.#handleTokenDelete(deleteTokenBtn);
+                    return;
+                }
                 
                 // map-mode-select
                 const modeSelectBtn = target?.closest("[data-action='map-mode-select']");
@@ -429,6 +471,10 @@ export class SceneDesignFeature extends WorkspaceFeature {
 
             rootElement.addEventListener("input", async (event) => {
                 const input = event.target;
+                if (input?.matches?.("[data-action='scene-properties-illumination']")) {
+                    this.#syncIlluminationOutput(input);
+                    return;
+                }
                 if (input?.matches?.(gridCalInputSelector)) {
                     this.syncGridCalibrationStateFromInputs(rootElement);
                     this.scheduleGridCalibrationPreview({ geometry: input.dataset.action !== "grid-cal-color" });
@@ -449,11 +495,34 @@ export class SceneDesignFeature extends WorkspaceFeature {
                     await this.#handleSceneTokenVisionSettingsChange(rootElement);
                     return;
                 }
+                if (input?.matches?.("[data-action='scene-properties-set-default']")) {
+                    const scene = this.scenePort.getScenePropertiesScene();
+                    await toggleDefaultScene(
+                        scene,
+                        this.scenePort.getScenes(),
+                        input.checked,
+                        { logger: this.logger, activityLogger: this.activityLogger }
+                    );
+                    this.renderCallback({ force: false });
+                    return;
+                }
                 if (input?.matches?.(gridCalInputSelector)) {
                     this.syncGridCalibrationStateFromInputs(rootElement);
                     await this.flushGridCalibrationPreview();
                     this.renderCallback({ force: false });
                 }
+            });
+
+            rootElement.addEventListener("dblclick", async (event) => {
+                const tokenCenterBtn = event.target?.closest?.("[data-action='scene-token-center']");
+                if (!tokenCenterBtn) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const sceneId = String(tokenCenterBtn.dataset.sceneId ?? "").trim();
+                const x = Number(tokenCenterBtn.dataset.tokenCenterX);
+                const y = Number(tokenCenterBtn.dataset.tokenCenterY);
+                if (!sceneId || !Number.isFinite(x) || !Number.isFinite(y)) return;
+                await this.centerSceneMapOnToken({ sceneId, x, y });
             });
 
             rootElement.addEventListener("focusout", async (event) => {
@@ -1031,14 +1100,6 @@ export class SceneDesignFeature extends WorkspaceFeature {
             });
         });
 
-        root?.querySelectorAll("[data-action='scene-properties-delete']")?.forEach((button) => {
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.#handleSceneDelete();
-            });
-        });
-
         root?.querySelectorAll("[data-action='scene-properties-reset-fog']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
@@ -1050,6 +1111,7 @@ export class SceneDesignFeature extends WorkspaceFeature {
         root?.querySelectorAll("[data-action='scene-properties-set-default']")?.forEach((checkbox) => {
             checkbox.addEventListener("change", async (event) => {
                 event.preventDefault();
+                event.stopPropagation();
                 const scene = this.scenePort.getScenePropertiesScene();
                 await toggleDefaultScene(
                     scene,
@@ -1123,19 +1185,23 @@ export class SceneDesignFeature extends WorkspaceFeature {
             btn.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                const sceneId = String(btn.dataset.sceneId ?? "").trim();
-                const tokenId = String(btn.dataset.tokenId ?? "").trim();
-                if (!sceneId || !tokenId) return;
-                const scene = this.scenePort.getSceneById(sceneId);
-                if (!scene) return;
-                try {
-                    await scene.deleteEmbeddedDocuments("Token", [tokenId]);
-                    this.renderCallback({ force: false });
-                } catch (err) {
-                    this.logger?.error?.("[scene-properties-panel] Failed to delete token", err);
-                }
+                await this.#handleTokenDelete(btn);
             });
         });
+    }
+
+    async #handleTokenDelete(button) {
+        const sceneId = String(button?.dataset?.sceneId ?? "").trim();
+        const tokenId = String(button?.dataset?.tokenId ?? "").trim();
+        if (!sceneId || !tokenId) return;
+        const scene = this.scenePort.getSceneById(sceneId);
+        if (!scene) return;
+        try {
+            await scene.deleteEmbeddedDocuments("Token", [tokenId]);
+            this.renderCallback({ force: false });
+        } catch (err) {
+            this.logger?.error?.("[scene-properties-panel] Failed to delete token", err);
+        }
     }
 
     async #handleSceneDelete() {
