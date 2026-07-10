@@ -16,7 +16,7 @@
         "uuid": "^14.0.0"
     },
     "dependencies": {
-        "dockview-core": "^7.0.2",
+        "dockview": "^7.0.2",
         "sobel": "^0.0.11"
     }
 }

@@ -8,6 +8,8 @@ const rootAppSource = readFileSync(join(rootDir, "module/ui/workspace-v2/workspa
 const dockviewFeatureSource = readFileSync(join(rootDir, "module/ui/workspace-v2/controllers/dockview-workspace-layout-feature.mjs"), "utf8");
 const systemManifestSource = readFileSync(join(rootDir, "system.json"), "utf8");
 const packageManifestSource = readFileSync(join(rootDir, "package.json"), "utf8");
+const dockviewVendorScriptSource = readFileSync(join(rootDir, "scripts/vendor-dockview.mjs"), "utf8");
+const dockviewVendorBundleSource = readFileSync(join(rootDir, "module/vendor/dockview/main.esm.mjs"), "utf8");
 const stylesheetSource = readFileSync(join(rootDir, "styles/system-styles.css"), "utf8");
 
 describe("Dockview workspace layout integration", () => {
@@ -34,6 +36,13 @@ describe("Dockview workspace layout integration", () => {
         assert.ok(manifest.styles.includes("module/vendor/dockview/dockview.css"));
         assert.ok(manifest.styles.includes("styles/system-styles.css"));
         assert.equal(packageManifest.scripts["vendor:dockview"], "node scripts/vendor-dockview.mjs");
+        assert.equal(packageManifest.dependencies["dockview"], "^7.0.2");
+        assert.equal(packageManifest.dependencies["dockview-core"], undefined);
+        assert.match(dockviewVendorScriptSource, /node_modules", "dockview"/);
+        assert.match(dockviewVendorScriptSource, /CORE_VENDOR_MODULE/);
+        assert.match(dockviewVendorBundleSource, /from "\.\/dockview-core\.esm\.mjs"/);
+        assert.match(dockviewVendorBundleSource, /markDockviewPackageLoaded\(\);/);
+        assert.doesNotMatch(dockviewVendorBundleSource, /from ['"]dockview-core['"]/);
     });
 
     it("imports the vendored Dockview bundle and preserves the map aperture component", () => {
