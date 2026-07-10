@@ -451,24 +451,6 @@ export function renderOrderList(model, escapeHTML) {
     </ol>`;
 }
 
-function renderHistoryRows(model, escapeHTML) {
-    const rows = model.historyRows ?? [];
-    if (!rows.length) return `<p class="totc-v2-encounter-panel__muted">No resolved round history yet.</p>`;
-    return rows.map((row) => `
-        <article class="totc-v2-encounter-panel__history-row">
-            <strong>${escapeHTML(row.label)}</strong>
-            <ul class="totc-v2-encounter-panel__history-bar" style="--totc-ap-budget:${row.apBudget};">
-                ${renderTicks(row.apBudget)}
-                ${(row.segments ?? []).map((segment) => `
-                    <li class="totc-v2-encounter-panel__history-segment"
-                        style="grid-column:${segment.start} / span ${segment.span};"
-                        title="${escapeHTML(segment.label)}${segment.result ? `: ${escapeHTML(segment.result)}` : ""}">
-                        ${escapeHTML(segment.label)}
-                    </li>`).join("")}
-            </ul>
-        </article>`).join("");
-}
-
 function renderNarrativeText(model, escapeHTML) {
     const narrative = model.draftNarrative ?? {};
     const phrases = toArray(narrative.phrases);
@@ -886,6 +868,10 @@ export function renderPlayerEncounterPanel(model = {}, {
                 <span class="totc-v2-encounter-panel__progress-label">AP ${escapeHTML(String(model.currentTick ?? 0))}/${escapeHTML(String(model.apBudget))} · ${escapeHTML(model.resolutionStatus ?? "idle")}</span>
             </div>
             <div class="totc-v2-encounter-panel__planning-view">
+                <footer class="totc-v2-encounter-panel__actions">
+                    <button type="button" data-action="encounter-clear-plan" ${model.canClearPlan ? "" : "disabled"}>Clear Unlocked</button>
+                    <button type="button" data-action="encounter-toggle-ready" data-ready="${model.ready ? "true" : "false"}" aria-pressed="${model.ready ? "true" : "false"}" ${model.canCommit ? "" : "disabled"}>Confirm Plan</button>
+                </footer>
                 ${renderNarrativeComposer(model, escapeHTML)}
                 ${renderPlanningRolls(model, escapeHTML)}
                 ${rollRequestsMarkup ? `
@@ -897,15 +883,6 @@ export function renderPlayerEncounterPanel(model = {}, {
                 ${renderNarrativeDurationPopover(model, escapeHTML)}
                 ${renderNarrativePositioningPopover(model, escapeHTML)}
             </div>
-            <footer class="totc-v2-encounter-panel__actions">
-                <button type="button" data-action="encounter-clear-plan" ${model.canClearPlan ? "" : "disabled"}>Clear Unlocked</button>
-                <button type="button" data-action="encounter-toggle-ready" data-ready="${model.ready ? "true" : "false"}" aria-pressed="${model.ready ? "true" : "false"}" ${model.canCommit ? "" : "disabled"}>Confirm Plan</button>
-            </footer>
-        </section>
-
-        <section class="totc-v2-encounter-panel__history">
-            <h3>Round History</h3>
-            ${renderHistoryRows(model, escapeHTML)}
         </section>
     </section>`;
 }

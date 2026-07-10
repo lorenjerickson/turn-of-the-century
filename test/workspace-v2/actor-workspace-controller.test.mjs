@@ -42,6 +42,46 @@ describe("ActorWorkspaceController", () => {
         assert.equal(opened, 1);
     });
 
+    it("loads actor details from the actor list detail button double-click", async () => {
+        let opened = 0;
+        const listeners = new Map();
+        const button = {
+            dataset: { actorId: "a" },
+            addEventListener: (type, handler) => listeners.set(type, handler)
+        };
+        const root = {
+            querySelectorAll: (selector) => selector === "[data-action='actor-list-open-details']" ? [button] : []
+        };
+        const controller = new ActorWorkspaceController({
+            getActorById: (id) => ({ id, type: "villain" }),
+            openActorEditor: async () => {
+                opened += 1;
+            }
+        });
+        let prevented = false;
+        let stopped = false;
+
+        controller.wireHandlers(root);
+        const onDoubleClick = listeners.get("dblclick");
+        assert.equal(typeof onDoubleClick, "function");
+
+        await onDoubleClick({
+            preventDefault: () => {
+                prevented = true;
+            },
+            stopPropagation: () => {
+                stopped = true;
+            }
+        });
+
+        assert.equal(controller.state.editorState.mode, "edit");
+        assert.equal(controller.state.editorState.actorId, "a");
+        assert.equal(controller.state.editorState.actorType, "villain");
+        assert.equal(opened, 1);
+        assert.equal(prevented, true);
+        assert.equal(stopped, true);
+    });
+
     it("ignores actor row double-clicks that originate from the selection checkbox", async () => {
         let opened = 0;
         const listeners = new Map();
@@ -106,6 +146,42 @@ describe("ActorWorkspaceController", () => {
         assert.equal(controller.state.editorState.mode, "empty");
         assert.equal(controller.state.editorState.actorId, "");
         assert.equal(controller.state.editorState.dirty, false);
+    });
+
+    it("normalizes actor list type filters to supported actor types", () => {
+        const controller = new ActorWorkspaceController();
+
+        controller.setTypeFilter(" Villain ");
+        assert.equal(controller.state.typeFilter, "villain");
+
+        controller.setTypeFilter("monster");
+        assert.equal(controller.state.typeFilter, "all");
+    });
+
+    it("updates and renders when the actor list type dropdown changes", () => {
+        const listeners = new Map();
+        let renderCount = 0;
+        const select = {
+            value: "hero",
+            addEventListener: (type, handler) => listeners.set(type, handler)
+        };
+        const root = {
+            querySelectorAll: (selector) => selector === "[data-action='actor-list-type-filter']" ? [select] : []
+        };
+        const controller = new ActorWorkspaceController({
+            render: () => {
+                renderCount += 1;
+            }
+        });
+
+        controller.wireHandlers(root);
+        listeners.get("change")({
+            target: { value: "villain" },
+            stopPropagation() {}
+        });
+
+        assert.equal(controller.state.typeFilter, "villain");
+        assert.equal(renderCount, 1);
     });
 
     it("selects equipment modal items into hidden form fields", async () => {

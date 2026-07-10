@@ -6,15 +6,28 @@ const styles = readFileSync(new URL("../../styles/system-styles.css", import.met
 
 describe("Encounter panel styles", () => {
     it("stacks player encounter subviews vertically while allowing the planner to fill spare height", () => {
+        const dockviewFullHeightRule = styles.match(/\.turn-of-the-century \.totc-v2-dockview-panel > \.totc-v2-actor-list-panel,[\s\S]*?\.turn-of-the-century \.totc-v2-dockview-panel > \.totc-v2-panel-with-design-lens\s*\{[^}]+\}/)?.[0] ?? "";
+        const designLensBodyRule = styles.match(/\.turn-of-the-century \.totc-v2-panel-with-design-lens__body\s*\{[^}]+\}/)?.[0] ?? "";
         const panelRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-panel\s*\{[^}]+\}/)?.[0] ?? "";
-        const subviewRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-panel__status,\s*\.turn-of-the-century \.totc-v2-encounter-panel__planner,\s*\.turn-of-the-century \.totc-v2-encounter-panel__history\s*\{[^}]+\}/)?.[0] ?? "";
-        const plannerRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-panel__planner\s*\{[^}]+\}/)?.[0] ?? "";
+        const subviewRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-panel__status,\s*\.turn-of-the-century \.totc-v2-encounter-panel__planner\s*\{[^}]+\}/)?.[0] ?? "";
+        const plannerRule = [...styles.matchAll(/\.turn-of-the-century \.totc-v2-encounter-panel__planner\s*\{[^}]+\}/g)]
+            .map((match) => match[0])
+            .find((rule) => /display:\s*flex/.test(rule)) ?? "";
         const planningViewRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-panel__planning-view\s*\{[^}]+\}/)?.[0] ?? "";
         const narrativeRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-narrative\s*\{[^}]+\}/)?.[0] ?? "";
         const ordersRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-panel__orders\s*\{[^}]+\}/)?.[0] ?? "";
 
+        assert.match(dockviewFullHeightRule, /> \.totc-v2-encounter-panel/);
+        assert.match(dockviewFullHeightRule, /> \.totc-v2-panel-with-design-lens/);
+        assert.match(dockviewFullHeightRule, /flex:\s*1 1 auto/);
+        assert.match(dockviewFullHeightRule, /height:\s*100%/);
+        assert.match(dockviewFullHeightRule, /min-height:\s*0/);
+        assert.match(designLensBodyRule, /height:\s*100%/);
+        assert.match(designLensBodyRule, /min-height:\s*0/);
         assert.match(panelRule, /display:\s*flex/);
         assert.match(panelRule, /flex-direction:\s*column/);
+        assert.match(panelRule, /height:\s*100%/);
+        assert.match(panelRule, /min-height:\s*0/);
         assert.doesNotMatch(panelRule, /grid-template-columns/);
         assert.match(subviewRule, /flex:\s*0 0 auto/);
         assert.match(plannerRule, /display:\s*flex/);
@@ -28,6 +41,7 @@ describe("Encounter panel styles", () => {
         assert.match(narrativeRule, /justify-content:\s*flex-start/);
         assert.match(narrativeRule, /overflow:\s*auto/);
         assert.match(ordersRule, /flex:\s*0 0 auto/);
+        assert.doesNotMatch(styles, /totc-v2-encounter-panel__history/);
     });
 
     it("aligns the player current-tick highlight using align-self stretch without positional offsets", () => {

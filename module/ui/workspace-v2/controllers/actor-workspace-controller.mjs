@@ -11,6 +11,7 @@ export const DEFAULT_ACTOR_EDITOR_STATE = Object.freeze({
     error: ""
 });
 
+const ACTOR_LIST_TYPE_FILTERS = Object.freeze(new Set(["all", "hero", "pawn", "villain"]));
 const CODEX_ITEM_DRAG_MIME = "application/x-totc-codex-item";
 const TEXT_PLAIN_MIME = "text/plain";
 const EQUIPMENT_SLOT_KEYS = Object.freeze(["head", "neck", "torso", "hands", "handsArmor", "legs", "feet", "belt"]);
@@ -103,6 +104,11 @@ function parseDropPayload(dataTransfer) {
 
 function escapeSelectorValue(value) {
     return String(value ?? "").replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+}
+
+function normalizeActorListTypeFilter(value = "all") {
+    const filter = String(value ?? "all").trim().toLowerCase();
+    return ACTOR_LIST_TYPE_FILTERS.has(filter) ? filter : "all";
 }
 
 export class ActorWorkspaceController {
@@ -205,7 +211,7 @@ export class ActorWorkspaceController {
     }
 
     setTypeFilter(value = "all") {
-        this.typeFilter = String(value ?? "all").trim() || "all";
+        this.typeFilter = normalizeActorListTypeFilter(value);
     }
 
     toggleSelectedActor(actorId = "", selected = false) {
@@ -406,6 +412,13 @@ export class ActorWorkspaceController {
         this.render();
     }
 
+    async #openActorListDetails(actorId = "", event = null) {
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        if (!this.openDetails(actorId)) return;
+        await this.openActorEditor();
+    }
+
     wireHandlers(root) {
         root?.querySelectorAll("[data-action='actor-list-new']")?.forEach((button) => {
             button.addEventListener("click", async (event) => {
@@ -419,7 +432,7 @@ export class ActorWorkspaceController {
         root?.querySelectorAll("[data-action='actor-list-type-filter']")?.forEach((select) => {
             select.addEventListener("change", (event) => {
                 event.stopPropagation();
-                this.setTypeFilter(select.value);
+                this.setTypeFilter(event.target?.value ?? select.value);
                 this.render();
             });
         });
@@ -432,13 +445,16 @@ export class ActorWorkspaceController {
             });
         });
 
+        root?.querySelectorAll("[data-action='actor-list-open-details']")?.forEach((button) => {
+            button.addEventListener("dblclick", async (event) => {
+                await this.#openActorListDetails(button.dataset.actorId, event);
+            });
+        });
+
         root?.querySelectorAll("[data-actor-list-draggable='true']")?.forEach((entry) => {
             entry.addEventListener("dblclick", async (event) => {
                 if (event.target?.closest?.("[data-action='actor-list-toggle-selected']")) return;
-                event.preventDefault();
-                event.stopPropagation();
-                if (!this.openDetails(entry.dataset.actorId)) return;
-                await this.openActorEditor();
+                await this.#openActorListDetails(entry.dataset.actorId, event);
             });
         });
 

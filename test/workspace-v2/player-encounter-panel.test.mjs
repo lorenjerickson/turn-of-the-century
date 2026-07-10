@@ -163,7 +163,7 @@ describe("player encounter panel", () => {
         assert.equal(model.historyRows[1].segments[0].label, "Watch");
     });
 
-    it("renders the narrative composer as the primary planning surface and keeps history bars", () => {
+    it("renders the narrative composer as the primary planning surface without round history", () => {
         const model = buildPlayerEncounterPanelModel({
             actor: actorFixture(),
             planner: plannerFixture(),
@@ -186,17 +186,17 @@ describe("player encounter panel", () => {
         assert.match(html, /20 feet/);
         assert.doesNotMatch(html, /data-action="encounter-edit-plan-slot"/);
         assert.doesNotMatch(html, /data-action="encounter-plan-bar"/);
-        assert.ok(
-            html.indexOf("totc-v2-encounter-panel__planning-view") < html.indexOf("totc-v2-encounter-panel__history"),
-            "planning workspace should render before history"
-        );
         assert.doesNotMatch(html, /class="totc-v2-encounter-panel__orders"/);
         assert.doesNotMatch(html, /data-action="encounter-plan-segment"/);
         assert.match(html, /data-action="encounter-clear-plan"[\s\S]*>Clear Unlocked<\/button>/);
         assert.match(html, /data-action="encounter-toggle-ready"[\s\S]*aria-pressed="false"[\s\S]*>Confirm Plan<\/button>/);
+        assert.ok(
+            html.indexOf("totc-v2-encounter-panel__actions") < html.indexOf("totc-v2-encounter-narrative"),
+            "clear and confirm controls should render above the planned actions narrative"
+        );
         assert.match(html, /class="totc-v2-encounter-panel__progress"/);
-        assert.match(html, /class="totc-v2-encounter-panel__history-bar"/);
-        assert.match(html, /Strike/);
+        assert.doesNotMatch(html, /totc-v2-encounter-panel__history/);
+        assert.doesNotMatch(html, /Round History/);
     });
 
     it("renders the follow-on select action prompt as an editable narrative phrase", () => {

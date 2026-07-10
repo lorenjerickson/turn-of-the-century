@@ -3295,6 +3295,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 }
 
 .turn-of-the-century .totc-v2-panel-with-design-lens__body {
+    height: 100%;
     min-height: 0;
     overflow: hidden;
 }
@@ -3999,8 +4000,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 }
 
 .turn-of-the-century .totc-v2-encounter-panel__status,
-.turn-of-the-century .totc-v2-encounter-panel__planner,
-.turn-of-the-century .totc-v2-encounter-panel__history {
+.turn-of-the-century .totc-v2-encounter-panel__planner {
     background: rgba(15, 23, 42, 0.5);
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 6px;
@@ -4036,8 +4036,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 }
 
 .turn-of-the-century .totc-v2-encounter-panel__status h3,
-.turn-of-the-century .totc-v2-encounter-panel__planner h3,
-.turn-of-the-century .totc-v2-encounter-panel__history h3 {
+.turn-of-the-century .totc-v2-encounter-panel__planner h3 {
     color: #e2e8f0;
     font-size: 0.88rem;
     font-weight: 800;
@@ -4397,8 +4396,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     opacity: 0.55;
 }
 
-.turn-of-the-century ul.totc-v2-encounter-panel__bar,
-.turn-of-the-century ul.totc-v2-encounter-panel__history-bar {
+.turn-of-the-century ul.totc-v2-encounter-panel__bar {
     list-style: none !important;
     list-style-type: none !important;
     margin: 0 !important;
@@ -4422,8 +4420,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     position: relative;
 }
 
-.turn-of-the-century ul.totc-v2-encounter-panel__bar li,
-.turn-of-the-century ul.totc-v2-encounter-panel__history-bar li {
+.turn-of-the-century ul.totc-v2-encounter-panel__bar li {
     list-style: none !important;
     list-style-type: none !important;
     margin: 0 !important;
@@ -4789,8 +4786,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     background: rgba(37, 99, 235, 0.48);
     border-color: rgba(147, 197, 253, 0.72);
 }
-.turn-of-the-century .totc-v2-encounter-panel__segment,
-.turn-of-the-century .totc-v2-encounter-panel__history-segment {
+.turn-of-the-century .totc-v2-encounter-panel__segment {
     align-content: center;
     background: rgba(37, 99, 235, 0.24);
     border: 1px solid rgba(147, 197, 253, 0.5);
@@ -4820,8 +4816,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     box-shadow: 0 0 4px rgba(147, 197, 253, 0.3);
 }
 
-.turn-of-the-century .totc-v2-encounter-panel__segment span,
-.turn-of-the-century .totc-v2-encounter-panel__history-segment {
+.turn-of-the-century .totc-v2-encounter-panel__segment span {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -4954,42 +4949,12 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     text-align: center;
 }
 
-.turn-of-the-century .totc-v2-encounter-panel__history {
-    display: grid;
-    gap: 0.45rem;
-}
-
-.turn-of-the-century .totc-v2-encounter-panel__history-row {
-    display: grid;
-    gap: 0.28rem;
-}
-
-.turn-of-the-century .totc-v2-encounter-panel__history-row strong {
-    color: #cbd5e1;
-    font-size: 0.72rem;
-}
-
-.turn-of-the-century .totc-v2-encounter-panel__history-bar {
-    min-height: 2.8rem;
-    padding-top: 1.15rem;
-}
-
-.turn-of-the-century .totc-v2-encounter-panel__history-segment {
-    background: rgba(100, 116, 139, 0.32);
-    border-color: rgba(203, 213, 225, 0.32);
-    color: #e2e8f0;
-    font-size: 0.68rem;
-    min-height: 1.55rem;
-    padding-right: 0.42rem;
-}
-
 @container (max-width: 520px) {
     .turn-of-the-century .totc-v2-encounter-panel__status dl {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .turn-of-the-century .totc-v2-encounter-panel__bar,
-    .turn-of-the-century .totc-v2-encounter-panel__history-bar {
+    .turn-of-the-century .totc-v2-encounter-panel__bar {
         background: rgba(15, 23, 42, 0.78);
         grid-auto-flow: row;
         grid-template-columns: 1fr;
@@ -5004,8 +4969,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
         display: none;
     }
 
-    .turn-of-the-century .totc-v2-encounter-panel__segment,
-    .turn-of-the-century .totc-v2-encounter-panel__history-segment {
+    .turn-of-the-century .totc-v2-encounter-panel__segment {
         grid-column: 1 / -1 !important;
         grid-row: auto;
     }
@@ -8023,11 +7987,13 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-actor-list-panel,
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-actor-editor,
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-codex-panel,
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-encounter-panel,
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-scenes-panel,
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-market-panel,
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-player-panel,
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-gm-panel,
-.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-logging-panel {
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-logging-panel,
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-panel-with-design-lens {
     flex: 1 1 auto;
     height: 100%;
     min-height: 0;

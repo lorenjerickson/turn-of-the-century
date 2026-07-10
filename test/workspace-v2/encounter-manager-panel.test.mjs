@@ -306,6 +306,30 @@ describe("encounter manager panel", () => {
         assert.doesNotMatch(html, /Deterministic fallback line/);
     });
 
+    it("ignores null tick narratives when building previous-round fallback narration", () => {
+        const combat = planningDraftCombatFixture();
+        combat.encounterState.roundHistory = [
+            {
+                round: 3,
+                tickNarratives: [
+                    null,
+                    { tick: 2, summary: "Ada keeps her footing amid the fog." }
+                ],
+                roundNarrative: {
+                    status: "pending"
+                }
+            }
+        ];
+
+        const model = buildEncounterManagerPanelModel({ combat });
+        const html = renderEncounterManagerPanel(model, { escapeHTML });
+
+        assert.equal(model.lastRoundNarrative.status, "pending");
+        assert.equal(model.lastRoundNarrative.lines.length, 1);
+        assert.equal(model.lastRoundNarrative.lines[0].narrative, "Ada keeps her footing amid the fog.");
+        assert.match(html, /Ada keeps her footing amid the fog\./);
+    });
+
     it("shows only the current tick narrative while resolving", () => {
         const model = buildEncounterManagerPanelModel({ combat: resolvingCombatFixture() });
         const html = renderEncounterManagerPanel(model, { escapeHTML });

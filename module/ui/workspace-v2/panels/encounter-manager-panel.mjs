@@ -276,11 +276,11 @@ function currentTickNarrativeModel(ticks = [], currentTick = 0) {
 
 function deterministicRoundLines(ticks = []) {
     const lines = toArray(ticks)
-        .filter((tick) => String(tick.generatedNarrative ?? tick.summary ?? "").trim())
+        .filter((tick) => String(tick?.generatedNarrative ?? tick?.summary ?? "").trim())
         .map((tick) => ({
-            tick: Math.max(1, toNumber(tick.tick, 1)),
-            narrative: String(tick.generatedNarrative || tick.summary || "").trim(),
-            links: toArray(tick.links)
+            tick: Math.max(1, toNumber(tick?.tick, 1)),
+            narrative: String(tick?.generatedNarrative || tick?.summary || "").trim(),
+            links: toArray(tick?.links)
         }));
     if (!lines.length) return null;
     return lines;

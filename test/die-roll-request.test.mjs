@@ -70,8 +70,13 @@ describe("DieRollRequest", () => {
                 this.dice = [{ faces: 20, results: [{ result: 17, active: true }] }];
             }
 
-            async roll() {
+            async evaluate(options) {
+                assert.equal(options, undefined);
                 return this;
+            }
+
+            async roll() {
+                throw new Error("Roll#roll should not be used when Roll#evaluate is available.");
             }
 
             async toMessage(message) {

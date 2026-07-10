@@ -85,7 +85,12 @@ export async function rollDieRequestForUserWithFoundry(request, userId, {
 
     const adjustment = getRecipientAdjustment(request, userId);
     const formula = buildRollFormula({ dice: request?.dice, modifiers: request?.modifiers, adjustment });
-    const roll = await new RollClass(formula).roll({ async: true });
+    const roll = new RollClass(formula);
+    if (typeof roll.evaluate === "function") {
+        await roll.evaluate();
+    } else if (typeof roll.roll === "function") {
+        await roll.roll();
+    }
     if (createChatMessage && typeof roll?.toMessage === "function") {
         await roll.toMessage({
             flavor: request?.label ?? "Requested Roll",
