@@ -216,6 +216,7 @@ describe("GM assistant panel", () => {
     });
 
     it("styles generated content as a filling scroll area with bottom-fixed actions", () => {
+        assert.match(styles, /\.totc-v2-dockview-panel > \.totc-v2-gm-assistant,[\s\S]*flex: 1 1 auto;[\s\S]*height: 100%;[\s\S]*min-height: 0;/);
         assert.match(styles, /\.totc-v2-gm-assistant\s*\{[\s\S]*height: 100%;[\s\S]*overflow: hidden;/);
         assert.match(styles, /\.totc-v2-gm-assistant__result\s*\{[\s\S]*grid-template-rows: auto minmax\(0, 1fr\) auto;[\s\S]*height: 100%;/);
         assert.match(styles, /\.totc-v2-gm-assistant__result-content\s*\{[\s\S]*overflow-y: auto;/);
