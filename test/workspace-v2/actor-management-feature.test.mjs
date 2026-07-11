@@ -190,6 +190,53 @@ describe("ActorManagementFeature", () => {
         assert.equal(wired, true);
     });
 
+    it("filters rendered actor rows when the actor type dropdown changes repeatedly", async () => {
+        globalThis.game.actors.contents = [
+            { id: "actor-hero", name: "Ada", type: "hero" },
+            { id: "actor-pawn", name: "Dockside Bravo", type: "pawn" },
+            { id: "actor-villain", name: "Moriarty", type: "villain" }
+        ];
+        const listeners = new Map();
+        const select = {
+            value: "hero",
+            addEventListener: (type, handler) => listeners.set(type, handler)
+        };
+        const root = {
+            querySelectorAll: (selector) => selector === "[data-action='actor-list-type-filter']" ? [select] : []
+        };
+        let renderCount = 0;
+        const feature = new ActorManagementFeature({
+            layoutEngine: mockLayoutEngine,
+            panelRegistry: mockPanelRegistry,
+            getSelectedTokenIds: () => selectedTokenIds,
+            render: () => {
+                renderCount += 1;
+            }
+        });
+
+        feature.bind(root);
+        const changeType = async (value) => {
+            select.value = value;
+            listeners.get("change")({
+                target: { value: "all" },
+                currentTarget: select,
+                stopPropagation() {}
+            });
+            const context = { gm: { isGM: true } };
+            await feature.prepareContext(context);
+            return feature.render({ id: "actors" }, context);
+        };
+
+        const heroHtml = await changeType("hero");
+        assert.match(heroHtml, /Ada/);
+        assert.doesNotMatch(heroHtml, /Dockside Bravo|Moriarty/);
+
+        const villainHtml = await changeType("villain");
+        assert.match(villainHtml, /Moriarty/);
+        assert.doesNotMatch(villainHtml, /Ada|Dockside Bravo/);
+        assert.equal(renderCount, 2);
+    });
+
     it("masks generated token art outside a circular frame", () => {
         const width = 5;
         const height = 5;

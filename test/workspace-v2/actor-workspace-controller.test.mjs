@@ -158,7 +158,7 @@ describe("ActorWorkspaceController", () => {
         assert.equal(controller.state.typeFilter, "all");
     });
 
-    it("updates and renders when the actor list type dropdown changes", () => {
+    it("uses the bound actor type dropdown value and renders when it changes", () => {
         const listeners = new Map();
         let renderCount = 0;
         const select = {
@@ -177,10 +177,11 @@ describe("ActorWorkspaceController", () => {
         controller.wireHandlers(root);
         listeners.get("change")({
             target: { value: "villain" },
+            currentTarget: select,
             stopPropagation() {}
         });
 
-        assert.equal(controller.state.typeFilter, "villain");
+        assert.equal(controller.state.typeFilter, "hero");
         assert.equal(renderCount, 1);
     });
 

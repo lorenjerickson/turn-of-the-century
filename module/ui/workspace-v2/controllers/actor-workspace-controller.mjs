@@ -432,7 +432,7 @@ export class ActorWorkspaceController {
         root?.querySelectorAll("[data-action='actor-list-type-filter']")?.forEach((select) => {
             select.addEventListener("change", (event) => {
                 event.stopPropagation();
-                this.setTypeFilter(event.target?.value ?? select.value);
+                this.setTypeFilter(event.currentTarget?.value ?? select.value);
                 this.render();
             });
         });
