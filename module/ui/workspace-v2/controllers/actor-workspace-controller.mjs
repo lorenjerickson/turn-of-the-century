@@ -421,6 +421,8 @@ export class ActorWorkspaceController {
 
     wireHandlers(root) {
         root?.querySelectorAll("[data-action='actor-list-new']")?.forEach((button) => {
+            if (button._totcWired) return;
+            button._totcWired = true;
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -430,6 +432,8 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-list-type-filter']")?.forEach((select) => {
+            if (select._totcWired) return;
+            select._totcWired = true;
             select.addEventListener("change", (event) => {
                 event.stopPropagation();
                 this.setTypeFilter(event.currentTarget?.value ?? select.value);
@@ -438,6 +442,8 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-list-toggle-selected']")?.forEach((checkbox) => {
+            if (checkbox._totcWired) return;
+            checkbox._totcWired = true;
             checkbox.addEventListener("change", (event) => {
                 event.stopPropagation();
                 this.toggleSelectedActor(checkbox.dataset.actorId, checkbox.checked);
@@ -446,12 +452,16 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-list-open-details']")?.forEach((button) => {
+            if (button._totcWired) return;
+            button._totcWired = true;
             button.addEventListener("dblclick", async (event) => {
                 await this.#openActorListDetails(button.dataset.actorId, event);
             });
         });
 
         root?.querySelectorAll("[data-actor-list-draggable='true']")?.forEach((entry) => {
+            if (entry._totcWired) return;
+            entry._totcWired = true;
             entry.addEventListener("dblclick", async (event) => {
                 if (event.target?.closest?.("[data-action='actor-list-toggle-selected']")) return;
                 await this.#openActorListDetails(entry.dataset.actorId, event);
@@ -459,6 +469,8 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-editor-create-type']")?.forEach((select) => {
+            if (select._totcWired) return;
+            select._totcWired = true;
             select.addEventListener("change", (event) => {
                 this.setCreateActorType(event.target.value);
                 this.render();
@@ -466,12 +478,16 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-editor-create-prompt']")?.forEach((textarea) => {
+            if (textarea._totcWired) return;
+            textarea._totcWired = true;
             textarea.addEventListener("input", () => {
                 this.setCreatePrompt(textarea.value);
             });
         });
 
         root?.querySelectorAll("[data-action='actor-editor-field']")?.forEach((input) => {
+            if (input._totcWired) return;
+            input._totcWired = true;
             const onFieldChange = () => {
                 this.updateEditorField(input.dataset.actorField ?? input.name, input.value);
                 const abilityModifier = input.closest(".totc-v2-actor-editor__ability")?.querySelector(".totc-v2-actor-editor__ability-modifier");
@@ -488,6 +504,8 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-editor-owner-assignment']")?.forEach((select) => {
+            if (select._totcWired) return;
+            select._totcWired = true;
             select.addEventListener("change", async (event) => {
                 event.stopPropagation();
                 const form = select.closest("form");
@@ -497,6 +515,8 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-editor-generate']")?.forEach((button) => {
+            if (button._totcWired) return;
+            button._totcWired = true;
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -505,6 +525,8 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-generate-token']")?.forEach((button) => {
+            if (button._totcWired) return;
+            button._totcWired = true;
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -513,6 +535,8 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-equipment-open-picker']")?.forEach((button) => {
+            if (button._totcWired) return;
+            button._totcWired = true;
             button.addEventListener("click", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -526,6 +550,8 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-equipment-close-picker']")?.forEach((button) => {
+            if (button._totcWired) return;
+            button._totcWired = true;
             button.addEventListener("click", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -537,6 +563,8 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-equipment-select-item']")?.forEach((button) => {
+            if (button._totcWired) return;
+            button._totcWired = true;
             button.addEventListener("click", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -561,6 +589,8 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-action='actor-editor-save-form']")?.forEach((form) => {
+            if (form._totcWired) return;
+            form._totcWired = true;
             form.addEventListener("submit", async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -642,6 +672,8 @@ export class ActorWorkspaceController {
         });
 
         root?.querySelectorAll("[data-codex-item-draggable='true']")?.forEach((entry) => {
+            if (entry._totcWired) return;
+            entry._totcWired = true;
             entry.addEventListener("dragstart", (event) => {
                 const uuid = String(entry.dataset.entryUuid ?? "").trim();
                 if (!uuid || !event.dataTransfer) return;
@@ -657,4 +689,5 @@ export class ActorWorkspaceController {
             });
         });
     }
+
 }

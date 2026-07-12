@@ -33,6 +33,7 @@ describe("dockview layout state", () => {
             id: "map:scene-1",
             title: "Lobby",
             component: DOCKVIEW_PANEL_COMPONENTS.nativeMapAperture,
+            tabComponent: "totc-workspace-tab",
             renderer: "onlyWhenVisible",
             params: {
                 panel: {

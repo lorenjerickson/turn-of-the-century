@@ -3159,6 +3159,14 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
     font-size: 0.66rem;
 }
 
+.turn-of-the-century .totc-workspace-tab-icon:not(:empty) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
 .turn-of-the-century .totc-v2-stack__tab.is-active {
     border-bottom-color: #f59e0b;
     color: #f59e0b;
@@ -6005,7 +6013,284 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 
 .turn-of-the-century .totc-v2-actor-editor__actions {
     display: flex;
+    gap: 0.45rem;
     justify-content: flex-end;
+}
+
+.turn-of-the-century .visually-hidden {
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+.turn-of-the-century .totc-v2-actor-editor {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__form {
+    align-content: start;
+    display: grid;
+    gap: 0.5rem;
+    grid-template-rows: unset;
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 0.15rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__sections {
+    overflow: visible;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__detail-header {
+    align-items: flex-start;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 6px;
+    display: flex;
+    gap: 0.65rem;
+    padding: 0.55rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__portrait {
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    border-radius: 5px;
+    flex: 0 0 72px;
+    height: 72px;
+    object-fit: cover;
+    width: 72px;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__portrait-fallback {
+    align-items: center;
+    background: rgba(59, 130, 246, 0.16);
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    border-radius: 5px;
+    color: #dbeafe;
+    display: flex;
+    flex: 0 0 72px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    height: 72px;
+    justify-content: center;
+    width: 72px;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__identity {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__namerow {
+    align-items: baseline;
+    display: flex;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__name-field {
+    display: contents;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__name-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 0;
+    color: #f1f5f9;
+    flex: 1;
+    font-size: 1rem;
+    font-weight: 700;
+    min-width: 0;
+    padding: 0.1rem 0;
+    width: 100%;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__name-input:focus {
+    border-bottom-color: rgba(251, 191, 36, 0.7);
+    outline: none;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__level-badge {
+    color: #94a3b8;
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__profession {
+    color: #94a3b8;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__summary {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 6px;
+    color: #cbd5e1;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0.45rem 0.55rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__health-row {
+    align-items: center;
+    display: flex;
+    gap: 0.55rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__health-label {
+    color: #94a3b8;
+    flex: 0 0 3.5rem;
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__health-bar {
+    appearance: none;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 8px;
+    flex: 1;
+    height: 10px;
+    overflow: hidden;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__health-bar::-webkit-progress-bar {
+    background: rgba(2, 6, 23, 0.42);
+}
+
+.turn-of-the-century .totc-v2-actor-editor__health-bar::-webkit-progress-value {
+    background: linear-gradient(90deg, #991b1b 0%, #b91c1c 60%, #c2410c 100%);
+    border-radius: 8px;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__health-bar::-moz-progress-bar {
+    background: linear-gradient(90deg, #991b1b 0%, #b91c1c 60%, #c2410c 100%);
+    border-radius: 8px;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__ability-scores {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+    padding-bottom: 1.15rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__ability {
+    flex: 1 1 0;
+    height: 5rem;
+    max-width: none;
+    min-width: 0;
+    padding: 0.55rem 0.25rem 1.1rem;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__body-row--labeled {
+    align-items: center;
+    display: grid;
+    gap: 0.45rem;
+    grid-template-columns: 3.8rem minmax(0, auto) 3.8rem;
+    justify-content: center;
+    min-height: 4rem;
+    width: 100%;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__body-label {
+    color: #64748b;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    min-width: 0;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__body-label--left {
+    text-align: right;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__body-label--right {
+    text-align: left;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__body-slots {
+    display: flex;
+    gap: 0.45rem;
+    justify-content: center;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__section-divider {
+    align-items: center;
+    display: flex;
+    gap: 0.55rem;
+    margin: 0.25rem 0;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__section-divider::before,
+.turn-of-the-century .totc-v2-actor-equipment__section-divider::after {
+    background: rgba(148, 163, 184, 0.22);
+    content: "";
+    flex: 1;
+    height: 1px;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__section-divider span {
+    color: #64748b;
+    flex: 0 0 auto;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__belt {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    justify-content: center;
+}
+
+.turn-of-the-century .totc-v2-actor-equipment__pack {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: repeat(auto-fit, 3.6rem);
+    justify-content: center;
+    justify-items: center;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__section--equipment .totc-v2-actor-equipment__slot {
+    height: 3.6rem;
+    width: 3.6rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__section--equipment .totc-v2-actor-equipment__icon {
+    height: 3.2rem;
+    width: 3.2rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__section--equipment .totc-v2-actor-equipment__icon img {
+    height: 2.95rem;
+    width: 2.95rem;
+}
+
+.turn-of-the-century .totc-v2-actor-editor__section--equipment .totc-v2-actor-equipment__icon.is-empty::before {
+    height: 2.4rem;
+    width: 2.4rem;
 }
 
 .turn-of-the-century .totc-v2-actor-editor__error {
@@ -8062,4 +8347,250 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
     background: transparent;
     padding: 0;
     pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Actor Detail Panel — wireframe-matched layout
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Sheet body is a single scrollable column (no sidebar split) */
+.turn-of-the-century.sheet.actor .sheet-body--sidebar {
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.turn-of-the-century.sheet.actor .totc-actor-detail-header {
+    align-items: flex-start;
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.turn-of-the-century.sheet.actor .totc-actor-portrait {
+    border: 1px solid var(--totc-color-leather);
+    border-radius: 4px;
+    flex: 0 0 80px;
+    height: 80px;
+    object-fit: cover;
+    width: 80px;
+}
+
+.turn-of-the-century.sheet.actor .totc-actor-detail-identity {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.turn-of-the-century.sheet.actor .totc-actor-detail-namerow {
+    align-items: baseline;
+    display: flex;
+    gap: 8px;
+}
+
+.turn-of-the-century.sheet.actor .totc-actor-detail-namerow .charname {
+    flex: 1;
+    margin: 0;
+    min-width: 0;
+}
+
+.turn-of-the-century.sheet.actor .totc-actor-detail-level {
+    color: var(--totc-color-text-soft);
+    flex: 0 0 auto;
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+
+.turn-of-the-century.sheet.actor .totc-actor-detail-profession {
+    color: var(--totc-color-text-soft);
+    font-size: 0.88rem;
+}
+
+/* ── Biography ──────────────────────────────────────────────────────────── */
+
+.turn-of-the-century.sheet.actor .totc-actor-detail-bio {
+    color: #3f352b;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    margin: 0 0 12px;
+}
+
+/* ── Health bar ─────────────────────────────────────────────────────────── */
+
+.turn-of-the-century.sheet.actor .totc-actor-detail-health {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.turn-of-the-century.sheet.actor .totc-resource-label {
+    color: var(--totc-color-text-soft);
+    flex: 0 0 48px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.turn-of-the-century.sheet.actor .totc-health-bar {
+    appearance: none;
+    border: 1px solid rgba(130, 92, 55, 0.5);
+    border-radius: 8px;
+    flex: 1;
+    height: 14px;
+    overflow: hidden;
+}
+
+.turn-of-the-century.sheet.actor .totc-health-bar::-webkit-progress-bar {
+    background: rgba(255, 249, 237, 0.54);
+}
+
+.turn-of-the-century.sheet.actor .totc-health-bar::-webkit-progress-value {
+    background: linear-gradient(90deg, #7b3c2e 0%, #a04e35 100%);
+    border-radius: 8px;
+}
+
+.turn-of-the-century.sheet.actor .totc-health-bar::-moz-progress-bar {
+    background: linear-gradient(90deg, #7b3c2e 0%, #a04e35 100%);
+    border-radius: 8px;
+}
+
+/* ── Ability score row — compact horizontal strip ───────────────────────── */
+
+.turn-of-the-century.sheet.actor .totc-ability-scores {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 6px;
+    justify-content: stretch;
+    margin-bottom: 22px;
+    padding-bottom: 18px; /* breathing room for the value bubble */
+}
+
+.turn-of-the-century.sheet.actor .totc-ability-score {
+    flex: 1 1 0;
+    max-width: none;
+    min-width: 0;
+    height: 80px;
+    padding: 8px 4px 18px;
+}
+
+/* ── Equipment body grid ────────────────────────────────────────────────── */
+
+/*
+  5-column layout:
+    col 1  72 px  – left labels  (Back, Off Hand)
+    col 2  46 px  – slot
+    col 3  46 px  – slot (centre; used by single-slot rows)
+    col 4  46 px  – slot / part of right-label span
+    col 5  72 px  – right labels (Chest, Main Hand, Head, Neck, Legs, Feet)
+*/
+.turn-of-the-century.sheet.actor .totc-equipment-body {
+    align-items: center;
+    display: grid;
+    gap: 8px 6px;
+    grid-template-columns: 72px 46px 46px 46px 72px;
+    grid-template-rows: repeat(6, 46px);
+    justify-content: center;
+    margin: 10px auto;
+}
+
+/* Explicit grid placement helpers */
+/* Row 1 — Head */
+.turn-of-the-century.sheet.actor .ec-r1c3  { grid-column: 3;     grid-row: 1; }
+.turn-of-the-century.sheet.actor .ec-r1c45 { grid-column: 4 / 6; grid-row: 1; }
+/* Row 2 — Neck */
+.turn-of-the-century.sheet.actor .ec-r2c3  { grid-column: 3;     grid-row: 2; }
+.turn-of-the-century.sheet.actor .ec-r2c45 { grid-column: 4 / 6; grid-row: 2; }
+/* Row 3 — Back / Chest */
+.turn-of-the-century.sheet.actor .ec-r3c1  { grid-column: 1;     grid-row: 3; }
+.turn-of-the-century.sheet.actor .ec-r3c2  { grid-column: 2;     grid-row: 3; }
+.turn-of-the-century.sheet.actor .ec-r3c3  { grid-column: 3;     grid-row: 3; }
+.turn-of-the-century.sheet.actor .ec-r3c45 { grid-column: 4 / 6; grid-row: 3; }
+/* Row 4 — Off Hand / Main Hand */
+.turn-of-the-century.sheet.actor .ec-r4c1  { grid-column: 1;     grid-row: 4; }
+.turn-of-the-century.sheet.actor .ec-r4c2  { grid-column: 2;     grid-row: 4; }
+.turn-of-the-century.sheet.actor .ec-r4c3  { grid-column: 3;     grid-row: 4; }
+.turn-of-the-century.sheet.actor .ec-r4c4  { grid-column: 4;     grid-row: 4; }
+.turn-of-the-century.sheet.actor .ec-r4c5  { grid-column: 5;     grid-row: 4; }
+/* Row 5 — Legs */
+.turn-of-the-century.sheet.actor .ec-r5c3  { grid-column: 3;     grid-row: 5; }
+.turn-of-the-century.sheet.actor .ec-r5c45 { grid-column: 4 / 6; grid-row: 5; }
+/* Row 6 — Feet */
+.turn-of-the-century.sheet.actor .ec-r6c3  { grid-column: 3;     grid-row: 6; }
+.turn-of-the-century.sheet.actor .ec-r6c45 { grid-column: 4 / 6; grid-row: 6; }
+
+/* Slot box */
+.turn-of-the-century.sheet.actor .totc-body-slot {
+    background: rgba(255, 249, 237, 0.46);
+    border: 2px solid rgba(130, 92, 55, 0.45);
+    border-radius: 4px;
+    height: 46px;
+    width: 46px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.turn-of-the-century.sheet.actor .totc-body-slot:hover {
+    background: rgba(255, 244, 220, 0.7);
+    border-color: rgba(130, 92, 55, 0.75);
+}
+
+/* Slot labels */
+.turn-of-the-century.sheet.actor .totc-body-label {
+    align-self: center;
+    color: var(--totc-color-text-soft);
+    font-size: 0.72rem;
+    line-height: 1.2;
+    text-align: left;
+}
+
+.turn-of-the-century.sheet.actor .totc-body-label--right {
+    text-align: right;
+}
+
+/* ── Section dividers (Belt / Pack) ─────────────────────────────────────── */
+
+.turn-of-the-century.sheet.actor .totc-section-divider {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    margin: 14px 0 8px;
+}
+
+.turn-of-the-century.sheet.actor .totc-section-divider::before,
+.turn-of-the-century.sheet.actor .totc-section-divider::after {
+    background: rgba(130, 92, 55, 0.4);
+    content: "";
+    flex: 1;
+    height: 1px;
+}
+
+.turn-of-the-century.sheet.actor .totc-section-divider span {
+    color: var(--totc-color-text-soft);
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/* ── Belt slots (4 in a row) ────────────────────────────────────────────── */
+
+.turn-of-the-century.sheet.actor .totc-belt-slots {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 4px;
+}
+
+/* ── Pack slots (4 × 3 grid) ────────────────────────────────────────────── */
+
+.turn-of-the-century.sheet.actor .totc-pack-slots {
+    display: grid;
+    gap: 6px;
+    grid-template-columns: repeat(4, 46px);
+    justify-content: center;
+    padding-bottom: 8px;
 }

@@ -1,231 +1,218 @@
 <form class="{{cssClass}} totc-actor-sheet" autocomplete="off">
     <div class="totc-victorian-frame">
-    <header class="sheet-header">
-        <img class="profile-img" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" height="104" width="104" />
-        <section class="header-fields">
-            <h1 class="charname">
-                <input name="name" type="text" value="{{actor.name}}" placeholder="Name" />
-            </h1>
-            <div class="actor-subtitle">
-                <span>{{localize "TOTC.Actor.Type"}}: {{actor.type}}</span>
-                <span>{{localize "TOTC.Actor.Category"}}: {{system.classification.category}}</span>
-                <span>{{localize "TOTC.Actor.Level"}}: {{system.progression.level}}</span>
+
+        <!-- HEADER: portrait left, name / level / profession right -->
+        <header class="sheet-header totc-actor-detail-header">
+            <img class="profile-img totc-actor-portrait" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" />
+            <div class="totc-actor-detail-identity">
+                <div class="totc-actor-detail-namerow">
+                    <h1 class="charname">
+                        <input name="name" type="text" value="{{actor.name}}" placeholder="Name" />
+                    </h1>
+                    <span class="totc-actor-detail-level">Level {{system.progression.level}}</span>
+                </div>
+                <div class="totc-actor-detail-profession">
+                    {{system.classification.profession}}{{#if system.hero.archetype}} ({{system.hero.archetype}}){{/if}}
+                </div>
+            </div>
+        </header>
+
+        <!-- BIOGRAPHY SUMMARY -->
+        {{#if system.profile.summary}}
+        <p class="totc-actor-detail-bio">{{system.profile.summary}}</p>
+        {{/if}}
+
+        <!-- HEALTH BAR -->
+        <div class="totc-actor-detail-health">
+            <span class="totc-resource-label">Health</span>
+            <progress class="totc-health-bar"
+                value="{{system.resources.health.value}}"
+                max="{{system.resources.health.max}}"></progress>
+        </div>
+
+        <!-- ABILITY SCORES — horizontal strip -->
+        <section class="totc-ability-scores">
+            <div class="totc-ability-score">
+                <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortStr"}}</div>
+                <div class="totc-ability-score__modifier">{{numberFormat system.abilities.str.bonus decimals=0 sign=true}}</div>
+                <div class="totc-ability-score__value">{{system.abilities.str.value}}</div>
+            </div>
+            <div class="totc-ability-score">
+                <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortDex"}}</div>
+                <div class="totc-ability-score__modifier">{{numberFormat system.abilities.dex.bonus decimals=0 sign=true}}</div>
+                <div class="totc-ability-score__value">{{system.abilities.dex.value}}</div>
+            </div>
+            <div class="totc-ability-score">
+                <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortCon"}}</div>
+                <div class="totc-ability-score__modifier">{{numberFormat system.abilities.con.bonus decimals=0 sign=true}}</div>
+                <div class="totc-ability-score__value">{{system.abilities.con.value}}</div>
+            </div>
+            <div class="totc-ability-score">
+                <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortWis"}}</div>
+                <div class="totc-ability-score__modifier">{{numberFormat system.abilities.wis.bonus decimals=0 sign=true}}</div>
+                <div class="totc-ability-score__value">{{system.abilities.wis.value}}</div>
+            </div>
+            <div class="totc-ability-score">
+                <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortInt"}}</div>
+                <div class="totc-ability-score__modifier">{{numberFormat system.abilities.int.bonus decimals=0 sign=true}}</div>
+                <div class="totc-ability-score__value">{{system.abilities.int.value}}</div>
+            </div>
+            <div class="totc-ability-score">
+                <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortCha"}}</div>
+                <div class="totc-ability-score__modifier">{{numberFormat system.abilities.cha.bonus decimals=0 sign=true}}</div>
+                <div class="totc-ability-score__value">{{system.abilities.cha.value}}</div>
+            </div>
+            <div class="totc-ability-score">
+                <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortSan"}}</div>
+                <div class="totc-ability-score__modifier">{{numberFormat system.abilities.san.bonus decimals=0 sign=true}}</div>
+                <div class="totc-ability-score__value">{{system.abilities.san.value}}</div>
             </div>
         </section>
-    </header>
 
-    <section class="sheet-body sheet-body--sidebar">
-        <aside class="sheet-sidebar">
-            <section class="totc-ability-scores">
-                <div class="totc-ability-score">
-                    <div class="totc-ability-score__value">{{system.abilities.str.value}}</div>
-                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortStr"}}</div>
-                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.str.bonus decimals=0 sign=true}}</div>
-                </div>
-                <div class="totc-ability-score">
-                    <div class="totc-ability-score__value">{{system.abilities.dex.value}}</div>
-                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortDex"}}</div>
-                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.dex.bonus decimals=0 sign=true}}</div>
-                </div>
-                <div class="totc-ability-score">
-                    <div class="totc-ability-score__value">{{system.abilities.con.value}}</div>
-                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortCon"}}</div>
-                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.con.bonus decimals=0 sign=true}}</div>
-                </div>
-                <div class="totc-ability-score">
-                    <div class="totc-ability-score__value">{{system.abilities.int.value}}</div>
-                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortInt"}}</div>
-                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.int.bonus decimals=0 sign=true}}</div>
-                </div>
-                <div class="totc-ability-score">
-                    <div class="totc-ability-score__value">{{system.abilities.wis.value}}</div>
-                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortWis"}}</div>
-                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.wis.bonus decimals=0 sign=true}}</div>
-                </div>
-                <div class="totc-ability-score">
-                    <div class="totc-ability-score__value">{{system.abilities.cha.value}}</div>
-                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortCha"}}</div>
-                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.cha.bonus decimals=0 sign=true}}</div>
-                </div>
-                <div class="totc-ability-score">
-                    <div class="totc-ability-score__value">{{system.abilities.san.value}}</div>
-                    <div class="totc-ability-score__label">{{localize "TOTC.Actor.Ability.ShortSan"}}</div>
-                    <div class="totc-ability-score__modifier">{{numberFormat system.abilities.san.bonus decimals=0 sign=true}}</div>
+        <!-- EQUIPMENT — body silhouette layout -->
+        <section class="totc-equipment-section">
+            <h2>{{localize "TOTC.Actor.Equipment.Label"}}</h2>
+
+            <!--
+                5-column grid:  [label-left 72px] [slot 46px] [slot 46px] [slot 46px] [label-right 72px]
+                6 rows of 46px.
+                ec-rRcC / ec-rRcC-D = explicit grid placement helpers.
+            -->
+            <div class="totc-equipment-body">
+                <!-- Row 1 – Head (single slot, centred at col 3) -->
+                <div class="totc-body-slot ec-r1c3" data-slot="head"></div>
+                <span class="totc-body-label ec-r1c45">Head</span>
+
+                <!-- Row 2 – Neck -->
+                <div class="totc-body-slot ec-r2c3" data-slot="neck"></div>
+                <span class="totc-body-label ec-r2c45">Neck</span>
+
+                <!-- Row 3 – Back (torso slot 1) + Chest (torso slot 2) -->
+                <span class="totc-body-label totc-body-label--right ec-r3c1">Back</span>
+                <div class="totc-body-slot ec-r3c2" data-slot="torso-0"></div>
+                <div class="totc-body-slot ec-r3c3" data-slot="torso-1"></div>
+                <span class="totc-body-label ec-r3c45">Chest</span>
+
+                <!-- Row 4 – Off Hand | hand-armor | Main Hand -->
+                <span class="totc-body-label totc-body-label--right ec-r4c1">Off Hand</span>
+                <div class="totc-body-slot ec-r4c2" data-slot="hands-0"></div>
+                <div class="totc-body-slot ec-r4c3" data-slot="handsArmor"></div>
+                <div class="totc-body-slot ec-r4c4" data-slot="hands-1"></div>
+                <span class="totc-body-label ec-r4c5">Main Hand</span>
+
+                <!-- Row 5 – Legs -->
+                <div class="totc-body-slot ec-r5c3" data-slot="legs"></div>
+                <span class="totc-body-label ec-r5c45">Legs</span>
+
+                <!-- Row 6 – Feet -->
+                <div class="totc-body-slot ec-r6c3" data-slot="feet"></div>
+                <span class="totc-body-label ec-r6c45">Feet</span>
+            </div>
+
+            <!-- BELT (4 quick-access slots) -->
+            <div class="totc-section-divider"><span>Belt</span></div>
+            <div class="totc-belt-slots">
+                <div class="totc-body-slot" data-slot="belt-0"></div>
+                <div class="totc-body-slot" data-slot="belt-1"></div>
+                <div class="totc-body-slot" data-slot="belt-2"></div>
+                <div class="totc-body-slot" data-slot="belt-3"></div>
+            </div>
+
+            <!-- PACK (3 × 4 grid = 12 slots) -->
+            <div class="totc-section-divider"><span>{{localize "TOTC.Actor.Pack.Label"}}</span></div>
+            <div class="totc-pack-slots">
+                <div class="totc-body-slot" data-slot="pack-0"></div>
+                <div class="totc-body-slot" data-slot="pack-1"></div>
+                <div class="totc-body-slot" data-slot="pack-2"></div>
+                <div class="totc-body-slot" data-slot="pack-3"></div>
+                <div class="totc-body-slot" data-slot="pack-4"></div>
+                <div class="totc-body-slot" data-slot="pack-5"></div>
+                <div class="totc-body-slot" data-slot="pack-6"></div>
+                <div class="totc-body-slot" data-slot="pack-7"></div>
+                <div class="totc-body-slot" data-slot="pack-8"></div>
+                <div class="totc-body-slot" data-slot="pack-9"></div>
+                <div class="totc-body-slot" data-slot="pack-10"></div>
+                <div class="totc-body-slot" data-slot="pack-11"></div>
+            </div>
+        </section>
+
+        <section class="totc-actor-detail-supporting">
+            <div class="form-group stacked">
+                <label>{{localize "TOTC.Actor.Biography"}}</label>
+                <div class="totc-inline-html">{{{system.biography}}}</div>
+            </div>
+            <div class="form-group stacked">
+                <label>{{localize "TOTC.Actor.Notes"}}</label>
+                <div class="totc-inline-html totc-inline-html--gm-notes">{{{system.notes}}}</div>
+            </div>
+
+            <section class="totc-inventory-group">
+                <h2>{{localize "TOTC.Actor.Equipment.Label"}}</h2>
+                <div class="totc-inventory-slots">
+                    {{#each inventorySummary.equippedBySlot as |slot|}}
+                        <div class="totc-inventory-slot">
+                            <div class="totc-inventory-slot__label">{{slot.label}}</div>
+                            {{#if slot.equippedItems.length}}
+                                <ul class="totc-inventory-items">
+                                    {{#each slot.equippedItems as |item|}}
+                                        <li class="totc-inventory-item">
+                                            <img src="{{item.img}}" alt="{{item.name}}" />
+                                            <span class="totc-inventory-item__body">
+                                                <strong>{{item.name}}</strong>
+                                                <span>{{item.type}}</span>
+                                                <small>{{item.description}}</small>
+                                            </span>
+                                        </li>
+                                    {{/each}}
+                                </ul>
+                            {{else}}
+                                <p class="totc-equipment-slot__empty">{{localize "TOTC.Actor.Equipment.None"}}</p>
+                            {{/if}}
+                        </div>
+                    {{/each}}
                 </div>
             </section>
-        </aside>
 
-        <main class="sheet-main">
-            <nav class="sheet-tabs tabs" data-group="primary">
-                <a class="item" data-tab="profile">{{localize "TOTC.Sheet.Profile"}}</a>
-                <a class="item" data-tab="inventory">{{localize "TOTC.Sheet.Inventory"}}</a>
-                <a class="item" data-tab="identity">{{localize "TOTC.Actor.Identity"}}</a>
-                <a class="item" data-tab="hero">{{localize "TOTC.Actor.TypeDetails"}}</a>
-            </nav>
-
-            <div class="tab profile" data-group="primary" data-tab="profile">
-                <div class="totc-two-column">
-                    <div class="form-group">
-                        <label>{{localize "TOTC.Actor.Profession"}}</label>
-                        <select name="system.classification.profession">
-                            <option value=""></option>
-                            {{#each professionOptions as |profession|}}
-                                <option value="{{profession.value}}" {{#if (eq ../system.classification.profession profession.value)}}selected{{/if}}>{{profession.label}}</option>
-                            {{/each}}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>{{localize "TOTC.Actor.Origin"}}</label>
-                        <input name="system.classification.origin" type="text" value="{{system.classification.origin}}" />
-                    </div>
-                    <div class="form-group">
-                        <label>{{localize "TOTC.Actor.Faction"}}</label>
-                        <input name="system.profile.faction" type="text" value="{{system.profile.faction}}" />
-                    </div>
-                    <div class="form-group">
-                        <label>{{localize "TOTC.Actor.Role"}}</label>
-                        <input name="system.profile.role" type="text" value="{{system.profile.role}}" />
-                    </div>
-                </div>
-                <div class="form-group stacked">
-                    <label>{{localize "TOTC.Actor.ProfileSummary"}}</label>
-                    <textarea name="system.profile.summary" rows="3">{{system.profile.summary}}</textarea>
-                </div>
-                <div class="form-group stacked">
-                    <label>{{localize "TOTC.Actor.Tags"}}</label>
-                    <input name="_array.system.profile.tags" type="text" value="{{profileTags}}" placeholder="investigator, elite, london" />
-                </div>
-                <div class="form-group stacked">
-                    <label>{{localize "TOTC.Actor.Biography"}}</label>
-                    <div class="totc-inline-html">{{{system.biography}}}</div>
-                </div>
-                <div class="form-group stacked">
-                    <label>{{localize "TOTC.Actor.Notes"}}</label>
-                    <div class="totc-inline-html totc-inline-html--gm-notes">{{{system.notes}}}</div>
-                </div>
-
-            </div>
-
-            <div class="tab inventory" data-group="primary" data-tab="inventory">
-                <section class="totc-inventory-group">
-                    <h2>{{localize "TOTC.Actor.Equipment.Label"}}</h2>
-                    <div class="totc-inventory-slots">
-                        {{#each inventorySummary.equippedBySlot as |slot|}}
-                            <div class="totc-inventory-slot">
-                                <div class="totc-inventory-slot__label">{{slot.label}}</div>
-                                {{#if slot.equippedItems.length}}
-                                    <ul class="totc-inventory-items">
-                                        {{#each slot.equippedItems as |item|}}
-                                            <li class="totc-inventory-item">
-                                                <img src="{{item.img}}" alt="{{item.name}}" />
-                                                <span class="totc-inventory-item__body">
-                                                    <strong>{{item.name}}</strong>
-                                                    <span>{{item.type}}</span>
-                                                    <small>{{item.description}}</small>
-                                                </span>
-                                            </li>
-                                        {{/each}}
-                                    </ul>
-                                {{else}}
-                                    <p class="totc-equipment-slot__empty">{{localize "TOTC.Actor.Equipment.None"}}</p>
-                                {{/if}}
-                            </div>
+            <section class="totc-inventory-group">
+                <h2>{{localize "TOTC.Actor.Pack.Label"}}</h2>
+                {{#if inventorySummary.packItems.length}}
+                    <ul class="totc-inventory-items">
+                        {{#each inventorySummary.packItems as |item|}}
+                            <li class="totc-inventory-item">
+                                <img src="{{item.img}}" alt="{{item.name}}" />
+                                <span class="totc-inventory-item__body">
+                                    <strong>{{item.name}}</strong>
+                                    <span>{{item.type}}</span>
+                                    <small>{{item.description}}</small>
+                                </span>
+                            </li>
                         {{/each}}
-                    </div>
-                </section>
+                    </ul>
+                {{else}}
+                    <p class="totc-equipment-slot__empty">{{localize "TOTC.Actor.Pack.Empty"}}</p>
+                {{/if}}
+            </section>
 
-                <section class="totc-inventory-group">
-                    <h2>{{localize "TOTC.Actor.Pack.Label"}}</h2>
-                    {{#if inventorySummary.packItems.length}}
-                        <ul class="totc-inventory-items">
-                            {{#each inventorySummary.packItems as |item|}}
-                                <li class="totc-inventory-item">
-                                    <img src="{{item.img}}" alt="{{item.name}}" />
-                                    <span class="totc-inventory-item__body">
-                                        <strong>{{item.name}}</strong>
-                                        <span>{{item.type}}</span>
-                                        <small>{{item.description}}</small>
-                                    </span>
-                                </li>
-                            {{/each}}
-                        </ul>
-                    {{else}}
-                        <p class="totc-equipment-slot__empty">{{localize "TOTC.Actor.Pack.Empty"}}</p>
-                    {{/if}}
-                </section>
+            <section class="totc-inventory-group">
+                <h2>{{localize "TOTC.Actor.Inventory.Unassigned"}}</h2>
+                {{#if inventorySummary.otherItems.length}}
+                    <ul class="totc-inventory-items">
+                        {{#each inventorySummary.otherItems as |item|}}
+                            <li class="totc-inventory-item">
+                                <img src="{{item.img}}" alt="{{item.name}}" />
+                                <span class="totc-inventory-item__body">
+                                    <strong>{{item.name}}</strong>
+                                    <span>{{item.type}}</span>
+                                    <small>{{item.description}}</small>
+                                </span>
+                            </li>
+                        {{/each}}
+                    </ul>
+                {{else}}
+                    <p class="totc-equipment-slot__empty">{{localize "TOTC.Actor.Inventory.None"}}</p>
+                {{/if}}
+            </section>
+        </section>
 
-                <section class="totc-inventory-group">
-                    <h2>{{localize "TOTC.Actor.Inventory.Unassigned"}}</h2>
-                    {{#if inventorySummary.otherItems.length}}
-                        <ul class="totc-inventory-items">
-                            {{#each inventorySummary.otherItems as |item|}}
-                                <li class="totc-inventory-item">
-                                    <img src="{{item.img}}" alt="{{item.name}}" />
-                                    <span class="totc-inventory-item__body">
-                                        <strong>{{item.name}}</strong>
-                                        <span>{{item.type}}</span>
-                                        <small>{{item.description}}</small>
-                                    </span>
-                                </li>
-                            {{/each}}
-                        </ul>
-                    {{else}}
-                        <p class="totc-equipment-slot__empty">{{localize "TOTC.Actor.Inventory.None"}}</p>
-                    {{/if}}
-                </section>
-            </div>
-            <div class="tab identity" data-group="primary" data-tab="identity">
-                <div class="totc-two-column">
-                    <div class="form-group">
-                        <label>{{localize "TOTC.Actor.Species"}}</label>
-                        <input name="system.classification.species" type="text" value="{{system.classification.species}}" />
-                    </div>
-                    <div class="form-group">
-                        <label>{{localize "TOTC.Actor.Ancestry"}}</label>
-                        <input name="system.classification.ancestry" type="text" value="{{system.classification.ancestry}}" />
-                    </div>
-                    <div class="form-group">
-                        <label>{{localize "TOTC.Actor.Size"}}</label>
-                        <select name="system.classification.size">
-                            <option value="tiny" {{#if (eq system.classification.size "tiny")}}selected{{/if}}>{{localize "TOTC.Actor.SizeTiny"}}</option>
-                            <option value="sm" {{#if (eq system.classification.size "sm")}}selected{{/if}}>{{localize "TOTC.Actor.SizeSmall"}}</option>
-                            <option value="med" {{#if (eq system.classification.size "med")}}selected{{/if}}>{{localize "TOTC.Actor.SizeMedium"}}</option>
-                            <option value="lg" {{#if (eq system.classification.size "lg")}}selected{{/if}}>{{localize "TOTC.Actor.SizeLarge"}}</option>
-                            <option value="huge" {{#if (eq system.classification.size "huge")}}selected{{/if}}>{{localize "TOTC.Actor.SizeHuge"}}</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>{{localize "TOTC.Actor.Level"}}</label>
-                        <input name="system.progression.level" type="number" value="{{system.progression.level}}" min="1" step="1" />
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab hero" data-group="primary" data-tab="hero">
-                <div class="totc-two-column">
-                    <div class="form-group">
-                        <label>{{localize "TOTC.Actor.Hero.Archetype"}}</label>
-                        <input name="system.hero.archetype" type="text" value="{{system.hero.archetype}}" />
-                    </div>
-                    <div class="form-group">
-                        <label>{{localize "TOTC.Actor.Hero.Rank"}}</label>
-                        <input name="system.hero.rank" type="text" value="{{system.hero.rank}}" />
-                    </div>
-                    <div class="form-group">
-                        <label>{{localize "TOTC.Actor.Hero.Renown"}}</label>
-                        <input name="system.hero.renown" type="number" value="{{system.hero.renown}}" min="0" step="1" />
-                    </div>
-                    <div class="form-group">
-                        <label>{{localize "TOTC.Actor.ProficiencyBonus"}}</label>
-                        <input name="system.progression.proficiencyBonus" type="number" value="{{system.progression.proficiencyBonus}}" min="1" step="1" />
-                    </div>
-                </div>
-                <div class="form-group stacked">
-                    <label>{{localize "TOTC.Actor.Hero.Bonds"}}</label>
-                    <input name="_array.system.hero.bonds" type="text" value="{{heroBonds}}" placeholder="Detective Club, Crown Office" />
-                </div>
-            </div>
-        </main>
-    </section>
     </div>
 </form>

@@ -19,7 +19,18 @@ const assignGlobals = {
     requestAnimationFrame: window.requestAnimationFrame ?? ((cb) => setTimeout(() => cb(Date.now()), 0)),
     cancelAnimationFrame: window.cancelAnimationFrame ?? clearTimeout
 };
-for (const [key, value] of Object.entries(assignGlobals)) globalThis[key] = value;
+for (const [key, value] of Object.entries(assignGlobals)) {
+    try {
+        Object.defineProperty(globalThis, key, {
+            value,
+            writable: true,
+            configurable: true,
+            enumerable: true
+        });
+    } catch (e) {
+        globalThis[key] = value;
+    }
+}
 
 window.matchMedia ??= () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
 globalThis.matchMedia = window.matchMedia;

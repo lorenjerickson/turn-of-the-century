@@ -510,6 +510,11 @@ export function buildActorEditorPanelModel({
         canAssignOwner: Boolean(actor),
         ownerAssignmentDisabled: !isGM,
         ownerOptions,
+        actorImg: actor ? actorImage(actor) : "",
+        health: actor ? {
+            value: Number(actor?.system?.resources?.health?.value ?? 0),
+            max: Number(actor?.system?.resources?.health?.max ?? 1)
+        } : null,
         fields: actor ? buildEditableActorFields(actor, staged, actorType) : [],
         equipment: actor ? buildEquipmentViewModel(actor, staged) : null
     };
@@ -751,32 +756,38 @@ function renderEquipmentSlot(slot, escapeHTML) {
 function renderEquipmentBodyRows(bodySlots, escapeHTML) {
     const byArea = new Map((bodySlots ?? []).map((slot) => [slot.area, slot]));
     const rows = [
-        ["head"],
-        ["neck"],
-        ["torso", "torso-extra"],
-        ["hand-left", "hands-armor", "hand-right"],
-        ["legs"],
-        ["feet"]
+        { areas: ["head"],                                   leftLabel: null,        rightLabel: "Head"      },
+        { areas: ["neck"],                                   leftLabel: null,        rightLabel: "Neck"      },
+        { areas: ["torso", "torso-extra"],                   leftLabel: "Back",      rightLabel: "Chest"     },
+        { areas: ["hand-left", "hands-armor", "hand-right"], leftLabel: "Off Hand",  rightLabel: "Main Hand" },
+        { areas: ["legs"],                                   leftLabel: null,        rightLabel: "Legs"      },
+        { areas: ["feet"],                                   leftLabel: null,        rightLabel: "Feet"      }
     ];
-    return rows.map((areas) => `
-        <div class="totc-v2-actor-equipment__body-row">
-            ${areas.map((area) => byArea.get(area)).filter(Boolean).map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
-        </div>`).join("");
+    return rows.map(({ areas, leftLabel, rightLabel }) => {
+        const slots = areas.map((area) => byArea.get(area)).filter(Boolean);
+        const hasLabels = Boolean(leftLabel || rightLabel);
+        return `
+        <div class="totc-v2-actor-equipment__body-row${hasLabels ? " totc-v2-actor-equipment__body-row--labeled" : ""}">
+            ${leftLabel ? `<span class="totc-v2-actor-equipment__body-label totc-v2-actor-equipment__body-label--left">${escapeHTML(leftLabel)}</span>` : ""}
+            <span class="totc-v2-actor-equipment__body-slots">${slots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}</span>
+            ${rightLabel ? `<span class="totc-v2-actor-equipment__body-label totc-v2-actor-equipment__body-label--right">${escapeHTML(rightLabel)}</span>` : ""}
+        </div>`;
+    }).join("");
 }
 
 function renderEquipmentSection(equipment, escapeHTML) {
     if (!equipment) return "";
-    const packSection = equipment.packSlots?.length
-        ? `<div class="totc-v2-actor-equipment__pack" aria-label="Pack slots">
-                <div class="totc-v2-actor-equipment__pack-label">Pack</div>
-                ${equipment.packSlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
-            </div>`
-        : "";
     const beltSection = equipment.beltSlots?.length
-        ? `<div class="totc-v2-actor-equipment__belt" aria-label="Belt slots">
-                <div class="totc-v2-actor-equipment__belt-label">Belt</div>
-                ${equipment.beltSlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
-            </div>`
+        ? `<div class="totc-v2-actor-equipment__section-divider" aria-hidden="true"><span>Belt</span></div>
+           <div class="totc-v2-actor-equipment__belt" aria-label="Belt slots">
+               ${equipment.beltSlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
+           </div>`
+        : "";
+    const packSection = equipment.packSlots?.length
+        ? `<div class="totc-v2-actor-equipment__section-divider" aria-hidden="true"><span>Pack</span></div>
+           <div class="totc-v2-actor-equipment__pack" aria-label="Pack slots">
+               ${equipment.packSlots.map((slot) => renderEquipmentSlot(slot, escapeHTML)).join("")}
+           </div>`
         : "";
     return `
     <fieldset class="totc-v2-actor-editor__section totc-v2-actor-editor__section--equipment">
@@ -860,22 +871,70 @@ export function renderActorEditorPanel(model = {}, { escapeHTML = (value) => Str
         if (!sections.has(field.section)) sections.set(field.section, []);
         sections.get(field.section).push(field);
     }
+    const abilitiesFields = sections.get("Abilities") ?? [];
+    sections.delete("Abilities");
     const sectionEntries = Array.from(sections.entries()).sort(([left], [right]) => {
         if (left === "Identity") return -1;
         if (right === "Identity") return 1;
         return 0;
     });
 
+    const nameField   = (sections.get("Identity") ?? []).find((f) => f.path === "name");
+    const profField   = (sections.get("Classification") ?? []).find((f) => f.path === "system.classification.profession");
+    const archField   = sections.has("Hero") ? (sections.get("Hero") ?? []).find((f) => f.path === "system.hero.archetype") : null;
+    const levelField  = (sections.get("Progression") ?? []).find((f) => f.path === "system.progression.level");
+    const summaryField = (sections.get("Notes") ?? []).find((f) => f.path === "system.profile.summary");
+
+    const actorNameValue = escapeHTML(nameField?.value ?? model.actorType ?? "Actor");
+    const professionValue = escapeHTML(profField?.value ?? "");
+    const archetypeValue  = escapeHTML(archField?.value ?? "");
+    const levelValue      = escapeHTML(String(levelField?.value || "1"));
+    const summaryValue    = escapeHTML(summaryField?.value ?? "");
+
+    const professionLine = professionValue
+        ? `${professionValue}${archetypeValue ? ` (${archetypeValue})` : ""}`
+        : "";
+
+    const healthBar = model.health
+        ? `<div class="totc-v2-actor-editor__health-row">
+               <span class="totc-v2-actor-editor__health-label">Health</span>
+               <progress class="totc-v2-actor-editor__health-bar"
+                   value="${model.health.value}"
+                   max="${Math.max(model.health.max, 1)}"></progress>
+           </div>`
+        : "";
+
+    const abilitiesBlock = abilitiesFields.length
+        ? `<div class="totc-v2-actor-editor__ability-scores">
+               ${abilitiesFields.map((f) => renderAbilityField(f, escapeHTML)).join("")}
+           </div>`
+        : "";
+
     return `
     <section class="totc-v2-actor-editor">
-        <header class="totc-v2-actor-editor__header">
-            <h3>Actor Details</h3>
-            <span>${escapeHTML(model.actorType)}</span>
-        </header>
         ${model.error ? `<div class="totc-v2-actor-editor__error">${escapeHTML(model.error)}</div>` : ""}
         ${model.status ? `<div class="totc-v2-actor-editor__status">${escapeHTML(model.status)}</div>` : ""}
         <form class="totc-v2-actor-editor__form" data-action="actor-editor-save-form">
             <input type="hidden" name="actorId" value="${escapeHTML(model.actorId)}">
+
+            <header class="totc-v2-actor-editor__detail-header">
+                ${model.actorImg
+                    ? `<img class="totc-v2-actor-editor__portrait" src="${escapeHTML(model.actorImg)}" alt="">`
+                    : `<span class="totc-v2-actor-editor__portrait-fallback">${actorNameValue.slice(0, 1).toUpperCase() || "?"}</span>`}
+                <div class="totc-v2-actor-editor__identity">
+                    <div class="totc-v2-actor-editor__namerow">
+                        <label class="totc-v2-actor-editor__name-field">
+                            <span class="visually-hidden">Name</span>
+                            <input name="name" data-action="actor-editor-field" data-actor-field="name"
+                                type="text" value="${actorNameValue}"
+                                class="totc-v2-actor-editor__name-input">
+                        </label>
+                        <span class="totc-v2-actor-editor__level-badge">Level ${levelValue}</span>
+                    </div>
+                    ${professionLine ? `<span class="totc-v2-actor-editor__profession">${professionLine}</span>` : ""}
+                </div>
+            </header>
+
             ${model.canAssignOwner ? `
             <div class="totc-v2-actor-editor__assignment-row">
                 <label class="totc-v2-actor-editor__assignment-label" for="totc-v2-actor-editor-owner">Assigned Player</label>
@@ -883,8 +942,14 @@ export function renderActorEditorPanel(model = {}, { escapeHTML = (value) => Str
                     ${(model.ownerOptions ?? []).map((option) => `<option value="${escapeHTML(option.value)}" ${option.selected ? "selected" : ""}>${escapeHTML(option.label)}</option>`).join("")}
                 </select>
             </div>` : ""}
+
+            ${summaryValue ? `<p class="totc-v2-actor-editor__summary">${summaryValue}</p>` : ""}
+            ${healthBar}
+            ${abilitiesBlock}
+            ${renderEquipmentSection(model.equipment, escapeHTML)}
+
             <div class="totc-v2-actor-editor__sections">
-                ${sectionEntries.map(([title, fields], index) => `${renderFieldSection(title, fields, escapeHTML)}${index === 0 ? renderEquipmentSection(model.equipment, escapeHTML) : ""}`).join("")}
+                ${sectionEntries.map(([title, fields]) => renderFieldSection(title, fields, escapeHTML)).join("")}
             </div>
             <footer class="totc-v2-actor-editor__actions">
                 <button type="submit" class="totc-v2-actor-editor__primary" data-action="actor-editor-save" ${model.dirty ? "" : "disabled"}>Save</button>

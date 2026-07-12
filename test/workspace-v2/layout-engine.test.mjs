@@ -358,4 +358,32 @@ describe("LayoutEngine", () => {
         assert.equal(normalized.root.rightDock.collapsed, false);
         assert.equal(normalized.root.centerDock.collapsed, false);
     });
+
+    it("dynamically resolves scene name as map panel title during validation", async () => {
+        const { LayoutEngine } = await loadLayoutEngine();
+        const engine = new LayoutEngine({ panels: panelLibrary });
+
+        globalThis.game = {
+            scenes: {
+                get: (id) => {
+                    if (id === "scene-a") return { id: "scene-a", name: "Yard Renamed" };
+                    return null;
+                },
+                contents: [
+                    { id: "scene-a", name: "Yard Renamed" }
+                ]
+            }
+        };
+
+        const originalLayout = engine.applyDropIntent(
+            { id: "map:scene-a", title: "Station Yard", baseId: "map", sceneId: "scene-a" },
+            { kind: "edge", dockId: "centerDock" }
+        );
+
+        const validated = engine.validate(originalLayout);
+        const stack = validated.root.centerDock.stacks[0];
+        assert.equal(stack.panels[0].title, "Yard Renamed");
+
+        delete globalThis.game;
+    });
 });

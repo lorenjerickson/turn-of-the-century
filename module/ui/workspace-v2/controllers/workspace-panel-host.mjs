@@ -187,6 +187,17 @@ export class WorkspacePanelHost {
         return `<div class="totc-v2-panel-placeholder">${this.escapeHTML(panel.title)}</div>`;
     }
 
+    bindPanel(panel, element) {
+        if (!panel || !element) return;
+        const features = this.getFeatures?.() ?? [];
+        for (const feature of features) {
+            if (typeof feature.bindPanel === "function") {
+                const handled = feature.bindPanel(panel, element);
+                if (handled) return;
+            }
+        }
+    }
+
     #renderMapPanel(panel, context = {}) {
         const panelId = String(panel?.id ?? "").trim();
         const mapScene = this.getMapPanelScene(panel, context);

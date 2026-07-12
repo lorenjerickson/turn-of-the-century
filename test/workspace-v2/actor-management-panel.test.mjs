@@ -290,9 +290,11 @@ describe("Actor management panel", () => {
         const model = buildActorEditorPanelModel({ actor, state: { mode: "edit" } });
         const html = renderActorEditorPanel(model, { escapeHTML });
 
-        assert.match(html, /totc-v2-actor-editor__section--abilities/);
+        assert.match(html, /totc-v2-actor-editor__detail-header/);
+        assert.match(html, /totc-v2-actor-editor__portrait-fallback">A<\/span>/);
+        assert.match(html, /totc-v2-actor-editor__level-badge">Level 1<\/span>/);
         assert.match(html, /totc-v2-actor-editor__ability-scores/);
-        assert.ok(html.indexOf("<legend>Identity</legend>") < html.indexOf("totc-v2-actor-editor__section--abilities"));
+        assert.ok(html.indexOf("totc-v2-actor-editor__ability-scores") < html.indexOf("<legend>Identity</legend>"));
         assert.match(html, /<span class="totc-v2-actor-editor__ability-label">STR<\/span>/);
         assert.match(html, /<strong class="totc-v2-actor-editor__ability-modifier">-1<\/strong>/);
         assert.match(html, /<strong class="totc-v2-actor-editor__ability-modifier">\+2<\/strong>/);
@@ -342,7 +344,7 @@ describe("Actor management panel", () => {
         assert.match(html, /totc-v2-actor-equipment__slot--hands-armor/);
         assert.match(html, /totc-v2-actor-equipment__belt/);
         assert.doesNotMatch(html, /totc-v2-actor-equipment__doll/);
-        assert.equal((html.match(/totc-v2-actor-equipment__body-row/g) ?? []).length, 6);
+        assert.equal((html.match(/class="totc-v2-actor-equipment__body-row/g) ?? []).length, 6);
         const bodySlotOrder = [
             "totc-v2-actor-equipment__slot--head",
             "totc-v2-actor-equipment__slot--neck",
@@ -362,7 +364,10 @@ describe("Actor management panel", () => {
             bodySlotOrder.map((slotClass) => html.indexOf(slotClass)),
             bodySlotOrder.map((slotClass) => html.indexOf(slotClass)).toSorted((a, b) => a - b)
         );
-        assert.match(html, /totc-v2-actor-equipment__belt-label">Belt<\/div>/);
+        assert.match(html, /totc-v2-actor-equipment__section-divider" aria-hidden="true"><span>Belt<\/span><\/div>/);
+        assert.match(html, /totc-v2-actor-equipment__body-label--right">Head<\/span>/);
+        assert.match(html, /totc-v2-actor-equipment__body-label--left">Off Hand<\/span>/);
+        assert.match(html, /totc-v2-actor-equipment__body-label--right">Main Hand<\/span>/);
         assert.match(html, /type="hidden" name="system\.inventory\.equipment\.hands\.itemIds\.0"[^>]*data-action="actor-editor-field"[^>]*value="revolver"/);
         assert.match(html, /type="hidden" name="system\.inventory\.equipment\.handsArmor\.itemIds\.0"[^>]*data-action="actor-editor-field"[^>]*value="bracers"/);
         assert.match(html, /data-action="actor-equipment-open-picker"/);

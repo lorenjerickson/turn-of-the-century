@@ -227,6 +227,15 @@ export class ActorManagementFeature extends WorkspaceFeature {
         this.actorWorkspaceController.wireHandlers(rootElement);
     }
 
+    bindPanel(panel, element) {
+        if (panel?.id === "actors" || panel?.id === "actor-editor") {
+            this.actorWorkspaceController.wireHandlers(element);
+            return true;
+        }
+        return false;
+    }
+
+
     dispose() {
         // no-op, resources are handled by gc
     }

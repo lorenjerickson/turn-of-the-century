@@ -24,10 +24,23 @@ function makeEmptyDock(orientation) {
     };
 }
 
+function resolvePanelTitle(panel) {
+    const id = String(panel?.id ?? "");
+    if (id.startsWith("map:")) {
+        const sceneId = id.slice(4);
+        const scene = globalThis.game?.scenes?.get?.(sceneId)
+            ?? (globalThis.game?.scenes?.contents ?? []).find((s) => String(s?.id ?? s?._id ?? "") === sceneId);
+        if (scene && scene.name) {
+            return scene.name;
+        }
+    }
+    return panel?.title ?? "Scene Map";
+}
+
 function makePanelInstance(panelDef) {
     return {
         id: panelDef.id,
-        title: panelDef.title,
+        title: resolvePanelTitle(panelDef),
         ...(panelDef.baseId ? { baseId: panelDef.baseId } : {}),
         ...(panelDef.sceneId ? { sceneId: panelDef.sceneId } : {})
     };
@@ -185,7 +198,12 @@ export class LayoutEngine {
             dock.stacks = dock.stacks
                 .map((stack) => ({
                     ...stack,
-                    panels: (stack?.panels ?? []).filter((panel) => !isRemovedPanel(panel))
+                    panels: (stack?.panels ?? [])
+                        .filter((panel) => !isRemovedPanel(panel))
+                        .map((panel) => ({
+                            ...panel,
+                            title: resolvePanelTitle(panel)
+                        }))
                 }))
                 .filter((stack) => stack.panels.length > 0)
                 .map((stack) => ({

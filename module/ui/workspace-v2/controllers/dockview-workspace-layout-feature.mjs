@@ -177,7 +177,9 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             noPanelsOverlay: "emptyGroup",
             floatingGroupDragHandle: "titlebar",
             dndStrategy: "pointer",
+            defaultTabComponent: "totc-workspace-tab",
             createComponent: (options) => this.#createDockviewRenderer(options),
+            createTabComponent: (options) => this.#createDockviewTabRenderer(options),
             createRightHeaderActionComponent: (group) => this.#createDockviewHeaderActions(group)
         });
 
@@ -204,6 +206,10 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         };
     }
 
+    #createDockviewTabRenderer(options = {}) {
+        return new TotcWorkspaceTab();
+    }
+
     #renderDockviewPanel(element, componentName, params = {}) {
         const panel = params.panel ?? null;
         element.dataset.panelId = String(panel?.id ?? "");
@@ -216,6 +222,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
 
         element.classList.remove("totc-v2-dockview-panel--native-map");
         element.innerHTML = this.panelHost?.renderPanelContent?.(panel, this.dockviewContext ?? {}) ?? "";
+        this.panelHost?.bindPanel?.(panel, element);
     }
 
     #restoreDockviewLayout(layout = null) {
@@ -351,12 +358,31 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         }
 
         for (const spec of desired.values()) {
+            if (spec.panel.id.startsWith("map:")) {
+                const sceneId = spec.panel.id.slice(4);
+                const scene = globalThis.game?.scenes?.get?.(sceneId)
+                    ?? (globalThis.game?.scenes?.contents ?? []).find((s) => String(s?.id ?? s?._id ?? "") === sceneId);
+                if (scene && scene.name) {
+                    spec.panel.title = scene.name;
+                }
+            }
+
             const existing = this.dockviewApi.getPanel(spec.panel.id);
             if (existing) {
                 // Refresh the content of an already-mounted panel. Reconcile
                 // keeps the panel across re-renders, so without this its rendered
                 // body would stay stale (e.g. a scene deleted from the list).
                 existing.api?.updateParameters?.({ panel: spec.panel });
+
+                const currentTitle = existing.api?.title;
+                const newTitle = spec.panel.title;
+                if (newTitle && currentTitle !== newTitle) {
+                    existing.api?.setTitle(newTitle);
+                }
+
+                if (existing.view?.tab && typeof existing.view.tab.render === "function") {
+                    existing.view.tab.render();
+                }
                 continue;
             }
             this.#addReconciledPanel(spec);
@@ -846,5 +872,109 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         return this.getActiveCenterMapPanel(layout)
             ?? collectDockviewPanelDescriptors(layout)[0]?.params?.panel
             ?? null;
+    }
+}
+
+class TotcWorkspaceTab {
+    constructor() {
+        this.element = document.createElement("div");
+        this.element.className = "dv-default-tab totc-workspace-tab";
+
+        this.iconContainer = document.createElement("span");
+        this.iconContainer.className = "totc-workspace-tab-icon";
+        this.element.appendChild(this.iconContainer);
+
+        this.content = document.createElement("div");
+        this.content.className = "dv-default-tab-content";
+        this.element.appendChild(this.content);
+
+        this.action = document.createElement("div");
+        this.action.className = "dv-default-tab-action";
+
+        const closeBtn = document.createElement("button");
+        closeBtn.type = "button";
+        closeBtn.className = "totc-tab-close-button";
+        closeBtn.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+        this.action.appendChild(closeBtn);
+        this.element.appendChild(this.action);
+
+        this.disposables = [];
+        this.params = null;
+    }
+
+    init(params) {
+        this.params = params;
+        this.content.textContent = params.title ?? "";
+
+        const titleDisposable = params.api.onDidTitleChange((event) => {
+            this.content.textContent = event.title ?? "";
+        });
+        if (titleDisposable) this.disposables.push(titleDisposable);
+
+        const onPointerDown = (ev) => ev.preventDefault();
+        const onClick = (ev) => {
+            if (ev.defaultPrevented) return;
+            ev.preventDefault();
+            params.api.close();
+        };
+
+        this.action.addEventListener("pointerdown", onPointerDown);
+        this.action.addEventListener("click", onClick);
+
+        // Update active scene tab star icon immediately and dynamically when Hooks trigger
+        const onUpdateScene = (scene, changes) => {
+            if ("active" in changes) {
+                this.render();
+            }
+        };
+        const onCanvasReady = () => {
+            this.render();
+        };
+
+        globalThis.Hooks?.on("updateScene", onUpdateScene);
+        globalThis.Hooks?.on("canvasReady", onCanvasReady);
+
+        this.disposables.push({
+            dispose: () => {
+                this.action.removeEventListener("pointerdown", onPointerDown);
+                this.action.removeEventListener("click", onClick);
+                globalThis.Hooks?.off("updateScene", onUpdateScene);
+                globalThis.Hooks?.off("canvasReady", onCanvasReady);
+            }
+        });
+
+        this.render();
+    }
+
+    render() {
+        const panelId = String(this.params?.api?.id ?? "");
+        let showsStar = false;
+        if (panelId.startsWith("map:")) {
+            const sceneId = panelId.slice(4);
+            const activeSceneId = String(
+                globalThis.game?.scenes?.active?.id
+                ?? (globalThis.game?.scenes?.contents ?? []).find((scene) => scene?.active)?.id
+                ?? ""
+            ).trim();
+            if (sceneId && sceneId === activeSceneId) {
+                showsStar = true;
+            }
+        }
+
+        if (showsStar) {
+            this.iconContainer.innerHTML = '<i class="fa-solid fa-star totc-v2-stack__tab-icon" aria-hidden="true"></i>';
+            this.element.classList.add("totc-workspace-tab--active-scene");
+        } else {
+            this.iconContainer.innerHTML = "";
+            this.element.classList.remove("totc-workspace-tab--active-scene");
+        }
+    }
+
+    dispose() {
+        for (const d of this.disposables) {
+            if (typeof d.dispose === "function") d.dispose();
+        }
+        this.disposables = [];
+        this.element.replaceChildren();
     }
 }
