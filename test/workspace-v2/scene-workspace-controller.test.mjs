@@ -59,7 +59,7 @@ describe("SceneWorkspaceController", () => {
         assert.equal(savedLayout, nextLayout);
     });
 
-    it("resolves scene properties from bound state before active map fallback", () => {
+    it("resolves scene properties from the visible map before stale bound state", () => {
         const boundScene = { id: "bound", name: "Bound Scene" };
         const activeScene = { id: "active", name: "Active Scene" };
         const controller = new SceneWorkspaceController({
@@ -68,6 +68,22 @@ describe("SceneWorkspaceController", () => {
             sceneResolver: (id) => id === "bound" ? boundScene : activeScene,
             getCurrentScene: () => activeScene,
             getActivePanel: () => ({ id: "map:active", baseId: "map", sceneId: "active" })
+        });
+
+        controller.bindScene("bound");
+
+        assert.equal(controller.getScenePropertiesScene(), activeScene);
+    });
+
+    it("uses bound scene state when no map panel is visible", () => {
+        const boundScene = { id: "bound", name: "Bound Scene" };
+        const activeScene = { id: "active", name: "Active Scene" };
+        const controller = new SceneWorkspaceController({
+            layoutEngine: layoutEngineStub(),
+            panelRegistry: { get: () => null },
+            sceneResolver: (id) => id === "bound" ? boundScene : activeScene,
+            getCurrentScene: () => activeScene,
+            getActivePanel: () => ({ id: "scene-properties", baseId: "scene-properties" })
         });
 
         controller.bindScene("bound");

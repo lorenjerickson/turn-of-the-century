@@ -727,6 +727,7 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
         this.#addDockviewDisposable(this.dockviewApi.onDidActivePanelChange(() => {
             const previousMapId = this.activeDockviewMapPanel?.id ?? "";
             this.#syncNativeCanvasApertureClass();
+            this.#bindScenePropertiesToVisibleMap();
             this.#queueDockviewSave();
             // Switching to a different center map tab must re-view its scene on
             // the native canvas. A render runs the root app's scene sync, which
@@ -739,6 +740,11 @@ export class DockviewWorkspaceLayoutFeature extends WorkspaceLayoutFeature {
             this.#removeEmptyEdgeGroups();
             this.#queueDockviewSave();
         }));
+    }
+
+    #bindScenePropertiesToVisibleMap() {
+        const sceneId = this.sceneWorkspaceController?.getPanelSceneId?.(this.activeDockviewMapPanel) ?? "";
+        if (sceneId) this.sceneWorkspaceController?.bindScene?.(sceneId);
     }
 
     #addDockviewDisposable(disposable) {

@@ -70,12 +70,6 @@ export class SceneWorkspaceController {
     }
 
     getScenePropertiesScene() {
-        const storedId = String(this.state?.sceneId ?? "").trim();
-        if (storedId) {
-            const stored = this.getSceneDocumentById(storedId);
-            if (stored) return stored;
-        }
-
         const activePanel = this.getActivePanel();
         const currentScene = this.getCurrentScene();
         const { scene } = resolveScenePropertiesMapPanelScene({
@@ -83,7 +77,10 @@ export class SceneWorkspaceController {
             currentScene,
             sceneResolver: (id) => this.getSceneDocumentById(id)
         });
-        return scene ?? null;
+        if (this.isMapPanel(activePanel) && scene) return scene;
+
+        const storedId = String(this.state?.sceneId ?? "").trim();
+        return storedId ? this.getSceneDocumentById(storedId) : scene ?? null;
     }
 
     buildSceneViewModel(scene, fallback = {}) {

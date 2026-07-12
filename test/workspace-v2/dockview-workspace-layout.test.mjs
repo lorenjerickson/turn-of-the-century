@@ -134,6 +134,11 @@ describe("Dockview workspace layout integration", () => {
         assert.match(dockviewFeatureSource, /totc-v2-native-map-group/);
     });
 
+    it("binds scene properties to the visible map whenever the active Dockview tab changes", () => {
+        assert.match(dockviewFeatureSource, /onDidActivePanelChange\(\(\) => \{[\s\S]*#syncNativeCanvasApertureClass\(\);[\s\S]*#bindScenePropertiesToVisibleMap\(\);/);
+        assert.match(dockviewFeatureSource, /#bindScenePropertiesToVisibleMap\(\)[\s\S]*getPanelSceneId\?\.\(this\.activeDockviewMapPanel\)[\s\S]*bindScene\?\.\(sceneId\)/);
+    });
+
     it("keeps the Dockview shell full height while preserving pointer passthrough", () => {
         assert.match(stylesheetSource, /\.totc-v2-dockview-host \{[\s\S]*height: 100%;/);
         assert.match(stylesheetSource, /\.totc-v2-dockview-host \.dv-shell,[\s\S]*\.totc-v2-dockview-host \.dv-split-view-container,[\s\S]*height: 100%;/);
