@@ -4984,21 +4984,31 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 }
 
 .turn-of-the-century .totc-v2-encounter-manager {
-    align-content: start;
     color: #cbd5e1;
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 0.55rem;
-    grid-template-rows: auto;
     height: 100%;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
 }
 
 .turn-of-the-century .totc-v2-encounter-manager.is-empty {
     align-content: center;
+    display: grid;
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
     overflow: hidden;
+}
+
+.turn-of-the-century .totc-v2-encounter-manager__scroll {
+    align-content: start;
+    display: grid;
+    flex: 1 1 auto;
+    gap: 0.55rem;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 0.2rem;
 }
 
 .turn-of-the-century .totc-v2-encounter-manager__header,
@@ -5054,6 +5064,7 @@ body.totc-v2-active.totc-v2-native-settings-open .settings-config {
 
 .turn-of-the-century .totc-v2-encounter-manager__controls {
     display: grid;
+    flex: 0 0 auto;
     gap: 0.35rem;
     grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
 }
@@ -8273,6 +8284,7 @@ body.totc-theme-victorian .turn-of-the-century .totc-v2-inspector-panel__action:
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-actor-editor,
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-codex-panel,
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-encounter-panel,
+.turn-of-the-century .totc-v2-dockview-panel > .totc-v2-encounter-manager,
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-scenes-panel,
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-market-panel,
 .turn-of-the-century .totc-v2-dockview-panel > .totc-v2-player-panel,

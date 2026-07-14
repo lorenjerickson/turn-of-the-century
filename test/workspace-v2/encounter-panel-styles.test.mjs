@@ -90,6 +90,22 @@ describe("Encounter panel styles", () => {
         assert.doesNotMatch(styles, /\.totc-v2-encounter-manager__draft-state/);
     });
 
+    it("keeps GM encounter controls fixed above the scrolling encounter content", () => {
+        const dockviewFullHeightRule = styles.match(/\.turn-of-the-century \.totc-v2-dockview-panel > \.totc-v2-actor-list-panel,[\s\S]*?\.turn-of-the-century \.totc-v2-dockview-panel > \.totc-v2-panel-with-design-lens\s*\{[^}]+\}/)?.[0] ?? "";
+        const managerRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-manager\s*\{[^}]+\}/)?.[0] ?? "";
+        const controlsRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-manager__controls\s*\{[^}]+\}/)?.[0] ?? "";
+        const scrollRule = styles.match(/\.turn-of-the-century \.totc-v2-encounter-manager__scroll\s*\{[^}]+\}/)?.[0] ?? "";
+
+        assert.match(dockviewFullHeightRule, /> \.totc-v2-encounter-manager/);
+        assert.match(managerRule, /display:\s*flex/);
+        assert.match(managerRule, /flex-direction:\s*column/);
+        assert.match(managerRule, /overflow:\s*hidden/);
+        assert.match(controlsRule, /flex:\s*0 0 auto/);
+        assert.match(scrollRule, /flex:\s*1 1 auto/);
+        assert.match(scrollRule, /min-height:\s*0/);
+        assert.match(scrollRule, /overflow:\s*auto/);
+    });
+
     it("styles GM narration as current tick text with linked detail popups", () => {
         assert.match(styles, /\.totc-v2-encounter-manager__tick-narrative\.is-current/);
         assert.match(styles, /\.totc-v2-encounter-manager__tick-label/);

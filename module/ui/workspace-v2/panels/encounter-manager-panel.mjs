@@ -818,19 +818,6 @@ export function renderEncounterManagerPanel(model = {}, { escapeHTML = (value) =
 
     return `
     <section class="totc-v2-encounter-manager">
-        <header class="totc-v2-encounter-manager__header">
-            <div>
-                <h3>${escapeHTML(model.name)}</h3>
-                <p>Round ${escapeHTML(String(model.round))} · ${escapeHTML(model.phase)} · AP ${escapeHTML(String(currentTick))}/${escapeHTML(String(totalTicks))}</p>
-            </div>
-            <span>${escapeHTML(String(model.actors.length))} actors</span>
-        </header>
-
-        <div class="totc-v2-encounter-manager__progress" aria-label="Round resolution progress">
-            <span class="totc-v2-encounter-manager__progress-fill" style="width:${escapeHTML(String(progressPercent))}%;"></span>
-            <span class="totc-v2-encounter-manager__progress-label">${escapeHTML(String(progressPercent))}% · ${escapeHTML(model.resolutionStatus || "idle")}</span>
-        </div>
-
         <div class="totc-v2-encounter-manager__controls">
             <button type="button" data-action="encounter-manager-start-round" ${model.canStartRound ? "" : "disabled"}>Next Round</button>
             <button type="button" data-action="encounter-manager-set-phase" data-phase="locked" ${model.canSetPhase && model.phase === "planning" ? "" : "disabled"}>Lock Plans</button>
@@ -840,17 +827,32 @@ export function renderEncounterManagerPanel(model = {}, { escapeHTML = (value) =
             <button type="button" data-action="encounter-manager-step-tick" data-direction="1" ${model.canStepNext ? "" : "disabled"}>Next Second</button>
         </div>
 
-        ${renderRoundNarrative(model, escapeHTML)}
+        <div class="totc-v2-encounter-manager__scroll">
+            <header class="totc-v2-encounter-manager__header">
+                <div>
+                    <h3>${escapeHTML(model.name)}</h3>
+                    <p>Round ${escapeHTML(String(model.round))} · ${escapeHTML(model.phase)} · AP ${escapeHTML(String(currentTick))}/${escapeHTML(String(totalTicks))}</p>
+                </div>
+                <span>${escapeHTML(String(model.actors.length))} actors</span>
+            </header>
 
-        ${renderRollQueue(model, escapeHTML)}
+            <div class="totc-v2-encounter-manager__progress" aria-label="Round resolution progress">
+                <span class="totc-v2-encounter-manager__progress-fill" style="width:${escapeHTML(String(progressPercent))}%;"></span>
+                <span class="totc-v2-encounter-manager__progress-label">${escapeHTML(String(progressPercent))}% · ${escapeHTML(model.resolutionStatus || "idle")}</span>
+            </div>
 
-        <section class="totc-v2-encounter-manager__actors" style="--totc-ap-budget:${model.apBudget};--totc-current-tick:${model.currentTick};">
-            <h3>Combatant Plans</h3>
-            ${model.actors.length
-                ? model.actors.map((actor) => renderActorPlan(actor, model.phase, escapeHTML)).join("")
-                : `<p class="totc-v2-encounter-manager__empty">No actors in this encounter.</p>`}
-        </section>
+            ${renderRoundNarrative(model, escapeHTML)}
 
-        ${renderLastRoundSummary(model, escapeHTML)}
+            ${renderRollQueue(model, escapeHTML)}
+
+            <section class="totc-v2-encounter-manager__actors" style="--totc-ap-budget:${model.apBudget};--totc-current-tick:${model.currentTick};">
+                <h3>Combatant Plans</h3>
+                ${model.actors.length
+                    ? model.actors.map((actor) => renderActorPlan(actor, model.phase, escapeHTML)).join("")
+                    : `<p class="totc-v2-encounter-manager__empty">No actors in this encounter.</p>`}
+            </section>
+
+            ${renderLastRoundSummary(model, escapeHTML)}
+        </div>
     </section>`;
 }

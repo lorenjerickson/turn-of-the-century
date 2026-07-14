@@ -250,6 +250,7 @@ describe("encounter manager panel", () => {
         assert.match(html, /<h3>Last Round<\/h3>/);
         assert.match(html, /Ada Price moves 20 ft\./);
         assert.match(html, /data-action="encounter-manager-start-round"/);
+        assert.match(html, /class="totc-v2-encounter-manager__controls">[\s\S]*?<\/div>\s*<div class="totc-v2-encounter-manager__scroll">/);
         assert.doesNotMatch(html, /turn-order roll/i);
         assert.match(html, /data-action="encounter-manager-set-phase" data-phase="locked"/);
         assert.match(html, /data-action="encounter-manager-resolve-round"/);
