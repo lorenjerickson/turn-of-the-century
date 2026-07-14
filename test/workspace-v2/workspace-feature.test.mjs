@@ -199,6 +199,39 @@ describe("WorkspaceFeature and composition shell", () => {
         assert.equal(context.customData, "feature-data");
     });
 
+    it("keeps the viewed encounter in manager context while active combat references refresh", async () => {
+        const previousCombats = game.combats;
+        const previousCombat = game.combat;
+        const previousCombatUi = ui.combat;
+        const viewedCombat = {
+            id: "combat-viewed",
+            name: "The Docks",
+            round: 2,
+            turn: 0,
+            combatants: { contents: [] }
+        };
+        game.combats = { active: null };
+        game.combat = null;
+        ui.combat = { viewed: viewedCombat };
+
+        try {
+            const app = new WorkspaceRootApp();
+            app.stateStore = {
+                getPolicy: () => ({ enabled: true, debugGovernance: false }),
+                getUserLayout: () => ({ root: {} })
+            };
+
+            const context = await app._prepareContext({});
+
+            assert.equal(context.encounterManagerPanel.active, true);
+            assert.equal(context.encounterManagerPanel.combatId, viewedCombat.id);
+        } finally {
+            game.combats = previousCombats;
+            game.combat = previousCombat;
+            ui.combat = previousCombatUi;
+        }
+    });
+
     it("routes _onRender lifecycle event to registered features and binds them to the element", async () => {
         const app = new WorkspaceRootApp();
         const feature = new ConcreteFeature();

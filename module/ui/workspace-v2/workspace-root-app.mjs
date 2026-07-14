@@ -418,7 +418,7 @@ export class WorkspaceRootApp extends (ApplicationV2Base ?? class {}) {
         const activeWorkspacePanel = this.#getPrimaryActivePanel(activeLayout);
         const viewedScene = this.sceneWorkspaceController.getViewedSceneDocument();
         const scene = canvas?.scene ?? game.scenes?.active ?? viewedScene;
-        const combat = game.combats?.active ?? game.combat ?? null;
+        const combat = this.#getEncounterCombat();
         const controlledTokens = canvas?.tokens?.controlled ?? [];
         const pinnedEncounterSceneId = this.encounterPlanningFeature?.selectedSceneId ?? "";
         const canvasSceneId = String(canvas?.scene?.id ?? canvas?.scene?._id ?? "").trim();
